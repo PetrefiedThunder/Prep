@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MobilityProfile",
+  "type": "object",
+  "properties": {
+    "reach_angle": {"type": "integer"},
+    "max_transfer_height": {"type": "integer"},
+    "fine_motor_control": {"type": "boolean"}
+  },
+  "required": ["reach_angle", "max_transfer_height", "fine_motor_control"]
+}

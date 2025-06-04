@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InputSenseSession",
+  "type": "object",
+  "properties": {
+    "input_mode": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "ui_mode": {"type": "string"},
+    "assistive_routing": {"type": "boolean"}
+  },
+  "required": ["input_mode", "ui_mode"]
+}
