@@ -1,0 +1,28 @@
+openapi: 3.1.0
+info:
+  title: PrepChef Public API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3001/v1
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /auth/login:
+    post:
+      summary: Email/password login
+      responses:
+        '200': { description: JWT issued }
+  /listings:
+    get:
+      summary: Search listings
+      responses:
+        '200': { description: OK }
+  /bookings:
+    post:
+      summary: Create booking
+      responses:
+        '201': { description: Booking created }

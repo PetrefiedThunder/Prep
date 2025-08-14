@@ -1,0 +1,16 @@
+{
+  "name": "prepchef",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "build": "npm -ws run build",
+    "dev": "echo 'Run with -w services/<svc>'",
+    "lint": "npm -ws run lint",
+    "test": "npm -ws run test --if-present",
+    "codegen": "node scripts/codegen-stub.js"
+  }
+}
