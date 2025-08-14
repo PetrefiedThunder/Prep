@@ -13,12 +13,12 @@
   },
   "dependencies": {
     "fastify": "^4.28.1",
-    "fastify-cors": "^8.5.0",
     "fastify-jwt": "^6.7.1",
     "zod": "^3.23.8",
     "undici": "^6.19.8",
     "@prep/common": "1.0.0",
-    "@prep/logger": "1.0.0"
+    "@prep/logger": "1.0.0",
+    "@fastify/cors": "^9.0.0"
   },
   "devDependencies": {
     "tsx": "^4.16.2",

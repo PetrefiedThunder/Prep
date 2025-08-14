@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import cors from 'fastify-cors';
+import cors from '@fastify/cors';
 import { log } from '@prep/logger';
 
 const app = Fastify({ logger: false });
