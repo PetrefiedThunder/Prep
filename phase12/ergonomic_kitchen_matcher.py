@@ -4,7 +4,7 @@ Matches chefs to accessible kitchens based on mobility profile.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 @dataclass
 class MobilityProfile:
