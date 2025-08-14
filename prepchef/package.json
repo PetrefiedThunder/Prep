@@ -11,6 +11,9 @@
     "dev": "echo 'Run with -w services/<svc>'",
     "lint": "npm -ws run lint",
     "test": "npm -ws run test --if-present",
-    "codegen": "node scripts/codegen-stub.js"
+    "codegen": "node scripts/codegen.js"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^6.7.1"
   }
 }
