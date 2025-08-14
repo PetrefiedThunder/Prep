@@ -1,0 +1,56 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import Fastify from 'fastify';
+import auth from '../api/auth';
+
+const validCreds = { username: 'admin', password: 'secret' };
+
+async function buildApp() {
+  const app = Fastify();
+  await app.register(auth);
+  return app;
+}
+
+test('issues tokens for valid credentials', async () => {
+  const app = await buildApp();
+  const res = await app.inject({
+    method: 'POST',
+    url: '/auth/login',
+    payload: validCreds,
+  });
+  assert.equal(res.statusCode, 200);
+  const body = res.json();
+  assert.ok(body.token);
+  assert.ok(body.refreshToken);
+  const decoded = await app.jwt.verify(body.token);
+  assert.equal(decoded.username, 'admin');
+});
+
+test('rejects invalid credentials', async () => {
+  const app = await buildApp();
+  const res = await app.inject({
+    method: 'POST',
+    url: '/auth/login',
+    payload: { username: 'admin', password: 'wrong' },
+  });
+  assert.equal(res.statusCode, 401);
+});
+
+test('refreshes token with valid refresh token', async () => {
+  const app = await buildApp();
+  const loginRes = await app.inject({
+    method: 'POST',
+    url: '/auth/login',
+    payload: validCreds,
+  });
+  const { refreshToken } = loginRes.json();
+  const refreshRes = await app.inject({
+    method: 'POST',
+    url: '/auth/refresh',
+    payload: { refreshToken },
+  });
+  assert.equal(refreshRes.statusCode, 200);
+  const body = refreshRes.json();
+  assert.ok(body.token);
+  assert.ok(body.refreshToken);
+});
