@@ -3,6 +3,11 @@
 Global override system for sensory-sensitive users.
 """
 
+import logging
+
+
+logger = logging.getLogger(__name__)
+
 class QuietMode:
     def __init__(self):
         self.enabled = False
@@ -10,6 +15,6 @@ class QuietMode:
     def toggle(self, state: bool):
         self.enabled = state
         if self.enabled:
-            print("Quiet mode activated. Disabling sounds and animations.")
+            logger.info("Quiet mode activated. Disabling sounds and animations.")
         else:
-            print("Quiet mode deactivated.")
+            logger.info("Quiet mode deactivated.")
