@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from 'fastify-cors';
 import { log } from '@prep/logger';
+import bookings from './api/bookings';
 
 const app = Fastify({ logger: false });
 app.register(cors);
@@ -12,6 +13,5 @@ app.register(async function routes(instance) {
 });
 
 const port = Number(process.env.PORT || 0) || (Math.floor(Math.random()*1000)+3000);
-app.listen({ port }).then(() => log.info('booking-svc listening', port));
-import bookings from './api/bookings';
 app.register(bookings);
+app.listen({ port }).then(() => log.info('booking-svc listening', port));
