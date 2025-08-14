@@ -8,12 +8,16 @@ from typing import Any, Dict
 def util_func(config: Dict[str, Any], key: str, default: Any | None = None) -> Any:
     """Retrieve ``key`` from ``config``.
 
+    The ``key`` may represent a dotted path to nested dictionaries.  If any
+    part of the path is missing, ``default`` is returned when provided,
+    otherwise a :class:`KeyError` is raised.
+
     Parameters
     ----------
     config:
         Configuration dictionary to search.
     key:
-        Key whose value should be returned.
+        Dotted path whose value should be returned.
     default:
         Fallback value if ``key`` is not present.  If ``None`` and the key is
         missing a :class:`KeyError` is raised.
@@ -24,10 +28,13 @@ def util_func(config: Dict[str, Any], key: str, default: Any | None = None) -> A
         The located value or the provided ``default``.
     """
 
-    if key in config:
-        return config[key]
+    current: Any = config
+    for part in key.split("."):
+        if isinstance(current, dict) and part in current:
+            current = current[part]
+        else:
+            if default is not None:
+                return default
+            raise KeyError(f"{key} not found in configuration")
 
-    if default is not None:
-        return default
-
-    raise KeyError(f"{key} not found in configuration")
+    return current

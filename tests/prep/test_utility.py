@@ -23,3 +23,8 @@ def test_util_func_missing_key(tmp_path):
     config = create_config(tmp_path, {})
     with pytest.raises(KeyError):
         utility.util_func(config, "missing")
+
+
+def test_util_func_nested(tmp_path):
+    config = create_config(tmp_path, {"section": {"option": "value"}})
+    assert utility.util_func(config, "section.option") == "value"
