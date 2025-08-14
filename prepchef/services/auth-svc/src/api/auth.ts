@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import fastifyJwt from 'fastify-jwt';
+import fastifyJwt from '@fastify/jwt';
 
 declare module 'fastify' {
   interface FastifyInstance {
