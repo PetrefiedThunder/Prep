@@ -5,6 +5,10 @@ Detects assistive devices and configures UI automatically.
 
 from dataclasses import dataclass
 from typing import List
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class SessionContext:
@@ -22,4 +26,4 @@ def detect_input_devices() -> SessionContext:
 
 def configure_ui(context: SessionContext) -> None:
     """Apply UI configuration based on detected devices."""
-    print(f"Configuring UI for {context.input_mode} in {context.ui_mode} mode")
+    logger.info("Configuring UI for %s in %s mode", context.input_mode, context.ui_mode)

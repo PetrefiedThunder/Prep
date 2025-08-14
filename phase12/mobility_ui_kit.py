@@ -3,6 +3,11 @@
 Provides 2-button, eye-tracking, and joystick-optimized UI helpers.
 """
 
+import logging
+
+
+logger = logging.getLogger(__name__)
+
 class TwoButtonNavigator:
     """Simple navigation model using up/confirm interactions."""
     def __init__(self, items):
@@ -21,4 +26,4 @@ class TwoButtonNavigator:
         return self.items[self.index]
 
     def announce(self):
-        print(f"Focused on {self.items[self.index]}")
+        logger.info("Focused on %s", self.items[self.index])
