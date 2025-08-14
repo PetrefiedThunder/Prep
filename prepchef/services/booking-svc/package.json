@@ -9,7 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint": "echo 'lint stub'",
-    "test": "node -e \"console.log('no tests yet')\""
+    "test": "npx tsx --test src/tests/bookings.test.ts"
   },
   "dependencies": {
     "fastify": "^4.28.1",
