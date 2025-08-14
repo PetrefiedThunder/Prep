@@ -4,17 +4,38 @@ API standard to connect with robotic kitchen tools.
 """
 
 import json
+import logging
 import asyncio
-import websockets
+try:
+    import websockets  # type: ignore
+except ImportError:  # pragma: no cover
+    class _WebsocketStub:
+        connect = None
+
+    websockets = _WebsocketStub()
 
 PROTOCOL_VERSION = "1.0"
 
 async def send_command(uri: str, command: dict) -> dict:
     """Send a command to a robot via WebSocket."""
-    async with websockets.connect(uri) as ws:
-        await ws.send(json.dumps(command))
-        response = await ws.recv()
-        return json.loads(response)
+    if getattr(websockets, "connect", None) is None:  # pragma: no cover - dependency missing
+        raise ImportError("websockets library is required")
+    try:
+        async with websockets.connect(uri) as ws:
+            try:
+                await ws.send(json.dumps(command))
+            except Exception as exc:
+                logging.error("Failed to send command to %s: %s", uri, exc)
+                raise RuntimeError("WebSocket send failed") from exc
+            try:
+                response = await ws.recv()
+            except Exception as exc:
+                logging.error("Failed to receive response from %s: %s", uri, exc)
+                raise RuntimeError("WebSocket receive failed") from exc
+    except OSError as exc:
+        logging.error("Failed to connect to %s: %s", uri, exc)
+        raise ConnectionError("WebSocket connection failed") from exc
+    return json.loads(response)
 
 async def reserve_station(uri: str, station: str) -> None:
     command = {"action": "reserve", "station": station}
