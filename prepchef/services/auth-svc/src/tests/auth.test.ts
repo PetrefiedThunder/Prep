@@ -64,3 +64,28 @@ test('rejects invalid refresh token', async () => {
   });
   assert.equal(res.statusCode, 401);
 });
+
+test('cannot reuse refresh token after rotation', async () => {
+  const app = await buildApp();
+  const loginRes = await app.inject({
+    method: 'POST',
+    url: '/auth/login',
+    payload: validCreds,
+  });
+  const { refreshToken } = loginRes.json();
+
+  // First refresh succeeds and rotates the token
+  await app.inject({
+    method: 'POST',
+    url: '/auth/refresh',
+    payload: { refreshToken },
+  });
+
+  // Second attempt with the same token should fail
+  const secondRes = await app.inject({
+    method: 'POST',
+    url: '/auth/refresh',
+    payload: { refreshToken },
+  });
+  assert.equal(secondRes.statusCode, 401);
+});
