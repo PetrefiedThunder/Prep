@@ -9,7 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint": "echo 'lint stub'",
-    "test": "node -e \"console.log('no tests yet')\""
+    "test": "node --test --loader tsx src/tests/auth.test.ts"
   },
   "dependencies": {
     "fastify": "^4.28.1",
