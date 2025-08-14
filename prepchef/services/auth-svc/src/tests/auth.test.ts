@@ -54,3 +54,13 @@ test('refreshes token with valid refresh token', async () => {
   assert.ok(body.token);
   assert.ok(body.refreshToken);
 });
+
+test('rejects invalid refresh token', async () => {
+  const app = await buildApp();
+  const res = await app.inject({
+    method: 'POST',
+    url: '/auth/refresh',
+    payload: { refreshToken: 'bogus' },
+  });
+  assert.equal(res.statusCode, 401);
+});

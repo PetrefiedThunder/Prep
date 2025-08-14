@@ -1,6 +1,15 @@
 import { FastifyInstance } from 'fastify';
 import fastifyJwt from '@fastify/jwt';
 
+interface LoginBody {
+  username: string;
+  password: string;
+}
+
+interface RefreshBody {
+  refreshToken: string;
+}
+
 const refreshTokens = new Map<string, string>();
 
 export default async function (app: FastifyInstance) {
@@ -8,8 +17,8 @@ export default async function (app: FastifyInstance) {
     secret: process.env.JWT_SECRET || 'supersecret',
   });
 
-  app.post('/auth/login', async (req, reply) => {
-    const { username, password } = req.body as any;
+  app.post<{ Body: LoginBody }>('/auth/login', async (req, reply) => {
+    const { username, password } = req.body;
     if (username !== 'admin' || password !== 'secret') {
       return reply.code(401).send({ error: 'Invalid credentials' });
     }
@@ -22,8 +31,8 @@ export default async function (app: FastifyInstance) {
     return reply.send({ token, refreshToken });
   });
 
-  app.post('/auth/refresh', async (req, reply) => {
-    const { refreshToken } = req.body as any;
+  app.post<{ Body: RefreshBody }>('/auth/refresh', async (req, reply) => {
+    const { refreshToken } = req.body;
     if (!refreshToken || !refreshTokens.has(refreshToken)) {
       return reply.code(401).send({ error: 'Invalid refresh token' });
     }
