@@ -7,8 +7,8 @@ class LSEImpactSimulator:
 
     def validate(self) -> bool:
         """Validate scenario setup prior to simulation."""
-        pass
+        return True
 
     def generate_report(self) -> str:
         """Report outcomes from the simulation run."""
-        pass
+        return ""

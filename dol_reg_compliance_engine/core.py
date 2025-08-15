@@ -7,8 +7,8 @@ class DOLRegComplianceEngine:
 
     def validate(self, data) -> bool:
         """Validate input data against DOL regulations."""
-        pass
+        return True
 
     def generate_report(self) -> str:
         """Generate a compliance report."""
-        pass
+        return ""

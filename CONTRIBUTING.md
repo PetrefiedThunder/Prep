@@ -4,14 +4,35 @@ Thank you for your interest in contributing! This document will guide you throug
 
 ## Getting Started
 
-1. **Clone the Repository**
-2. **Install dependencies:** `npm install`
-3. **Create a `.env` file:** Copy `.env.example` and fill in secrets (never commit actual secrets).
-4. **Run the tests:** `npm test`
+### Python projects
+
+1. **Clone the repository.**
+2. **Install dependencies:** `pip install -e .`
+3. **Run the tests:** `pytest`
+
+### Node projects
+
+1. **Install dependencies:** `npm install`
+2. **Create a `.env` file:** Copy `.env.example` and fill in secrets (never commit actual secrets).
+3. **Run the tests:** `npm test`
+
+## Linting and Type Checks
+
+Shared configurations are provided for both ecosystems. Run these checks locally before submitting changes.
+
+### Python
+
+ - Lint with [Ruff](https://github.com/astral-sh/ruff): `ruff check .`
+- Type-check with [mypy](http://mypy-lang.org/): `mypy .`
+
+### Node
+
+- Lint with [ESLint](https://eslint.org/): `npx eslint .`
+- Type-check with the TypeScript compiler: `npx tsc --noEmit`
 
 ## Code Style
 
-- Use Prettier and ESLint (run `npm run lint` to check).
+- Use Prettier for formatting.
 - Typescript for backend/services, Python for some modules.
 - Write clear commit messages (e.g., `feat(auth): add JWT refresh tokens`).
 

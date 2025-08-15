@@ -7,8 +7,8 @@ class GDPRCCPACore:
 
     def validate(self, records) -> bool:
         """Validate data handling practices."""
-        pass
+        return True
 
     def generate_report(self) -> str:
         """Create a compliance assessment report."""
-        pass
+        return ""

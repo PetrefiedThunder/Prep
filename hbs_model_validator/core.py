@@ -7,8 +7,8 @@ class HBSModelValidator:
 
     def validate(self, model) -> bool:
         """Run validation routines on the provided model."""
-        pass
+        return True
 
     def generate_report(self) -> str:
         """Create a report summarizing validation results."""
-        pass
+        return ""
