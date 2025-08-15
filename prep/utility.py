@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, Dict
 
-
-def util_func(path: Path | str) -> dict:
+def util_func(path: Path | str) -> Dict[str, Any]:
     """Load a JSON configuration file.
 
     Parameters
@@ -26,7 +26,6 @@ def util_func(path: Path | str) -> dict:
     json.JSONDecodeError
         If the file content is not valid JSON.
     """
-
     file_path = Path(path)
     if not file_path.is_file():
         raise FileNotFoundError(f"Config file '{file_path}' not found")

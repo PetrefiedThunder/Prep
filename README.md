@@ -14,7 +14,10 @@ This repository hosts early prototypes for the Prep accessibility platform and r
    python -m venv .venv
    source .venv/bin/activate
    ```
-3. No Python package dependencies are currently pinned. Install any additional libraries as needed for specific modules.  
+3. Install Python dependencies defined in `pyproject.toml`:
+   ```bash
+   pip install -e .
+   ```
 4. For the `prepchef` subproject, ensure Node.js is installed and run:
    ```bash
    npm install

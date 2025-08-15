@@ -12,7 +12,6 @@ def test_util_func_loads_json(tmp_path):
     data = {"a": 1}
     cfg = tmp_path / "config.json"
     cfg.write_text(json.dumps(data))
-
     assert utility.util_func(cfg) == data
 
 
@@ -21,3 +20,11 @@ def test_util_func_missing_file(tmp_path):
     missing = tmp_path / "missing.json"
     with pytest.raises(FileNotFoundError):
         utility.util_func(missing)
+
+
+def test_util_func_invalid_json(tmp_path):
+    """Malformed JSON raises ``JSONDecodeError``."""
+    cfg = tmp_path / "bad.json"
+    cfg.write_text("{bad json}")
+    with pytest.raises(json.JSONDecodeError):
+        utility.util_func(cfg)

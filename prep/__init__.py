@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any, Dict
 
 from .utility import util_func
 
+_CONFIG: Dict[str, Any] | None = None
 
-def initialize(config_path: Path | str | None = None) -> dict:
-    """Initialize the Prep package by loading configuration data.
+def initialize(config_path: Path | str | None = None) -> Dict[str, Any]:
+    """Load configuration data from a JSON file.
 
     Parameters
     ----------
@@ -21,10 +23,21 @@ def initialize(config_path: Path | str | None = None) -> dict:
     Returns
     -------
     dict
-        The loaded configuration mapping.
+        Parsed configuration dictionary.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the given path does not exist.
+    json.JSONDecodeError
+        If the file contents are not valid JSON.
     """
+    global _CONFIG
 
     if config_path is None:
+        if _CONFIG is not None:
+            return _CONFIG
         config_path = os.getenv("PREP_CONFIG", "prep_config.json")
 
-    return util_func(config_path)
+    _CONFIG = util_func(config_path)
+    return _CONFIG
