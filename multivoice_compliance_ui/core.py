@@ -1,13 +1,13 @@
 import json
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 
 
 class MultiVoiceComplianceUI:
     """User interface for multi-language compliance workflows."""
 
     def __init__(self) -> None:
-        self.config: Dict[str, object] = {}
+        self.config: Dict[str, Any] = {}
         self.actions: List[Dict[str, str]] = []
 
     def load_config(self, config_path: str) -> None:
@@ -54,7 +54,7 @@ class MultiVoiceComplianceUI:
             actions recorded and the languages used.
         """
 
-        languages_used = {a.get("language") for a in self.actions}
+        languages_used = {a["language"] for a in self.actions if a.get("language")}
         report = {
             "total_actions": len(self.actions),
             "languages_used": sorted(languages_used),

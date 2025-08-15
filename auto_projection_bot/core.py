@@ -19,14 +19,15 @@ class AutoProjectionBot:
         if self.config is None:
             raise ValueError("Configuration not loaded")
 
+        config = self.config
         required = ["revenue", "expenses"]
         for key in required:
-            if key not in self.config:
+            if key not in config:
                 raise ValueError(f"Missing required field: {key}")
-            if not isinstance(self.config[key], (int, float)):
+            if not isinstance(config[key], (int, float)):
                 raise ValueError(f"Field {key} must be numeric")
 
-        growth = self.config.get("growth_rate", 0)
+        growth = config.get("growth_rate", 0)
         if growth is not None and not isinstance(growth, (int, float)):
             raise ValueError("growth_rate must be numeric")
 
@@ -36,9 +37,10 @@ class AutoProjectionBot:
         """Compile a projection summary for review."""
         self.validate()
 
+        assert self.config is not None
         revenue = float(self.config["revenue"])  # type: ignore[index]
         expenses = float(self.config["expenses"])  # type: ignore[index]
-        growth_rate = float(self.config.get("growth_rate", 0))  # type: ignore[arg-type]
+        growth_rate = float(self.config.get("growth_rate", 0))
 
         profit = revenue - expenses
         projected_revenue = revenue * (1 + growth_rate)
