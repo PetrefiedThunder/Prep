@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List
 
 
@@ -43,11 +43,13 @@ class GDPRCCPACore:
         if not self.config:
             raise ValueError("Configuration not loaded")
 
+        records_list = list(records)
+
         allowed_regions = set(self.config["allowed_regions"])
         retention = timedelta(days=self.config["data_retention_days"])
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
-        for record in records:
+        for record in records_list:
             if not record.get("consent"):
                 self.is_valid = False
                 return False
@@ -59,7 +61,9 @@ class GDPRCCPACore:
 
             last_updated_str = record.get("last_updated")
             try:
-                last_updated = datetime.fromisoformat(last_updated_str)
+                last_updated = datetime.fromisoformat(last_updated_str).astimezone(
+                    timezone.utc
+                )
             except Exception:  # pragma: no cover - defensive
                 self.is_valid = False
                 return False
@@ -68,7 +72,7 @@ class GDPRCCPACore:
                 self.is_valid = False
                 return False
 
-        self.records = list(records)
+        self.records = records_list
         self.is_valid = True
         return True
 
