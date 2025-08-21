@@ -434,11 +434,11 @@ CREATE UNIQUE INDEX idx_listing_stats_id ON listing_stats(listing_id);
 
 -- Refresh materialized view function
 CREATE OR REPLACE FUNCTION refresh_listing_stats()
-RETURNS void AS $
+RETURNS void AS $$
 BEGIN
     REFRESH MATERIALIZED VIEW CONCURRENTLY listing_stats;
 END;
-$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 -- Grant permissions (adjust based on your users)
 GRANT USAGE ON SCHEMA public TO app_user;
