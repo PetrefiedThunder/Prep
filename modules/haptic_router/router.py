@@ -1,3 +1,7 @@
+import logging
+from typing import Optional
+
+
 class HapticRouter:
     PATTERNS = {
         "start": [0.2],
@@ -5,9 +9,12 @@ class HapticRouter:
         "alert": [0.5],
     }
 
+    def __init__(self, logger: Optional[logging.Logger] = None) -> None:
+        self.logger = logger or logging.getLogger(__name__)
+
     def route(self, mode: str):
         pattern = self.PATTERNS.get(mode)
         if not pattern:
             pattern = []
-        print(f"Haptic pattern for {mode}: {pattern}")
+        self.logger.info("Haptic pattern for %s: %s", mode, pattern)
         return pattern
