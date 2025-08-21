@@ -5,7 +5,6 @@ API standard to connect with robotic kitchen tools.
 
 import json
 import logging
-import asyncio
 try:
     import websockets  # type: ignore
 except ImportError:  # pragma: no cover
