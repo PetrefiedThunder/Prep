@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 class PrepSyncAgent:
@@ -13,7 +13,7 @@ class PrepSyncAgent:
             "kitchen_id": self.kitchen_id,
             "event": event,
             "value": value,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         json_data = json.dumps(data)
         self.logger.info(json_data)
