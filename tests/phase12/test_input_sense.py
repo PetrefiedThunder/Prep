@@ -1,3 +1,5 @@
+import logging
+
 from phase12.input_sense import SessionContext, detect_input_devices, configure_ui
 
 
@@ -7,8 +9,8 @@ def test_detect_input_devices():
     assert ctx.ui_mode == "gesture-free"
 
 
-def test_configure_ui(capsys):
+def test_configure_ui(caplog):
     ctx = SessionContext(input_mode=["voice"], ui_mode="default")
-    configure_ui(ctx)
-    captured = capsys.readouterr()
-    assert "Configuring UI for ['voice'] in default mode" in captured.out
+    with caplog.at_level(logging.INFO):
+        configure_ui(ctx)
+    assert "Configuring UI for ['voice'] in default mode" in caplog.text
