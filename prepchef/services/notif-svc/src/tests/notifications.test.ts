@@ -53,5 +53,6 @@ test('send notification', async () => {
   assert.equal(body.status, 'queued');
   assert.equal(sentNotifications.length, 1);
   assert.equal(sentNotifications[0].recipient_id, 'user-123');
+  await app.close();
 });
 

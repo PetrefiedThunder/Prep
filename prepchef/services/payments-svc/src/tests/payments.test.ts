@@ -47,6 +47,7 @@ test('create payment intent', async () => {
   assert.equal(body.amount, 10000);
   assert.equal(body.currency, 'usd');
   assert.ok(body.client_secret);
+  await app.close();
 });
 
 test('reject invalid payment amount', async () => {
@@ -72,8 +73,9 @@ test('reject invalid payment amount', async () => {
       amount_cents: -100
     }
   });
-  
+
   assert.equal(res.statusCode, 400);
   assert.ok(res.json().error.includes('Invalid'));
+  await app.close();
 });
 

@@ -11,10 +11,11 @@ test('availability service health check', async () => {
     method: 'GET',
     url: '/healthz'
   });
-  
+
   assert.equal(res.statusCode, 200);
   assert.equal(res.json().ok, true);
   assert.equal(res.json().svc, 'availability-svc');
+  await app.close();
 });
 
 test('check availability for valid time slot', async () => {
@@ -45,8 +46,9 @@ test('check availability for valid time slot', async () => {
       ends_at: '2024-03-01T14:00:00Z'
     }
   });
-  
+
   assert.equal(res.statusCode, 204);
+  await app.close();
 });
 
 test('check availability for conflicting time slot', async () => {
@@ -81,10 +83,11 @@ test('check availability for conflicting time slot', async () => {
       ends_at: '2024-03-01T14:00:00Z'
     }
   });
-  
+
   assert.equal(res.statusCode, 409);
   const body = res.json();
   assert.ok(body.conflicts);
   assert.equal(body.conflicts.length, 1);
+  await app.close();
 });
 
