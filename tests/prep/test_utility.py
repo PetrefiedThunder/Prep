@@ -19,6 +19,11 @@ def test_util_func_uses_default(tmp_path):
     assert utility.util_func(config, "missing", default="fallback") == "fallback"
 
 
+def test_util_func_accepts_none_default(tmp_path):
+    config = create_config(tmp_path, {})
+    assert utility.util_func(config, "missing", default=None) is None
+
+
 def test_util_func_missing_key(tmp_path):
     config = create_config(tmp_path, {})
     with pytest.raises(KeyError):
