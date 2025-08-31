@@ -5,7 +5,7 @@ from modules.kitchen_safety_daemon.daemon import SafetyDaemon
 
 
 def test_monitor_iterations(caplog):
-    async def fast_sleep(_: float) -> None:
+    def fast_sleep(_: float) -> None:
         pass
 
     async def run() -> None:
@@ -19,8 +19,8 @@ def test_monitor_iterations(caplog):
 
 
 def test_monitor_stop_flag(caplog):
-    async def fast_sleep(_: float) -> None:
-        await asyncio.sleep(0)
+    def fast_sleep(_: float) -> None:
+        pass
 
     async def run() -> None:
         logger = logging.getLogger("test.daemon.stop")
