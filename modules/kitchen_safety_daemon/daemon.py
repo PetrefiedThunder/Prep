@@ -1,7 +1,8 @@
 import asyncio
+import inspect
 import logging
 import time
-from typing import Callable, Optional
+from typing import Awaitable, Callable, Optional, Union
 
 
 class SafetyDaemon:
@@ -9,7 +10,7 @@ class SafetyDaemon:
         self,
         check_interval: int = 60,
         logger: Optional[logging.Logger] = None,
-        sleep_fn: Callable[[float], None] = time.sleep,
+        sleep_fn: Callable[[float], Union[Awaitable[None], None]] = time.sleep,
     ):
         self.check_interval = check_interval
         self.logger = logger or logging.getLogger(__name__)
@@ -25,10 +26,7 @@ class SafetyDaemon:
             # Placeholder for sensor checks
             self.logger.info("Performing safety check...")
 
-            # Run the sleep function in a thread so the event loop is not blocked
-            sleep_task = asyncio.create_task(
-                asyncio.to_thread(self.sleep_fn, self.check_interval)
-            )
+            sleep_task = asyncio.create_task(self._sleep_once())
             stop_task = asyncio.create_task(self._stop.wait())
 
             done, pending = await asyncio.wait(
@@ -42,3 +40,12 @@ class SafetyDaemon:
             count += 1
             if iterations is not None and count >= iterations:
                 break
+
+    async def _sleep_once(self) -> None:
+        if inspect.iscoroutinefunction(self.sleep_fn):
+            await self.sleep_fn(self.check_interval)
+            return
+
+        result = await asyncio.to_thread(self.sleep_fn, self.check_interval)
+        if inspect.isawaitable(result):
+            await result
