@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List
 
@@ -42,8 +42,18 @@ class ComplianceCoordinator:
                 self.logger.info("Completed %s compliance check: %s", name, report.summary)
             except Exception as exc:  # pragma: no cover - defensive
                 self.logger.error("Error running %s compliance check: %s", name, exc)
+
+                engine_version = getattr(engine, "engine_version", "unknown")
+                raw_rule_versions = getattr(engine, "rule_versions", None)
+                if isinstance(raw_rule_versions, dict):
+                    rule_versions = dict(raw_rule_versions)
+                else:
+                    rule_versions = {}
+
                 results[name] = ComplianceReport(
                     engine_name=engine.name,
+                    engine_version=engine_version,
+                    timestamp=datetime.now(timezone.utc),
                     engine_version=getattr(engine, "engine_version", "unknown"),
                     timestamp=datetime.now(),
                     total_rules_checked=0,
@@ -52,6 +62,7 @@ class ComplianceCoordinator:
                     summary=f"Error during compliance check: {exc}",
                     recommendations=["Review system logs for detailed error information"],
                     overall_compliance_score=0.0,
+                    rule_versions=rule_versions,
                     rule_versions=dict(getattr(engine, "rule_versions", {})),
                 )
 
