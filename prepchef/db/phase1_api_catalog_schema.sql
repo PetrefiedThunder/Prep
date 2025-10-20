@@ -7,6 +7,17 @@ create extension if not exists "pgcrypto";
 create schema if not exists prepchef_phase1;
 set search_path to prepchef_phase1, public;
 
+-- Allow Supabase client roles to access the schema objects in addition to RLS policies.
+grant usage on schema prepchef_phase1 to authenticated, anon, service_role;
+grant select, insert, update, delete on all tables in schema prepchef_phase1 to authenticated, anon, service_role;
+grant usage, select on all sequences in schema prepchef_phase1 to authenticated, anon, service_role;
+
+alter default privileges in schema prepchef_phase1
+  grant select, insert, update, delete on tables to authenticated, anon, service_role;
+
+alter default privileges in schema prepchef_phase1
+  grant usage, select on sequences to authenticated, anon, service_role;
+
 -- Utility function to maintain updated_at timestamps.
 create or replace function prepchef_phase1.touch_updated_at()
 returns trigger
