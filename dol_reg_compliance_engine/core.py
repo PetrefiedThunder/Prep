@@ -64,6 +64,23 @@ class DOLRegComplianceEngine(IterableValidationMixin, BaseConfigSchema):
             raise ValueError("Validation has not been run")
 
         summary = (
+            if wage is None or float(wage) < min_wage:
+                self.is_valid = False
+                return False
+            if hours is None or int(hours) > max_hours:
+                self.is_valid = False
+                return False
+
+        self.records = data_list
+        self.is_valid = True
+        return True
+
+    def generate_report(self) -> str:
+        """Generate a compliance report."""
+        if not self.records:
+            raise ValueError("No records validated")
+
+        return (
             f"Records checked: {len(self.records)}, "
             f"Compliant: {self.is_valid}"
         )
