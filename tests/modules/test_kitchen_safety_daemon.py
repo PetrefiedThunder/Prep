@@ -1,11 +1,12 @@
 import asyncio
 import logging
+from typing import List
 
 from modules.kitchen_safety_daemon.daemon import SafetyDaemon
 
 
 def test_monitor_iterations(caplog):
-    async def fast_sleep(_: float) -> None:
+    def fast_sleep(_: float) -> None:
         pass
 
     async def run() -> None:
@@ -19,8 +20,8 @@ def test_monitor_iterations(caplog):
 
 
 def test_monitor_stop_flag(caplog):
-    async def fast_sleep(_: float) -> None:
-        await asyncio.sleep(0)
+    def fast_sleep(_: float) -> None:
+        pass
 
     async def run() -> None:
         logger = logging.getLogger("test.daemon.stop")
@@ -33,4 +34,46 @@ def test_monitor_stop_flag(caplog):
 
     asyncio.run(run())
     assert "Performing safety check..." in caplog.text
+
+
+def test_event_handler_invoked():
+    def fast_sleep(_: float) -> None:
+        pass
+
+    events: List[tuple[str, str]] = []
+
+    def handler(event: str, message: str) -> None:
+        events.append((event, message))
+
+    async def run() -> None:
+        daemon = SafetyDaemon(
+            check_interval=0,
+            sleep_fn=fast_sleep,
+            event_handler=handler,
+        )
+        await daemon.monitor(iterations=1)
+
+    asyncio.run(run())
+    assert events == [("safety_check", "Performing safety check...")]
+
+
+def test_async_event_handler_invoked():
+    def fast_sleep(_: float) -> None:
+        pass
+
+    events: List[str] = []
+
+    async def handler(event: str, message: str) -> None:
+        events.append(f"{event}:{message}")
+
+    async def run() -> None:
+        daemon = SafetyDaemon(
+            check_interval=0,
+            sleep_fn=fast_sleep,
+            event_handler=handler,
+        )
+        await daemon.monitor(iterations=1)
+
+    asyncio.run(run())
+    assert events == ["safety_check:Performing safety check..."]
 

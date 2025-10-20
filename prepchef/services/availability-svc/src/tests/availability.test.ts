@@ -1,12 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import Fastify from 'fastify';
+import { createApp } from '../index';
 
 test('availability service health check', async () => {
-  const app = Fastify();
-  
-  app.get('/healthz', async () => ({ ok: true, svc: 'availability-svc' }));
-  
+  const app = await createApp();
   const res = await app.inject({
     method: 'GET',
     url: '/healthz'
@@ -19,24 +16,7 @@ test('availability service health check', async () => {
 });
 
 test('check availability for valid time slot', async () => {
-  const app = Fastify();
-  
-  app.post('/check', async (req, reply) => {
-    const { listing_id, starts_at, ends_at } = req.body as any;
-    
-    // Mock availability check
-    const available = true; // Would check database in real implementation
-    
-    if (available) {
-      return reply.code(204).send();
-    } else {
-      return reply.code(409).send({ 
-        error: 'Time slot not available',
-        conflicts: []
-      });
-    }
-  });
-  
+  const app = await createApp();
   const res = await app.inject({
     method: 'POST',
     url: '/check',
@@ -52,28 +32,7 @@ test('check availability for valid time slot', async () => {
 });
 
 test('check availability for conflicting time slot', async () => {
-  const app = Fastify();
-  
-  app.post('/check', async (req, reply) => {
-    const { listing_id } = req.body as any;
-    
-    // Mock conflict check
-    if (listing_id === 'conflict-test') {
-      return reply.code(409).send({ 
-        error: 'Time slot not available',
-        conflicts: [
-          {
-            booking_id: 'existing-booking',
-            start_time: '2024-03-01T09:00:00Z',
-            end_time: '2024-03-01T12:00:00Z'
-          }
-        ]
-      });
-    }
-    
-    return reply.code(204).send();
-  });
-  
+  const app = await createApp();
   const res = await app.inject({
     method: 'POST',
     url: '/check',

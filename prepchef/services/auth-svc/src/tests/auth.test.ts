@@ -1,18 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import Fastify from 'fastify';
-import auth from '../api/auth';
+import { createApp } from '../index';
 
 const validCreds = { username: 'admin', password: 'secret' };
 
-async function buildApp() {
-  const app = Fastify();
-  await app.register(auth);
-  return app;
-}
-
 test('issues tokens for valid credentials', async () => {
-  const app = await buildApp();
+  const app = await createApp();
   const res = await app.inject({
     method: 'POST',
     url: '/auth/login',
@@ -28,7 +21,7 @@ test('issues tokens for valid credentials', async () => {
 });
 
 test('rejects invalid credentials', async () => {
-  const app = await buildApp();
+  const app = await createApp();
   const res = await app.inject({
     method: 'POST',
     url: '/auth/login',
@@ -39,7 +32,7 @@ test('rejects invalid credentials', async () => {
 });
 
 test('refreshes token with valid refresh token', async () => {
-  const app = await buildApp();
+  const app = await createApp();
   const loginRes = await app.inject({
     method: 'POST',
     url: '/auth/login',
@@ -59,7 +52,7 @@ test('refreshes token with valid refresh token', async () => {
 });
 
 test('rejects invalid refresh token', async () => {
-  const app = await buildApp();
+  const app = await createApp();
   const res = await app.inject({
     method: 'POST',
     url: '/auth/refresh',
@@ -70,7 +63,7 @@ test('rejects invalid refresh token', async () => {
 });
 
 test('cannot reuse refresh token after rotation', async () => {
-  const app = await buildApp();
+  const app = await createApp();
   const loginRes = await app.inject({
     method: 'POST',
     url: '/auth/login',
