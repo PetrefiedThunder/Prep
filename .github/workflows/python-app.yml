@@ -37,3 +37,27 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install Playwright dependencies
+        run: |
+          cd prepchef/tests/e2e
+          npm install
+          npx playwright install --with-deps
+      - name: Start services
+        run: docker-compose -f prepchef/tests/e2e/docker-compose.yml up -d --build
+      - name: Run Playwright tests
+        run: |
+          cd prepchef/tests/e2e
+          npm test
+      - name: Stop services
+        if: always()
+        run: docker-compose -f prepchef/tests/e2e/docker-compose.yml down

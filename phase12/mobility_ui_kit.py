@@ -12,6 +12,7 @@ class TwoButtonNavigator:
     """Simple navigation model using up/confirm interactions."""
     def __init__(self, items):
         if not items:
+            raise ValueError("items cannot be empty")
             raise ValueError("items must be non-empty")
         self.items = items
         self.index = 0

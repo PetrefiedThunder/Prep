@@ -5,7 +5,10 @@ from __future__ import annotations
 from typing import Any, Dict
 
 
-def util_func(config: Dict[str, Any], key: str, default: Any | None = None) -> Any:
+_NO_DEFAULT = object()
+
+
+def util_func(config: Dict[str, Any], key: str, default: Any = _NO_DEFAULT) -> Any:
     """Retrieve ``key`` from ``config``.
 
     The ``key`` may represent a dotted path to nested dictionaries.  If any
@@ -19,8 +22,8 @@ def util_func(config: Dict[str, Any], key: str, default: Any | None = None) -> A
     key:
         Dotted path whose value should be returned.
     default:
-        Fallback value if ``key`` is not present.  If ``None`` and the key is
-        missing a :class:`KeyError` is raised.
+        Fallback value if ``key`` is not present.  If not provided and the key
+        is missing a :class:`KeyError` is raised.
 
     Returns
     -------
@@ -33,7 +36,7 @@ def util_func(config: Dict[str, Any], key: str, default: Any | None = None) -> A
         if isinstance(current, dict) and part in current:
             current = current[part]
         else:
-            if default is not None:
+            if default is not _NO_DEFAULT:
                 return default
             raise KeyError(f"{key} not found in configuration")
 
