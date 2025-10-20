@@ -1,45 +1,48 @@
-import json
-from pathlib import Path
+from __future__ import annotations
+
+from typing import Any, List
+
+from prep.utility.config_schema import BaseConfigSchema
 
 
-class AutoProjectionBot:
+class AutoProjectionBot(BaseConfigSchema):
     """Generates automated financial projections."""
 
-    def __init__(self) -> None:
-        self.config: dict | None = None
+    def __init__(self, *, logger=None) -> None:
+        super().__init__(logger=logger)
 
-    def load_config(self, config_path: str) -> None:
-        """Load projection parameters from configuration."""
-        path = Path(config_path)
-        with path.open("r", encoding="utf-8") as f:
-            self.config = json.load(f)
+    def load_config(self, config_path: str) -> None:  # type: ignore[override]
+        super().load_config(config_path)
 
-    def validate(self) -> bool:
-        """Validate projection assumptions and inputs."""
-        if self.config is None:
-            raise ValueError("Configuration not loaded")
+    def _run_validation(self) -> List[str]:  # type: ignore[override]
+        errors: List[str] = []
+        config: dict[str, Any] = self.config
 
-        config = self.config
-        required = ["revenue", "expenses"]
-        for key in required:
-            if key not in config:
-                raise ValueError(f"Missing required field: {key}")
-            if not isinstance(config[key], (int, float)):
-                raise ValueError(f"Field {key} must be numeric")
+        for field in ("revenue", "expenses"):
+            if field not in config:
+                errors.append(f"Missing required field: {field}")
+            elif not isinstance(config[field], (int, float)):
+                errors.append(f"Field {field} must be numeric")
 
         growth = config.get("growth_rate", 0)
         if growth is not None and not isinstance(growth, (int, float)):
-            raise ValueError("growth_rate must be numeric")
+            errors.append("growth_rate must be numeric")
 
-        return True
+        return errors
 
-    def generate_report(self) -> str:
-        """Compile a projection summary for review."""
-        self.validate()
+    def validate(self) -> bool:  # type: ignore[override]
+        return super().validate()
 
-        assert self.config is not None
-        revenue = float(self.config["revenue"])  # type: ignore[index]
-        expenses = float(self.config["expenses"])  # type: ignore[index]
+    def generate_report(self) -> str:  # type: ignore[override]
+        self.ensure_config_loaded()
+        if not self._validated:
+            self.validate()
+
+        if self.validation_errors:
+            return super().generate_report()
+
+        revenue = float(self.config["revenue"])
+        expenses = float(self.config["expenses"])
         growth_rate = float(self.config.get("growth_rate", 0))
 
         profit = revenue - expenses

@@ -15,6 +15,8 @@ class QuietMode:
     def toggle(self, state: bool):
         self.enabled = state
         if self.enabled:
-            logger.info("Quiet mode activated. Disabling sounds and animations.")
+            message = "Quiet mode activated. Disabling sounds and animations."
         else:
-            logger.info("Quiet mode deactivated.")
+            message = "Quiet mode deactivated."
+        logger.info(message)
+        print(message)

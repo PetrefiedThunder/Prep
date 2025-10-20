@@ -14,6 +14,10 @@ import os
 from pathlib import Path
 from typing import Any, Dict
 
+from . import utility
+
+__all__ = ["initialize", "utility"]
+
 _CONFIG: Dict[str, Any] | None = None
 
 
