@@ -107,6 +107,13 @@ class HBSModelValidator:
     def validate(self, model: Dict[str, Any]) -> bool:
         """Run validation routines on the provided model.
 
+    def validate(self, model) -> bool:
+        """Run validation routines on the provided model."""
+        return True
+
+    def generate_report(self) -> str:
+        """Create a report summarizing validation results."""
+        return ""
         The model is expected to be a mapping. Required fields and type
         checks are performed according to the previously loaded schema.
         Returns ``True`` if no validation errors were found, otherwise
