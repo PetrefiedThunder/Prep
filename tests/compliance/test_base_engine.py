@@ -62,6 +62,7 @@ def test_generate_report_with_valid_data() -> None:
     assert report.engine_name == "TestComplianceEngine"
     assert report.total_rules_checked == 1
     assert report.synthetic_violation_count == 0
+    assert report.synthetic_failures == []
     assert report.overall_compliance_score == 1.0
     assert not report.violations_found
     assert report.passed_rules == ["test_rule_1"]
@@ -76,6 +77,7 @@ def test_generate_report_with_violation() -> None:
     assert len(report.violations_found) == 1
     assert report.overall_compliance_score == 0.0
     assert report.synthetic_violation_count == 0
+    assert report.synthetic_failures == []
     assert report.passed_rules == []
 
 
@@ -98,5 +100,6 @@ def test_generate_report_with_unknown_violation_affects_score() -> None:
 
     assert report.total_rules_checked == 2
     assert report.synthetic_violation_count == 1
+    assert report.synthetic_failures == ["synthetic_error"]
     assert pytest.approx(report.overall_compliance_score, rel=1e-6) == 0.5
     assert report.passed_rules == ["test_rule_1"]

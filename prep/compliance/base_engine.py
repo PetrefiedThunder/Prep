@@ -44,6 +44,7 @@ class ComplianceReport:
     timestamp: datetime
     total_rules_checked: int
     synthetic_violation_count: int
+    synthetic_failures: List[str]
     violations_found: List[ComplianceViolation]
     passed_rules: List[str]
     summary: str
@@ -88,12 +89,18 @@ class ComplianceEngine(ABC):
             1 for violation in violations if violation.rule_id not in rule_ids
         )
 
-        total_evaluated = len(self.rules) + unknown_violation_count
-        if total_evaluated == 0:
+        total_rules_checked = len(passed_rules) + len(violations)
+        if total_rules_checked == 0:
             score = 1.0
         else:
-            score = len(passed_rules) / total_evaluated
+            score = len(passed_rules) / total_rules_checked
             score = max(0.0, min(1.0, score))
+
+        synthetic_failures = [
+            violation.rule_id
+            for violation in violations
+            if violation.rule_id not in rule_ids
+        ]
 
         critical_violations = [v for v in violations if v.severity == "critical"]
         high_violations = [v for v in violations if v.severity == "high"]
@@ -119,8 +126,9 @@ class ComplianceEngine(ABC):
         return ComplianceReport(
             engine_name=self.name,
             timestamp=datetime.now(timezone.utc),
-            total_rules_checked=total_evaluated,
+            total_rules_checked=total_rules_checked,
             synthetic_violation_count=unknown_violation_count,
+            synthetic_failures=synthetic_failures,
             violations_found=violations,
             passed_rules=passed_rules,
             summary=summary,

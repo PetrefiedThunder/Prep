@@ -246,6 +246,7 @@ class LondonStockExchangeSimulator(ComplianceEngine):
             timestamp=base_report.timestamp,
             total_rules_checked=base_report.total_rules_checked,
             synthetic_violation_count=base_report.synthetic_violation_count,
+            synthetic_failures=base_report.synthetic_failures,
             violations_found=base_report.violations_found,
             passed_rules=base_report.passed_rules,
             summary=base_report.summary + " (Market impact analysis completed)",
