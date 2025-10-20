@@ -15,6 +15,9 @@ class DataValidator:
         errors: List[str] = []
 
         license_info = data.get("license_info", {}) or {}
+        if license_info and not isinstance(license_info, dict):
+            errors.append("License info must be an object")
+            license_info = {}
         if license_info:
             if not license_info.get("license_number"):
                 errors.append("License number is required")
@@ -22,6 +25,9 @@ class DataValidator:
                 errors.append("License status is required")
 
         inspection_history = data.get("inspection_history", []) or []
+        if inspection_history and not isinstance(inspection_history, list):
+            errors.append("Inspection history must be a list")
+            inspection_history = []
         for index, inspection in enumerate(inspection_history, start=1):
             inspection_date = inspection.get("inspection_date")
             if not inspection_date:
