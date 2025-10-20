@@ -36,10 +36,12 @@ class DOLRegComplianceEngine:
         if not self.config:
             raise ValueError("Configuration not loaded")
 
+        data_list = list(data)
+
         min_wage = float(self.config["minimum_wage"])
         max_hours = int(self.config["max_hours_per_week"])
 
-        for record in data:
+        for record in data_list:
             wage = record.get("wage")
             hours = record.get("hours_worked")
             if wage is None or float(wage) < min_wage:
@@ -49,7 +51,7 @@ class DOLRegComplianceEngine:
                 self.is_valid = False
                 return False
 
-        self.records = list(data)
+        self.records = data_list
         self.is_valid = True
         return True
 

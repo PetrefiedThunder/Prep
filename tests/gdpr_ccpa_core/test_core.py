@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -21,7 +22,7 @@ def test_validate_success(tmp_path):
         {
             "user_id": 1,
             "region": "EU",
-            "last_updated": datetime.utcnow().isoformat(),
+            "last_updated": datetime.now(timezone.utc).isoformat(),
             "consent": True,
         }
     ]
@@ -38,7 +39,7 @@ def test_validate_failure_consent(tmp_path):
         {
             "user_id": 1,
             "region": "EU",
-            "last_updated": datetime.utcnow().isoformat(),
+            "last_updated": datetime.now(timezone.utc).isoformat(),
             "consent": False,
         }
     ]
@@ -52,4 +53,19 @@ def test_load_config_invalid(tmp_path):
     core = GDPRCCPACore()
     with pytest.raises(ValueError):
         core.load_config(str(config_path))
+
+
+def test_validate_generator_with_timezone(tmp_path):
+    config_path = make_config(tmp_path)
+    core = GDPRCCPACore()
+    core.load_config(str(config_path))
+    record = {
+        "user_id": 1,
+        "region": "EU",
+        "last_updated": datetime.now(timezone.utc).isoformat(),
+        "consent": True,
+    }
+    records = (r for r in [record])
+    assert core.validate(records) is True
+    assert core.records == [record]
 
