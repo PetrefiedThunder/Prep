@@ -185,6 +185,9 @@ def main() -> None:
                 LOGGER.error("Data source %s missing domain metadata", dataset_id)
                 continue
 
+            # With the Supabase client defaulting to the ``prepchef`` schema we need to
+            # explicitly reference ``public.uuid_generate_v4`` so the RPC resolves to the
+            # uuid-ossp extension function instead of looking under ``prepchef``.
             ingestion_run_id = supabase.rpc("public.uuid_generate_v4", {}).execute().data
             inserted = 0
             normalized = 0
