@@ -245,9 +245,12 @@ class LondonStockExchangeSimulator(ComplianceEngine):
             engine_name=base_report.engine_name,
             timestamp=base_report.timestamp,
             total_rules_checked=base_report.total_rules_checked,
+            synthetic_violation_count=base_report.synthetic_violation_count,
             violations_found=base_report.violations_found,
             passed_rules=base_report.passed_rules,
             summary=base_report.summary + " (Market impact analysis completed)",
             recommendations=enhanced_recommendations,
             overall_compliance_score=base_report.overall_compliance_score,
+            engine_version=base_report.engine_version,
+            rule_versions=base_report.rule_versions,
         )

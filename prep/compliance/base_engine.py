@@ -43,6 +43,7 @@ class ComplianceReport:
     engine_name: str
     timestamp: datetime
     total_rules_checked: int
+    synthetic_violation_count: int
     violations_found: List[ComplianceViolation]
     passed_rules: List[str]
     summary: str
@@ -119,6 +120,7 @@ class ComplianceEngine(ABC):
             engine_name=self.name,
             timestamp=datetime.now(timezone.utc),
             total_rules_checked=total_evaluated,
+            synthetic_violation_count=unknown_violation_count,
             violations_found=violations,
             passed_rules=passed_rules,
             summary=summary,

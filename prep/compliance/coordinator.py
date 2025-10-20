@@ -46,11 +46,14 @@ class ComplianceCoordinator:
                     engine_name=engine.name,
                     timestamp=datetime.now(),
                     total_rules_checked=0,
+                    synthetic_violation_count=0,
                     violations_found=[],
                     passed_rules=[],
                     summary=f"Error during compliance check: {exc}",
                     recommendations=["Review system logs for detailed error information"],
                     overall_compliance_score=0.0,
+                    engine_version=getattr(engine, "engine_version", "unknown"),
+                    rule_versions={},
                 )
 
         return results
