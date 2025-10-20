@@ -47,6 +47,7 @@ class ComplianceCoordinator:
                     timestamp=datetime.now(),
                     total_rules_checked=0,
                     synthetic_violation_count=0,
+                    synthetic_failures=[],
                     violations_found=[],
                     passed_rules=[],
                     summary=f"Error during compliance check: {exc}",
