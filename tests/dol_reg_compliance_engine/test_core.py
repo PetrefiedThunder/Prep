@@ -22,6 +22,21 @@ def test_validate_success(tmp_path):
     assert "Records checked: 1" in report
 
 
+def test_validate_generator_records_persist(tmp_path):
+    config_path = make_config(tmp_path)
+    engine = DOLRegComplianceEngine()
+    engine.load_config(str(config_path))
+
+    def record_gen():
+        yield {"wage": 16.0, "hours_worked": 35}
+        yield {"wage": 17.0, "hours_worked": 30}
+
+    assert engine.validate(record_gen()) is True
+    report = engine.generate_report()
+    assert "Records checked: 2" in report
+    assert len(engine.records) == 2
+
+
 def test_validate_failure_low_wage(tmp_path):
     config_path = make_config(tmp_path)
     engine = DOLRegComplianceEngine()
