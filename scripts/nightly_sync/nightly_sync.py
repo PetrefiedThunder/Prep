@@ -185,7 +185,7 @@ def main() -> None:
                 LOGGER.error("Data source %s missing domain metadata", dataset_id)
                 continue
 
-            ingestion_run_id = supabase.rpc("uuid_generate_v4", {}).execute().data
+            ingestion_run_id = supabase.rpc("public.uuid_generate_v4", {}).execute().data
             inserted = 0
             normalized = 0
             status = "running"
