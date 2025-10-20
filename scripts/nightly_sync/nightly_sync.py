@@ -74,15 +74,22 @@ def fetch_socrata_dataset(
     return df
 
 
-def get_supabase_client(url: str, key: str) -> Client:
-    if ClientOptions is not None:
-        return create_client(url, key, options=ClientOptions(schema="prepchef"))
+def _configure_postgrest_schema(client: Client, schema: str) -> None:
+    """Ensure PostgREST queries run against the expected schema."""
 
-    client = create_client(url, key)
-    # Older supabase-py versions require configuring the PostgREST schema manually.
     postgrest = getattr(client, "postgrest", None)
     if postgrest and hasattr(postgrest, "schema"):
-        client.postgrest = postgrest.schema("prepchef")  # type: ignore[assignment]
+        client.postgrest = postgrest.schema(schema)  # type: ignore[assignment]
+
+
+def get_supabase_client(url: str, key: str) -> Client:
+    if ClientOptions is not None:
+        client = create_client(url, key, options=ClientOptions(schema="prepchef"))
+    else:
+        client = create_client(url, key)
+
+    # Explicitly scope PostgREST queries to the prepchef schema for all client versions.
+    _configure_postgrest_schema(client, "prepchef")
     return client
 
 

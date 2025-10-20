@@ -230,7 +230,10 @@ alter table api_clients enable row level security;
 create policy api_clients_select_policy on api_clients
 for select using (
     auth.role() = 'service_role'
-    or (auth.role() = 'authenticated' and auth.uid() = id)
+    or (
+        auth.role() = 'authenticated'
+        and auth.uid() = id
+    )
 );
 
 create policy api_clients_modify_policy on api_clients
@@ -238,6 +241,7 @@ for all using (auth.role() = 'service_role') with check (auth.role() = 'service_
 
 -- Grant select to anon/public for endpoints that expose aggregated data
 grant usage on schema prepchef to anon, authenticated, service_role;
+grant select on api_clients to authenticated;
 grant select on all tables in schema prepchef to service_role;
 
 -- Seed five pilot counties (replace identifiers as needed)
