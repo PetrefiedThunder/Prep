@@ -96,10 +96,12 @@ def _configure_postgrest_schema(client: Client, schema: str) -> None:
 def get_supabase_client(url: str, key: str) -> Client:
     if ClientOptions is not None:
         client = create_client(url, key, options=ClientOptions(schema="prepchef"))
-    else:
-        client = create_client(url, key)
+        return client
 
-    # Explicitly scope PostgREST queries to the prepchef schema for all client versions.
+    client = create_client(url, key)
+
+    # Explicitly scope PostgREST queries to the prepchef schema for legacy client versions
+    # that do not support ClientOptions.
     _configure_postgrest_schema(client, "prepchef")
     return client
 
