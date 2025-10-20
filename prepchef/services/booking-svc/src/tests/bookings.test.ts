@@ -1,14 +1,7 @@
 import { test } from 'node:test';
-import Fastify from 'fastify';
 import { MockAgent, setGlobalDispatcher } from 'undici';
 import { strict as assert } from 'node:assert';
-import bookings from '../api/bookings';
-
-function build() {
-  const app = Fastify();
-  app.register(bookings);
-  return app;
-}
+import { createApp } from '../index';
 
 test('creates booking on success', async () => {
   const agent = new MockAgent();
@@ -19,7 +12,7 @@ test('creates booking on success', async () => {
   agent.get('http://pricing').intercept({ path: '/quote', method: 'POST' }).reply(200, { amount: 100 });
   agent.get('http://payments').intercept({ path: '/intents', method: 'POST' }).reply(200, { id: 'pi_123' });
 
-  const app = build();
+  const app = await createApp();
   const res = await app.inject({
     method: 'POST',
     url: '/bookings',
@@ -41,7 +34,7 @@ test('maps compliance failure', async () => {
   setGlobalDispatcher(agent);
   agent.get('http://compliance').intercept({ path: '/check', method: 'POST' }).reply(412, {});
 
-  const app = build();
+  const app = await createApp();
   const res = await app.inject({
     method: 'POST',
     url: '/bookings',
@@ -64,7 +57,7 @@ test('maps availability failure', async () => {
   agent.get('http://compliance').intercept({ path: '/check', method: 'POST' }).reply(204, {});
   agent.get('http://availability').intercept({ path: '/check', method: 'POST' }).reply(412, {});
 
-  const app = build();
+  const app = await createApp();
   const res = await app.inject({
     method: 'POST',
     url: '/bookings',
@@ -88,7 +81,7 @@ test('maps pricing failure', async () => {
   agent.get('http://availability').intercept({ path: '/check', method: 'POST' }).reply(204, {});
   agent.get('http://pricing').intercept({ path: '/quote', method: 'POST' }).reply(412, {});
 
-  const app = build();
+  const app = await createApp();
   const res = await app.inject({
     method: 'POST',
     url: '/bookings',
@@ -113,7 +106,7 @@ test('maps payment failure', async () => {
   agent.get('http://pricing').intercept({ path: '/quote', method: 'POST' }).reply(200, { amount: 100 });
   agent.get('http://payments').intercept({ path: '/intents', method: 'POST' }).reply(402, {});
 
-  const app = build();
+  const app = await createApp();
   const res = await app.inject({
     method: 'POST',
     url: '/bookings',
