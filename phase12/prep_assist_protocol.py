@@ -5,6 +5,7 @@ API standard to connect with robotic kitchen tools.
 
 import json
 import logging
+from typing import Any, Dict, cast
 try:
     import websockets  # type: ignore
 except ImportError:  # pragma: no cover
@@ -15,6 +16,8 @@ except ImportError:  # pragma: no cover
 
 PROTOCOL_VERSION = "1.0"
 
+async def send_command(uri: str, command: Dict[str, Any]) -> Dict[str, Any]:
+    """Send a command to a robot via WebSocket."""
 async def send_command(
     uri: str,
     command: dict,
@@ -53,7 +56,7 @@ async def send_command(
     except OSError as exc:
         logging.error("Failed to connect to %s: %s", uri, exc)
         raise ConnectionError("WebSocket connection failed") from exc
-    return json.loads(response)
+    return cast(Dict[str, Any], json.loads(response))
 
 async def reserve_station(uri: str, station: str) -> None:
     command = {"action": "reserve", "station": station}

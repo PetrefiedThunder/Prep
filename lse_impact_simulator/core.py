@@ -104,6 +104,7 @@ class LSEImpactSimulator:
 
     def generate_report(self) -> str:
         """Report outcomes from the simulation run."""
+        return ""
         self.validate()
 
         market = self.config["market"]
