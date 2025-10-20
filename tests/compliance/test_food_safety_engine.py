@@ -96,6 +96,7 @@ def test_green_path_is_booking_ready(engine: FoodSafetyComplianceEngine) -> None
     assert badge["badge_level"] in {"gold", "silver"}
     assert badge["score"] >= 95
     assert badge["highlights"] and "ServSafe" in " ".join(badge["highlights"])
+    assert badge["can_accept_bookings"] is True
 
 
 def test_expired_license_blocks_bookings(engine: FoodSafetyComplianceEngine) -> None:

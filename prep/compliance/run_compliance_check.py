@@ -5,7 +5,6 @@ import json
 import os
 import sys
 import traceback
-from datetime import datetime
 
 # Ensure package imports resolve when executed as a script
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -14,23 +13,30 @@ if PARENT_DIR not in sys.path:
     sys.path.append(PARENT_DIR)
 
 
-def serialize_datetime(obj: object) -> str:
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    raise TypeError(f"Type {type(obj)} is not JSON serializable")
-
-
 def main() -> int:
-    if len(sys.argv) < 2:
-        output = {
-            "error": "No kitchen data provided",
-            "usage": "python run_compliance_check.py '<kitchen_data_json>'",
-            "status": "error",
-        }
-        print(json.dumps(output))
-        return 1
+    if len(sys.argv) >= 2 and sys.argv[1].strip():
+        kitchen_data_json = sys.argv[1]
+    else:
+        try:
+            kitchen_data_json = sys.stdin.read()
+        except Exception as exc:  # pragma: no cover - defensive guard
+            output = {
+                "error": "Failed to read input from stdin",
+                "details": str(exc),
+                "status": "error",
+                "traceback": traceback.format_exc(),
+            }
+            print(json.dumps(output))
+            return 1
 
-    kitchen_data_json = sys.argv[1]
+        if not kitchen_data_json.strip():
+            output = {
+                "error": "No kitchen data provided",
+                "usage": "python run_compliance_check.py '<kitchen_data_json>'",
+                "status": "error",
+            }
+            print(json.dumps(output))
+            return 1
     try:
         kitchen_data = json.loads(kitchen_data_json)
     except json.JSONDecodeError as exc:
@@ -115,20 +121,43 @@ def main() -> int:
         print(json.dumps(output))
         return 1
 
-    try:
-        can_accept, critical_violations = engine.validate_for_booking(kitchen_data)
-    except Exception as exc:
-        output = {
-            "error": "Booking validation failed",
-            "details": str(exc),
-            "traceback": traceback.format_exc(),
-            "status": "error",
+    violations_payload = [
+        {
+            "rule_id": violation.rule_id,
+            "rule_name": violation.rule_name,
+            "message": violation.message,
+            "severity": violation.severity,
+            "context": violation.context,
+            "timestamp": violation.timestamp.isoformat(),
+            "rule_version": violation.rule_version,
+            "evidence_path": violation.evidence_path,
+            "observed_value": violation.observed_value,
         }
-        print(json.dumps(output))
-        return 1
+        for violation in report.violations_found
+    ]
+
+    critical_violations = [
+        violation for violation in report.violations_found if violation.severity == "critical"
+    ]
+    critical_payload = [
+        {
+            "rule_id": violation.rule_id,
+            "rule_name": violation.rule_name,
+            "message": violation.message,
+            "severity": violation.severity,
+            "context": violation.context,
+            "timestamp": violation.timestamp.isoformat(),
+            "rule_version": violation.rule_version,
+            "evidence_path": violation.evidence_path,
+            "observed_value": violation.observed_value,
+        }
+        for violation in critical_violations
+    ]
+
+    can_accept = len(critical_violations) == 0
 
     try:
-        badge = engine.generate_kitchen_safety_badge(kitchen_data)
+        badge = engine.generate_kitchen_safety_badge(kitchen_data, report=report)
     except Exception as exc:
         output = {
             "error": "Safety badge generation failed",
@@ -139,44 +168,25 @@ def main() -> int:
         print(json.dumps(output))
         return 1
 
-    output = {
+    report_dict = {
         "engine_name": report.engine_name,
         "timestamp": report.timestamp.isoformat(),
         "overall_compliance_score": report.overall_compliance_score,
         "total_rules_checked": report.total_rules_checked,
         "summary": report.summary,
         "recommendations": report.recommendations,
-        "violations_found": [
-            {
-                "rule_id": violation.rule_id,
-                "rule_name": violation.rule_name,
-                "message": violation.message,
-                "severity": violation.severity,
-                "context": violation.context,
-                "timestamp": violation.timestamp.isoformat(),
-                "rule_version": violation.rule_version,
-                "evidence_path": violation.evidence_path,
-                "observed_value": violation.observed_value,
-            }
-            for violation in report.violations_found
-        ],
+        "violations_found": violations_payload,
         "passed_rules": report.passed_rules,
         "engine_version": report.engine_version,
+        "rule_versions": report.rule_versions,
+    }
+    if report.report_signature is not None:
+        report_dict["report_signature"] = report.report_signature
+
+    output = {
+        **report_dict,
         "can_accept_bookings": can_accept,
-        "critical_violations": [
-            {
-                "rule_id": violation.rule_id,
-                "rule_name": violation.rule_name,
-                "message": violation.message,
-                "severity": violation.severity,
-                "context": violation.context,
-                "timestamp": violation.timestamp.isoformat(),
-                "rule_version": violation.rule_version,
-                "evidence_path": violation.evidence_path,
-                "observed_value": violation.observed_value,
-            }
-            for violation in critical_violations
-        ],
+        "critical_violations": critical_payload,
         "safety_badge": badge,
         "detailed_analysis": {
             "licensing_issues": len(
@@ -198,10 +208,16 @@ def main() -> int:
                 [v for v in report.violations_found if "ops" in v.rule_id.lower()]
             ),
         },
+        "raw_report": {
+            **report_dict,
+            "can_accept_bookings": can_accept,
+            "critical_violations": critical_payload,
+            "safety_badge": badge,
+        },
         "status": "success",
     }
 
-    print(json.dumps(output, default=serialize_datetime))
+    print(json.dumps(output))
     return 0
 
 
