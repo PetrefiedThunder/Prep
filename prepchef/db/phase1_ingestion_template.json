@@ -1,63 +1,52 @@
 {
-  "$schema": "https://prepchef.io/schemas/api-catalog-ingestion.json",
-  "discovery_job": {
-    "platform_type": "socrata",
-    "triggered_by": "github_actions",
-    "search": {
-      "keywords": ["food", "inspection", "restaurant"],
-      "jurisdiction_filter": {
-        "state_code": "CA",
-        "county_name": "Los Angeles"
-      },
-      "socrata_domains": ["data.lacity.org", "data.lacounty.gov"],
-      "last_seen_after": "2025-01-01T00:00:00Z"
+  "discovery_run": {
+    "run_type": "discovery",
+    "triggered_by": "nightly_github_action",
+    "status": "completed",
+    "summary": {
+      "sweep_target": "socrata_directory",
+      "discovered_count": 0,
+      "updated_count": 0,
+      "errors": []
     }
   },
-  "catalog_entry": {
-    "jurisdiction": {
-      "state_code": "CA",
-      "county_name": "Los Angeles",
-      "fips_state": "06",
-      "fips_county": "037"
-    },
-    "endpoint": {
-      "endpoint_url": "https://data.lacounty.gov/resource/abcd-1234.json",
-      "dataset_name": "Food Facility Inspections",
-      "dataset_uid": "abcd-1234",
-      "schema_type": "socrata",
-      "content_format": "json",
-      "platform_type": "socrata",
-      "auth_method": "api_key",
-      "refresh_interval_hours": 24,
-      "tags": ["food_safety", "inspection", "restaurant"],
-      "metadata": {
-        "primary_keys": ["facility_id", "inspection_id"],
-        "geospatial_fields": ["location"],
-        "date_fields": ["activity_date"],
-        "score_fields": ["score"],
-        "violation_columns": ["violation_description", "violation_points"],
-        "contact": {
-          "name": "County Open Data Team",
-          "email": "opendata@lacounty.gov"
-        }
-      }
-    },
-    "quality": {
-      "freshness_score": 92.5,
-      "quality_score": 88.0,
-      "last_seen_at": "2025-02-15T08:30:00Z",
-      "last_harvested_at": "2025-02-15T08:45:00Z"
+  "county": {
+    "fips_code": "06037",
+    "name": "Los Angeles County",
+    "state_abbr": "CA",
+    "timezone": "America/Los_Angeles",
+    "population": 10039107,
+    "metadata": {
+      "health_department": "Los Angeles County Department of Public Health",
+      "contact_email": "dataservices@ph.lacounty.gov",
+      "website": "https://publichealth.lacounty.gov/eh/" 
     }
   },
-  "ingestion_run": {
-    "pipeline": "airbyte",
-    "destination": "supabase",
-    "status": "succeeded",
-    "started_at": "2025-02-15T08:40:00Z",
-    "completed_at": "2025-02-15T08:45:00Z",
-    "rows_ingested": 15234,
-    "storage_location": "s3://prepchef-data/lacounty/inspections/2025-02-15/",
-    "checksum": "sha256:2a8e2c5a1e4c3bda90123456789abcdef0123456789abcdef0123456789abcd",
-    "error_summary": null
+  "data_source": {
+    "endpoint_url": "https://data.lacounty.gov/resource/abcd-1234.json",
+    "platform": "socrata",
+    "schema_type": "inspection_scores",
+    "schema_url": "https://data.lacounty.gov/api/views/abcd-1234",
+    "authentication_type": "app_token",
+    "authentication_payload": {
+      "header": "X-App-Token",
+      "secret_env_var": "SOCRATA_APP_TOKEN"
+    },
+    "refresh_cadence": "daily",
+    "ingest_format": "json",
+    "last_discovered_at": null,
+    "last_successful_fetch_at": null,
+    "data_quality_score": null,
+    "availability_status": "unknown",
+    "notes": "Initial discovery run. Awaiting validation.",
+    "metadata": {
+      "record_example_url": "https://data.lacounty.gov/resource/abcd-1234.json?$limit=1",
+      "fields": [
+        { "source_field": "facility_name", "mapped_field": "establishment_name" },
+        { "source_field": "facility_address", "mapped_field": "address" },
+        { "source_field": "grade", "mapped_field": "inspection_grade" },
+        { "source_field": "activity_date", "mapped_field": "inspection_date" }
+      ]
+    }
   }
 }
