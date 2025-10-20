@@ -21,3 +21,7 @@ npm run codegen
 - auth-svc, identity-svc, compliance-svc, listing-svc, availability-svc, pricing-svc, payments-svc, booking-svc, access-svc, notif-svc, reviews-svc, admin-svc, audit-svc
 
 See `contracts/openapi.yaml` and `db/schema.sql`.
+
+## Documentation
+
+- [PrepChef MVP v1.0 Engineering Plan](../docs/prepchef_mvp_engineering_plan.md)
