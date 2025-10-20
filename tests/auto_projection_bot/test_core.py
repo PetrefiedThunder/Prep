@@ -59,6 +59,7 @@ def test_generate_report(tmp_path):
     assert "Profit: 600.0" in report
     assert "Projected Revenue (next period): 1100.0" in report
 
+
 def test_methods_run_end_to_end(tmp_path):
     data = {"revenue": 1000, "expenses": 400, "growth_rate": 0.1}
     config_file = tmp_path / "config.json"

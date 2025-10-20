@@ -7,6 +7,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
+    "include": ["**/*.ts", "types.d.ts"],
+  "exclude": ["node_modules", "dist", "prepchef"]
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

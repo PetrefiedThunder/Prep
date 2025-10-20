@@ -9,6 +9,8 @@ Thank you for your interest in contributing! This document will guide you throug
 1. **Clone the repository.**
 2. **Install dependencies:** `pip install -e .`
 3. **Run the tests:** `pytest`
+3. **Install dev dependencies:** `pip install -e .[dev]`
+4. **Run the tests:** `pytest`
 
 ### Node projects
 
@@ -22,6 +24,7 @@ Shared configurations are provided for both ecosystems. Run these checks locally
 
 ### Python
 
+ - Lint with [Ruff](https://github.com/astral-sh/ruff): `ruff check .`
 - Lint with [Ruff](https://github.com/astral-sh/ruff): `ruff .`
 - Type-check with [mypy](http://mypy-lang.org/): `mypy .`
 

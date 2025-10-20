@@ -400,4 +400,48 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- Sample RLS policies (customize based on your auth system)
+CREATE POLICY users_select_own ON users
+    FOR SELECT USING (id = current_setting('app.user_id')::UUID OR role = 'admin');
+
+CREATE POLICY bookings_select_own ON bookings
+    FOR SELECT USING (
+        renter_id = current_setting('app.user_id')::UUID OR
+        listing_id IN (
+            SELECT id FROM kitchen_listings WHERE venue_id IN (
+                SELECT id FROM venues WHERE business_id IN (
+                    SELECT id FROM businesses WHERE owner_id = current_setting('app.user_id')::UUID
+                )
+            )
+        )
+    );
+
+-- Materialized view for listing statistics
+CREATE MATERIALIZED VIEW listing_stats AS
+SELECT 
+    l.id AS listing_id,
+    COUNT(DISTINCT b.id) AS total_bookings,
+    COUNT(DISTINCT b.renter_id) AS unique_renters,
+    AVG(b.duration_hours) AS avg_booking_hours,
+    SUM(b.total_cents) / 100.0 AS total_revenue,
+    AVG(r.overall_rating) AS average_rating,
+    COUNT(DISTINCT r.id) AS review_count
+FROM kitchen_listings l
+LEFT JOIN bookings b ON l.id = b.listing_id AND b.status = 'completed'
+LEFT JOIN reviews r ON l.id = r.listing_id AND r.deleted_at IS NULL
+GROUP BY l.id;
+
+CREATE UNIQUE INDEX idx_listing_stats_id ON listing_stats(listing_id);
+
+-- Refresh materialized view function
+CREATE OR REPLACE FUNCTION refresh_listing_stats()
+RETURNS void AS $$
+BEGIN
+    REFRESH MATERIALIZED VIEW CONCURRENTLY listing_stats;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Grant permissions (adjust based on your users)
+GRANT USAGE ON SCHEMA public TO app_user;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO app_user;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO app_user;
 CREATE POLICY users_select_own ON

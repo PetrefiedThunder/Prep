@@ -1,4 +1,6 @@
 import json
+from datetime import datetime, timezone
+from datetime import datetime
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -43,6 +45,27 @@ def test_validate_failure_consent(tmp_path):
         }
     ]
     assert core.validate(records) is False
+
+
+def test_validate_generator_utc(tmp_path):
+    config_path = make_config(tmp_path)
+    core = GDPRCCPACore()
+    core.load_config(str(config_path))
+
+    record = {
+        "user_id": 1,
+        "region": "EU",
+        "last_updated": datetime.now(timezone.utc).isoformat(),
+        "consent": True,
+    }
+
+    def gen():
+        yield record
+
+    assert core.validate(gen()) is True
+    assert core.records == [record]
+    parsed = datetime.fromisoformat(core.records[0]["last_updated"])
+    assert parsed.tzinfo == timezone.utc
 
 
 def test_load_config_invalid(tmp_path):
