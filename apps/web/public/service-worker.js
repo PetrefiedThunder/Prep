@@ -19,10 +19,7 @@ self.addEventListener('fetch', event => {
             return preload;
           }
 
-          const networkResponse = await fetch(event.request);
-          if (networkResponse && networkResponse.ok) {
-            return networkResponse;
-          }
+          return await fetch(event.request);
         } catch (error) {
           networkError = error;
           // Ignore network failures and fall through to the cache lookup below.
