@@ -21,7 +21,14 @@ __all__ = ["initialize", "utility"]
 _CONFIG: Dict[str, Any] | None = None
 
 
-def initialize(config_path: str | None = None) -> Dict[str, Any]:
+_CONFIG_PATH: Path | None = None
+
+
+def initialize(
+    config_path: str | None = None,
+    *,
+    force_reload: bool = False,
+) -> Dict[str, Any]:
     """Load configuration from ``config_path``.
 
     Parameters
@@ -31,6 +38,11 @@ def initialize(config_path: str | None = None) -> Dict[str, Any]:
         ``PREP_CONFIG`` environment variable is used.  If that environment
         variable is unset it defaults to ``config.json`` in the current
         working directory.
+    force_reload:
+        When :data:`True`, bypass the cached configuration and reload the
+        configuration from disk using the previously resolved configuration
+        path.  If no configuration has been loaded yet this behaves the same
+        as ``False``.
 
     Returns
     -------
@@ -45,15 +57,21 @@ def initialize(config_path: str | None = None) -> Dict[str, Any]:
         If the file contents are not valid JSON.
     """
 
-    global _CONFIG
+    global _CONFIG, _CONFIG_PATH
 
+    path: Path
     if config_path is None:
-        if _CONFIG is not None:
+        if _CONFIG is not None and not force_reload:
             return _CONFIG
-        config_path = os.environ.get("PREP_CONFIG", "config.json")
+        if _CONFIG_PATH is not None:
+            path = _CONFIG_PATH
+        else:
+            path = Path(os.environ.get("PREP_CONFIG", "config.json"))
+    else:
+        path = Path(config_path)
 
-    path = Path(config_path)
     with path.open("r", encoding="utf-8") as config_file:
         _CONFIG = json.load(config_file)
 
+    _CONFIG_PATH = path
     return _CONFIG
