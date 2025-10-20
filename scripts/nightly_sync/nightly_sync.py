@@ -12,6 +12,11 @@ import httpx
 import pandas as pd
 from supabase import create_client, Client
 
+try:  # Supabase >=2.0 exposes ClientOptions for configuring the default schema
+    from supabase.client import ClientOptions
+except ImportError:  # pragma: no cover - fallback for older client versions
+    ClientOptions = None  # type: ignore[assignment]
+
 LOGGER = logging.getLogger("prepchef.nightly_sync")
 LOG_DIR = Path(__file__).resolve().parent / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -70,7 +75,15 @@ def fetch_socrata_dataset(
 
 
 def get_supabase_client(url: str, key: str) -> Client:
-    return create_client(url, key)
+    if ClientOptions is not None:
+        return create_client(url, key, options=ClientOptions(schema="prepchef"))
+
+    client = create_client(url, key)
+    # Older supabase-py versions require configuring the PostgREST schema manually.
+    postgrest = getattr(client, "postgrest", None)
+    if postgrest and hasattr(postgrest, "schema"):
+        client.postgrest = postgrest.schema("prepchef")  # type: ignore[assignment]
+    return client
 
 
 def upsert_staging(

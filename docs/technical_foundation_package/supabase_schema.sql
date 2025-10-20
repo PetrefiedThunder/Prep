@@ -223,7 +223,10 @@ for all using (
 alter table api_clients enable row level security;
 
 create policy api_clients_select_policy on api_clients
-for select using (auth.role() = 'service_role');
+for select using (
+    auth.role() = 'service_role'
+    or auth.uid() = id
+);
 
 create policy api_clients_modify_policy on api_clients
 for all using (auth.role() = 'service_role') with check (auth.role() = 'service_role');
