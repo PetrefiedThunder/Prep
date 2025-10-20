@@ -284,14 +284,17 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         sanitized_data = DataValidator.sanitize_kitchen_data(data)
         violations: List[ComplianceViolation] = []
 
-        if (
-            self.data_api_client
-            and sanitized_data.get("license_number")
-            and sanitized_data.get("county_fips")
-        ):
+        license_info = sanitized_data.get("license_info", {}) or {}
+        license_number = license_info.get("license_number") or sanitized_data.get(
+            "license_number"
+        )
+        county_fips = license_info.get("county_fips") or sanitized_data.get("county_fips")
+
+        if self.data_api_client and license_number and county_fips:
             try:
                 county_data = self._fetch_county_compliance_data(
-                    sanitized_data["license_number"], sanitized_data["county_fips"]
+                    license_number,
+                    county_fips,
                 )
                 sanitized_data["real_time_inspection"] = county_data.get("latest_inspection")
                 sanitized_data["license_status"] = county_data.get("license_status")
