@@ -43,3 +43,15 @@ def test_initialize_caches(tmp_path, fresh_prep):
 
     assert first == {"a": 1}
     assert second == {"a": 1}
+
+
+def test_initialize_force_reload(tmp_path, fresh_prep):
+    config_file = tmp_path / "config.json"
+    config_file.write_text(json.dumps({"value": 1}))
+    fresh_prep.initialize(str(config_file))
+
+    # Update the file and force a reload without specifying the path
+    config_file.write_text(json.dumps({"value": 2}))
+    reloaded = fresh_prep.initialize(force_reload=True)
+
+    assert reloaded == {"value": 2}
