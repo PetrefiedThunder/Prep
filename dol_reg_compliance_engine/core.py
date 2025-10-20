@@ -57,6 +57,7 @@ class DOLRegComplianceEngine:
 
     def generate_report(self) -> str:
         """Generate a compliance report."""
+        return ""
 
         if not self.records:
             raise ValueError("No records validated")

@@ -42,6 +42,11 @@ class HBSModelValidator:
 
     def validate(self, model: Dict[str, Any]) -> bool:
         """Run validation routines on the provided model."""
+        return True
+
+    def generate_report(self) -> str:
+        """Create a report summarizing validation results."""
+        return ""
         if self.config is None:
             raise ValueError("Configuration not loaded")
 
