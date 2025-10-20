@@ -54,6 +54,8 @@ class ComplianceCoordinator:
                     engine_name=engine.name,
                     engine_version=engine_version,
                     timestamp=datetime.now(timezone.utc),
+                    engine_version=getattr(engine, "engine_version", "unknown"),
+                    timestamp=datetime.now(),
                     total_rules_checked=0,
                     violations_found=[],
                     passed_rules=[],
@@ -61,6 +63,7 @@ class ComplianceCoordinator:
                     recommendations=["Review system logs for detailed error information"],
                     overall_compliance_score=0.0,
                     rule_versions=rule_versions,
+                    rule_versions=dict(getattr(engine, "rule_versions", {})),
                 )
 
         return results
