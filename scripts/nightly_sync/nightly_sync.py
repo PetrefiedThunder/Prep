@@ -86,6 +86,25 @@ def get_supabase_client(url: str, key: str) -> Client:
     return client
 
 
+def generate_uuid(supabase: Client) -> str:
+    """Generate a UUID using the uuid-ossp extension regardless of default schema."""
+
+    postgrest = getattr(supabase, "postgrest", None)
+    if postgrest and hasattr(postgrest, "schema"):
+        response = postgrest.schema("public").rpc("uuid_generate_v4", {}).execute()
+    else:
+        response = supabase.rpc("uuid_generate_v4", {}).execute()
+
+    data = response.data
+    if isinstance(data, list):
+        if not data:
+            raise RuntimeError("uuid_generate_v4 RPC returned no data")
+        return data[0]
+    if data is None:
+        raise RuntimeError("uuid_generate_v4 RPC returned no data")
+    return data
+
+
 def upsert_staging(
     supabase: Client,
     data_source_id: str,
@@ -185,10 +204,9 @@ def main() -> None:
                 LOGGER.error("Data source %s missing domain metadata", dataset_id)
                 continue
 
-            # With the Supabase client defaulting to the ``prepchef`` schema we need to
-            # explicitly reference ``public.uuid_generate_v4`` so the RPC resolves to the
-            # uuid-ossp extension function instead of looking under ``prepchef``.
-            ingestion_run_id = supabase.rpc("public.uuid_generate_v4", {}).execute().data
+            # Generate the ingestion run ID using the uuid-ossp extension which lives in
+            # the ``public`` schema even when the client is scoped to ``prepchef``.
+            ingestion_run_id = generate_uuid(supabase)
             inserted = 0
             normalized = 0
             status = "running"
