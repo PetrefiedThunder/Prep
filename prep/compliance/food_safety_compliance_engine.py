@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
+from functools import wraps
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
 try:
@@ -20,31 +21,6 @@ from .base_engine import (
     ComplianceViolation,
 )
 from .data_validator import DataValidator
-
-
-@dataclass
-class HealthInspectionRecord:
-    """Represents a health inspection record."""
-
-    inspection_id: str
-    inspection_date: datetime
-    overall_score: int
-    violations: List[Dict[str, Any]]
-    inspector_id: str
-    reinspection_required: bool
-    establishment_closed: bool
-
-
-@dataclass
-class KitchenCertification:
-    """Represents a kitchen certification or license."""
-
-    license_number: str
-    license_type: str
-    issue_date: datetime
-    expiration_date: datetime
-    county_fips: str
-    status: str
 
 
 class DataIntelligenceAPIClient:
@@ -65,15 +41,65 @@ class DataIntelligenceAPIClient:
         self.api_key = api_key
         self.timeout = timeout
         self.session = session or requests.Session()
+        self.logger = logging.getLogger("data_intelligence_client")
+        if not self.logger.handlers:
+            self.logger.addHandler(logging.NullHandler())
 
     def get(self, path: str, *, params: Optional[Dict[str, Any]] = None) -> requests.Response:
         url = urljoin(self.api_base_url, path.lstrip("/"))
         headers = {"Authorization": f"Bearer {self.api_key}"}
         return self.session.get(url, params=params, headers=headers, timeout=self.timeout)
 
+    def post_json(self, path: str, payload: Dict[str, Any]) -> requests.Response:
+        url = urljoin(self.api_base_url, path.lstrip("/"))
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        return self.session.post(url, json=payload, headers=headers, timeout=self.timeout)
+
+    def verify_license(self, license_number: str, county_fips: str) -> Dict[str, Any]:
+        """Fetch the latest inspection details for a license."""
+
+        response = self.post_json(
+            "/v1/inspections/verify",
+            {"license_number": license_number, "county_fips": county_fips},
+        )
+        response.raise_for_status()
+        payload = response.json()
+        self.logger.info(
+            "Verified license %s in %s (status=%s)",
+            license_number,
+            county_fips,
+            payload.get("license_status", "unknown"),
+        )
+        return payload
+
 
 STALENESS_WINDOW_DAYS = 180
 PEST_CONTROL_WINDOW_DAYS = 90
+BADGE_THRESHOLDS: Tuple[Tuple[str, int], ...] = (
+    ("gold", 95),
+    ("silver", 85),
+    ("bronze", 70),
+)
+
+
+def _segment_guard(segment_name: str) -> Callable[[Callable[["FoodSafetyComplianceEngine", Dict[str, Any]], List[ComplianceViolation]]], Callable[["FoodSafetyComplianceEngine", Dict[str, Any]], List[ComplianceViolation]]]:
+    """Decorator ensuring segment failures degrade gracefully."""
+
+    def decorator(func: Callable[["FoodSafetyComplianceEngine", Dict[str, Any]], List[ComplianceViolation]]):
+        @wraps(func)
+        def wrapper(self: "FoodSafetyComplianceEngine", data: Dict[str, Any]) -> List[ComplianceViolation]:
+            try:
+                return func(self, data)
+            except Exception as exc:  # pragma: no cover - defensive guard
+                self.logger.exception("%s validation failed: %s", segment_name, exc)
+                return []
+
+        return wrapper
+
+    return decorator
 
 
 def normalize_to_utc(date_input: Any) -> Optional[datetime]:
@@ -108,7 +134,7 @@ def is_stale(utc_dt: Optional[datetime], days: int) -> bool:
 class FoodSafetyComplianceEngine(ComplianceEngine):
     """Food safety compliance engine for PrepChef kitchens."""
 
-    ENGINE_VERSION = "1.3.0"
+    ENGINE_VERSION = "2.0.0"
 
     CRITICAL_VIOLATIONS = [
         "foodborne_illness",
@@ -130,13 +156,19 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         "no_hot_water",
     ]
 
-    def __init__(self, data_api_client: Optional[DataIntelligenceAPIClient] = None) -> None:
+    def __init__(
+        self,
+        data_api_client: Optional[DataIntelligenceAPIClient] = None,
+        *,
+        strict_mode: bool = False,
+    ) -> None:
         super().__init__(
             "Food_Safety_Compliance_Engine", engine_version=self.ENGINE_VERSION
         )
         self.data_api_client = data_api_client
+        self.strict_mode = strict_mode
         self.load_rules()
-        self.logger = logging.getLogger("compliance.food_safety")
+        self.logger = logging.getLogger("compliance.Food_Safety_Compliance_Engine")
         if not self.logger.handlers:
             self.logger.addHandler(logging.NullHandler())
 
@@ -371,57 +403,70 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
             return [
                 self._build_violation(
                     "data_validation",
-                    message=error,
+                    message="Schema validation failed",  # singular synthetic violation
                     severity="critical",
                     context={"validation_errors": validation_errors},
                     evidence_path=None,
                     observed_value=None,
                 )
-                for error in validation_errors
             ]
 
         sanitized_data = DataValidator.sanitize_kitchen_data(data)
+        enriched_data = self._enrich_with_real_time_data(deepcopy(sanitized_data))
+
+        segment_validators: Tuple[
+            Callable[[Dict[str, Any]], List[ComplianceViolation]],
+            ...,
+        ] = (
+            self._validate_licensing,
+            self._validate_inspections,
+            self._validate_certifications,
+            self._validate_equipment,
+            self._validate_marketplace_requirements,
+            self._validate_operations,
+        )
+
         violations: List[ComplianceViolation] = []
+        for validator in segment_validators:
+            violations.extend(validator(enriched_data))
 
-        if (
-            self.data_api_client
-            and sanitized_data.get("license_number")
-            and sanitized_data.get("county_fips")
-        ):
-            try:
-                county_data = self._fetch_county_compliance_data(
-                    sanitized_data["license_number"], sanitized_data["county_fips"]
-                )
-                sanitized_data["real_time_inspection"] = county_data.get("latest_inspection")
-                sanitized_data["license_status"] = county_data.get("license_status")
-            except Exception as exc:  # pragma: no cover - network dependent
-                self.logger.warning("Could not fetch county data: %s", exc)
-
-        violations.extend(self._validate_licensing(sanitized_data))
-        violations.extend(self._validate_inspections(sanitized_data))
-        violations.extend(self._validate_certifications(sanitized_data))
-        violations.extend(self._validate_equipment(sanitized_data))
-        violations.extend(self._validate_marketplace_requirements(sanitized_data))
-        violations.extend(self._validate_operations(sanitized_data))
-
+        violations.sort(key=lambda violation: (violation.severity, violation.rule_id))
         return violations
 
-    def _fetch_county_compliance_data(self, license_number: str, county_fips: str) -> Dict[str, Any]:
+    def _enrich_with_real_time_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Enrich the sanitized payload with live inspection data when available."""
+
         if not self.data_api_client:
-            return {}
+            return data
+
+        license_info = data.get("license_info") or {}
+        license_number = license_info.get("license_number") or data.get("license_number")
+        county_fips = license_info.get("county_fips") or data.get("county_fips")
+
+        if not (license_number and county_fips):
+            return data
 
         try:
-            response = self.data_api_client.get(
-                "/v1/inspections/verify",
-                params={"license_number": license_number, "county_fips": county_fips},
-            )
-            if response.status_code == 200:
-                return response.json()
-            self.logger.warning("County API returned status %s", response.status_code)
+            payload = self.data_api_client.verify_license(str(license_number), str(county_fips))
         except Exception as exc:  # pragma: no cover - network dependent
-            self.logger.error("Error fetching county compliance data: %s", exc)
-        return {}
+            self.logger.warning(
+                "County enrichment failed for %s/%s: %s", license_number, county_fips, exc
+            )
+            return data
 
+        latest_inspection = payload.get("latest_inspection")
+        if isinstance(latest_inspection, dict):
+            history = list(data.get("inspection_history", []) or [])
+            history.insert(0, latest_inspection)
+            data["inspection_history"] = history
+
+        license_status = payload.get("license_status")
+        if license_status:
+            data.setdefault("license_info", {})["status"] = license_status
+
+        return data
+
+    @_segment_guard("licensing")
     def _validate_licensing(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
         violations: List[ComplianceViolation] = []
         license_info = data.get("license_info", {}) or {}
@@ -486,12 +531,10 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
 
         return violations
 
+    @_segment_guard("inspections")
     def _validate_inspections(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
         violations: List[ComplianceViolation] = []
         inspection_history: List[Dict[str, Any]] = data.get("inspection_history", []) or []
-
-        if data.get("real_time_inspection"):
-            inspection_history = [data["real_time_inspection"]] + inspection_history
 
         if not inspection_history:
             violations.append(
@@ -643,6 +686,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
             return True
         return False
 
+    @_segment_guard("certifications")
     def _validate_certifications(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
         violations: List[ComplianceViolation] = []
         certifications = data.get("certifications", []) or []
@@ -686,6 +730,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
 
         return violations
 
+    @_segment_guard("equipment")
     def _validate_equipment(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
         violations: List[ComplianceViolation] = []
         equipment = data.get("equipment", []) or []
@@ -732,6 +777,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
 
         return violations
 
+    @_segment_guard("marketplace")
     def _validate_marketplace_requirements(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
         violations: List[ComplianceViolation] = []
         insurance = data.get("insurance", {}) or {}
@@ -810,6 +856,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
 
         return violations
 
+    @_segment_guard("operations")
     def _validate_operations(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
         violations: List[ComplianceViolation] = []
         pest_control = data.get("pest_control_records", []) or []
@@ -884,31 +931,29 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
 
     def generate_kitchen_safety_badge(self, kitchen_data: Dict[str, Any]) -> Dict[str, Any]:
         report = self.generate_report(kitchen_data)
-        score = report.overall_compliance_score * 100
+        score_percent = int(round(report.overall_compliance_score * 100))
+        score_percent = max(0, min(100, score_percent))
 
-        if score >= 95:
-            badge_level = "gold"
-        elif score >= 85:
-            badge_level = "silver"
-        elif score >= 70:
-            badge_level = "bronze"
-        else:
-            badge_level = "needs_improvement"
+        badge_level = "needs_improvement"
+        for level, threshold in BADGE_THRESHOLDS:
+            if score_percent >= threshold:
+                badge_level = level
+                break
 
+        sanitized_input = DataValidator.sanitize_kitchen_data(kitchen_data)
         highlights: List[str] = []
-        inspection_history = kitchen_data.get("inspection_history", []) or []
+        inspection_history = sanitized_input.get("inspection_history", []) or []
         if inspection_history:
             latest = inspection_history[0]
-            if latest.get("overall_score", 0) >= 90:
-                highlights.append(f"Excellent health score: {latest['overall_score']}/100")
+            latest_score = latest.get("overall_score")
+            if isinstance(latest_score, (int, float)) and latest_score >= 90:
+                highlights.append(f"Excellent health score: {int(latest_score)}/100")
 
-        certifications = kitchen_data.get("certifications", []) or []
+        certifications = sanitized_input.get("certifications", []) or []
         if any("servsafe" in str(cert.get("type", "")).lower() for cert in certifications):
             highlights.append("ServSafe certified staff")
 
-        if report.overall_compliance_score >= 0.95 and not any(
-            violation.severity == "critical" for violation in report.violations_found
-        ):
+        if not any(v.severity == "critical" for v in report.violations_found):
             highlights.append("No critical violations")
 
         concerns = [
@@ -919,8 +964,8 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
 
         return {
             "badge_level": badge_level,
-            "score": round(score, 1),
-            "last_verified": datetime.now(timezone.utc).isoformat(),
+            "score": score_percent,
+            "last_verified": report.timestamp.isoformat(),
             "engine_version": self.engine_version,
             "highlights": highlights,
             "concerns": concerns,

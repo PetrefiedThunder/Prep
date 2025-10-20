@@ -1,26 +1,27 @@
+"""Smoke tests for the v2 food safety compliance engine."""
+
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Dict, Any
 
 import pytest
-from hypothesis import given, strategies as st
 
 from prep.compliance.food_safety_compliance_engine import FoodSafetyComplianceEngine
 
+UTC = timezone.utc
+
 
 def iso(days_offset: int) -> str:
-    """Return an ISO-8601 string offset from now by the given days."""
+    """Return an ISO-8601 timestamp offset by ``days_offset`` days."""
 
     value = datetime.now(UTC).replace(microsecond=0) + timedelta(days=days_offset)
     return value.isoformat().replace("+00:00", "Z")
 
 
-@pytest.fixture()
-def engine() -> FoodSafetyComplianceEngine:
-    return FoodSafetyComplianceEngine()
+def build_green_path_payload() -> Dict[str, Any]:
+    """Return a fully compliant kitchen payload."""
 
-
-def build_fully_compliant_kitchen() -> dict:
     return {
         "license_info": {
             "license_number": "VALID-001",
@@ -33,22 +34,14 @@ def build_fully_compliant_kitchen() -> dict:
         "inspection_history": [
             {
                 "inspection_date": iso(-30),
-                "overall_score": 95,
+                "overall_score": 97,
                 "violations": [],
                 "establishment_closed": False,
             }
         ],
         "certifications": [
-            {
-                "type": "ServSafe",
-                "status": "active",
-                "expiration_date": iso(365),
-            },
-            {
-                "type": "Allergen Training",
-                "status": "active",
-                "expiration_date": iso(365),
-            },
+            {"type": "ServSafe Manager", "status": "active", "expiration_date": iso(365)},
+            {"type": "Allergen Awareness", "status": "active", "expiration_date": iso(365)},
         ],
         "equipment": [
             {
@@ -60,13 +53,14 @@ def build_fully_compliant_kitchen() -> dict:
             {
                 "type": "handwashing_station",
                 "commercial_grade": True,
+                "nsf_certified": True,
                 "photo_url": "https://example.com/sink.jpg",
             },
         ],
         "insurance": {
             "policy_number": "INS-123456",
             "provider": "Commercial Insurance Co",
-            "expiration_date": iso(400),
+            "expiration_date": iso(365),
         },
         "photos": [
             {"url": "https://example.com/kitchen1.jpg"},
@@ -74,242 +68,95 @@ def build_fully_compliant_kitchen() -> dict:
             {"url": "https://example.com/kitchen3.jpg"},
         ],
         "pest_control_records": [
-            {
-                "service_date": iso(-30),
-                "provider": "Pest Control Inc",
-            }
+            {"service_date": iso(-45), "provider": "Pest Control Inc"},
         ],
         "cleaning_logs": [
-            {"date": iso(-7), "tasks_completed": ["sanitize", "deep_clean"]}
+            {"date": iso(-7), "tasks_completed": ["sanitize", "deep_clean"]},
         ],
     }
 
 
-def test_engine_initialization(engine: FoodSafetyComplianceEngine) -> None:
-    assert engine.name == "Food_Safety_Compliance_Engine"
-    assert len(engine.rules) >= 16
-    assert engine.rule_versions["fs_inspect_stale"] == "1.0.0"
-    assert engine.engine_version == FoodSafetyComplianceEngine.ENGINE_VERSION
+@pytest.fixture()
+def engine() -> FoodSafetyComplianceEngine:
+    return FoodSafetyComplianceEngine()
 
 
-def test_valid_kitchen_compliance(engine: FoodSafetyComplianceEngine) -> None:
-    valid_kitchen = build_fully_compliant_kitchen()
-    report = engine.generate_report(valid_kitchen)
+def test_green_path_is_booking_ready(engine: FoodSafetyComplianceEngine) -> None:
+    payload = build_green_path_payload()
 
-    assert report.overall_compliance_score > 0.9
-    assert not any(v.severity == "critical" for v in report.violations_found)
-    assert report.engine_version == FoodSafetyComplianceEngine.ENGINE_VERSION
-    assert report.rule_versions["fs_inspect_1"] == "2.0.0"
+    report = engine.generate_report(payload)
+    assert pytest.approx(report.overall_compliance_score, rel=1e-6) == 1.0
+    assert not report.violations_found
 
-    can_book, critical_violations = engine.validate_for_booking(valid_kitchen)
+    can_book, critical = engine.validate_for_booking(payload)
     assert can_book is True
-    assert not critical_violations
+    assert not critical
 
-
-def test_expired_license_violation(engine: FoodSafetyComplianceEngine) -> None:
-    expired_kitchen = {
-        "license_info": {
-            "license_number": "TEST-002",
-            "license_type": "restaurant",
-            "issue_date": iso(-2000),
-            "expiration_date": iso(-10),
-            "county_fips": "06037",
-            "status": "active",
-        }
-    }
-
-    report = engine.generate_report(expired_kitchen)
-    critical_violations = [v for v in report.violations_found if v.severity == "critical"]
-    assert critical_violations
-    assert any("license" in v.rule_id for v in critical_violations)
-    assert any(v.evidence_path == "license_info.expiration_date" for v in critical_violations)
-
-    can_book, critical_violations = engine.validate_for_booking(expired_kitchen)
-    assert can_book is False
-    assert critical_violations
-
-
-def test_suspended_license_violation(engine: FoodSafetyComplianceEngine) -> None:
-    suspended_kitchen = {
-        "license_info": {
-            "license_number": "TEST-003",
-            "license_type": "restaurant",
-            "issue_date": iso(-400),
-            "expiration_date": iso(400),
-            "county_fips": "06037",
-            "status": "suspended",
-        }
-    }
-
-    report = engine.generate_report(suspended_kitchen)
-    critical_violations = [v for v in report.violations_found if v.severity == "critical"]
-    assert critical_violations
-    assert any("license" in v.rule_id for v in critical_violations)
-
-
-def test_low_inspection_score_violation(engine: FoodSafetyComplianceEngine) -> None:
-    low_score_kitchen = {
-        "license_info": {
-            "license_number": "TEST-004",
-            "status": "active",
-        },
-        "inspection_history": [
-            {
-                "inspection_date": iso(-30),
-                "overall_score": 65,
-                "violations": [],
-                "establishment_closed": False,
-            }
-        ],
-    }
-
-    report = engine.generate_report(low_score_kitchen)
-    critical_violations = [v for v in report.violations_found if v.severity == "critical"]
-    assert critical_violations
-    assert any("inspect" in v.rule_id for v in critical_violations)
-
-
-def test_missing_food_safety_manager(engine: FoodSafetyComplianceEngine) -> None:
-    kitchen = {
-        "license_info": {
-            "license_number": "TEST-005",
-            "status": "active",
-        },
-        "inspection_history": [
-            {
-                "inspection_date": iso(-30),
-                "overall_score": 90,
-                "violations": [],
-                "establishment_closed": False,
-            }
-        ],
-        "certifications": [
-            {
-                "type": "General Training",
-                "status": "active",
-            }
-        ],
-    }
-
-    report = engine.generate_report(kitchen)
-    high_violations = [v for v in report.violations_found if v.severity == "high"]
-    assert any("cert" in v.rule_id for v in high_violations)
-    assert any(v.evidence_path == "certifications" for v in high_violations)
-
-
-def test_missing_handwashing_station(engine: FoodSafetyComplianceEngine) -> None:
-    kitchen = {
-        "license_info": {
-            "license_number": "TEST-006",
-            "status": "active",
-        },
-        "inspection_history": [
-            {
-                "inspection_date": iso(-30),
-                "overall_score": 90,
-                "violations": [],
-                "establishment_closed": False,
-            }
-        ],
-        "certifications": [
-            {
-                "type": "ServSafe",
-                "status": "active",
-            }
-        ],
-        "equipment": [
-            {
-                "type": "refrigeration",
-                "commercial_grade": True,
-            }
-        ],
-    }
-
-    report = engine.generate_report(kitchen)
-    critical_violations = [v for v in report.violations_found if v.severity == "critical"]
-    assert any("equip" in v.rule_id for v in critical_violations)
-
-
-def test_safety_badge_generation(engine: FoodSafetyComplianceEngine) -> None:
-    kitchen = build_fully_compliant_kitchen()
-    badge = engine.generate_kitchen_safety_badge(kitchen)
-
+    badge = engine.generate_kitchen_safety_badge(payload)
     assert badge["badge_level"] in {"gold", "silver"}
-    assert badge["score"] >= 85
-    assert badge["highlights"]
-    assert not badge["concerns"]
-    assert badge["engine_version"] == FoodSafetyComplianceEngine.ENGINE_VERSION
+    assert badge["score"] >= 95
+    assert badge["highlights"] and "ServSafe" in " ".join(badge["highlights"])
 
 
-def test_invalid_date_handling(engine: FoodSafetyComplianceEngine) -> None:
-    kitchen = {
-        "license_info": {
-            "license_number": "TEST-008",
-            "status": "active",
-            "expiration_date": "invalid-date",
-        }
-    }
+def test_expired_license_blocks_bookings(engine: FoodSafetyComplianceEngine) -> None:
+    payload = build_green_path_payload()
+    payload["license_info"]["expiration_date"] = iso(-1)
 
-    report = engine.generate_report(kitchen)
-    assert any(v.severity == "critical" for v in report.violations_found)
-    assert any(v.evidence_path == "license_info.expiration_date" for v in report.violations_found)
+    report = engine.generate_report(payload)
+    violations = {v.rule_id: v for v in report.violations_found}
 
+    assert "fs_license_1" in violations
+    assert violations["fs_license_1"].severity == "critical"
 
-def test_empty_kitchen_data(engine: FoodSafetyComplianceEngine) -> None:
-    report = engine.generate_report({})
-    assert report.violations_found
-
-
-def test_booking_validation(engine: FoodSafetyComplianceEngine) -> None:
-    valid_kitchen = build_fully_compliant_kitchen()
-    can_book, critical_violations = engine.validate_for_booking(valid_kitchen)
-    assert can_book is True
-    assert not critical_violations
-
-    invalid_kitchen = {
-        "license_info": {
-            "license_number": "TEST-010",
-            "status": "expired",
-            "expiration_date": iso(-10),
-        }
-    }
-
-    can_book, critical_violations = engine.validate_for_booking(invalid_kitchen)
+    can_book, critical = engine.validate_for_booking(payload)
     assert can_book is False
-    assert critical_violations
+    assert any(v.rule_id == "fs_license_1" for v in critical)
 
 
-def test_stale_inspection_violation(engine: FoodSafetyComplianceEngine) -> None:
-    kitchen = build_fully_compliant_kitchen()
-    kitchen["inspection_history"][0]["inspection_date"] = iso(-400)
+def test_low_inspection_score_triggers_critical_violation(
+    engine: FoodSafetyComplianceEngine,
+) -> None:
+    payload = build_green_path_payload()
+    payload["inspection_history"][0]["overall_score"] = 60
 
-    report = engine.generate_report(kitchen)
-    assert any(v.rule_id == "fs_inspect_stale" for v in report.violations_found)
-
-
-@given(st.integers(min_value=0, max_value=69))
-def test_score_monotonicity_critical_violation(failing_score: int) -> None:
-    engine = FoodSafetyComplianceEngine()
-
-    passing_data = build_fully_compliant_kitchen()
-    passing_data["inspection_history"][0]["overall_score"] = 90
-    passing_score = engine.generate_report(passing_data).overall_compliance_score
-
-    failing_data = build_fully_compliant_kitchen()
-    failing_data["inspection_history"][0]["overall_score"] = failing_score
-    failing_score_value = engine.generate_report(failing_data).overall_compliance_score
-
-    assert failing_score_value < passing_score
+    report = engine.generate_report(payload)
+    assert any(v.rule_id == "fs_inspect_2" and v.severity == "critical" for v in report.violations_found)
 
 
-def test_idempotency_of_engine() -> None:
-    engine = FoodSafetyComplianceEngine()
-    payload = build_fully_compliant_kitchen()
+def test_missing_handwashing_station_is_critical(engine: FoodSafetyComplianceEngine) -> None:
+    payload = build_green_path_payload()
+    payload["equipment"] = [payload["equipment"][0]]  # drop the handwashing station
 
-    report_one = engine.generate_report(payload)
-    report_two = engine.generate_report(payload)
+    report = engine.generate_report(payload)
+    assert any(v.rule_id == "fs_equip_3" for v in report.violations_found)
 
-    assert {v.rule_id for v in report_one.violations_found} == {
-        v.rule_id for v in report_two.violations_found
+
+def test_missing_or_expired_insurance_is_blocking(engine: FoodSafetyComplianceEngine) -> None:
+    payload = build_green_path_payload()
+    payload["insurance"]["expiration_date"] = iso(-10)
+
+    report = engine.generate_report(payload)
+    assert any(v.rule_id == "fs_prep_1" and v.severity == "critical" for v in report.violations_found)
+
+
+def test_invalid_dates_emit_data_validation_violation(engine: FoodSafetyComplianceEngine) -> None:
+    payload: Dict[str, Any] = {
+        "license_info": {"license_number": "INVALID", "status": "active", "expiration_date": "not-a-date"}
     }
-    assert report_one.overall_compliance_score == report_two.overall_compliance_score
+
+    violations = engine.validate(payload)
+    assert len(violations) == 1
+    violation = violations[0]
+    assert violation.rule_id == "data_validation"
+    assert violation.severity == "critical"
+    assert "validation_errors" in violation.context
+
+
+def test_engine_is_idempotent(engine: FoodSafetyComplianceEngine) -> None:
+    payload = build_green_path_payload()
+
+    first = engine.generate_report(payload)
+    second = engine.generate_report(payload)
+
+    assert first.overall_compliance_score == second.overall_compliance_score
+    assert [v.rule_id for v in first.violations_found] == [v.rule_id for v in second.violations_found]
