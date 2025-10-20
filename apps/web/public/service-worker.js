@@ -1,5 +1,6 @@
 const CACHE_NAME = 'prep-cache-v1';
-const URLS_TO_CACHE = ['/'];
+const APP_SHELL_URL = '/';
+const URLS_TO_CACHE = [APP_SHELL_URL];
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -11,17 +12,35 @@ self.addEventListener('fetch', event => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       (async () => {
+        let networkError;
         try {
-          return await fetch(event.request);
-        } catch (error) {
-          const cache = await caches.open(CACHE_NAME);
-          const cachedShell = await cache.match('/');
-          if (cachedShell) {
-            return cachedShell;
+          const preload = await event.preloadResponse;
+          if (preload) {
+            return preload;
           }
 
-          throw error;
+          const networkResponse = await fetch(event.request);
+          if (networkResponse && networkResponse.ok) {
+            return networkResponse;
+          }
+        } catch (error) {
+          networkError = error;
+          // Ignore network failures and fall through to the cache lookup below.
         }
+
+        const cache = await caches.open(CACHE_NAME);
+        const cachedShell =
+          (await cache.match(APP_SHELL_URL)) || (await cache.match('/index.html'));
+        if (cachedShell) {
+          return cachedShell;
+        }
+
+        // If the shell isn't cached, rethrow to surface the original error.
+        if (networkError) {
+          throw networkError;
+        }
+
+        return fetch(event.request);
       })()
     );
     return;
