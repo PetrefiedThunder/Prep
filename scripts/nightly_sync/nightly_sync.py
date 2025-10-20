@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import logging
 from pathlib import Path
@@ -79,17 +80,19 @@ def _configure_postgrest_schema(client: Client, schema: str) -> None:
 
     postgrest = getattr(client, "postgrest", None)
     if postgrest and hasattr(postgrest, "schema"):
-        descriptor = getattr(type(client), "postgrest", None)
+        descriptor = inspect.getattr_static(client, "postgrest", None)
 
         # Newer supabase-py clients expose postgrest as a read-only property whose
         # schema is controlled via ClientOptions. Attempting to assign will raise
         # AttributeError, so skip reassignment in that case.
         if isinstance(descriptor, property) and descriptor.fset is None:
+            LOGGER.debug("Supabase client postgrest property is read-only; skipping schema override")
             return
 
         try:
             client.postgrest = postgrest.schema(schema)  # type: ignore[assignment]
         except AttributeError:  # pragma: no cover - legacy client variations
+            LOGGER.debug("Supabase client postgrest attribute is read-only; skipping schema override")
             return
 
 
