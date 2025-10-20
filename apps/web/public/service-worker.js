@@ -10,11 +10,19 @@ self.addEventListener('install', event => {
 self.addEventListener('fetch', event => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const cachedResponse = await cache.match(event.request);
-        return cachedResponse || cache.match('/');
-      })
+      (async () => {
+        try {
+          return await fetch(event.request);
+        } catch (error) {
+          const cache = await caches.open(CACHE_NAME);
+          const cachedShell = await cache.match('/');
+          if (cachedShell) {
+            return cachedShell;
+          }
+
+          throw error;
+        }
+      })()
     );
     return;
   }
