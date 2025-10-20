@@ -118,7 +118,12 @@ create unique index if not exists api_clients_api_key_idx on api_clients (api_ke
 
 -- Helper function to check if requester can access a county
 create or replace function prepchef.is_authorized_for_county(county uuid)
-returns boolean language sql stable as $$
+returns boolean
+    language sql
+    stable
+    security definer
+    set search_path = prepchef, public
+as $$
     select case
         when auth.uid() is null then false
         when exists (
@@ -225,7 +230,7 @@ alter table api_clients enable row level security;
 create policy api_clients_select_policy on api_clients
 for select using (
     auth.role() = 'service_role'
-    or auth.uid() = id
+    or (auth.role() = 'authenticated' and auth.uid() = id)
 );
 
 create policy api_clients_modify_policy on api_clients

@@ -108,7 +108,7 @@ def upsert_staging(
             }
         )
 
-    response = supabase.table("prepchef.staging_inspections").upsert(payload).execute()
+    response = supabase.table("staging_inspections").upsert(payload).execute()
     inserted = len(response.data or [])
     LOGGER.info("Upserted %s staging rows for data_source_id=%s", inserted, data_source_id)
     return inserted
@@ -139,7 +139,7 @@ def record_ingestion_run(
     error_message: str | None,
     ingestion_run_id: str,
 ) -> None:
-    supabase.table("prepchef.ingestion_runs").upsert(
+    supabase.table("ingestion_runs").upsert(
         {
             "id": ingestion_run_id,
             "county_id": county_id,
@@ -155,7 +155,7 @@ def record_ingestion_run(
 @backoff.on_exception(backoff.expo, httpx.HTTPError, max_tries=3)
 def fetch_data_sources(supabase: Client, county_id: str) -> Iterable[dict]:
     response = (
-        supabase.table("prepchef.data_sources")
+        supabase.table("data_sources")
         .select("id, dataset_identifier, metadata->>domain")
         .eq("county_id", county_id)
         .eq("is_enabled", True)
