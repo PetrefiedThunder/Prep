@@ -1,5 +1,9 @@
 version: '3.8'
 services:
+  web:
+    build: ./web-server
+    ports:
+      - '3000:3000'
   auth-svc:
     build: ../../services/auth-svc
     ports:
