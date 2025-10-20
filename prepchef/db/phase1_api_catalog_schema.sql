@@ -7,10 +7,7 @@ create extension if not exists "pgcrypto";
 create schema if not exists prepchef_phase1;
 set search_path to prepchef_phase1, public;
 
--- Allow Supabase client roles to access the schema objects in addition to RLS policies.
 grant usage on schema prepchef_phase1 to authenticated, anon, service_role;
-grant select, insert, update, delete on all tables in schema prepchef_phase1 to authenticated, anon, service_role;
-grant usage, select on all sequences in schema prepchef_phase1 to authenticated, anon, service_role;
 
 alter default privileges in schema prepchef_phase1
   grant select, insert, update, delete on tables to authenticated, anon, service_role;
@@ -139,6 +136,10 @@ select
 from counties c
 left join data_sources ds on ds.county_id = c.id
 group by c.id, c.fips_code, c.name, c.state_abbr;
+
+-- Ensure Supabase roles have access to the newly created tables, views, and sequences.
+grant select, insert, update, delete on all tables in schema prepchef_phase1 to authenticated, anon, service_role;
+grant usage, select on all sequences in schema prepchef_phase1 to authenticated, anon, service_role;
 
 -- Enable row level security so Supabase can enforce API policies.
 alter table counties enable row level security;
