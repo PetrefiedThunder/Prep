@@ -1,0 +1,63 @@
+{
+  "$schema": "https://prepchef.io/schemas/api-catalog-ingestion.json",
+  "discovery_job": {
+    "platform_type": "socrata",
+    "triggered_by": "github_actions",
+    "search": {
+      "keywords": ["food", "inspection", "restaurant"],
+      "jurisdiction_filter": {
+        "state_code": "CA",
+        "county_name": "Los Angeles"
+      },
+      "socrata_domains": ["data.lacity.org", "data.lacounty.gov"],
+      "last_seen_after": "2025-01-01T00:00:00Z"
+    }
+  },
+  "catalog_entry": {
+    "jurisdiction": {
+      "state_code": "CA",
+      "county_name": "Los Angeles",
+      "fips_state": "06",
+      "fips_county": "037"
+    },
+    "endpoint": {
+      "endpoint_url": "https://data.lacounty.gov/resource/abcd-1234.json",
+      "dataset_name": "Food Facility Inspections",
+      "dataset_uid": "abcd-1234",
+      "schema_type": "socrata",
+      "content_format": "json",
+      "platform_type": "socrata",
+      "auth_method": "api_key",
+      "refresh_interval_hours": 24,
+      "tags": ["food_safety", "inspection", "restaurant"],
+      "metadata": {
+        "primary_keys": ["facility_id", "inspection_id"],
+        "geospatial_fields": ["location"],
+        "date_fields": ["activity_date"],
+        "score_fields": ["score"],
+        "violation_columns": ["violation_description", "violation_points"],
+        "contact": {
+          "name": "County Open Data Team",
+          "email": "opendata@lacounty.gov"
+        }
+      }
+    },
+    "quality": {
+      "freshness_score": 92.5,
+      "quality_score": 88.0,
+      "last_seen_at": "2025-02-15T08:30:00Z",
+      "last_harvested_at": "2025-02-15T08:45:00Z"
+    }
+  },
+  "ingestion_run": {
+    "pipeline": "airbyte",
+    "destination": "supabase",
+    "status": "succeeded",
+    "started_at": "2025-02-15T08:40:00Z",
+    "completed_at": "2025-02-15T08:45:00Z",
+    "rows_ingested": 15234,
+    "storage_location": "s3://prepchef-data/lacounty/inspections/2025-02-15/",
+    "checksum": "sha256:2a8e2c5a1e4c3bda90123456789abcdef0123456789abcdef0123456789abcd",
+    "error_summary": null
+  }
+}
