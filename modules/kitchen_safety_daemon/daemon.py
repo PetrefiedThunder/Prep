@@ -38,6 +38,7 @@ import asyncio
 import inspect
 import logging
 import time
+from typing import Callable, Optional
 from collections.abc import Awaitable, Callable
 from typing import Optional
 
@@ -74,6 +75,7 @@ class SafetyDaemon:
         count = 0
         while not self._stop.is_set():
             # Placeholder for sensor checks
+            self.logger.info("Performing safety check...")
             message = "Performing safety check..."
             self.logger.info(message)
             if self._event_handler is not None:
@@ -89,6 +91,8 @@ class SafetyDaemon:
                 asyncio.to_thread(self.sleep_fn, self.check_interval)
             )
             stop_task = asyncio.create_task(self._stop.wait())
+            done, pending = await asyncio.wait(
+                [sleep_task, stop_task],
 
             done, pending = await asyncio.wait(
                 {sleep_task, stop_task},
