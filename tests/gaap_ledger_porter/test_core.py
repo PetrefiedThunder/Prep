@@ -1,5 +1,12 @@
 import json
+import pytest
 from gaap_ledger_porter.core import GAAPLedgerPorter
+
+
+def test_load_config_missing_file():
+    porter = GAAPLedgerPorter()
+    with pytest.raises(FileNotFoundError):
+        porter.load_config("missing.json")
 
 
 def test_validate_balanced_ledger():
@@ -39,4 +46,10 @@ def test_validate_unbalanced_ledger():
     ]
     porter = GAAPLedgerPorter()
     assert porter.validate(ledger) is False
+
+
+def test_generate_report_without_ledger():
+    porter = GAAPLedgerPorter()
+    with pytest.raises(ValueError):
+        porter.generate_report()
 

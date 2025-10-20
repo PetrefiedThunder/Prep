@@ -16,5 +16,10 @@ class HapticRouter:
         pattern = self.PATTERNS.get(mode)
         if not pattern:
             pattern = []
+    def __init__(self, logger: Optional[logging.Logger] = None):
+        self.logger = logger or logging.getLogger(__name__)
+
+    def route(self, mode: str):
+        pattern = self.PATTERNS.get(mode, [])
         self.logger.info("Haptic pattern for %s: %s", mode, pattern)
         return pattern

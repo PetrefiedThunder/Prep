@@ -47,3 +47,7 @@ pytest
 - [TECHNICAL_OUTLINE.md](TECHNICAL_OUTLINE.md)
 - Additional details are available in each subproject's README (linked above where available).
 
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
