@@ -20,6 +20,7 @@ test('calculate pricing for booking', async () => {
   assert.equal(body.hourly_rate_cents, 5000);
   assert.equal(body.subtotal_cents, 20000);
   assert.ok(body.total_cents > body.subtotal_cents);
+  await app.close();
 });
 
 test('pricing validation for invalid duration', async () => {
@@ -52,5 +53,6 @@ test('pricing validation for invalid duration', async () => {
 
   assert.equal(res2.statusCode, 400);
   assert.ok(res2.json().message.includes('2 hours'));
+  await app.close();
 });
 

@@ -17,6 +17,7 @@ test('issues tokens for valid credentials', async () => {
   assert.ok(body.refreshToken);
   const decoded = await app.jwt.verify(body.token);
   assert.equal(decoded.username, 'admin');
+  await app.close();
 });
 
 test('rejects invalid credentials', async () => {
@@ -27,6 +28,7 @@ test('rejects invalid credentials', async () => {
     payload: { username: 'admin', password: 'wrong' },
   });
   assert.equal(res.statusCode, 401);
+  await app.close();
 });
 
 test('refreshes token with valid refresh token', async () => {
@@ -46,6 +48,7 @@ test('refreshes token with valid refresh token', async () => {
   const body = refreshRes.json();
   assert.ok(body.token);
   assert.ok(body.refreshToken);
+  await app.close();
 });
 
 test('rejects invalid refresh token', async () => {
@@ -56,6 +59,7 @@ test('rejects invalid refresh token', async () => {
     payload: { refreshToken: 'bogus' },
   });
   assert.equal(res.statusCode, 401);
+  await app.close();
 });
 
 test('cannot reuse refresh token after rotation', async () => {
@@ -81,4 +85,5 @@ test('cannot reuse refresh token after rotation', async () => {
     payload: { refreshToken },
   });
   assert.equal(secondRes.statusCode, 401);
+  await app.close();
 });
