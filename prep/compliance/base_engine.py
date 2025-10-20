@@ -77,14 +77,22 @@ class ComplianceEngine(ABC):
         """Generate a comprehensive compliance report for the provided data."""
 
         violations = self.validate(data)
-        violation_rule_ids = {violation.rule_id for violation in violations}
-        passed_rules = [rule.id for rule in self.rules if rule.id not in violation_rule_ids]
 
-        total_rules = len(self.rules)
-        if total_rules == 0:
+        rule_ids = {rule.id for rule in self.rules}
+        known_violation_ids = {
+            violation.rule_id for violation in violations if violation.rule_id in rule_ids
+        }
+        passed_rules = [rule.id for rule in self.rules if rule.id not in known_violation_ids]
+        unknown_violation_count = sum(
+            1 for violation in violations if violation.rule_id not in rule_ids
+        )
+
+        total_evaluated = len(self.rules) + unknown_violation_count
+        if total_evaluated == 0:
             score = 1.0
         else:
-            score = max(0.0, min(1.0, len(passed_rules) / total_rules))
+            score = len(passed_rules) / total_evaluated
+            score = max(0.0, min(1.0, score))
 
         critical_violations = [v for v in violations if v.severity == "critical"]
         high_violations = [v for v in violations if v.severity == "high"]

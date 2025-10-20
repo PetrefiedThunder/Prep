@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import pytest
+
 from prep.compliance.base_engine import (
     ComplianceEngine,
     ComplianceReport,
@@ -73,3 +75,25 @@ def test_generate_report_with_violation() -> None:
     assert len(report.violations_found) == 1
     assert report.overall_compliance_score == 0.0
     assert report.passed_rules == []
+
+
+def test_generate_report_with_unknown_violation_affects_score() -> None:
+    class UnknownViolationEngine(DummyComplianceEngine):
+        def validate(self, data):  # type: ignore[override]
+            return [
+                ComplianceViolation(
+                    rule_id="synthetic_error",
+                    rule_name="Synthetic",
+                    message="Synthetic violation",
+                    severity="critical",
+                    context={},
+                    timestamp=datetime.now(timezone.utc),
+                )
+            ]
+
+    engine = UnknownViolationEngine()
+    report = engine.generate_report({"valid": True})
+
+    assert report.total_rules_checked == 1
+    assert pytest.approx(report.overall_compliance_score, rel=1e-6) == 0.5
+    assert report.passed_rules == ["test_rule_1"]
