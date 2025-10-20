@@ -84,6 +84,13 @@ BADGE_THRESHOLDS: Tuple[Tuple[str, int], ...] = (
     ("bronze", 70),
 )
 
+SEVERITY_RANK = {
+    "critical": 0,
+    "high": 1,
+    "medium": 2,
+    "low": 3,
+}
+
 
 def _segment_guard(segment_name: str) -> Callable[[Callable[["FoodSafetyComplianceEngine", Dict[str, Any]], List[ComplianceViolation]]], Callable[["FoodSafetyComplianceEngine", Dict[str, Any]], List[ComplianceViolation]]]:
     """Decorator ensuring segment failures degrade gracefully."""
@@ -430,7 +437,12 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         for validator in segment_validators:
             violations.extend(validator(enriched_data))
 
-        violations.sort(key=lambda violation: (violation.severity, violation.rule_id))
+        violations.sort(
+            key=lambda violation: (
+                SEVERITY_RANK.get(violation.severity.lower(), 4),
+                violation.rule_id,
+            )
+        )
         return violations
 
     def _enrich_with_real_time_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -929,8 +941,14 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         critical_violations = [violation for violation in violations if violation.severity == "critical"]
         return len(critical_violations) == 0, critical_violations
 
-    def generate_kitchen_safety_badge(self, kitchen_data: Dict[str, Any]) -> Dict[str, Any]:
-        report = self.generate_report(kitchen_data)
+    def generate_kitchen_safety_badge(
+        self,
+        kitchen_data: Dict[str, Any],
+        *,
+        report: Optional[ComplianceReport] = None,
+    ) -> Dict[str, Any]:
+        if report is None:
+            report = self.generate_report(kitchen_data)
         score_percent = int(round(report.overall_compliance_score * 100))
         score_percent = max(0, min(100, score_percent))
 
@@ -939,6 +957,10 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
             if score_percent >= threshold:
                 badge_level = level
                 break
+
+        can_accept_bookings = not any(
+            violation.severity == "critical" for violation in report.violations_found
+        )
 
         sanitized_input = DataValidator.sanitize_kitchen_data(kitchen_data)
         highlights: List[str] = []
@@ -969,4 +991,5 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
             "engine_version": self.engine_version,
             "highlights": highlights,
             "concerns": concerns,
+            "can_accept_bookings": can_accept_bookings,
         }
