@@ -19,6 +19,8 @@ test('provisions access and emits event', async () => {
   const body = res.json();
   assert.equal(body.credentialId, 'cred_test_123');
   assert.equal(events[0].credentialId, 'cred_test_123');
+  await app.close();
+  messageBus.removeAllListeners();
 });
 
 test('revokes access and emits event', async () => {
@@ -37,4 +39,6 @@ test('revokes access and emits event', async () => {
   const body = res.json();
   assert.equal(body.revoked, true);
   assert.equal(events[0].credentialId, 'cred_test_123');
+  await app.close();
+  messageBus.removeAllListeners();
 });

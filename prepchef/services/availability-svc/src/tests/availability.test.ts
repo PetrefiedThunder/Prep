@@ -12,6 +12,7 @@ test('availability service health check', async () => {
   assert.equal(res.statusCode, 200);
   assert.equal(res.json().ok, true);
   assert.equal(res.json().svc, 'availability-svc');
+  await app.close();
 });
 
 test('check availability for valid time slot', async () => {
@@ -27,6 +28,7 @@ test('check availability for valid time slot', async () => {
   });
 
   assert.equal(res.statusCode, 204);
+  await app.close();
 });
 
 test('check availability for conflicting time slot', async () => {
@@ -45,5 +47,6 @@ test('check availability for conflicting time slot', async () => {
   const body = res.json();
   assert.ok(body.conflicts);
   assert.equal(body.conflicts.length, 1);
+  await app.close();
 });
 
