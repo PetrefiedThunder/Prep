@@ -12,6 +12,7 @@ This document translates the PrepChef regulatory intelligence plan into an execu
 - **Automation:** n8n or Make scenarios that sweep known OpenGov, Socrata, and ArcGIS directories and push deltas into Supabase nightly.
 - **Data model:** Records store county metadata, endpoint URLs, platform type, schema references, auth method, refresh cadence, and rolling data quality score as JSON for immediate ingestion.
 - **Deliverable:** Dynamic API Catalog with ≥300 counties indexed and freshness scoring by end of Week 2.
+- **Schema assets:** Supabase-ready SQL migration (`prepchef/db/phase1_api_catalog_schema.sql`) and ingestion payload template (`prepchef/db/phase1_ingestion_template.json`) to seed the catalog and automate discovery workflows.
 
 ## Phase 2 — Gap Analysis & Partnerships (Weeks 3–4)
 
