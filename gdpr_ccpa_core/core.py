@@ -50,6 +50,8 @@ class GDPRCCPACore:
         now = datetime.now(timezone.utc)
 
         for record in records_list:
+        records = list(records)
+        for record in records:
             if not record.get("consent"):
                 self.is_valid = False
                 return False
@@ -64,6 +66,7 @@ class GDPRCCPACore:
                 last_updated = datetime.fromisoformat(last_updated_str).astimezone(
                     timezone.utc
                 )
+                last_updated = datetime.fromisoformat(last_updated_str).astimezone(timezone.utc)
             except Exception:  # pragma: no cover - defensive
                 self.is_valid = False
                 return False
@@ -73,6 +76,7 @@ class GDPRCCPACore:
                 return False
 
         self.records = records_list
+        self.records = records
         self.is_valid = True
         return True
 
