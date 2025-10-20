@@ -42,10 +42,22 @@ class SafetyDaemon:
                 break
 
     async def _sleep_once(self) -> None:
-        if inspect.iscoroutinefunction(self.sleep_fn):
-            await self.sleep_fn(self.check_interval)
+        sleep_callable = self.sleep_fn
+
+        if inspect.iscoroutinefunction(sleep_callable):
+            await sleep_callable(self.check_interval)
             return
 
-        result = await asyncio.to_thread(self.sleep_fn, self.check_interval)
+        call_attr = getattr(sleep_callable, "__call__", None)
+        if call_attr is not None and inspect.iscoroutinefunction(call_attr):
+            await sleep_callable(self.check_interval)
+            return
+
+        type_call_attr = getattr(type(sleep_callable), "__call__", None)
+        if type_call_attr is not None and inspect.iscoroutinefunction(type_call_attr):
+            await sleep_callable(self.check_interval)
+            return
+
+        result = await asyncio.to_thread(sleep_callable, self.check_interval)
         if inspect.isawaitable(result):
             await result
