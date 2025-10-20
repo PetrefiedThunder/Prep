@@ -96,9 +96,9 @@ class SafetyDaemon:
             await sleep_callable(self.check_interval)  # type: ignore[misc]
             return
 
-        result = sleep_callable(self.check_interval)
+        result = await asyncio.to_thread(
+            time.sleep if sleep_callable is time.sleep else sleep_callable,
+            self.check_interval,
+        )
         if inspect.isawaitable(result):
             await result
-            return
-
-        await asyncio.to_thread(time.sleep if sleep_callable is time.sleep else sleep_callable, self.check_interval)
