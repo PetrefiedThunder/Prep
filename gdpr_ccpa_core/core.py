@@ -45,10 +45,13 @@ class GDPRCCPACore:
         if not self.config:
             raise ValueError("Configuration not loaded")
 
+        records_list = list(records)
+
         allowed_regions = set(self.config["allowed_regions"])
         retention = timedelta(days=self.config["data_retention_days"])
         now = datetime.now(timezone.utc)
 
+        for record in records_list:
         records = list(records)
         for record in records:
             if not record.get("consent"):
@@ -62,6 +65,9 @@ class GDPRCCPACore:
 
             last_updated_str = record.get("last_updated")
             try:
+                last_updated = datetime.fromisoformat(last_updated_str).astimezone(
+                    timezone.utc
+                )
                 last_updated = datetime.fromisoformat(last_updated_str).astimezone(timezone.utc)
             except Exception:  # pragma: no cover - defensive
                 self.is_valid = False
@@ -71,6 +77,7 @@ class GDPRCCPACore:
                 self.is_valid = False
                 return False
 
+        self.records = records_list
         self.records = records
         self.is_valid = True
         return True
