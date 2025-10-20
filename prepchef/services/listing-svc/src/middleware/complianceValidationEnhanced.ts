@@ -8,6 +8,11 @@ export interface ComplianceViolation {
   rule_name: string;
   message: string;
   severity: Severity;
+  context: Record<string, unknown>;
+  timestamp: string;
+  rule_version?: string | null;
+  evidence_path?: string | null;
+  observed_value?: unknown;
 }
 
 export interface SafetyBadge {
@@ -16,20 +21,31 @@ export interface SafetyBadge {
   last_verified?: string;
   highlights: string[];
   concerns: string[];
+  engine_version?: string;
 }
 
 export interface ComplianceEngineSuccess {
-  status?: 'ok';
+  status: 'success';
+  engine_name: string;
+  engine_version: string;
+  timestamp: string;
+  total_rules_checked: number;
+  summary: string;
+  recommendations: string[];
   overall_compliance_score: number;
   violations_found: ComplianceViolation[];
+  passed_rules: string[];
   can_accept_bookings: boolean;
   safety_badge?: SafetyBadge;
+  critical_violations: ComplianceViolation[];
+  detailed_analysis?: Record<string, unknown>;
 }
 
 export interface ComplianceEngineFailure {
   status: 'error';
   error: string;
   details?: unknown;
+  traceback?: string;
 }
 
 export type ComplianceEngineResult = ComplianceEngineSuccess | ComplianceEngineFailure;
@@ -693,13 +709,18 @@ export async function getKitchenSafetyBadge(
         last_verified: latestCompliance.check_date.toISOString(),
         highlights,
         concerns,
+        engine_version: latestCompliance.raw_report?.engine_version,
       };
     }
+
+    const canAccept =
+      latestCompliance.raw_report?.can_accept_bookings ??
+      (kitchen.compliance_status === 'verified');
 
     return {
       ok: true,
       statusCode: 200,
-      data: { ...badge, can_accept_bookings: kitchen.compliance_status === 'verified' },
+      data: { ...badge, can_accept_bookings: canAccept },
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

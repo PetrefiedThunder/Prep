@@ -38,6 +38,7 @@ def main() -> int:
             "error": "Invalid JSON input",
             "details": str(exc),
             "status": "error",
+            "traceback": traceback.format_exc(),
         }
         print(json.dumps(output))
         return 1
@@ -58,6 +59,7 @@ def main() -> int:
             "error": "Could not import compliance engine",
             "details": str(exc),
             "status": "error",
+            "traceback": traceback.format_exc(),
         }
         print(json.dumps(output))
         return 1
@@ -79,8 +81,17 @@ def main() -> int:
                 file=sys.stderr,
             )
 
+    strict_mode_env = os.getenv("FOOD_SAFETY_STRICT_MODE")
+    if strict_mode_env is not None:
+        strict_mode = strict_mode_env.lower() in {"1", "true", "yes", "on"}
+    else:
+        strict_mode = os.getenv("ENVIRONMENT", "").lower() == "production"
+
     try:
-        engine = FoodSafetyComplianceEngine(data_api_client=data_api_client)
+        engine = FoodSafetyComplianceEngine(
+            data_api_client=data_api_client,
+            strict_mode=strict_mode,
+        )
     except Exception as exc:
         output = {
             "error": "Failed to initialize compliance engine",
@@ -143,10 +154,14 @@ def main() -> int:
                 "severity": violation.severity,
                 "context": violation.context,
                 "timestamp": violation.timestamp.isoformat(),
+                "rule_version": violation.rule_version,
+                "evidence_path": violation.evidence_path,
+                "observed_value": violation.observed_value,
             }
             for violation in report.violations_found
         ],
         "passed_rules": report.passed_rules,
+        "engine_version": report.engine_version,
         "can_accept_bookings": can_accept,
         "critical_violations": [
             {
@@ -154,6 +169,11 @@ def main() -> int:
                 "rule_name": violation.rule_name,
                 "message": violation.message,
                 "severity": violation.severity,
+                "context": violation.context,
+                "timestamp": violation.timestamp.isoformat(),
+                "rule_version": violation.rule_version,
+                "evidence_path": violation.evidence_path,
+                "observed_value": violation.observed_value,
             }
             for violation in critical_violations
         ],
