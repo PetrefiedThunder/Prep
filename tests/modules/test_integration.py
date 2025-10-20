@@ -2,11 +2,11 @@ import asyncio
 import logging
 from unittest.mock import MagicMock
 
+from modules.haptic_router.router import HapticRouter
 from modules.integration import IntegrationCoordinator
 from modules.kitchen_safety_daemon.daemon import SafetyDaemon
 from modules.prep_sync_agent.sensor_logger import PrepSyncAgent
 from modules.voice_coach.coach import VoiceCoach
-from modules.haptic_router.router import HapticRouter
 
 
 def _fast_sleep(_: float) -> None:
@@ -58,7 +58,7 @@ def test_wire_safety_daemon_invokes_broadcast():
     )
 
     async def run() -> None:
-        await daemon.monitor(iterations=1)
+        await daemon.monitor_async(iterations=1)
 
     asyncio.run(run())
 
