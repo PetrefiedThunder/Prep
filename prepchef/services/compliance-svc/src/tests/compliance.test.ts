@@ -11,6 +11,7 @@ test('compliance check passes for valid listing', async () => {
   });
 
   assert.equal(res.statusCode, 204);
+  await app.close();
 });
 
 test('compliance check fails for expired documents', async () => {
@@ -25,5 +26,6 @@ test('compliance check fails for expired documents', async () => {
   const body = res.json();
   assert.ok(body.failed_checks);
   assert.equal(body.failed_checks[0].status, 'expired');
+  await app.close();
 });
 
