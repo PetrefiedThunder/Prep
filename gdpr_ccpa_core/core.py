@@ -40,6 +40,8 @@ class GDPRCCPACore:
         exceed the configured retention period.
         """
 
+    def validate(self, records) -> bool:
+        """Validate data handling practices."""
         if not self.config:
             raise ValueError("Configuration not loaded")
 
@@ -82,6 +84,7 @@ class GDPRCCPACore:
 
     def generate_report(self) -> str:
         """Create a compliance assessment report."""
+        return ""
 
         if not self.records:
             raise ValueError("No records validated")
