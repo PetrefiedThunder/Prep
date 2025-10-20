@@ -1,5 +1,8 @@
 import json
 import logging
+from datetime import datetime
+from typing import Optional
+
 from datetime import datetime, timezone
 from typing import Any, Mapping, Optional
 
@@ -34,6 +37,7 @@ class PrepSyncAgent:
             "value": value,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+        json_data = json.dumps(data)
         if metadata:
             data["metadata"] = dict(metadata)
         json_data = json.dumps(data, default=str)
