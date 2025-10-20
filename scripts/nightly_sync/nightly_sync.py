@@ -79,7 +79,18 @@ def _configure_postgrest_schema(client: Client, schema: str) -> None:
 
     postgrest = getattr(client, "postgrest", None)
     if postgrest and hasattr(postgrest, "schema"):
-        client.postgrest = postgrest.schema(schema)  # type: ignore[assignment]
+        descriptor = getattr(type(client), "postgrest", None)
+
+        # Newer supabase-py clients expose postgrest as a read-only property whose
+        # schema is controlled via ClientOptions. Attempting to assign will raise
+        # AttributeError, so skip reassignment in that case.
+        if isinstance(descriptor, property) and descriptor.fset is None:
+            return
+
+        try:
+            client.postgrest = postgrest.schema(schema)  # type: ignore[assignment]
+        except AttributeError:  # pragma: no cover - legacy client variations
+            return
 
 
 def get_supabase_client(url: str, key: str) -> Client:
