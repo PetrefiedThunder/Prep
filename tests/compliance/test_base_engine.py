@@ -94,6 +94,6 @@ def test_generate_report_with_unknown_violation_affects_score() -> None:
     engine = UnknownViolationEngine()
     report = engine.generate_report({"valid": True})
 
-    assert report.total_rules_checked == 1
+    assert report.total_rules_checked == 2
     assert pytest.approx(report.overall_compliance_score, rel=1e-6) == 0.5
     assert report.passed_rules == ["test_rule_1"]

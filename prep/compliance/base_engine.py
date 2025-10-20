@@ -118,7 +118,7 @@ class ComplianceEngine(ABC):
         return ComplianceReport(
             engine_name=self.name,
             timestamp=datetime.now(timezone.utc),
-            total_rules_checked=len(self.rules),
+            total_rules_checked=total_evaluated,
             violations_found=violations,
             passed_rules=passed_rules,
             summary=summary,
