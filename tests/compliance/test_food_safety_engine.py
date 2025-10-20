@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from hypothesis import given, strategies as st
 
 from prep.compliance.food_safety_compliance_engine import FoodSafetyComplianceEngine
 
@@ -87,6 +88,8 @@ def build_fully_compliant_kitchen() -> dict:
 def test_engine_initialization(engine: FoodSafetyComplianceEngine) -> None:
     assert engine.name == "Food_Safety_Compliance_Engine"
     assert len(engine.rules) >= 16
+    assert engine.rule_versions["fs_inspect_stale"] == "1.0.0"
+    assert engine.engine_version == FoodSafetyComplianceEngine.ENGINE_VERSION
 
 
 def test_valid_kitchen_compliance(engine: FoodSafetyComplianceEngine) -> None:
@@ -95,6 +98,8 @@ def test_valid_kitchen_compliance(engine: FoodSafetyComplianceEngine) -> None:
 
     assert report.overall_compliance_score > 0.9
     assert not any(v.severity == "critical" for v in report.violations_found)
+    assert report.engine_version == FoodSafetyComplianceEngine.ENGINE_VERSION
+    assert report.rule_versions["fs_inspect_1"] == "2.0.0"
 
     can_book, critical_violations = engine.validate_for_booking(valid_kitchen)
     assert can_book is True
@@ -117,6 +122,7 @@ def test_expired_license_violation(engine: FoodSafetyComplianceEngine) -> None:
     critical_violations = [v for v in report.violations_found if v.severity == "critical"]
     assert critical_violations
     assert any("license" in v.rule_id for v in critical_violations)
+    assert any(v.evidence_path == "license_info.expiration_date" for v in critical_violations)
 
     can_book, critical_violations = engine.validate_for_booking(expired_kitchen)
     assert can_book is False
@@ -188,6 +194,7 @@ def test_missing_food_safety_manager(engine: FoodSafetyComplianceEngine) -> None
     report = engine.generate_report(kitchen)
     high_violations = [v for v in report.violations_found if v.severity == "high"]
     assert any("cert" in v.rule_id for v in high_violations)
+    assert any(v.evidence_path == "certifications" for v in high_violations)
 
 
 def test_missing_handwashing_station(engine: FoodSafetyComplianceEngine) -> None:
@@ -231,6 +238,7 @@ def test_safety_badge_generation(engine: FoodSafetyComplianceEngine) -> None:
     assert badge["score"] >= 85
     assert badge["highlights"]
     assert not badge["concerns"]
+    assert badge["engine_version"] == FoodSafetyComplianceEngine.ENGINE_VERSION
 
 
 def test_invalid_date_handling(engine: FoodSafetyComplianceEngine) -> None:
@@ -244,6 +252,7 @@ def test_invalid_date_handling(engine: FoodSafetyComplianceEngine) -> None:
 
     report = engine.generate_report(kitchen)
     assert any(v.severity == "critical" for v in report.violations_found)
+    assert any(v.evidence_path == "license_info.expiration_date" for v in report.violations_found)
 
 
 def test_empty_kitchen_data(engine: FoodSafetyComplianceEngine) -> None:
@@ -268,3 +277,39 @@ def test_booking_validation(engine: FoodSafetyComplianceEngine) -> None:
     can_book, critical_violations = engine.validate_for_booking(invalid_kitchen)
     assert can_book is False
     assert critical_violations
+
+
+def test_stale_inspection_violation(engine: FoodSafetyComplianceEngine) -> None:
+    kitchen = build_fully_compliant_kitchen()
+    kitchen["inspection_history"][0]["inspection_date"] = iso(-400)
+
+    report = engine.generate_report(kitchen)
+    assert any(v.rule_id == "fs_inspect_stale" for v in report.violations_found)
+
+
+@given(st.integers(min_value=0, max_value=69))
+def test_score_monotonicity_critical_violation(failing_score: int) -> None:
+    engine = FoodSafetyComplianceEngine()
+
+    passing_data = build_fully_compliant_kitchen()
+    passing_data["inspection_history"][0]["overall_score"] = 90
+    passing_score = engine.generate_report(passing_data).overall_compliance_score
+
+    failing_data = build_fully_compliant_kitchen()
+    failing_data["inspection_history"][0]["overall_score"] = failing_score
+    failing_score_value = engine.generate_report(failing_data).overall_compliance_score
+
+    assert failing_score_value < passing_score
+
+
+def test_idempotency_of_engine() -> None:
+    engine = FoodSafetyComplianceEngine()
+    payload = build_fully_compliant_kitchen()
+
+    report_one = engine.generate_report(payload)
+    report_two = engine.generate_report(payload)
+
+    assert {v.rule_id for v in report_one.violations_found} == {
+        v.rule_id for v in report_two.violations_found
+    }
+    assert report_one.overall_compliance_score == report_two.overall_compliance_score

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -31,6 +31,9 @@ class ComplianceViolation:
     severity: str
     context: Dict[str, Any]
     timestamp: datetime
+    rule_version: Optional[str] = None
+    evidence_path: Optional[str] = None
+    observed_value: Any = None
 
 
 @dataclass
@@ -45,14 +48,19 @@ class ComplianceReport:
     summary: str
     recommendations: List[str]
     overall_compliance_score: float
+    engine_version: str
+    rule_versions: Dict[str, str]
+    report_signature: Optional[str] = None
 
 
 class ComplianceEngine(ABC):
     """Abstract base class for all compliance engines."""
 
-    def __init__(self, name: Optional[str] = None) -> None:
+    def __init__(self, name: Optional[str] = None, *, engine_version: str = "1.0.0") -> None:
         self.name = name or self.__class__.__name__
+        self.engine_version = engine_version
         self.rules: List[ComplianceRule] = []
+        self.rule_versions: Dict[str, str] = {}
         self.logger = logging.getLogger(f"compliance.{self.name}")
         if not self.logger.handlers:
             self.logger.addHandler(logging.NullHandler())
@@ -101,13 +109,15 @@ class ComplianceEngine(ABC):
 
         return ComplianceReport(
             engine_name=self.name,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             total_rules_checked=len(self.rules),
             violations_found=violations,
             passed_rules=passed_rules,
             summary=summary,
             recommendations=recommendations,
             overall_compliance_score=score,
+            engine_version=self.engine_version,
+            rule_versions=dict(self.rule_versions),
         )
 
     def add_rule(self, rule: ComplianceRule) -> None:

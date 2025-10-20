@@ -9,13 +9,18 @@ description = "Prep prototypes"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "fastapi>=0.110.0",
     "pyyaml>=6.0.0",
+    "python-dateutil>=2.9.0",
+    "pydantic>=2.5.0",
+    "uvicorn[standard]>=0.29.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest==8.4.1",
     "pyyaml>=6.0.0",
+    "hypothesis>=6.108.1",
 ]
 
 [project.scripts]

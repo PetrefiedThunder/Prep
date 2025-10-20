@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from prep.compliance.base_engine import (
     ComplianceEngine,
@@ -12,7 +12,7 @@ from prep.compliance.base_engine import (
 
 class DummyComplianceEngine(ComplianceEngine):
     def __init__(self) -> None:
-        super().__init__("TestComplianceEngine")
+        super().__init__("TestComplianceEngine", engine_version="9.9.9")
         self.load_rules()
 
     def load_rules(self) -> None:  # type: ignore[override]
@@ -40,7 +40,8 @@ class DummyComplianceEngine(ComplianceEngine):
                 message="Test violation",
                 severity="medium",
                 context={"test": "data"},
-                timestamp=datetime.now(),
+                timestamp=datetime.now(timezone.utc),
+                rule_version="1.0.0",
             )
         ]
 
@@ -61,6 +62,8 @@ def test_generate_report_with_valid_data() -> None:
     assert report.overall_compliance_score == 1.0
     assert not report.violations_found
     assert report.passed_rules == ["test_rule_1"]
+    assert report.engine_version == "9.9.9"
+    assert report.rule_versions == {}
 
 
 def test_generate_report_with_violation() -> None:
