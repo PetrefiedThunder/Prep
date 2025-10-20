@@ -84,37 +84,37 @@ def get_supabase_client(url: str, key: str) -> Client:
         if postgrest and hasattr(postgrest, "schema"):
             client.postgrest = postgrest.schema("prepchef")  # type: ignore[assignment]
 
-    # Cache a PostgREST client scoped to the ``public`` schema so RPC calls can
-    # safely target functions provided by extensions such as uuid-ossp when the
-    # default schema is ``prepchef``.
-    postgrest = getattr(client, "postgrest", None)
-    if postgrest and hasattr(postgrest, "schema"):
-        setattr(client, "_postgrest_public", postgrest.schema("public"))
-
     return client
 
 
 def generate_uuid(supabase: Client) -> str:
     """Generate a UUID using the uuid-ossp extension regardless of default schema."""
 
-    postgrest_public = getattr(supabase, "_postgrest_public", None)
-    if postgrest_public is not None:
-        response = postgrest_public.rpc("uuid_generate_v4", {}).execute()
+    postgrest = getattr(supabase, "postgrest", None)
+    if postgrest and hasattr(postgrest, "schema"):
+        response = postgrest.schema("public").rpc("uuid_generate_v4", {}).execute()
     else:
-        postgrest = getattr(supabase, "postgrest", None)
-        if postgrest and hasattr(postgrest, "schema"):
-            response = postgrest.schema("public").rpc("uuid_generate_v4", {}).execute()
-        else:
+        try:
+            response = supabase.rpc("public.uuid_generate_v4", {}).execute()
+        except Exception:  # pragma: no cover - fallback for legacy clients
             response = supabase.rpc("uuid_generate_v4", {}).execute()
 
     data = response.data
     if isinstance(data, list):
         if not data:
             raise RuntimeError("uuid_generate_v4 RPC returned no data")
-        return data[0]
+        data = data[0]
+
+    if isinstance(data, dict):
+        for key in ("uuid_generate_v4", "uuid", "id"):
+            if key in data and data[key]:
+                return str(data[key])
+        raise RuntimeError("uuid_generate_v4 RPC returned unexpected payload shape")
+
     if data is None:
         raise RuntimeError("uuid_generate_v4 RPC returned no data")
-    return data
+
+    return str(data)
 
 
 def upsert_staging(
