@@ -76,24 +76,36 @@ def fetch_socrata_dataset(
 
 def get_supabase_client(url: str, key: str) -> Client:
     if ClientOptions is not None:
-        return create_client(url, key, options=ClientOptions(schema="prepchef"))
+        client = create_client(url, key, options=ClientOptions(schema="prepchef"))
+    else:
+        client = create_client(url, key)
+        # Older supabase-py versions require configuring the PostgREST schema manually.
+        postgrest = getattr(client, "postgrest", None)
+        if postgrest and hasattr(postgrest, "schema"):
+            client.postgrest = postgrest.schema("prepchef")  # type: ignore[assignment]
 
-    client = create_client(url, key)
-    # Older supabase-py versions require configuring the PostgREST schema manually.
+    # Cache a PostgREST client scoped to the ``public`` schema so RPC calls can
+    # safely target functions provided by extensions such as uuid-ossp when the
+    # default schema is ``prepchef``.
     postgrest = getattr(client, "postgrest", None)
     if postgrest and hasattr(postgrest, "schema"):
-        client.postgrest = postgrest.schema("prepchef")  # type: ignore[assignment]
+        setattr(client, "_postgrest_public", postgrest.schema("public"))
+
     return client
 
 
 def generate_uuid(supabase: Client) -> str:
     """Generate a UUID using the uuid-ossp extension regardless of default schema."""
 
-    postgrest = getattr(supabase, "postgrest", None)
-    if postgrest and hasattr(postgrest, "schema"):
-        response = postgrest.schema("public").rpc("uuid_generate_v4", {}).execute()
+    postgrest_public = getattr(supabase, "_postgrest_public", None)
+    if postgrest_public is not None:
+        response = postgrest_public.rpc("uuid_generate_v4", {}).execute()
     else:
-        response = supabase.rpc("uuid_generate_v4", {}).execute()
+        postgrest = getattr(supabase, "postgrest", None)
+        if postgrest and hasattr(postgrest, "schema"):
+            response = postgrest.schema("public").rpc("uuid_generate_v4", {}).execute()
+        else:
+            response = supabase.rpc("uuid_generate_v4", {}).execute()
 
     data = response.data
     if isinstance(data, list):
