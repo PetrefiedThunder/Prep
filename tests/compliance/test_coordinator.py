@@ -4,6 +4,19 @@ from datetime import datetime
 
 from prep.compliance.base_engine import ComplianceReport
 from prep.compliance.coordinator import ComplianceCoordinator
+from prep.compliance.base_engine import ComplianceEngine
+
+
+class _FailingEngine(ComplianceEngine):
+    def __init__(self) -> None:
+        super().__init__(name="failing", engine_version="9.9.9")
+        self.rule_versions = {"rule-001": "2024.01"}
+
+    def load_rules(self) -> None:  # pragma: no cover - not needed for tests
+        self.rules = []
+
+    def validate(self, data):  # type: ignore[override]
+        raise RuntimeError("synthetic failure")
 
 
 def test_coordinator_initialization() -> None:
@@ -35,6 +48,8 @@ def test_get_overall_compliance_score() -> None:
             summary="All good",
             recommendations=[],
             overall_compliance_score=0.8,
+            engine_version="1.0.0",
+            rule_versions={"rule1": "v1"},
         ),
         "engine2": ComplianceReport(
             engine_name="engine2",
@@ -45,6 +60,8 @@ def test_get_overall_compliance_score() -> None:
             summary="All good",
             recommendations=[],
             overall_compliance_score=0.6,
+            engine_version="1.0.0",
+            rule_versions={"rule1": "v1"},
         ),
     }
     assert coordinator.get_overall_compliance_score(reports) == 0.7
@@ -62,3 +79,18 @@ def test_get_priority_recommendations() -> None:
     reports = coordinator.run_comprehensive_audit({})
     recommendations = coordinator.get_priority_recommendations(reports)
     assert recommendations
+
+
+def test_run_comprehensive_audit_handles_engine_failure() -> None:
+    coordinator = ComplianceCoordinator()
+    failing_engine = _FailingEngine()
+    coordinator.engines = {"failing": failing_engine}
+
+    reports = coordinator.run_comprehensive_audit({})
+
+    assert "failing" in reports
+    report = reports["failing"]
+    assert isinstance(report, ComplianceReport)
+    assert report.engine_version == failing_engine.engine_version
+    assert report.rule_versions == failing_engine.rule_versions
+    assert "Error during compliance check" in report.summary
