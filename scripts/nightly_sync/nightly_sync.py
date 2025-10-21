@@ -57,11 +57,19 @@ def fetch_socrata_dataset(
     limit: int,
 ) -> pd.DataFrame:
     LOGGER.info("Fetching %s/%s", domain, dataset_identifier)
-    client = httpx.Client(base_url=f"https://{domain}", timeout=30.0, auth=(username, password))
-    headers = {"X-App-Token": app_token}
-    response = client.get(f"/resource/{dataset_identifier}.json", params={"$limit": limit}, headers=headers)
-    response.raise_for_status()
-    data = response.json()
+    with httpx.Client(
+        base_url=f"https://{domain}",
+        timeout=30.0,
+        auth=(username, password),
+    ) as client:
+        headers = {"X-App-Token": app_token}
+        response = client.get(
+            f"/resource/{dataset_identifier}.json",
+            params={"$limit": limit},
+            headers=headers,
+        )
+        response.raise_for_status()
+        data = response.json()
     if not data:
         return pd.DataFrame()
     df = pd.DataFrame(data)
