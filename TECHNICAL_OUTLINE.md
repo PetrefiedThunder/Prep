@@ -36,10 +36,12 @@ Third-Party Integrations (Stripe, Plaid, Twilio, Google Maps, Yelp API, Health D
 
 ### 3.1 Core Services
 - User Service: Auth, Profiles, KYC/Verification
-- Kitchen Service: CRUD, Availability, Feature tags, Equipment
-- Booking Service: Slot validation, conflict resolution, pricing
+- Kitchen Service: CRUD, Availability, Feature tags, Equipment (persists `availability_windows` records and triggers cache refresh/invalidation)
+- Booking Service: Slot validation, conflict resolution, pricing (leverages cached availability windows and falls back to the relational records to detect conflicts; ensures cache updates after booking approvals/cancellations)
 - Notification Service: Email/SMS, push (via Firebase Cloud Messaging)
 - Review System: Ratings for renters and hosts
+
+Availability-aware flows: the Booking and Kitchen services consult Redis-backed availability windows for quick lookups, use the relational `availability_windows` table as the source of truth during conflict resolution, and atomically refresh cached entries after any modification to prevent stale slots from being offered.
 
 ### 3.2 Middleware
 - Auth middleware (JWT-based)
@@ -61,6 +63,7 @@ RESTful endpoints with OpenAPI spec:
 - `users` (id, name, email, role, verified, created_at)
 - `kitchens` (id, name, host_id, address, cert_level, photos, pricing)
 - `bookings` (id, user_id, kitchen_id, start_time, end_time, status)
+- `availability_windows` (id, kitchen_id, start_time, end_time, recurrence_rule, status, source, updated_at) — captures host-declared open slots, recurrence cadence (iCal string), operational status (active, paused, archived), and the provenance of the rule (manual vs. synced calendar)
 - `messages` (sender_id, recipient_id, body, timestamp)
 - `reviews` (kitchen_id, user_id, rating, comment)
 - `health_certifications` (kitchen_id, type, status, uploaded_at)
@@ -69,7 +72,7 @@ RESTful endpoints with OpenAPI spec:
 
 ### 4.2 Redis (optional for MVP)
 - Session store
-- Booking availability cache
+- Booking availability cache keyed by `availability:{kitchen_id}:{window_id}` (mirroring `availability_windows.id`) with TTLs that align to `updated_at` to ensure stale cache entries are evicted after relational updates; cache payloads include the `updated_at` version stamp so services can detect drifts and schedule refreshes when relational data changes. Kitchen and Booking services perform write-through updates: transactional commits to PostgreSQL are followed by Redis `DEL`/`SET` pipelines so cache and relational data stay consistent.
 
 ## 5. Payments + Identity Verification
 
