@@ -69,6 +69,11 @@ RESTful endpoints with OpenAPI spec:
 - `health_certifications` (kitchen_id, type, status, uploaded_at)
 - `equipment` (kitchen_id, tag)
 - `notifications` (user_id, type, body, read)
+- `messages` (id UUID PRIMARY KEY, sender_id UUID REFERENCES users(id), recipient_id UUID REFERENCES users(id), body, sent_at TIMESTAMP WITH TIME ZONE, read_at TIMESTAMP WITH TIME ZONE; indexes on (sender_id, recipient_id) for conversation threading and a partial index on (recipient_id) WHERE read_at IS NULL for unread queries)
+- `reviews` (id UUID PRIMARY KEY, kitchen_id UUID REFERENCES kitchens(id), user_id UUID REFERENCES users(id), rating, comment, created_at TIMESTAMP WITH TIME ZONE; unique constraint on (kitchen_id, user_id) to prevent duplicate reviews)
+- `health_certifications` (id UUID PRIMARY KEY, kitchen_id UUID REFERENCES kitchens(id), type, status, uploaded_at TIMESTAMP WITH TIME ZONE, expires_at TIMESTAMP WITH TIME ZONE; supports audit trails back to kitchens)
+- `equipment` (id UUID PRIMARY KEY, kitchen_id UUID REFERENCES kitchens(id), tag; unique constraint on (kitchen_id, tag) to avoid duplicate equipment tags per kitchen)
+- `notifications` (id UUID PRIMARY KEY, user_id UUID REFERENCES users(id), type, body, metadata JSONB, read_at TIMESTAMP WITH TIME ZONE; indexes on user_id for inbox lookups and a partial index WHERE read_at IS NULL for unread badge counts)
 
 ### 4.2 Redis (optional for MVP)
 - Session store
