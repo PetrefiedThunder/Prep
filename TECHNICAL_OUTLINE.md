@@ -50,12 +50,25 @@ Availability-aware flows: the Booking and Kitchen services consult Redis-backed 
 
 ### 3.3 APIs
 
-RESTful endpoints with OpenAPI spec:
-- `GET /kitchens`
-- `POST /bookings`
-- `POST /verify-health-cert`
-- `POST /payment-intent`
-- `POST /messages`
+RESTful endpoints with OpenAPI spec (in addition to existing integrations):
+
+| Endpoint | Purpose | UI Coverage | Auth / Role Expectations |
+| --- | --- | --- | --- |
+| `GET /kitchens` | List kitchens with filter params for search and availability. | Kitchen Browser, Host Dashboard listing preview. | Public read, elevated rate limiting for unauthenticated requests. |
+| `GET /kitchens/:id` | Retrieve full kitchen detail, amenities, pricing, calendar slots. | Kitchen Detail Page, Booking Checkout Flow. | Public read with sensitive host contact details hidden unless renter is authenticated. |
+| `POST /kitchens` | Create a new kitchen listing and upload metadata. | Host Dashboard (Listing Editor). | Host-only (authenticated host role); requires completed verification checks. |
+| `PUT /kitchens/:id` / `PATCH /kitchens/:id` | Update listing attributes, pricing, availability toggles. | Host Dashboard (Listing Editor). | Host-only for owned kitchen; admins may override for moderation. |
+| `DELETE /kitchens/:id` | Soft delete or archive a listing. | Host Dashboard (Listing Management), Admin Panel moderation tools. | Host-only for owned kitchen; admin override for removals. |
+| `GET /bookings` | List bookings with role-aware filtering (host sees their kitchens, renters see their reservations). | User Dashboard (My Bookings), Host Dashboard (Calendar view). | Auth required; renter sees own bookings, host sees bookings for owned kitchens, admins can view all. |
+| `GET /bookings/:id` | Fetch detailed booking status, payment milestones, messaging thread IDs. | Booking Detail modal, Admin dispute resolution view. | Auth required; renter/host participants only, admin full access. |
+| `POST /bookings` | Create booking requests with conflict validation and payment intent creation. | Booking Checkout Flow. | Authenticated renter role; host receives notification. |
+| `GET /dashboards/host` | Aggregate metrics and upcoming reservations for hosts. | Host Dashboard home. | Host-only; blocks renter/admin access. |
+| `GET /dashboards/renter` | Summaries of active bookings, recommendations, tasks. | User Dashboard landing. | Renter-only. |
+| `GET /dashboards/admin` | Platform-wide KPIs, certification backlog, dispute counts. | Admin Panel analytics. | Admin-only; enforce MFA per RBAC policy. |
+| `GET /admin/kitchens` | Moderation queue for new/flagged listings, certification status checks. | Admin Panel (Moderation). | Admin-only; includes elevated audit logging. |
+| `POST /verify-health-cert` | Submit health certification documents for verification. | Host Dashboard (Compliance Upload). | Host-only; admin can review via moderation queue. |
+| `POST /payment-intent` | Initiate payment capture prior to booking confirmation. | Booking Checkout Flow. | Authenticated renter; host/admin read-only visibility to status. |
+| `POST /messages` | Send direct messages between renter and host. | User Dashboard messaging, Host Dashboard inbox. | Authenticated renters/hosts involved in booking; admin can monitor for disputes. |
 
 ## 4. Database Design (PostgreSQL + Redis)
 
