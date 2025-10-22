@@ -51,6 +51,8 @@ class ComplianceCoordinator:
                     summary=f"Error during compliance check: {exc}",
                     recommendations=["Review system logs for detailed error information"],
                     overall_compliance_score=0.0,
+                    engine_version=engine.engine_version,
+                    rule_versions=dict(engine.rule_versions),
                 )
 
         return results
