@@ -1,0 +1,25 @@
+#!/bin/bash
+
+echo "Running pre-commit security checks..."
+
+if grep -r "password\|secret\|api.*key" . --include="*.js" --include="*.ts" --include="*.py" --include="*.json" | grep -v ".env.example" | grep -v "node_modules" | grep -v ".git"; then
+    echo "❌ Hardcoded credentials detected! Please use environment variables."
+    exit 1
+fi
+
+if command -v ruff &> /dev/null; then
+    echo "Running Ruff linting..."
+    ruff check . --fix --exit-zero
+fi
+
+if command -v npx &> /dev/null && npx --no-install tsc --version &> /dev/null; then
+    echo "Running TypeScript type checking..."
+    npx --no-install tsc --noEmit
+fi
+
+if command -v npx &> /dev/null && npx --no-install eslint --version &> /dev/null; then
+    echo "Running ESLint..."
+    npx --no-install eslint . --fix
+fi
+
+echo "✅ All pre-commit checks passed!"
