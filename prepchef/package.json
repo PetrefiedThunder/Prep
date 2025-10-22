@@ -11,9 +11,23 @@
     "dev": "echo 'Run with -w services/<svc>'",
     "lint": "npm -ws run lint",
     "test": "npm -ws run test --if-present",
-    "codegen": "node scripts/codegen.js"
+    "codegen": "node scripts/codegen.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed"
+  },
+  "dependencies": {
+    "prisma": "^5.20.0",
+    "@prisma/client": "^5.20.0"
   },
   "devDependencies": {
-    "openapi-typescript": "^6.7.1"
+    "openapi-typescript": "^6.7.1",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.6.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }
