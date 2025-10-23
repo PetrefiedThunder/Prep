@@ -1,11 +1,13 @@
 import Fastify from 'fastify';
-import cors from '@fastify/cors';
 import { log } from '@prep/logger';
+import { prepSecurityPlugin } from '@prep/common';
 import crypto from 'node:crypto';
 
 export async function createApp() {
   const app = Fastify({ logger: false });
-  await app.register(cors);
+  await app.register(prepSecurityPlugin, {
+    serviceName: 'payments-svc'
+  });
 
   app.get('/healthz', async () => ({ ok: true, svc: 'payments-svc' }));
 
