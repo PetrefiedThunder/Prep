@@ -53,6 +53,12 @@ Engine behaviour is configurable through `config/compliance.yaml`. When the file
 is absent a sensible default configuration is loaded and can be customised via
 `ComplianceConfigManager`.
 
+- **enabled_engines** – Controls which audit engines the CLI will run. Provide a
+  list of engine keys (e.g. `dol`, `privacy`, `hbs`, `lse`, `ui`). Any engines
+  omitted from this list are skipped when `prep-compliance --audit` executes,
+  allowing you to disable domains that are not relevant to a deployment. If the
+  setting is omitted, all available engines are executed by default.
+
 ## Testing
 
 Execute the compliance test suite with:

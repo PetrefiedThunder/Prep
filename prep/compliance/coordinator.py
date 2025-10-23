@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence
 
 from .base_engine import ComplianceEngine, ComplianceReport
 from .dol_reg_compliance_engine import DOLRegComplianceEngine
@@ -15,22 +15,58 @@ from .multivoice_compliance_ui import MultiVoiceComplianceUI
 class ComplianceCoordinator:
     """Orchestrates multiple compliance engines."""
 
-    def __init__(self) -> None:
+    _AVAILABLE_ENGINES: Dict[str, type[ComplianceEngine]] = {
+        "dol": DOLRegComplianceEngine,
+        "privacy": GDPRCCPACore,
+        "hbs": HBSModelValidator,
+        "lse": LondonStockExchangeSimulator,
+        "ui": MultiVoiceComplianceUI,
+    }
+
+    def __init__(self, enabled_engines: Sequence[str] | None = None) -> None:
         self.engines: Dict[str, ComplianceEngine] = {}
         self.logger = logging.getLogger("compliance.coordinator")
         if not self.logger.handlers:
             self.logger.addHandler(logging.NullHandler())
-        self._initialize_engines()
+        self._initialize_engines(enabled_engines)
 
-    def _initialize_engines(self) -> None:
-        self.engines = {
-            "dol": DOLRegComplianceEngine(),
-            "privacy": GDPRCCPACore(),
-            "hbs": HBSModelValidator(),
-            "lse": LondonStockExchangeSimulator(),
-            "ui": MultiVoiceComplianceUI(),
-        }
+    def _initialize_engines(self, enabled_engines: Sequence[str] | None) -> None:
+        keys = self._normalize_engine_selection(enabled_engines)
+        self.engines = {name: self._AVAILABLE_ENGINES[name]() for name in keys}
         self.logger.info("Initialized %d compliance engines", len(self.engines))
+
+    def _normalize_engine_selection(self, enabled_engines: Sequence[str] | None) -> List[str]:
+        if enabled_engines is None:
+            return list(self._AVAILABLE_ENGINES.keys())
+
+        if isinstance(enabled_engines, str):
+            raise ValueError("enabled_engines must be a sequence of engine keys")
+
+        provided = list(enabled_engines)
+        requested: List[str] = []
+        seen: set[str] = set()
+        unknown: List[str] = []
+
+        for key in provided:
+            if key not in self._AVAILABLE_ENGINES:
+                unknown.append(key)
+                continue
+            if key in seen:
+                continue
+            requested.append(key)
+            seen.add(key)
+
+        if unknown:
+            joined = ", ".join(sorted(set(unknown)))
+            raise ValueError(f"Unknown compliance engine keys requested: {joined}")
+
+        if requested:
+            return requested
+
+        if len(provided) == 0:
+            return []
+
+        return list(self._AVAILABLE_ENGINES.keys())
 
     def run_comprehensive_audit(self, data: Dict[str, Any]) -> Dict[str, ComplianceReport]:
         results: Dict[str, ComplianceReport] = {}
