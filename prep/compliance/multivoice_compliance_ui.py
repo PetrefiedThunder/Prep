@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from .base_engine import ComplianceEngine, ComplianceRule, ComplianceViolation
@@ -15,7 +15,7 @@ class MultiVoiceComplianceUI(ComplianceEngine):
         self.load_rules()
 
     def load_rules(self) -> None:  # type: ignore[override]
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         self.rules = [
             ComplianceRule(
                 id="ui_accessibility_1",
@@ -91,7 +91,7 @@ class MultiVoiceComplianceUI(ComplianceEngine):
                                 "element_type": element_type,
                                 "missing_attributes": ["aria_label", "alt_text"],
                             },
-                            timestamp=datetime.now(),
+                            timestamp=datetime.now(timezone.utc),
                         )
                     )
 
@@ -116,7 +116,7 @@ class MultiVoiceComplianceUI(ComplianceEngine):
                             "missing_language": language,
                             "available_languages": list(content.keys()),
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
             elif not language_content.get("translated", False):
@@ -130,7 +130,7 @@ class MultiVoiceComplianceUI(ComplianceEngine):
                             "language": language,
                             "translation_status": language_content.get("translated", False),
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -153,7 +153,7 @@ class MultiVoiceComplianceUI(ComplianceEngine):
                             "mechanism_type": mechanism.get("type"),
                             "clear_options": mechanism.get("clear_options", False),
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -169,7 +169,7 @@ class MultiVoiceComplianceUI(ComplianceEngine):
                             "mechanism_type": mechanism.get("type"),
                             "purposes_specified": len(purposes),
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -193,7 +193,7 @@ class MultiVoiceComplianceUI(ComplianceEngine):
                             "missing_section": section,
                             "available_sections": list(privacy_info.keys()),
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 

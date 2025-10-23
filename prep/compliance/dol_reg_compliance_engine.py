@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from .base_engine import ComplianceEngine, ComplianceRule, ComplianceViolation
@@ -25,8 +25,8 @@ class DOLRegComplianceEngine(ComplianceEngine):
                 category="wage_and_hour",
                 severity="critical",
                 applicable_regulations=["FLSA"],
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
             ),
             ComplianceRule(
                 id="dol_minimum_wage_1",
@@ -35,8 +35,8 @@ class DOLRegComplianceEngine(ComplianceEngine):
                 category="wage_and_hour",
                 severity="critical",
                 applicable_regulations=["FLSA"],
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
             ),
             ComplianceRule(
                 id="dol_child_labor_1",
@@ -48,8 +48,8 @@ class DOLRegComplianceEngine(ComplianceEngine):
                 category="child_labor",
                 severity="critical",
                 applicable_regulations=["FLSA"],
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
             ),
             ComplianceRule(
                 id="dol_record_keeping_1",
@@ -58,8 +58,8 @@ class DOLRegComplianceEngine(ComplianceEngine):
                 category="record_keeping",
                 severity="high",
                 applicable_regulations=["FLSA"],
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
             ),
             ComplianceRule(
                 id="dol_break_1",
@@ -68,8 +68,8 @@ class DOLRegComplianceEngine(ComplianceEngine):
                 category="working_conditions",
                 severity="medium",
                 applicable_regulations=["State_Laws"],
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
             ),
         ]
 
@@ -110,7 +110,7 @@ class DOLRegComplianceEngine(ComplianceEngine):
                                 "required_overtime": required_overtime,
                                 "actual_overtime": overtime_paid,
                             },
-                            timestamp=datetime.now(),
+                            timestamp=datetime.now(timezone.utc),
                         )
                     )
 
@@ -137,7 +137,7 @@ class DOLRegComplianceEngine(ComplianceEngine):
                             "paid_rate": hourly_rate,
                             "minimum_rate": federal_min_wage,
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -163,7 +163,7 @@ class DOLRegComplianceEngine(ComplianceEngine):
                             "employee_id": employee.get("id"),
                             "age": age,
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
             elif int(age) in {14, 15} and hours_worked > 18:
@@ -181,7 +181,7 @@ class DOLRegComplianceEngine(ComplianceEngine):
                             "age": age,
                             "hours_worked": hours_worked,
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -208,7 +208,7 @@ class DOLRegComplianceEngine(ComplianceEngine):
                                 "record_id": record.get("id"),
                                 "date_field": created_date,
                             },
-                            timestamp=datetime.now(),
+                            timestamp=datetime.now(timezone.utc),
                         )
                     )
             else:
@@ -219,7 +219,7 @@ class DOLRegComplianceEngine(ComplianceEngine):
                         message="Missing created_date in payroll record",
                         severity="high",
                         context={"record_id": record.get("id")},
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -247,7 +247,7 @@ class DOLRegComplianceEngine(ComplianceEngine):
                             "hours_worked": hours_worked,
                             "breaks_taken": breaks_taken,
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 

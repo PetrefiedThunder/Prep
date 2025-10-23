@@ -54,6 +54,10 @@ def test_validate_kitchen_data_returns_no_errors_for_valid_payload() -> None:
             },
         ],
         "equipment": [
+            {"type": "refrigerator", "commercial_grade": True, "nsf_certified": True},
+            {
+                "type": "handwashing_station",
+                "commercial_grade": True,
             {
                 "type": "refrigerator",
                 "commercial_grade": True,
@@ -142,6 +146,11 @@ def test_validate_kitchen_data_reports_container_type_errors() -> None:
 
     errors = DataValidator.validate_kitchen_data(payload)
 
+    assert "license_info.license_number is required" in errors
+    assert "license_info.status is required" in errors
+    assert any(entry.startswith("inspection_history[1]") for entry in errors)
+    assert any(entry.endswith("must be an ISO-8601 date") for entry in errors)
+    assert any(entry.startswith("equipment[1]") for entry in errors)
     expected_errors = {
         "License Info: Expected an object.",
         "Inspection History: Expected an array.",

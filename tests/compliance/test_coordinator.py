@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -35,6 +35,7 @@ def test_run_comprehensive_audit() -> None:
     reports = coordinator.run_comprehensive_audit(data)
     assert len(reports) == 5
     assert all(isinstance(report, ComplianceReport) for report in reports.values())
+    assert all(report.timestamp.tzinfo == timezone.utc for report in reports.values())
 
 
 def test_get_overall_compliance_score() -> None:
@@ -42,7 +43,7 @@ def test_get_overall_compliance_score() -> None:
     reports = {
         "engine1": ComplianceReport(
             engine_name="engine1",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             total_rules_checked=5,
             violations_found=[],
             passed_rules=["rule1"],
@@ -54,7 +55,7 @@ def test_get_overall_compliance_score() -> None:
         ),
         "engine2": ComplianceReport(
             engine_name="engine2",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             total_rules_checked=5,
             violations_found=[],
             passed_rules=["rule1"],
@@ -95,6 +96,7 @@ def test_run_comprehensive_audit_handles_engine_failure() -> None:
     assert report.engine_version == failing_engine.engine_version
     assert report.rule_versions == failing_engine.rule_versions
     assert "Error during compliance check" in report.summary
+    assert report.timestamp.tzinfo == timezone.utc
 
 
 def test_coordinator_with_subset_of_engines() -> None:
