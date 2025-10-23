@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List
 
@@ -44,7 +44,7 @@ class ComplianceCoordinator:
                 self.logger.error("Error running %s compliance check: %s", name, exc)
                 results[name] = ComplianceReport(
                     engine_name=engine.name,
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(timezone.utc),
                     total_rules_checked=0,
                     violations_found=[],
                     passed_rules=[],

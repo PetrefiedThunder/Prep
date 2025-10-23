@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from .base_engine import ComplianceEngine, ComplianceRule, ComplianceViolation
@@ -14,7 +14,7 @@ class GDPRCCPACore(ComplianceEngine):
         self.load_rules()
 
     def load_rules(self) -> None:  # type: ignore[override]
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         self.rules = [
             ComplianceRule(
                 id="privacy_consent_1",
@@ -103,7 +103,7 @@ class GDPRCCPACore(ComplianceEngine):
                             "user_id": user.get("id"),
                             "consent_given": consent_given,
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
             elif not consent_timestamp:
@@ -119,7 +119,7 @@ class GDPRCCPACore(ComplianceEngine):
                             "user_id": user.get("id"),
                             "consent_timestamp": consent_timestamp,
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -142,7 +142,7 @@ class GDPRCCPACore(ComplianceEngine):
                         "data_fields": list(collected_data.keys()),
                         "purpose_specified": bool(purpose),
                     },
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(timezone.utc),
                 )
             )
 
@@ -170,7 +170,7 @@ class GDPRCCPACore(ComplianceEngine):
                             "status": status,
                             "processed_at": processed_at,
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -198,7 +198,7 @@ class GDPRCCPACore(ComplianceEngine):
                                 "notification_time": notified_at,
                                 "delay_seconds": time_diff,
                             },
-                            timestamp=datetime.now(),
+                            timestamp=datetime.now(timezone.utc),
                         )
                     )
 
@@ -224,7 +224,7 @@ class GDPRCCPACore(ComplianceEngine):
                             "third_party": party.get("name"),
                             "consent_obtained": consent_obtained,
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -241,7 +241,7 @@ class GDPRCCPACore(ComplianceEngine):
                             "third_party": party.get("name"),
                             "contract_in_place": contract_in_place,
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 

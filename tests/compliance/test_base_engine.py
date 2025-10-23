@@ -16,7 +16,7 @@ class DummyComplianceEngine(ComplianceEngine):
         self.load_rules()
 
     def load_rules(self) -> None:  # type: ignore[override]
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         self.rules = [
             ComplianceRule(
                 id="test_rule_1",
@@ -64,6 +64,7 @@ def test_generate_report_with_valid_data() -> None:
     assert report.passed_rules == ["test_rule_1"]
     assert report.engine_version == "9.9.9"
     assert report.rule_versions == {}
+    assert report.timestamp.tzinfo == timezone.utc
 
 
 def test_generate_report_with_violation() -> None:
@@ -73,3 +74,5 @@ def test_generate_report_with_violation() -> None:
     assert len(report.violations_found) == 1
     assert report.overall_compliance_score == 0.0
     assert report.passed_rules == []
+    assert report.timestamp.tzinfo == timezone.utc
+    assert all(violation.timestamp.tzinfo == timezone.utc for violation in report.violations_found)

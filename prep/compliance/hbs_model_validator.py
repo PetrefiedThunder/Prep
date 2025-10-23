@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from .base_engine import ComplianceEngine, ComplianceRule, ComplianceViolation
@@ -14,7 +14,7 @@ class HBSModelValidator(ComplianceEngine):
         self.load_rules()
 
     def load_rules(self) -> None:  # type: ignore[override]
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         self.rules = [
             ComplianceRule(
                 id="hbs_structure_1",
@@ -96,7 +96,7 @@ class HBSModelValidator(ComplianceEngine):
                             "missing_section": section,
                             "available_sections": list(model_structure.keys()),
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -114,7 +114,7 @@ class HBSModelValidator(ComplianceEngine):
                     message="No assumptions documented in model",
                     severity="high",
                     context={"assumptions_count": 0},
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(timezone.utc),
                 )
             )
 
@@ -127,7 +127,7 @@ class HBSModelValidator(ComplianceEngine):
                         message=f"Assumption {index + 1} lacks description",
                         severity="medium",
                         context={"assumption_index": index},
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
             if not assumption.get("source"):
@@ -138,7 +138,7 @@ class HBSModelValidator(ComplianceEngine):
                         message=f"Assumption {index + 1} lacks source documentation",
                         severity="medium",
                         context={"assumption_index": index},
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -157,7 +157,7 @@ class HBSModelValidator(ComplianceEngine):
                     message="No sensitivity analysis provided",
                     severity="medium",
                     context={"sensitivity_analysis_present": False},
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(timezone.utc),
                 )
             )
         else:
@@ -176,7 +176,7 @@ class HBSModelValidator(ComplianceEngine):
                                 "key_variables": key_variables,
                                 "analyzed_variables": list(sensitivity_analysis.keys()),
                             },
-                            timestamp=datetime.now(),
+                            timestamp=datetime.now(timezone.utc),
                         )
                     )
 
@@ -199,7 +199,7 @@ class HBSModelValidator(ComplianceEngine):
                             "data_key": data_key,
                             "sources_documented": list(data_sources.keys()),
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -211,7 +211,7 @@ class HBSModelValidator(ComplianceEngine):
                         message=f"Input data {data_key} is empty or missing",
                         severity="high",
                         context={"data_key": data_key, "data_length": 0},
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -230,7 +230,7 @@ class HBSModelValidator(ComplianceEngine):
                     message="No model validation results provided",
                     severity="critical",
                     context={"validation_results_present": False},
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(timezone.utc),
                 )
             )
 
@@ -242,7 +242,7 @@ class HBSModelValidator(ComplianceEngine):
                     message="No historical data comparison performed",
                     severity="high",
                     context={"historical_comparison_present": False},
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(timezone.utc),
                 )
             )
 
@@ -255,7 +255,7 @@ class HBSModelValidator(ComplianceEngine):
                     message=f"Model validation accuracy below threshold: {accuracy:.2%}",
                     severity="critical",
                     context={"accuracy": accuracy, "threshold": 0.8},
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(timezone.utc),
                 )
             )
 

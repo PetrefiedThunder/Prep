@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
 
@@ -40,7 +40,7 @@ def main() -> None:
         recommendations = coordinator.get_priority_recommendations(reports)
 
         output_payload = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "executive_summary": summary,
             "priority_recommendations": recommendations,
             "detailed_reports": {

@@ -40,6 +40,13 @@ prep-compliance --audit --data path/to/data.json --output reports/latest.json
 The command produces a structured JSON report, prints an executive summary, and
 highlights the top recommendations.
 
+## Timestamp Semantics
+
+All compliance engines must generate timezone-aware UTC datetimes when
+recording rule metadata, report timestamps, or violations. Use
+`datetime.now(timezone.utc)` (or an equivalent helper) so that downstream
+systems can safely compare and serialize timestamps without ambiguity.
+
 ## Configuration
 
 Engine behaviour is configurable through `config/compliance.yaml`. When the file

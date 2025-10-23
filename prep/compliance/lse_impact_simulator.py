@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import random
 from typing import Any, Dict, List
 
@@ -25,7 +25,7 @@ class LondonStockExchangeSimulator(ComplianceEngine):
         }
 
     def load_rules(self) -> None:  # type: ignore[override]
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         self.rules = [
             ComplianceRule(
                 id="lse_disclosure_1",
@@ -96,7 +96,7 @@ class LondonStockExchangeSimulator(ComplianceEngine):
             "price_impact": adjusted_price_impact,
             "volume_impact": adjusted_volume_impact,
             "confidence": 0.85,
-            "simulation_timestamp": datetime.now(),
+            "simulation_timestamp": datetime.now(timezone.utc),
             "market_conditions": self.market_conditions.copy(),
         }
 
@@ -121,7 +121,7 @@ class LondonStockExchangeSimulator(ComplianceEngine):
                             "event_id": event.get("id"),
                             "disclosed": disclosed,
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
             elif isinstance(disclosure_time, datetime) and isinstance(event_time, datetime):
@@ -139,7 +139,7 @@ class LondonStockExchangeSimulator(ComplianceEngine):
                                 "event_id": event.get("id"),
                                 "delay_seconds": delay,
                             },
-                            timestamp=datetime.now(),
+                            timestamp=datetime.now(timezone.utc),
                         )
                     )
 
@@ -160,7 +160,7 @@ class LondonStockExchangeSimulator(ComplianceEngine):
                             "trade_id": trade.get("id"),
                             "suspicious_indicators": trade.get("indicators", []),
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -175,7 +175,7 @@ class LondonStockExchangeSimulator(ComplianceEngine):
                             "trade_id": trade.get("id"),
                             "insider_relationship": trade.get("relationship"),
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -198,7 +198,7 @@ class LondonStockExchangeSimulator(ComplianceEngine):
                             "missing_report_type": report_type,
                             "submitted_reports": [report.get("type") for report in reports],
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
@@ -223,7 +223,7 @@ class LondonStockExchangeSimulator(ComplianceEngine):
                                 key for key, value in governance.items() if value
                             ],
                         },
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(timezone.utc),
                     )
                 )
 
