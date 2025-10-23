@@ -33,6 +33,7 @@ This starts:
 ```bash
 cd prepchef
 npm install
+npm run tsconfig:sync
 ```
 
 3. **Set up environment variables**:
@@ -44,13 +45,16 @@ cp .env.example .env
 4. **Run database migrations**:
 ```bash
 # Generate Prisma client
-npx prisma generate
+npm run prisma:generate
 
-# Apply schema (first time only)
-npx prisma db push
+# Create a named migration (optional, for tracked schema changes)
+npm run prisma:migrate:create -- --name init
 
-# Or use migrations for production
-npx prisma migrate dev --name init
+# Apply latest migrations to your development database
+npm run prisma:migrate
+
+# For quick iteration without migrations
+npm run db:push
 ```
 
 5. **Start development server**:
@@ -61,6 +65,22 @@ npm run dev
 # Or start specific service
 npm run dev -w services/auth-svc
 npm run dev -w services/booking-svc
+```
+
+### Apply & Verify Workflow
+
+The following commands mirror the CI pipeline and are safe to run after pulling fresh changes:
+
+```bash
+cd prepchef
+npm install
+npm run tsconfig:sync
+npm run codegen
+npm run prisma:generate
+# Optional: capture schema changes for review
+npm run prisma:migrate:create -- --name init
+npm run build
+npm run test
 ```
 
 ### Accessing Services
@@ -78,19 +98,19 @@ npm run dev -w services/booking-svc
 
 ```bash
 # View database schema in browser
-npx prisma studio
+npm run prisma:studio
 
 # Create migration
-npx prisma migrate dev --name description
+npm run prisma:migrate:create -- --name description
 
 # Reset database (dev only!)
 npx prisma migrate reset
 
 # Generate Prisma client after schema changes
-npx prisma generate
+npm run prisma:generate
 
 # Seed database (TODO: create seed script)
-npx prisma db seed
+npm run db:seed
 ```
 
 ## Project Structure
@@ -158,7 +178,7 @@ npm run build
 npm run lint
 
 # Type check
-npx tsc --noEmit
+npm run typecheck
 ```
 
 ## Common Tasks
@@ -175,8 +195,8 @@ npm install fastify @fastify/cors @prep/logger @prep/common
 ### Adding a new table
 
 1. Update `prisma/schema.prisma`
-2. Create migration: `npx prisma migrate dev --name add_table_name`
-3. Generate client: `npx prisma generate`
+2. Create migration: `npm run prisma:migrate:create -- --name add_table_name`
+3. Generate client: `npm run prisma:generate`
 4. Add types to `packages/common/src/types.ts`
 
 ### Environment Variables
@@ -215,11 +235,11 @@ psql postgresql://postgres:postgres@localhost:5432/prepchef
 ### Prisma client out of sync
 ```bash
 # Regenerate Prisma client
-npx prisma generate
+npm run prisma:generate
 
 # If schema differs from database
 npx prisma db pull
-npx prisma generate
+npm run prisma:generate
 ```
 
 ### Port conflicts
