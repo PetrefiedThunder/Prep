@@ -1,0 +1,10 @@
+{
+  "name": "@prep/tsconfig",
+  "version": "1.0.0",
+  "files": [
+    "tsconfig.base.json"
+  ],
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json"
+  }
+}
