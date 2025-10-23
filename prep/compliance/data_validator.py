@@ -16,107 +16,210 @@ class DataValidator:
 
         errors: List[str] = []
 
-        def _expect_mapping(value: Any, field_name: str) -> Mapping[str, Any]:
+        acronyms = {"id": "ID", "nsf": "NSF", "fips": "FIPS"}
+
+        def _titleize(identifier: str) -> str:
+            parts = re.split(r"[_\s]+", identifier.strip())
+            words = []
+            for part in parts:
+                if not part:
+                    continue
+                lower = part.lower()
+                if lower in acronyms:
+                    words.append(acronyms[lower])
+                else:
+                    words.append(part.capitalize())
+            return " ".join(words)
+
+        def _section_label(name: str, index: int | None = None, *, custom: str | None = None) -> str:
+            label = _titleize(custom or name)
+            if index is not None:
+                label = f"{label} {index}"
+            return label
+
+        def _message(name: str, message: str, index: int | None = None, *, custom: str | None = None) -> None:
+            errors.append(f"{_section_label(name, index, custom=custom)}: {message}.")
+
+        def _field_required(name: str, field: str, index: int | None = None, *, custom: str | None = None) -> None:
+            _message(name, f"{_titleize(field)} is required", index, custom=custom)
+
+        def _invalid_date(name: str, field: str, index: int | None = None, *, custom: str | None = None) -> None:
+            _message(
+                name,
+                f"{_titleize(field)} has an invalid date format (expected ISO-8601)",
+                index,
+                custom=custom,
+            )
+
+        def _expected_type(name: str, expected: str, *, custom: str | None = None) -> None:
+            _message(name, f"Expected {expected}", custom=custom)
+
+        def _expected_entry_type(
+            name: str,
+            expected: str,
+            index: int,
+            *,
+            custom: str | None = None,
+        ) -> None:
+            _message(name, f"Expected {expected}", index, custom=custom)
+
+        def _expect_mapping(value: Any, field_name: str, *, label: str | None = None) -> Mapping[str, Any]:
             if value in (None, ""):
                 return {}
             if not isinstance(value, Mapping):
-                errors.append(f"{field_name} must be an object")
+                _expected_type(field_name, "an object", custom=label)
                 return {}
             return value
 
-        def _expect_sequence(value: Any, field_name: str) -> Sequence[Any]:
+        def _expect_sequence(
+            value: Any,
+            field_name: str,
+            *,
+            label: str | None = None,
+        ) -> Sequence[Any]:
             if value in (None, ""):
                 return []
             if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
-                errors.append(f"{field_name} must be an array")
+                _expected_type(field_name, "an array", custom=label)
                 return []
             return value
 
-        license_info = _expect_mapping(data.get("license_info"), "license_info")
+        license_info = _expect_mapping(
+            data.get("license_info"), "license_info", label="License Info"
+        )
         if license_info:
             if not license_info.get("license_number"):
-                errors.append("license_info.license_number is required")
+                _field_required("license_info", "license_number", custom="License Info")
             if not license_info.get("status"):
-                errors.append("license_info.status is required")
+                _field_required("license_info", "status", custom="License Info")
             expiration = license_info.get("expiration_date")
             if expiration and not DataValidator.validate_date_string(str(expiration)):
-                errors.append("license_info.expiration_date must be an ISO-8601 date")
+                _invalid_date("license_info", "expiration_date", custom="License Info")
 
         inspection_history = _expect_sequence(
-            data.get("inspection_history"), "inspection_history"
+            data.get("inspection_history"), "inspection_history", label="Inspection History"
         )
         for index, inspection in enumerate(inspection_history, start=1):
             if not isinstance(inspection, Mapping):
-                errors.append(f"inspection_history[{index}]: entry must be an object")
+                _expected_entry_type(
+                    "inspection_history", "an object", index, custom="Inspection"
+                )
                 continue
             inspection_date = inspection.get("inspection_date")
             if not inspection_date:
-                errors.append(f"inspection_history[{index}].inspection_date is required")
+                _field_required(
+                    "inspection_history",
+                    "inspection_date",
+                    index,
+                    custom="Inspection",
+                )
             elif not DataValidator.validate_date_string(str(inspection_date)):
-                errors.append(
-                    f"inspection_history[{index}].inspection_date must be an ISO-8601 date"
+                _invalid_date(
+                    "inspection_history",
+                    "inspection_date",
+                    index,
+                    custom="Inspection",
                 )
             if inspection.get("overall_score") is None:
-                errors.append(f"inspection_history[{index}].overall_score is required")
+                _field_required(
+                    "inspection_history", "overall_score", index, custom="Inspection"
+                )
             if "violations" not in inspection:
-                errors.append(f"inspection_history[{index}].violations is required")
+                _field_required(
+                    "inspection_history", "violations", index, custom="Inspection"
+                )
             if "establishment_closed" not in inspection:
-                errors.append(
-                    f"inspection_history[{index}].establishment_closed is required"
+                _field_required(
+                    "inspection_history",
+                    "establishment_closed",
+                    index,
+                    custom="Inspection",
                 )
 
-        certifications = _expect_sequence(data.get("certifications"), "certifications")
+        certifications = _expect_sequence(
+            data.get("certifications"), "certifications", label="Certifications"
+        )
         for index, certification in enumerate(certifications, start=1):
             if not isinstance(certification, Mapping):
-                errors.append(f"certifications[{index}] must be an object")
+                _expected_entry_type(
+                    "certifications", "an object", index, custom="Certification"
+                )
                 continue
             if not certification.get("type"):
-                errors.append(f"certifications[{index}].type is required")
+                _field_required(
+                    "certifications", "type", index, custom="Certification"
+                )
             if not certification.get("status"):
-                errors.append(f"certifications[{index}].status is required")
+                _field_required(
+                    "certifications", "status", index, custom="Certification"
+                )
 
-        equipment = _expect_sequence(data.get("equipment"), "equipment")
+        equipment = _expect_sequence(
+            data.get("equipment"), "equipment", label="Equipment"
+        )
         for index, item in enumerate(equipment, start=1):
             if not isinstance(item, Mapping):
-                errors.append(f"equipment[{index}] must be an object")
+                _expected_entry_type(
+                    "equipment", "an object", index, custom="Equipment"
+                )
                 continue
             if not item.get("type"):
-                errors.append(f"equipment[{index}].type is required")
+                _field_required("equipment", "type", index, custom="Equipment")
             if "commercial_grade" not in item:
-                errors.append(f"equipment[{index}].commercial_grade is required")
+                _field_required(
+                    "equipment", "commercial_grade", index, custom="Equipment"
+                )
             if "nsf_certified" not in item:
-                errors.append(f"equipment[{index}].nsf_certified is required")
+                _field_required(
+                    "equipment", "nsf_certified", index, custom="Equipment"
+                )
 
-        insurance = _expect_mapping(data.get("insurance"), "insurance")
+        insurance = _expect_mapping(
+            data.get("insurance"), "insurance", label="Insurance"
+        )
         if insurance:
             if not insurance.get("policy_number"):
-                errors.append("insurance.policy_number is required")
+                _field_required("insurance", "policy_number", custom="Insurance")
             expiration = insurance.get("expiration_date")
             if expiration and not DataValidator.validate_date_string(str(expiration)):
-                errors.append("insurance.expiration_date must be an ISO-8601 date")
+                _invalid_date("insurance", "expiration_date", custom="Insurance")
 
         pest_control_records = _expect_sequence(
-            data.get("pest_control_records"), "pest_control_records"
+            data.get("pest_control_records"),
+            "pest_control_records",
+            label="Pest Control Records",
         )
         for index, record in enumerate(pest_control_records, start=1):
             if not isinstance(record, Mapping):
-                errors.append(f"pest_control_records[{index}] must be an object")
+                _expected_entry_type(
+                    "pest_control_records",
+                    "an object",
+                    index,
+                    custom="Pest Control Record",
+                )
                 continue
             service_date = record.get("service_date")
             if service_date and not DataValidator.validate_date_string(str(service_date)):
-                errors.append(
-                    f"pest_control_records[{index}].service_date must be an ISO-8601 date"
+                _invalid_date(
+                    "pest_control_records",
+                    "service_date",
+                    index,
+                    custom="Pest Control Record",
                 )
 
-        cleaning_logs = _expect_sequence(data.get("cleaning_logs"), "cleaning_logs")
+        cleaning_logs = _expect_sequence(
+            data.get("cleaning_logs"), "cleaning_logs", label="Cleaning Logs"
+        )
         for index, log in enumerate(cleaning_logs, start=1):
             if not isinstance(log, Mapping):
-                errors.append(f"cleaning_logs[{index}] must be an object")
+                _expected_entry_type(
+                    "cleaning_logs", "an object", index, custom="Cleaning Log"
+                )
                 continue
             date_value = log.get("date")
             if date_value and not DataValidator.validate_date_string(str(date_value)):
-                errors.append(
-                    f"cleaning_logs[{index}].date must be an ISO-8601 date"
+                _invalid_date(
+                    "cleaning_logs", "date", index, custom="Cleaning Log"
                 )
 
         return sorted(set(errors))
