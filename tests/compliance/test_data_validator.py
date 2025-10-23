@@ -39,12 +39,30 @@ def test_validate_kitchen_data_returns_no_errors_for_valid_payload() -> None:
     payload = {
         "license_info": {"license_number": "ABC-123", "status": "active"},
         "inspection_history": [
-            {"inspection_date": "2024-01-01T00:00:00Z"},
-            {"inspection_date": "2024-02-01"},
+            {
+                "inspection_date": "2024-01-01T00:00:00Z",
+                "overall_score": 95,
+                "violations": [],
+                "establishment_closed": False,
+            },
+            {
+                "inspection_date": "2024-02-01",
+                "overall_score": 98,
+                "violations": [],
+                "establishment_closed": False,
+            },
         ],
         "equipment": [
-            {"type": "refrigerator"},
-            {"type": "handwashing_station"},
+            {
+                "type": "refrigerator",
+                "commercial_grade": True,
+                "nsf_certified": True,
+            },
+            {
+                "type": "handwashing_station",
+                "commercial_grade": True,
+                "nsf_certified": True,
+            },
         ],
     }
 
@@ -65,11 +83,11 @@ def test_validate_kitchen_data_returns_errors_for_invalid_payload() -> None:
 
     errors = DataValidator.validate_kitchen_data(payload)
 
-    assert "License number is required" in errors
-    assert "License status is required" in errors
-    assert any(entry.startswith("Inspection 1:") for entry in errors)
-    assert any(entry.endswith("Invalid date format") for entry in errors)
-    assert any(entry.startswith("Equipment 1:") for entry in errors)
+    assert "license_info.license_number is required" in errors
+    assert "license_info.status is required" in errors
+    assert any(entry.startswith("inspection_history[1].") for entry in errors)
+    assert any("must be an ISO-8601 date" in entry for entry in errors)
+    assert any(entry.startswith("equipment[1].") for entry in errors)
 
 
 def test_sanitize_kitchen_data_strips_disallowed_fields_and_characters() -> None:

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from prep.compliance.base_engine import ComplianceReport
+import pytest
+
+from prep.compliance.base_engine import ComplianceEngine, ComplianceReport
 from prep.compliance.coordinator import ComplianceCoordinator
-from prep.compliance.base_engine import ComplianceEngine
 
 
 class _FailingEngine(ComplianceEngine):
@@ -94,3 +95,18 @@ def test_run_comprehensive_audit_handles_engine_failure() -> None:
     assert report.engine_version == failing_engine.engine_version
     assert report.rule_versions == failing_engine.rule_versions
     assert "Error during compliance check" in report.summary
+
+
+def test_coordinator_with_subset_of_engines() -> None:
+    coordinator = ComplianceCoordinator(enabled_engines=["dol", "privacy"])
+    assert set(coordinator.engines.keys()) == {"dol", "privacy"}
+
+
+def test_coordinator_empty_enabled_engines() -> None:
+    coordinator = ComplianceCoordinator(enabled_engines=[])
+    assert coordinator.engines == {}
+
+
+def test_coordinator_unknown_engine_key() -> None:
+    with pytest.raises(ValueError, match="Unknown compliance engine keys requested"):
+        ComplianceCoordinator(enabled_engines=["dol", "unknown"]) 

@@ -29,12 +29,13 @@ def main() -> None:
     args = parser.parse_args()
 
     config_manager = ComplianceConfigManager(args.config)
-    _ = config_manager.config  # ensure config loaded
+    config = config_manager.config  # ensure config loaded
 
     data = _load_data(args.data)
 
     if args.audit:
-        coordinator = ComplianceCoordinator()
+        enabled_engines = getattr(config, "enabled_engines", None) if config else None
+        coordinator = ComplianceCoordinator(enabled_engines=enabled_engines)
         reports = coordinator.run_comprehensive_audit(data)
         summary = coordinator.generate_executive_summary(reports)
         recommendations = coordinator.get_priority_recommendations(reports)
