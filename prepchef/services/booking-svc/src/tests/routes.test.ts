@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Fastify from 'fastify';
-import cors from '@fastify/cors';
+import { prepSecurityPlugin } from '@prep/common';
 
 function build() {
   const app = Fastify();
-  app.register(cors);
+  app.register(prepSecurityPlugin, { serviceName: 'booking-svc' });
   app.get('/healthz', async () => ({ ok: true, svc: 'booking-svc' }));
   app.register(async function routes(instance) {
     instance.get('/', async () => ({ name: 'booking-svc' }));

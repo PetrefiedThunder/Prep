@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import fastifyJwt from '@fastify/jwt';
+import '@fastify/jwt';
 
 interface LoginBody {
   username: string;
@@ -19,10 +19,6 @@ const VALID_PASSWORD = process.env.AUTH_PASSWORD || 'secret';
 const refreshTokens = new Map<string, string>();
 
 export default async function (app: FastifyInstance) {
-  app.register(fastifyJwt, {
-    secret: process.env.JWT_SECRET || 'supersecret',
-  });
-
   app.post<{ Body: LoginBody }>('/auth/login', async (req, reply) => {
     const { username, password } = req.body;
     if (username !== VALID_USERNAME || password !== VALID_PASSWORD) {
