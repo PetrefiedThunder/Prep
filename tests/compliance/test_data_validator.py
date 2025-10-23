@@ -48,6 +48,7 @@ def test_validate_kitchen_data_returns_no_errors_for_valid_payload() -> None:
             {
                 "inspection_date": "2024-02-01",
                 "overall_score": 96,
+                "overall_score": 98,
                 "violations": [],
                 "establishment_closed": False,
             },
@@ -62,6 +63,7 @@ def test_validate_kitchen_data_returns_no_errors_for_valid_payload() -> None:
                 "type": "handwashing_station",
                 "commercial_grade": True,
                 "nsf_certified": False,
+                "nsf_certified": True,
             },
         ],
     }
@@ -151,6 +153,11 @@ def test_validate_kitchen_data_reports_container_type_errors() -> None:
     }
 
     assert set(errors) == expected_errors
+    assert "license_info.license_number is required" in errors
+    assert "license_info.status is required" in errors
+    assert any(entry.startswith("inspection_history[1].") for entry in errors)
+    assert any("must be an ISO-8601 date" in entry for entry in errors)
+    assert any(entry.startswith("equipment[1].") for entry in errors)
 
 
 def test_sanitize_kitchen_data_strips_disallowed_fields_and_characters() -> None:
