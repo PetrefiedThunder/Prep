@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../index';
+import '@fastify/jwt';
 
 const validCreds = { username: 'admin', password: 'secret' };
 
