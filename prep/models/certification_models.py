@@ -1,5 +1,4 @@
-"""Data models that power the certification verification domain."""
-"""Pydantic models for certification verification workflows."""
+"""Pydantic models that power the certification verification domain."""
 
 from __future__ import annotations
 
