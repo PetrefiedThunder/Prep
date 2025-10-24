@@ -1261,4 +1261,4 @@ After implementing authentication:
 - [OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
 - [JWT Best Practices](https://tools.ietf.org/html/rfc8725)
 - [bcrypt npm package](https://www.npmjs.com/package/bcrypt)
-- [Fastify JWT plugin](https://github.com/fastify/fastify-jwt)
+- [@fastify/jwt plugin](https://github.com/fastify/fastify-jwt)
