@@ -11,14 +11,6 @@ from uuid import UUID
 from pydantic import BaseModel, Field, model_validator
 
 
-class AdminUser(BaseModel):
-    """Lightweight representation of an authenticated admin user."""
-
-    id: UUID
-    email: str
-    name: str
-
-
 class CertificationStatus(str, Enum):
     """Enumeration describing the certification lifecycle for a kitchen."""
 
@@ -149,3 +141,55 @@ class PlatformOverview(BaseModel):
     conversion_rate: float = Field(ge=0.0)
     user_satisfaction: float = Field(ge=0.0, le=5.0)
     new_users_this_week: int = Field(ge=0)
+
+
+class TimeSeriesPoint(BaseModel):
+    """Normalized representation of a data point in a time series chart."""
+
+    period: datetime
+    value: Decimal
+
+
+class KitchenPerformanceSummary(BaseModel):
+    """Lightweight snapshot of an individual kitchen's performance."""
+
+    kitchen_id: UUID
+    kitchen_name: str
+    total_bookings: int = Field(ge=0)
+    revenue: Decimal = Field(ge=Decimal("0"))
+    average_rating: float = Field(ge=0.0, le=5.0)
+
+
+class HostPerformanceMetrics(BaseModel):
+    """Aggregated metrics describing how a host is performing on the platform."""
+
+    host_id: UUID
+    host_name: str
+    kitchen_count: int = Field(ge=0)
+    active_kitchen_count: int = Field(ge=0)
+    total_bookings: int = Field(ge=0)
+    total_revenue: Decimal = Field(ge=Decimal("0"))
+    average_rating: float = Field(ge=0.0, le=5.0)
+    bookings_last_30_days: int = Field(ge=0)
+    top_kitchens: List[KitchenPerformanceSummary] = Field(default_factory=list)
+
+
+class BookingStatistics(BaseModel):
+    """Booking level analytics used to populate dashboards and reports."""
+
+    total_bookings: int = Field(ge=0)
+    completed_bookings: int = Field(ge=0)
+    cancelled_bookings: int = Field(ge=0)
+    no_show_bookings: int = Field(ge=0)
+    average_lead_time_hours: float = Field(ge=0.0)
+    average_booking_value: Decimal = Field(ge=Decimal("0"))
+
+
+class RevenueAnalytics(BaseModel):
+    """Revenue specific analytics including trend data for visualizations."""
+
+    total_revenue: Decimal = Field(ge=Decimal("0"))
+    revenue_this_month: Decimal = Field(ge=Decimal("0"))
+    month_over_month_growth: float
+    revenue_trend: List[TimeSeriesPoint] = Field(default_factory=list)
+    top_hosts: List[HostPerformanceMetrics] = Field(default_factory=list)

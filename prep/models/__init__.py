@@ -2,7 +2,10 @@
 
 from .admin import (
     AdminUser,
+    BookingStatistics,
     CertificationStatus,
+    HostPerformanceMetrics,
+    KitchenPerformanceSummary,
     ModerationAction,
     ModerationFilters,
     ModerationRequest,
@@ -11,8 +14,10 @@ from .admin import (
     PendingKitchen,
     PendingKitchensResponse,
     PlatformOverview,
+    RevenueAnalytics,
     SortField,
     SortOrder,
+    TimeSeriesPoint,
 )
 from .analytics_models import (
     AdminOverview,
@@ -47,7 +52,10 @@ from .certification_models import (
 
 __all__ = [
     "AdminUser",
+    "BookingStatistics",
     "CertificationStatus",
+    "HostPerformanceMetrics",
+    "KitchenPerformanceSummary",
     "ModerationAction",
     "ModerationFilters",
     "ModerationRequest",
@@ -56,8 +64,10 @@ __all__ = [
     "PendingKitchen",
     "PendingKitchensResponse",
     "PlatformOverview",
+    "RevenueAnalytics",
     "SortField",
     "SortOrder",
+    "TimeSeriesPoint",
     "AdminOverview",
     "BookingAnalytics",
     "CancellationReason",
