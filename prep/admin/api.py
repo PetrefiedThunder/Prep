@@ -1,321 +1,536 @@
-"""FastAPI router exposing admin dashboard endpoints."""
+"""FastAPI router exposing admin dashboard endpoints backed by PostgreSQL."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from decimal import Decimal
-from typing import Dict, List, Sequence
-from uuid import UUID, uuid4
+from datetime import datetime, timedelta, timezone
+from typing import Sequence
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import ValidationError
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
-from prep.models.admin import (
-    CertificationStatus,
-    ModerationAction,
-    ModerationFilters,
+from prep.admin.dependencies import get_current_admin
+from prep.admin.schemas import (
+    CertificationDecisionRequest,
+    CertificationDecisionResponse,
+    CertificationListResponse,
+    CertificationStats,
+    CertificationSummary,
+    KitchenDetail,
+    KitchenListResponse,
+    KitchenModerationStats,
+    KitchenSummary,
+    ModerationDecision,
     ModerationRequest,
-    ModerationResult,
-    Pagination,
-    PendingKitchen,
-    PendingKitchensResponse,
-    PlatformOverview,
-    SortField,
-    SortOrder,
+    ModerationResponse,
+    PaginationMeta,
+    SuspendUserRequest,
+    UserListResponse,
+    UserStats,
+    UserSummary,
+)
+from prep.database import get_db
+from prep.models.admin import AdminUser
+from prep.models.db import (
+    CertificationDocument,
+    CertificationReviewStatus,
+    Kitchen,
+    ModerationStatus,
+    User,
+    UserRole,
 )
 
-router = APIRouter(prefix="/api/v1", tags=["admin"])
+router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
 
-def _generate_sample_kitchens() -> List[PendingKitchen]:
-    """Return a deterministic set of sample kitchens used for defaults."""
+def _build_kitchen_summary(kitchen: Kitchen) -> KitchenSummary:
+    """Convert a Kitchen ORM object into a summary schema."""
 
-    submitted = datetime(2025, 10, 20, 10, 0, tzinfo=UTC)
-    return [
-        PendingKitchen(
-            id=uuid4(),
-            name="Sunset Loft Kitchen",
-            host_id=uuid4(),
-            host_name="Ava Johnson",
-            host_email="ava@example.com",
-            location="San Francisco, CA",
-            submitted_at=submitted,
-            photos=[
-                "https://cdn.prepchef.com/kitchens/sunrise-loft/thumb1.jpg",
-                "https://cdn.prepchef.com/kitchens/sunrise-loft/thumb2.jpg",
-            ],
-            certification_status=CertificationStatus.PENDING_REVIEW,
-            certification_type="health_department",
-            trust_score=4.2,
-            equipment_count=18,
-            hourly_rate=Decimal("115.00"),
-            status="pending_review",
-        ),
-        PendingKitchen(
-            id=uuid4(),
-            name="Harborview Test Kitchen",
-            host_id=uuid4(),
-            host_name="Miguel Santos",
-            host_email="miguel@example.com",
-            location="Seattle, WA",
-            submitted_at=submitted.replace(hour=12),
-            photos=["https://cdn.prepchef.com/kitchens/harborview/thumb1.jpg"],
-            certification_status=CertificationStatus.PENDING_UPLOAD,
-            certification_type="food_handler",
-            trust_score=3.8,
-            equipment_count=12,
-            hourly_rate=Decimal("85.00"),
-            status="pending_review",
-        ),
-        PendingKitchen(
-            id=uuid4(),
-            name="Brooklyn Artisan Kitchen",
-            host_id=uuid4(),
-            host_name="Danielle Rivers",
-            host_email="danielle@example.com",
-            location="Brooklyn, NY",
-            submitted_at=submitted.replace(day=19, hour=16),
-            photos=["https://cdn.prepchef.com/kitchens/brooklyn-artisan/thumb1.jpg"],
-            certification_status=CertificationStatus.REVIEW_REQUIRED,
-            certification_type="safety_audit",
-            trust_score=4.7,
-            equipment_count=22,
-            hourly_rate=Decimal("140.00"),
-            status="request_changes",
-        ),
-    ]
+    owner = kitchen.owner
+    return KitchenSummary(
+        id=kitchen.id,
+        name=kitchen.name,
+        owner_id=owner.id,
+        owner_email=owner.email,
+        owner_name=owner.full_name,
+        location=kitchen.location,
+        submitted_at=kitchen.submitted_at,
+        moderation_status=kitchen.moderation_status,
+        certification_status=kitchen.certification_status,
+        trust_score=kitchen.trust_score,
+        hourly_rate=kitchen.hourly_rate,
+        moderated_at=kitchen.moderated_at,
+    )
 
 
-class AdminDashboardAPI:
-    """Application service powering admin moderation workflows."""
+def _build_certification_summary(document: CertificationDocument) -> CertificationSummary:
+    """Convert a CertificationDocument ORM object into a schema."""
 
-    def __init__(
-        self,
-        *,
-        pending_kitchens: Sequence[PendingKitchen] | None = None,
-        overview_seed: PlatformOverview | None = None,
-    ) -> None:
-        self._pending_kitchens: List[PendingKitchen] = [
-            kitchen.model_copy(deep=True) for kitchen in (pending_kitchens or _generate_sample_kitchens())
-        ]
-        self._all_kitchens: Dict[UUID, PendingKitchen] = {
-            kitchen.id: kitchen.model_copy(deep=True) for kitchen in self._pending_kitchens
-        }
-        self._moderation_history: List[ModerationResult] = []
-        self._overview_seed = overview_seed or PlatformOverview(
-            total_kitchens=len(self._pending_kitchens),
-            active_kitchens=0,
-            total_bookings=525,
-            revenue_this_month=Decimal("24875.00"),
-            conversion_rate=0.21,
-            user_satisfaction=4.6,
-            new_users_this_week=37,
+    return CertificationSummary(
+        id=document.id,
+        kitchen_id=document.kitchen_id,
+        kitchen_name=document.kitchen.name,
+        document_type=document.document_type,
+        document_url=document.document_url,
+        status=document.status,
+        submitted_at=document.submitted_at,
+        verified_at=document.verified_at,
+        reviewer_id=document.reviewer_id,
+        rejection_reason=document.rejection_reason,
+        expires_at=document.expires_at,
+    )
+
+
+async def _get_kitchen_or_404(db: AsyncSession, kitchen_id: UUID) -> Kitchen:
+    """Fetch a kitchen with related owner and certifications or raise 404."""
+
+    result = await db.execute(
+        select(Kitchen)
+        .options(
+            joinedload(Kitchen.owner),
+            joinedload(Kitchen.certifications),
         )
-
-    def _filter_pending(self, filters: ModerationFilters) -> List[PendingKitchen]:
-        """Apply moderation filters to the in-memory queue."""
-
-        kitchens = list(self._pending_kitchens)
-
-        if filters.status:
-            kitchens = [kitchen for kitchen in kitchens if kitchen.status == filters.status]
-        if filters.certification_status:
-            kitchens = [
-                kitchen
-                for kitchen in kitchens
-                if kitchen.certification_status == filters.certification_status
-            ]
-        if filters.certification_type:
-            kitchens = [
-                kitchen for kitchen in kitchens if kitchen.certification_type == filters.certification_type
-            ]
-        if filters.min_trust_score is not None:
-            kitchens = [kitchen for kitchen in kitchens if kitchen.trust_score >= filters.min_trust_score]
-        if filters.submission_date_from:
-            kitchens = [
-                kitchen for kitchen in kitchens if kitchen.submitted_at >= filters.submission_date_from
-            ]
-        if filters.submission_date_to:
-            kitchens = [
-                kitchen for kitchen in kitchens if kitchen.submitted_at <= filters.submission_date_to
-            ]
-
-        return kitchens
-
-    @staticmethod
-    def _sort_kitchens(kitchens: List[PendingKitchen], pagination: Pagination) -> List[PendingKitchen]:
-        """Return kitchens sorted using the requested pagination options."""
-
-        sort_key_map = {
-            SortField.SUBMITTED_AT: lambda kitchen: kitchen.submitted_at,
-            SortField.TRUST_SCORE: lambda kitchen: kitchen.trust_score,
-            SortField.HOURLY_RATE: lambda kitchen: kitchen.hourly_rate,
-        }
-        key = sort_key_map[pagination.sort_by]
-        reverse = pagination.sort_order == SortOrder.DESC
-        return sorted(kitchens, key=key, reverse=reverse)
-
-    def get_pending_kitchens(
-        self,
-        filters: ModerationFilters,
-        pagination: Pagination,
-    ) -> PendingKitchensResponse:
-        """Retrieve pending kitchens honouring filters and pagination."""
-
-        kitchens = self._filter_pending(filters)
-        total_count = len(kitchens)
-        kitchens = self._sort_kitchens(kitchens, pagination)
-        start = pagination.offset
-        end = start + pagination.limit
-        window = kitchens[start:end]
-        has_more = end < total_count
-
-        return PendingKitchensResponse(kitchens=window, total_count=total_count, has_more=has_more)
-
-    def _resolve_status_from_action(self, action: ModerationAction) -> CertificationStatus:
-        """Map a moderation action to the resulting certification status."""
-
-        if action is ModerationAction.APPROVE:
-            return CertificationStatus.VERIFIED
-        if action is ModerationAction.REJECT:
-            return CertificationStatus.REJECTED
-        return CertificationStatus.REVIEW_REQUIRED
-
-    def moderate_kitchen(
-        self,
-        kitchen_id: str | UUID,
-        action: ModerationAction,
-        reason: str | None = None,
-        notes: str | None = None,
-    ) -> ModerationResult:
-        """Apply a moderation decision to a kitchen listing."""
-
-        kitchen_uuid = UUID(str(kitchen_id))
-        pending_index = next(
-            (index for index, kitchen in enumerate(self._pending_kitchens) if kitchen.id == kitchen_uuid),
-            None,
-        )
-        if pending_index is None:
-            raise LookupError(f"Kitchen {kitchen_uuid} is not awaiting moderation")
-
-        kitchen = self._pending_kitchens[pending_index]
-        new_status = self._resolve_status_from_action(action)
-        updated_kitchen = kitchen.model_copy(update={"certification_status": new_status, "status": kitchen.status})
-
-        if action in {ModerationAction.APPROVE, ModerationAction.REJECT}:
-            self._pending_kitchens.pop(pending_index)
-        else:
-            self._pending_kitchens[pending_index] = updated_kitchen
-
-        self._all_kitchens[kitchen_uuid] = updated_kitchen
-        result = ModerationResult(
-            kitchen_id=kitchen_uuid,
-            action=action,
-            reason=reason,
-            notes=notes,
-            new_status=new_status,
-            processed_at=datetime.now(tz=UTC),
-        )
-        self._moderation_history.append(result)
-        return result
-
-    def get_platform_overview(self) -> PlatformOverview:
-        """Compute a lightweight platform overview for the dashboard."""
-
-        overview = self._overview_seed.model_copy(deep=True)
-        overview.total_kitchens = len(self._all_kitchens)
-        overview.active_kitchens = sum(
-            1 for kitchen in self._all_kitchens.values() if kitchen.certification_status == CertificationStatus.VERIFIED
-        )
-        return overview
-
-    @property
-    def pending_kitchens(self) -> Sequence[PendingKitchen]:
-        """Expose the active moderation queue for inspection in tests."""
-
-        return tuple(self._pending_kitchens)
+        .where(Kitchen.id == kitchen_id)
+    )
+    kitchen = result.scalar_one_or_none()
+    if kitchen is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kitchen not found")
+    return kitchen
 
 
-_DEFAULT_API = AdminDashboardAPI()
-
-
-def get_admin_dashboard_api() -> AdminDashboardAPI:
-    """FastAPI dependency returning the shared admin dashboard service."""
-
-    return _DEFAULT_API
-
-
-@router.get("/admin/kitchens/pending", response_model=PendingKitchensResponse)
+@router.get("/kitchens/pending", response_model=KitchenListResponse)
 async def get_pending_kitchens(
-    status: str | None = Query(default=None, description="Filter by listing workflow status"),
-    certification_status: CertificationStatus | None = Query(
-        default=None, description="Filter by certification review status"
-    ),
-    certification_type: str | None = Query(default=None, description="Filter by certification document type"),
-    min_trust_score: float | None = Query(
-        default=None,
-        ge=0.0,
-        le=5.0,
-        description="Filter kitchens by minimum host trust score",
-    ),
-    submitted_after: datetime | None = Query(
-        default=None, description="Return kitchens submitted on or after this timestamp"
-    ),
-    submitted_before: datetime | None = Query(
-        default=None, description="Return kitchens submitted on or before this timestamp"
-    ),
-    limit: int = Query(default=20, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
-    sort_by: SortField = Query(default=SortField.SUBMITTED_AT),
-    sort_order: SortOrder = Query(default=SortOrder.DESC),
-    admin_api: AdminDashboardAPI = Depends(get_admin_dashboard_api),
-) -> PendingKitchensResponse:
-    """Get kitchens pending admin approval."""
+    *,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    search: str | None = Query(default=None, description="Search by kitchen or host name"),
+    owner_email: str | None = Query(default=None),
+    certification_status: CertificationReviewStatus | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> KitchenListResponse:
+    """Return the moderation queue for pending kitchens."""
 
-    try:
-        filters = ModerationFilters(
-            status=status,
-            certification_status=certification_status,
-            certification_type=certification_type,
-            min_trust_score=min_trust_score,
-            submission_date_from=submitted_after,
-            submission_date_to=submitted_before,
+    _ = current_admin  # Authentication already enforced
+
+    filters = [Kitchen.moderation_status == ModerationStatus.PENDING]
+    if certification_status:
+        filters.append(Kitchen.certification_status == certification_status)
+    if owner_email:
+        filters.append(func.lower(User.email) == owner_email.lower())
+    if search:
+        pattern = f"%{search.lower()}%"
+        filters.append(
+            or_(
+                func.lower(Kitchen.name).like(pattern),
+                func.lower(User.full_name).like(pattern),
+            )
         )
-        pagination = Pagination(
-            limit=limit,
-            offset=offset,
-            sort_by=sort_by,
-            sort_order=sort_order,
-        )
-    except ValidationError as exc:  # pragma: no cover - FastAPI already validates query params
-        raise HTTPException(status_code=422, detail=exc.errors()) from exc
 
-    return admin_api.get_pending_kitchens(filters, pagination)
+    total_stmt = (
+        select(func.count())
+        .select_from(Kitchen)
+        .join(User)
+        .where(and_(*filters))
+    )
+    result = await db.execute(total_stmt)
+    total = result.scalar_one()
+
+    query = (
+        select(Kitchen)
+        .options(joinedload(Kitchen.owner))
+        .join(User)
+        .where(and_(*filters))
+        .order_by(Kitchen.submitted_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    kitchens: Sequence[Kitchen] = result.scalars().unique().all()
+
+    items = [_build_kitchen_summary(kitchen) for kitchen in kitchens]
+    pagination = PaginationMeta(limit=limit, offset=offset, total=total)
+    return KitchenListResponse(items=items, pagination=pagination)
 
 
-@router.post("/admin/kitchens/{kitchen_id}/moderate", response_model=ModerationResult)
+@router.get("/kitchens/{kitchen_id}", response_model=KitchenDetail)
+async def get_kitchen_details(
+    kitchen_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> KitchenDetail:
+    """Return the details for a specific kitchen awaiting moderation."""
+
+    _ = current_admin
+    kitchen = await _get_kitchen_or_404(db, kitchen_id)
+    summary = _build_kitchen_summary(kitchen)
+    certifications = [_build_certification_summary(doc) for doc in kitchen.certifications]
+    return KitchenDetail(**summary.model_dump(), description=kitchen.description, rejection_reason=kitchen.rejection_reason, certifications=certifications)
+
+
+@router.post("/kitchens/{kitchen_id}/moderate", response_model=ModerationResponse)
 async def moderate_kitchen(
-    kitchen_id: str,
-    request: ModerationRequest,
-    admin_api: AdminDashboardAPI = Depends(get_admin_dashboard_api),
-) -> ModerationResult:
-    """Moderate a kitchen listing."""
+    kitchen_id: UUID,
+    payload: ModerationRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> ModerationResponse:
+    """Approve or reject a kitchen listing."""
 
-    try:
-        return admin_api.moderate_kitchen(
-            kitchen_id=kitchen_id,
-            action=request.action,
-            reason=request.reason,
-            notes=request.notes,
+    _ = current_admin
+    kitchen = await _get_kitchen_or_404(db, kitchen_id)
+
+    if kitchen.moderation_status != ModerationStatus.PENDING:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Kitchen already moderated")
+
+    now = datetime.now(timezone.utc)
+    message: str
+
+    if payload.action == ModerationDecision.APPROVE:
+        kitchen.moderation_status = ModerationStatus.APPROVED
+        kitchen.rejection_reason = None
+        kitchen.is_active = True
+        message = "Kitchen approved"
+    elif payload.action == ModerationDecision.REJECT:
+        kitchen.moderation_status = ModerationStatus.REJECTED
+        kitchen.rejection_reason = payload.reason or "Rejected by administrator"
+        kitchen.is_active = False
+        message = "Kitchen rejected"
+    else:
+        kitchen.moderation_status = ModerationStatus.CHANGES_REQUESTED
+        kitchen.rejection_reason = payload.reason or "Changes requested by administrator"
+        message = "Changes requested"
+
+    kitchen.moderated_at = now
+
+    await db.commit()
+    kitchen = await _get_kitchen_or_404(db, kitchen_id)
+
+    summary = _build_kitchen_summary(kitchen)
+    certifications = [_build_certification_summary(doc) for doc in kitchen.certifications]
+    detail = KitchenDetail(
+        **summary.model_dump(),
+        description=kitchen.description,
+        rejection_reason=kitchen.rejection_reason,
+        certifications=certifications,
+    )
+    return ModerationResponse(kitchen=detail, message=message)
+
+
+@router.get("/kitchens/stats", response_model=KitchenModerationStats)
+async def get_kitchen_moderation_stats(
+    db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> KitchenModerationStats:
+    """Return high-level moderation statistics."""
+
+    _ = current_admin
+    base_stmt = select(func.count()).select_from(Kitchen)
+
+    total = (await db.execute(base_stmt)).scalar_one()
+    pending = (
+        await db.execute(base_stmt.where(Kitchen.moderation_status == ModerationStatus.PENDING))
+    ).scalar_one()
+    approved = (
+        await db.execute(base_stmt.where(Kitchen.moderation_status == ModerationStatus.APPROVED))
+    ).scalar_one()
+    rejected = (
+        await db.execute(base_stmt.where(Kitchen.moderation_status == ModerationStatus.REJECTED))
+    ).scalar_one()
+    changes_requested = (
+        await db.execute(
+            base_stmt.where(Kitchen.moderation_status == ModerationStatus.CHANGES_REQUESTED)
         )
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    ).scalar_one()
+
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    approvals_last_7_days = (
+        await db.execute(
+            base_stmt.where(
+                Kitchen.moderation_status == ModerationStatus.APPROVED,
+                Kitchen.moderated_at >= seven_days_ago,
+            )
+        )
+    ).scalar_one()
+
+    return KitchenModerationStats(
+        total=total,
+        pending=pending,
+        approved=approved,
+        rejected=rejected,
+        changes_requested=changes_requested,
+        approvals_last_7_days=approvals_last_7_days,
+    )
 
 
-@router.get("/admin/analytics/overview", response_model=PlatformOverview)
-async def get_platform_overview(
-    admin_api: AdminDashboardAPI = Depends(get_admin_dashboard_api),
-) -> PlatformOverview:
-    """Get platform-wide analytics overview."""
+@router.get("/certifications/pending", response_model=CertificationListResponse)
+async def get_pending_certifications(
+    *,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    document_type: str | None = Query(default=None),
+    search: str | None = Query(default=None, description="Search by kitchen name"),
+    db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> CertificationListResponse:
+    """Return pending certification documents for review."""
 
-    return admin_api.get_platform_overview()
+    _ = current_admin
+
+    filters = [CertificationDocument.status == CertificationReviewStatus.PENDING]
+    if document_type:
+        filters.append(func.lower(CertificationDocument.document_type) == document_type.lower())
+    if search:
+        pattern = f"%{search.lower()}%"
+        filters.append(func.lower(Kitchen.name).like(pattern))
+
+    total_stmt = (
+        select(func.count())
+        .select_from(CertificationDocument)
+        .join(Kitchen)
+        .where(and_(*filters))
+    )
+    total = (await db.execute(total_stmt)).scalar_one()
+
+    query = (
+        select(CertificationDocument)
+        .options(joinedload(CertificationDocument.kitchen))
+        .join(Kitchen)
+        .where(and_(*filters))
+        .order_by(CertificationDocument.submitted_at.asc())
+        .offset(offset)
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    documents: Sequence[CertificationDocument] = result.scalars().unique().all()
+
+    items = [_build_certification_summary(doc) for doc in documents]
+    pagination = PaginationMeta(limit=limit, offset=offset, total=total)
+    return CertificationListResponse(items=items, pagination=pagination)
+
+
+@router.post("/certifications/{certification_id}/verify", response_model=CertificationDecisionResponse)
+async def verify_certification(
+    certification_id: UUID,
+    payload: CertificationDecisionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> CertificationDecisionResponse:
+    """Approve or reject a pending certification document."""
+
+    _ = current_admin
+
+    result = await db.execute(
+        select(CertificationDocument)
+        .options(joinedload(CertificationDocument.kitchen))
+        .where(CertificationDocument.id == certification_id)
+    )
+    document = result.scalar_one_or_none()
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Certification not found")
+
+    if document.status != CertificationReviewStatus.PENDING:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Certification already reviewed")
+
+    now = datetime.now(timezone.utc)
+    if payload.approve:
+        document.status = CertificationReviewStatus.APPROVED
+        document.rejection_reason = None
+        document.verified_at = now
+        message = "Certification approved"
+    else:
+        if not payload.rejection_reason:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Rejection reason is required when rejecting a certification",
+            )
+        document.status = CertificationReviewStatus.REJECTED
+        document.rejection_reason = payload.rejection_reason
+        document.verified_at = now
+        message = "Certification rejected"
+
+    document.reviewer_id = current_admin.id
+
+    await db.commit()
+    document_result = await db.execute(
+        select(CertificationDocument)
+        .options(joinedload(CertificationDocument.kitchen))
+        .where(CertificationDocument.id == certification_id)
+    )
+    updated_document = document_result.scalar_one()
+
+    summary = _build_certification_summary(updated_document)
+    return CertificationDecisionResponse(certification=summary, message=message)
+
+
+@router.get("/certifications/stats", response_model=CertificationStats)
+async def get_certification_stats(
+    db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> CertificationStats:
+    """Return aggregated certification metrics."""
+
+    _ = current_admin
+    base_stmt = select(func.count()).select_from(CertificationDocument)
+
+    total = (await db.execute(base_stmt)).scalar_one()
+    pending = (
+        await db.execute(base_stmt.where(CertificationDocument.status == CertificationReviewStatus.PENDING))
+    ).scalar_one()
+    approved = (
+        await db.execute(base_stmt.where(CertificationDocument.status == CertificationReviewStatus.APPROVED))
+    ).scalar_one()
+    rejected = (
+        await db.execute(base_stmt.where(CertificationDocument.status == CertificationReviewStatus.REJECTED))
+    ).scalar_one()
+
+    soon_threshold = datetime.now(timezone.utc) + timedelta(days=30)
+    expiring_soon = (
+        await db.execute(
+            base_stmt.where(
+                CertificationDocument.status == CertificationReviewStatus.APPROVED,
+                CertificationDocument.expires_at.is_not(None),
+                CertificationDocument.expires_at <= soon_threshold,
+            )
+        )
+    ).scalar_one()
+
+    return CertificationStats(
+        total=total,
+        pending=pending,
+        approved=approved,
+        rejected=rejected,
+        expiring_soon=expiring_soon,
+    )
+
+
+@router.get("/users", response_model=UserListResponse)
+async def list_users(
+    *,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    role: UserRole | None = Query(default=None),
+    include_suspended: bool = Query(False),
+    search: str | None = Query(default=None, description="Search by name or email"),
+    db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> UserListResponse:
+    """Return a filtered list of users."""
+
+    _ = current_admin
+
+    filters = []
+    if role:
+        filters.append(User.role == role)
+    if not include_suspended:
+        filters.append(User.is_suspended.is_(False))
+    if search:
+        pattern = f"%{search.lower()}%"
+        filters.append(
+            or_(func.lower(User.email).like(pattern), func.lower(User.full_name).like(pattern))
+        )
+
+    stmt = select(func.count()).select_from(User)
+    if filters:
+        stmt = stmt.where(and_(*filters))
+    total = (await db.execute(stmt)).scalar_one()
+
+    query = select(User)
+    if filters:
+        query = query.where(and_(*filters))
+    query = query.order_by(User.created_at.desc()).offset(offset).limit(limit)
+
+    result = await db.execute(query)
+    users: Sequence[User] = result.scalars().all()
+
+    items = [
+        UserSummary(
+            id=user.id,
+            email=user.email,
+            full_name=user.full_name,
+            role=user.role.value,
+            is_active=user.is_active,
+            is_suspended=user.is_suspended,
+            suspension_reason=user.suspension_reason,
+            created_at=user.created_at,
+            last_login_at=user.last_login_at,
+        )
+        for user in users
+    ]
+    pagination = PaginationMeta(limit=limit, offset=offset, total=total)
+    return UserListResponse(items=items, pagination=pagination)
+
+
+@router.post("/users/{user_id}/suspend", response_model=UserSummary)
+async def suspend_user(
+    user_id: UUID,
+    payload: SuspendUserRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> UserSummary:
+    """Suspend a user account."""
+
+    _ = current_admin
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if user.role == UserRole.ADMIN and user.id == current_admin.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Administrators cannot suspend themselves")
+
+    user.is_suspended = True
+    user.suspension_reason = payload.reason
+    user.suspended_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    await db.refresh(user)
+
+    return UserSummary(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        role=user.role.value,
+        is_active=user.is_active,
+        is_suspended=user.is_suspended,
+        suspension_reason=user.suspension_reason,
+        created_at=user.created_at,
+        last_login_at=user.last_login_at,
+    )
+
+
+@router.get("/users/stats", response_model=UserStats)
+async def get_user_stats(
+    db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> UserStats:
+    """Return aggregated user metrics."""
+
+    _ = current_admin
+
+    base_stmt = select(func.count()).select_from(User)
+
+    total = (await db.execute(base_stmt)).scalar_one()
+    active = (
+        await db.execute(base_stmt.where(User.is_active.is_(True), User.is_suspended.is_(False)))
+    ).scalar_one()
+    suspended = (
+        await db.execute(base_stmt.where(User.is_suspended.is_(True)))
+    ).scalar_one()
+    admins = (
+        await db.execute(base_stmt.where(User.role == UserRole.ADMIN))
+    ).scalar_one()
+    hosts = (
+        await db.execute(base_stmt.where(User.role == UserRole.HOST))
+    ).scalar_one()
+
+    return UserStats(
+        total=total,
+        active=active,
+        suspended=suspended,
+        admins=admins,
+        hosts=hosts,
+    )
