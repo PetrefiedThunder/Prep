@@ -44,6 +44,15 @@ class SortOrder(str, Enum):
     DESC = "desc"
 
 
+class AdminUser(BaseModel):
+    """Lightweight representation of an authenticated admin user."""
+
+    id: UUID
+    email: str
+    full_name: str
+    permissions: List[str] = Field(default_factory=list)
+
+
 class PendingKitchen(BaseModel):
     """Serialized representation of a kitchen awaiting admin review."""
 
