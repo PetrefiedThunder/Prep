@@ -1,0 +1,189 @@
+"""Pydantic models supporting the analytics dashboard API."""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+from decimal import Decimal
+from enum import Enum
+from typing import List, Optional, Union
+from uuid import UUID
+
+from pydantic import BaseModel, Field
+
+
+class Timeframe(str, Enum):
+    """Supported time windows for analytics queries."""
+
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+    YEAR = "year"
+
+
+class ExportFormat(str, Enum):
+    """Available export formats for analytics data."""
+
+    CSV = "csv"
+    JSON = "json"
+    PDF = "pdf"
+
+
+class ReportType(str, Enum):
+    """Types of analytics reports that may be exported."""
+
+    HOST_OVERVIEW = "host_overview"
+    BOOKINGS = "bookings"
+    REVENUE = "revenue"
+    ADMIN_OVERVIEW = "admin_overview"
+
+
+class User(BaseModel):
+    """Representation of an authenticated platform user."""
+
+    id: UUID
+    email: str
+    full_name: str
+    roles: List[str] = Field(default_factory=list)
+
+
+class TimeSeriesData(BaseModel):
+    """Value mapped to a specific calendar date."""
+
+    date: date
+    value: Union[int, float, Decimal]
+
+
+class TimeSlotPopularity(BaseModel):
+    """Aggregated booking counts by time of day."""
+
+    time_slot: str
+    booking_count: int = Field(ge=0)
+
+
+class CancellationReason(BaseModel):
+    """Distribution of cancellation reasons for bookings."""
+
+    reason: str
+    count: int = Field(ge=0)
+
+
+class KitchenPerformance(BaseModel):
+    """Performance snapshot for a specific kitchen."""
+
+    kitchen_id: UUID
+    kitchen_name: str
+    bookings: int = Field(ge=0)
+    revenue: Decimal = Field(ge=Decimal("0"))
+    rating: float = Field(ge=0.0, le=5.0)
+    occupancy_rate: float = Field(ge=0.0, le=100.0)
+
+
+class RecentBooking(BaseModel):
+    """Recent bookings used to populate host activity feeds."""
+
+    booking_id: UUID
+    kitchen_id: UUID
+    kitchen_name: str
+    guest_name: str
+    start_time: datetime
+    end_time: datetime
+    status: str
+    total_amount: Decimal = Field(ge=Decimal("0"))
+
+
+class KitchenRevenue(BaseModel):
+    """Revenue contribution from a single kitchen."""
+
+    kitchen_id: UUID
+    kitchen_name: str
+    total_revenue: Decimal = Field(ge=Decimal("0"))
+    booking_count: int = Field(ge=0)
+
+
+class PaymentMethodBreakdown(BaseModel):
+    """Share of revenue attributed to specific payment methods."""
+
+    method: str
+    percentage: float = Field(ge=0.0, le=100.0)
+
+
+class RegionPerformance(BaseModel):
+    """Regional performance metrics for the admin overview."""
+
+    region: str
+    bookings: int = Field(ge=0)
+    revenue: Decimal = Field(ge=Decimal("0"))
+    growth_rate: float
+
+
+class PlatformHealthMetrics(BaseModel):
+    """Operational health indicators for the platform."""
+
+    api_uptime: float = Field(ge=0.0, le=100.0)
+    average_response_time: float = Field(ge=0.0)
+    error_rate: float = Field(ge=0.0, le=100.0)
+    database_health: str
+    cache_hit_rate: float = Field(ge=0.0, le=100.0)
+
+
+class HostOverview(BaseModel):
+    """Aggregate host performance metrics."""
+
+    total_kitchens: int = Field(ge=0)
+    active_kitchens: int = Field(ge=0)
+    total_bookings: int = Field(ge=0)
+    total_revenue: Decimal = Field(ge=Decimal("0"))
+    average_rating: float = Field(ge=0.0, le=5.0)
+    occupancy_rate: float = Field(ge=0.0, le=100.0)
+    response_rate: float = Field(ge=0.0, le=100.0)
+    last_30_days_revenue: Decimal = Field(ge=Decimal("0"))
+    top_performing_kitchen: Optional[KitchenPerformance] = None
+    recent_bookings: List[RecentBooking] = Field(default_factory=list)
+
+
+class BookingAnalytics(BaseModel):
+    """Detailed booking funnel analytics for a host."""
+
+    total_bookings: int = Field(ge=0)
+    confirmed_bookings: int = Field(ge=0)
+    cancelled_bookings: int = Field(ge=0)
+    conversion_rate: float = Field(ge=0.0, le=100.0)
+    booking_trends: List[TimeSeriesData] = Field(default_factory=list)
+    popular_time_slots: List[TimeSlotPopularity] = Field(default_factory=list)
+    cancellation_reasons: List[CancellationReason] = Field(default_factory=list)
+    guest_retention_rate: float = Field(ge=0.0, le=100.0)
+
+
+class RevenueAnalytics(BaseModel):
+    """Revenue distribution and trend insights."""
+
+    total_revenue: Decimal = Field(ge=Decimal("0"))
+    revenue_trends: List[TimeSeriesData] = Field(default_factory=list)
+    revenue_by_kitchen: List[KitchenRevenue] = Field(default_factory=list)
+    average_booking_value: Decimal = Field(ge=Decimal("0"))
+    revenue_forecast: List[TimeSeriesData] = Field(default_factory=list)
+    payment_methods_breakdown: List[PaymentMethodBreakdown] = Field(default_factory=list)
+
+
+class AdminOverview(BaseModel):
+    """Platform wide analytics for administrators."""
+
+    total_hosts: int = Field(ge=0)
+    total_kitchens: int = Field(ge=0)
+    total_bookings: int = Field(ge=0)
+    platform_revenue: Decimal = Field(ge=Decimal("0"))
+    active_users: int = Field(ge=0)
+    new_signups: int = Field(ge=0)
+    platform_health: PlatformHealthMetrics
+    top_performing_regions: List[RegionPerformance] = Field(default_factory=list)
+    pending_moderation: int = Field(ge=0)
+
+
+class ExportResult(BaseModel):
+    """Metadata describing a generated analytics export."""
+
+    report_type: ReportType
+    format: ExportFormat
+    generated_at: datetime
+    download_url: str
+    expires_at: datetime
