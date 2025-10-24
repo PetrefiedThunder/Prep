@@ -11,6 +11,14 @@ from uuid import UUID
 from pydantic import BaseModel, Field, model_validator
 
 
+class AdminUser(BaseModel):
+    """Lightweight representation of an authenticated admin user."""
+
+    id: UUID
+    email: str
+    name: str
+
+
 class CertificationStatus(str, Enum):
     """Enumeration describing the certification lifecycle for a kitchen."""
 
