@@ -18,6 +18,7 @@
     "@prep/common": "1.0.0",
     "@prep/logger": "1.0.0",
     "@fastify/cors": "^9.0.0",
+    "@fastify/jwt": "^6.7.1"
     "@fastify/jwt": "^7.2.1"
   },
   "devDependencies": {
