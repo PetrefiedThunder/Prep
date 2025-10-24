@@ -1,4 +1,4 @@
-"""Admin dashboard and certification API utilities."""
+"""Admin dashboard API package exports."""
 
 from __future__ import annotations
 
@@ -37,3 +37,6 @@ __all__ = [
     "get_certification_verification_api",
     "router",
 ]
+from prep.admin.api import router
+
+__all__ = ["router"]
