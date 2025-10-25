@@ -12,6 +12,7 @@ dependencies = [
     "fastapi>=0.110.0",
     "SQLAlchemy>=2.0.30",
     "asyncpg>=0.29.0",
+    "httpx>=0.25.0",
     "pyjwt>=2.9.0",
     "pyyaml>=6.0.0",
     "python-dateutil>=2.9.0",

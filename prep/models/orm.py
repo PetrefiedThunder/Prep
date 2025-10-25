@@ -276,6 +276,54 @@ class KitchenExternalRating(Base, TimestampedMixin):
     kitchen: Mapped[Kitchen] = relationship()
 
 
+class KitchenRatingHistory(Base):
+    """Historical snapshots of external rating syncs for trend analysis."""
+
+    __tablename__ = "kitchen_rating_history"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    kitchen_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("kitchens.id"), index=True
+    )
+    source: Mapped[str] = mapped_column(String(50), nullable=False)
+    rating: Mapped[float | None] = mapped_column(Float, nullable=True)
+    rating_scale: Mapped[float] = mapped_column(Float, nullable=False, default=5.0)
+    rating_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    normalized_rating: Mapped[float | None] = mapped_column(Float, nullable=True)
+    captured_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True
+    )
+    context: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+    kitchen: Mapped[Kitchen] = relationship()
+
+
+class KitchenSentimentTrend(Base):
+    """Aggregated sentiment analysis windows for external reviews."""
+
+    __tablename__ = "kitchen_sentiment_trends"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    kitchen_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("kitchens.id"), nullable=True, index=True
+    )
+    source: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    window_start: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    window_end: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    average_score: Mapped[float] = mapped_column(Float, nullable=False)
+    positive_ratio: Mapped[float] = mapped_column(Float, nullable=False)
+    neutral_ratio: Mapped[float] = mapped_column(Float, nullable=False)
+    negative_ratio: Mapped[float] = mapped_column(Float, nullable=False)
+    sample_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    context: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+    kitchen: Mapped[Kitchen | None] = relationship()
+
+
 class CertificationDocument(Base, TimestampedMixin):
     """Uploaded certification or inspection document."""
 
