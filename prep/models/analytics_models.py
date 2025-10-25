@@ -187,3 +187,79 @@ class ExportResult(BaseModel):
     generated_at: datetime
     download_url: str
     expires_at: datetime
+
+
+class PlatformOverviewMetrics(BaseModel):
+    """High level platform analytics for executives."""
+
+    total_users: int = Field(ge=0)
+    total_hosts: int = Field(ge=0)
+    total_kitchens: int = Field(ge=0)
+    active_kitchens: int = Field(ge=0)
+    total_bookings: int = Field(ge=0)
+    total_revenue: Decimal = Field(ge=Decimal("0"))
+    new_users_last_30_days: int = Field(ge=0)
+    bookings_trend: List[TimeSeriesData] = Field(default_factory=list)
+    revenue_trend: List[TimeSeriesData] = Field(default_factory=list)
+
+
+class GrowthChannelBreakdown(BaseModel):
+    """Acquisition contribution for a specific marketing channel."""
+
+    channel: str
+    signups: int = Field(ge=0)
+    conversion_rate: float = Field(ge=0.0, le=100.0)
+
+
+class PlatformGrowthMetrics(BaseModel):
+    """User and host acquisition metrics."""
+
+    user_signups: List[TimeSeriesData] = Field(default_factory=list)
+    host_signups: List[TimeSeriesData] = Field(default_factory=list)
+    conversion_rate: List[TimeSeriesData] = Field(default_factory=list)
+    acquisition_channels: List[GrowthChannelBreakdown] = Field(default_factory=list)
+
+
+class ModerationQueueMetrics(BaseModel):
+    """Operational metrics for the moderation queue."""
+
+    pending: int = Field(ge=0)
+    in_review: int = Field(ge=0)
+    escalated: int = Field(ge=0)
+    sla_breaches: int = Field(ge=0)
+    average_review_time_hours: float = Field(ge=0.0)
+    moderation_trend: List[TimeSeriesData] = Field(default_factory=list)
+
+
+class AdminTeamMemberPerformance(BaseModel):
+    """Performance insights for an individual admin reviewer."""
+
+    admin_id: UUID
+    admin_name: str
+    resolved_cases: int = Field(ge=0)
+    average_resolution_time_hours: float = Field(ge=0.0)
+    quality_score: float = Field(ge=0.0, le=100.0)
+
+
+class AdminPerformanceMetrics(BaseModel):
+    """Aggregated performance of the admin moderation team."""
+
+    total_resolved: int = Field(ge=0)
+    backlog: int = Field(ge=0)
+    productivity_trend: List[TimeSeriesData] = Field(default_factory=list)
+    team: List[AdminTeamMemberPerformance] = Field(default_factory=list)
+
+
+class FinancialHealthMetrics(BaseModel):
+    """Financial health indicators for the executive dashboard."""
+
+    total_revenue: Decimal = Field(ge=Decimal("0"))
+    net_revenue: Decimal = Field(ge=Decimal("0"))
+    operational_expenses: Decimal = Field(ge=Decimal("0"))
+    gross_margin: float = Field(ge=0.0, le=100.0)
+    ebitda_margin: float = Field(ge=0.0, le=100.0)
+    cash_on_hand: Decimal = Field(ge=Decimal("0"))
+    burn_rate: Decimal = Field(ge=Decimal("0"))
+    runway_months: float = Field(ge=0.0)
+    revenue_trend: List[TimeSeriesData] = Field(default_factory=list)
+    expense_trend: List[TimeSeriesData] = Field(default_factory=list)

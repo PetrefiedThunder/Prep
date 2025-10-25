@@ -5,7 +5,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Numeric, String, Text
+import enum
+
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -64,6 +66,69 @@ class Kitchen(Base, TimestampedMixin):
         back_populates="kitchen", cascade="all, delete-orphan", order_by="KitchenModerationEvent.created_at.desc()"
     )
 
+
+class BookingStatus(str, enum.Enum):
+    """State transitions for bookings."""
+
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class Booking(Base, TimestampedMixin):
+    """Represents a customer booking for a kitchen."""
+
+    __tablename__ = "bookings"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    host_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    customer_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    kitchen_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("kitchens.id"), index=True)
+    status: Mapped[BookingStatus] = mapped_column(Enum(BookingStatus), nullable=False, default=BookingStatus.PENDING)
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    total_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    platform_fee: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    host_payout_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    payment_method: Mapped[str] = mapped_column(String(50), default="card")
+    source: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    cancellation_reason: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+    kitchen: Mapped[Kitchen] = relationship()
+    host: Mapped[User] = relationship(foreign_keys=[host_id])
+    customer: Mapped[User] = relationship(foreign_keys=[customer_id])
+    reviews: Mapped[list["Review"]] = relationship(back_populates="booking")
+
+
+class Review(Base, TimestampedMixin):
+    """Guest review for a completed booking."""
+
+    __tablename__ = "reviews"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    booking_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id"), index=True)
+    kitchen_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("kitchens.id"), index=True)
+    host_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    customer_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    rating: Mapped[float] = mapped_column(Float, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    booking: Mapped[Booking] = relationship(back_populates="reviews")
+    kitchen: Mapped[Kitchen] = relationship()
+    host: Mapped[User] = relationship(foreign_keys=[host_id])
+    customer: Mapped[User] = relationship(foreign_keys=[customer_id])
+
+
+class OperationalExpense(Base, TimestampedMixin):
+    """Operational expenses used for financial analytics."""
+
+    __tablename__ = "operational_expenses"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    category: Mapped[str] = mapped_column(String(120))
+    amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    incurred_on: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
 class KitchenModerationEvent(Base):
     """Audit trail capturing moderation decisions for a kitchen."""
