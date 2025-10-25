@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 import enum
@@ -14,6 +15,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    JSON,
     Numeric,
     String,
     Text,
@@ -52,6 +54,9 @@ class User(Base, TimestampedMixin):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     kitchens: Mapped[list["Kitchen"]] = relationship(back_populates="host")
+    matching_preference: Mapped[UserMatchingPreference | None] = relationship(
+        back_populates="user", uselist=False
+    )
 
 
 class Kitchen(Base, TimestampedMixin):
@@ -75,6 +80,9 @@ class Kitchen(Base, TimestampedMixin):
     certifications: Mapped[list["CertificationDocument"]] = relationship(back_populates="kitchen")
     moderation_events: Mapped[list["KitchenModerationEvent"]] = relationship(
         back_populates="kitchen", cascade="all, delete-orphan", order_by="KitchenModerationEvent.created_at.desc()"
+    )
+    matching_profile: Mapped[KitchenMatchingProfile | None] = relationship(
+        back_populates="kitchen", uselist=False
     )
 
 
@@ -197,6 +205,75 @@ class KitchenModerationEvent(Base):
 
     kitchen: Mapped[Kitchen] = relationship(back_populates="moderation_events")
     admin: Mapped[User] = relationship()
+
+
+class UserMatchingPreference(Base, TimestampedMixin):
+    """Stores matching preferences specified by a user."""
+
+    __tablename__ = "user_matching_preferences"
+
+    user_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True
+    )
+    equipment: Mapped[list[str]] = mapped_column(JSON, default=list)
+    certifications: Mapped[list[str]] = mapped_column(JSON, default=list)
+    cuisines: Mapped[list[str]] = mapped_column(JSON, default=list)
+    preferred_cities: Mapped[list[str]] = mapped_column(JSON, default=list)
+    preferred_states: Mapped[list[str]] = mapped_column(JSON, default=list)
+    availability: Mapped[list[str]] = mapped_column(JSON, default=list)
+    min_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_distance_km: Mapped[float | None] = mapped_column(Float, nullable=True)
+    preference_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+    user: Mapped[User] = relationship(back_populates="matching_preference")
+
+
+class KitchenMatchingProfile(Base, TimestampedMixin):
+    """Extended feature data powering the smart matching engine."""
+
+    __tablename__ = "kitchen_matching_profiles"
+
+    kitchen_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("kitchens.id"), primary_key=True
+    )
+    equipment: Mapped[list[str]] = mapped_column(JSON, default=list)
+    certifications: Mapped[list[str]] = mapped_column(JSON, default=list)
+    cuisines: Mapped[list[str]] = mapped_column(JSON, default=list)
+    availability: Mapped[list[str]] = mapped_column(JSON, default=list)
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    min_hourly_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_hourly_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    kitchen: Mapped[Kitchen] = relationship(back_populates="matching_profile")
+
+
+class KitchenExternalRating(Base, TimestampedMixin):
+    """External rating data sourced from third-party review platforms."""
+
+    __tablename__ = "kitchen_external_ratings"
+    __table_args__ = (
+        UniqueConstraint("kitchen_id", "source", name="uq_external_rating_source"),
+    )
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    kitchen_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("kitchens.id"), index=True
+    )
+    source: Mapped[str] = mapped_column(String(50), nullable=False)
+    rating: Mapped[float] = mapped_column(Float, nullable=False)
+    rating_scale: Mapped[float] = mapped_column(Float, nullable=False, default=5.0)
+    rating_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    normalized_rating: Mapped[float | None] = mapped_column(Float, nullable=True)
+    url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    last_synced_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+    kitchen: Mapped[Kitchen] = relationship()
 
 
 class CertificationDocument(Base, TimestampedMixin):
