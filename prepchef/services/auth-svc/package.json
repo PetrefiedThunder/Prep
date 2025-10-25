@@ -14,7 +14,10 @@
   "dependencies": {
     "@fastify/jwt": "^7.2.1",
     "@prep/common": "1.0.0",
+    "@prep/config": "1.0.0",
+    "@prep/database": "1.0.0",
     "@prep/logger": "1.0.0",
+    "bcryptjs": "^2.4.3",
     "fastify": "^4.28.1",
     "undici": "^6.19.8",
     "zod": "^3.23.8"
