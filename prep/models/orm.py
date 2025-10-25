@@ -40,6 +40,14 @@ class TimestampedMixin:
     )
 
 
+class UserRole(str, enum.Enum):
+    """Platform roles supported by the Prep platform."""
+
+    ADMIN = "admin"
+    HOST = "host"
+    CUSTOMER = "customer"
+
+
 class User(Base, TimestampedMixin):
     """Represents an end user of the Prep platform."""
 
@@ -49,6 +57,9 @@ class User(Base, TimestampedMixin):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(255))
     hashed_password: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole), default=UserRole.CUSTOMER, nullable=False, index=True
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_suspended: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -79,6 +90,9 @@ class Kitchen(Base, TimestampedMixin):
 
     host: Mapped[User] = relationship(back_populates="kitchens")
     certifications: Mapped[list["CertificationDocument"]] = relationship(back_populates="kitchen")
+    compliance_documents: Mapped[list["ComplianceDocument"]] = relationship(
+        back_populates="kitchen", cascade="all, delete-orphan"
+    )
     moderation_events: Mapped[list["KitchenModerationEvent"]] = relationship(
         back_populates="kitchen", cascade="all, delete-orphan", order_by="KitchenModerationEvent.created_at.desc()"
     )
@@ -179,6 +193,43 @@ class Review(Base, TimestampedMixin):
     flags: Mapped[list["ReviewFlag"]] = relationship(
         back_populates="review", cascade="all, delete-orphan"
     )
+
+
+class ComplianceDocumentStatus(str, enum.Enum):
+    """Workflow states for uploaded compliance documentation."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
+
+class ComplianceDocument(Base, TimestampedMixin):
+    """Compliance paperwork that kitchens must maintain."""
+
+    __tablename__ = "compliance_documents"
+    __table_args__ = (
+        UniqueConstraint("kitchen_id", "document_type", name="uq_compliance_document"),
+    )
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    kitchen_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("kitchens.id"), index=True)
+    uploader_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    document_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    document_url: Mapped[str] = mapped_column(String(512), nullable=False)
+    verification_status: Mapped[ComplianceDocumentStatus] = mapped_column(
+        Enum(ComplianceDocumentStatus), default=ComplianceDocumentStatus.PENDING, nullable=False
+    )
+    submitted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewer_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    kitchen: Mapped[Kitchen] = relationship(back_populates="compliance_documents")
+    uploader: Mapped[User | None] = relationship(foreign_keys=[uploader_id])
+    reviewer: Mapped[User | None] = relationship(foreign_keys=[reviewer_id])
 
 
 class OperationalExpense(Base, TimestampedMixin):

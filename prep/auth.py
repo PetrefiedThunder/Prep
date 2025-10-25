@@ -12,7 +12,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prep.database import get_db
-from prep.models.orm import User
+from prep.models.orm import User, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
@@ -40,7 +40,7 @@ async def get_current_admin(
     """Resolve and authorize the currently authenticated admin user."""
 
     user, roles = await _resolve_user(token, db)
-    if "admin" not in roles and not user.is_admin:
+    if "admin" not in roles and not user.is_admin and user.role is not UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
 
     if user.is_suspended:
@@ -59,8 +59,7 @@ async def get_current_user(
     if user.is_suspended or not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is not active")
 
-    if not roles:
-        # Require at least one role to access analytics endpoints
+    if not roles and user.role not in {UserRole.ADMIN, UserRole.HOST, UserRole.CUSTOMER}:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
     return user
