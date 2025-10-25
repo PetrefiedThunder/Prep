@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import time
 from typing import Any, Protocol
 
@@ -15,7 +14,8 @@ except ImportError:  # pragma: no cover - fallback when redis is unavailable
 
 logger = logging.getLogger(__name__)
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+from prep.settings import get_settings
+
 _CACHE_CLIENT: "RedisProtocol" | None = None
 
 
@@ -59,12 +59,19 @@ async def get_redis() -> RedisProtocol:
     if _CACHE_CLIENT is not None:
         return _CACHE_CLIENT
 
+    settings = get_settings()
+
     if Redis is not None:  # pragma: no branch - single initialization path
         try:
-            _CACHE_CLIENT = Redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+            _CACHE_CLIENT = Redis.from_url(
+                str(settings.redis_url), encoding="utf-8", decode_responses=True
+            )
             return _CACHE_CLIENT
         except Exception:  # pragma: no cover - network failures
-            logger.exception("Failed to initialize Redis client", extra={"redis_url": REDIS_URL})
+            logger.exception(
+                "Failed to initialize Redis client",
+                extra={"redis_url": str(settings.redis_url)},
+            )
 
     logger.warning("Redis dependency unavailable, falling back to in-memory cache")
     _CACHE_CLIENT = _MemoryRedis()
