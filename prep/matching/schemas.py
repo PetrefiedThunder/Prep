@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
+
+from prep.ratings.schemas import (
+    ExternalRatingModel,
+    ExternalRatingSyncItem,
+    ExternalRatingSyncRequest,
+    ExternalRatingSyncResponse,
+    KitchenRatingResponse,
+)
 
 
 class PreferenceSettings(BaseModel):
@@ -86,49 +93,3 @@ class MatchResponse(BaseModel):
     preferences: PreferenceSettings | None
 
 
-class ExternalRatingModel(BaseModel):
-    """External rating source payload."""
-
-    source: str
-    rating: float
-    rating_scale: float
-    rating_count: int | None = None
-    normalized_rating: float | None = None
-    url: HttpUrl | None = None
-    synced_at: datetime
-    metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-class KitchenRatingResponse(BaseModel):
-    """Aggregated rating information for a kitchen."""
-
-    kitchen_id: UUID
-    internal_average: float | None
-    internal_count: int
-    external_sources: list[ExternalRatingModel]
-    normalized_score: float | None
-
-
-class ExternalRatingSyncItem(BaseModel):
-    """Incoming external rating entry."""
-
-    kitchen_id: UUID
-    source: str
-    rating: float = Field(ge=0)
-    rating_scale: float = Field(default=5, gt=0)
-    rating_count: int | None = Field(default=None, ge=0)
-    url: HttpUrl | None = None
-    metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-class ExternalRatingSyncRequest(BaseModel):
-    """Request body for syncing external ratings."""
-
-    sources: list[ExternalRatingSyncItem]
-
-
-class ExternalRatingSyncResponse(BaseModel):
-    """Response returned after syncing external ratings."""
-
-    updated: int
-    sources: list[ExternalRatingModel]

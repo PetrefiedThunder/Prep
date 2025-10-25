@@ -9,7 +9,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prep.cache import RedisProtocol
@@ -17,13 +17,11 @@ from prep.models.orm import (
     Booking,
     BookingStatus,
     Kitchen,
-    KitchenExternalRating,
     KitchenMatchingProfile,
-    Review,
-    ReviewStatus,
     User,
     UserMatchingPreference,
 )
+from prep.ratings.service import RatingIntegrationService
 
 from .schemas import (
     ExternalRatingModel,
@@ -55,9 +53,15 @@ class MatchingService:
         "rating": 0.11,
     }
 
-    def __init__(self, session: AsyncSession, redis: RedisProtocol) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        redis: RedisProtocol,
+        rating_service: RatingIntegrationService | None = None,
+    ) -> None:
         self.session = session
         self.redis = redis
+        self.rating_service = rating_service or RatingIntegrationService(session, redis)
 
     # ------------------------------------------------------------------
     # Preference management
@@ -198,115 +202,16 @@ class MatchingService:
     # External ratings
     # ------------------------------------------------------------------
     async def get_kitchen_ratings(self, kitchen_id: UUID) -> KitchenRatingResponse:
-        """Aggregate internal and external rating sources for a kitchen."""
+        """Delegate to the external ratings integration service."""
 
-        review_stmt = (
-            select(
-                func.avg(Review.rating).label("avg_rating"),
-                func.count(Review.id).label("total"),
-            )
-            .where(Review.kitchen_id == kitchen_id)
-            .where(Review.status == ReviewStatus.APPROVED)
-        )
-        avg_rating, review_count = (await self.session.execute(review_stmt)).one()
-
-        ratings_stmt = select(KitchenExternalRating).where(
-            KitchenExternalRating.kitchen_id == kitchen_id
-        )
-        rows = (await self.session.execute(ratings_stmt)).scalars().all()
-
-        external_sources: list[ExternalRatingModel] = []
-        total_weight = float(review_count or 0)
-        weighted_sum = (avg_rating or 0) * float(review_count or 0)
-
-        for row in rows:
-            normalized = row.normalized_rating
-            if normalized is None:
-                normalized = self._normalize_rating(row.rating, row.rating_scale)
-                row.normalized_rating = normalized
-            external_sources.append(
-                ExternalRatingModel(
-                    source=row.source,
-                    rating=row.rating,
-                    rating_scale=row.rating_scale,
-                    rating_count=row.rating_count,
-                    normalized_rating=normalized,
-                    url=row.url,
-                    synced_at=row.last_synced_at,
-                    metadata=row.details or {},
-                )
-            )
-            if row.rating_count:
-                total_weight += row.rating_count
-                weighted_sum += normalized * row.rating_count
-
-        normalized_score = weighted_sum / total_weight if total_weight else None
-
-        return KitchenRatingResponse(
-            kitchen_id=kitchen_id,
-            internal_average=float(avg_rating) if avg_rating is not None else None,
-            internal_count=int(review_count or 0),
-            external_sources=external_sources,
-            normalized_score=normalized_score,
-        )
+        return await self.rating_service.get_kitchen_ratings(kitchen_id)
 
     async def sync_external_ratings(
         self, payload: ExternalRatingSyncRequest
     ) -> ExternalRatingSyncResponse:
-        """Upsert external ratings from Yelp/Google style integrations."""
+        """Delegate syncing to the ratings integration service."""
 
-        updated_sources: list[ExternalRatingModel] = []
-        now = datetime.now(UTC)
-
-        for entry in payload.sources:
-            normalized_rating = self._normalize_rating(entry.rating, entry.rating_scale)
-            stmt = select(KitchenExternalRating).where(
-                and_(
-                    KitchenExternalRating.kitchen_id == entry.kitchen_id,
-                    KitchenExternalRating.source == entry.source,
-                )
-            )
-            existing = (await self.session.execute(stmt)).scalar_one_or_none()
-
-            if existing:
-                existing.rating = entry.rating
-                existing.rating_scale = entry.rating_scale
-                existing.rating_count = entry.rating_count
-                existing.normalized_rating = normalized_rating
-                existing.url = str(entry.url) if entry.url else None
-                existing.details = entry.metadata
-                existing.last_synced_at = now
-                record = existing
-            else:
-                record = KitchenExternalRating(
-                    kitchen_id=entry.kitchen_id,
-                    source=entry.source,
-                    rating=entry.rating,
-                    rating_scale=entry.rating_scale,
-                    rating_count=entry.rating_count,
-                    normalized_rating=normalized_rating,
-                    url=str(entry.url) if entry.url else None,
-                    details=entry.metadata,
-                    last_synced_at=now,
-                )
-                self.session.add(record)
-
-            updated_sources.append(
-                ExternalRatingModel(
-                    source=record.source,
-                    rating=record.rating,
-                    rating_scale=record.rating_scale,
-                    rating_count=record.rating_count,
-                    normalized_rating=record.normalized_rating,
-                    url=record.url,
-                    synced_at=record.last_synced_at,
-                    metadata=record.details or {},
-                )
-            )
-
-        await self.session.commit()
-
-        return ExternalRatingSyncResponse(updated=len(updated_sources), sources=updated_sources)
+        return await self.rating_service.sync_external_ratings(payload)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -405,34 +310,17 @@ class MatchingService:
         if not kitchen_ids:
             return {}
 
-        review_stmt = (
-            select(
-                Review.kitchen_id,
-                func.avg(Review.rating).label("avg_rating"),
-                func.count(Review.id).label("count"),
-            )
-            .where(Review.kitchen_id.in_(kitchen_ids))
-            .where(Review.status == ReviewStatus.APPROVED)
-            .group_by(Review.kitchen_id)
-        )
-        review_rows = await self.session.execute(review_stmt)
+        aggregated = await self.rating_service.get_rating_map(kitchen_ids)
         rating_map: dict[UUID, dict[str, Any]] = defaultdict(dict)
-        for row in review_rows:
-            rating_map[row.kitchen_id].update(
+        for kitchen_id, ratings in aggregated.items():
+            rating_map[kitchen_id].update(
                 {
-                    "internal_avg": float(row.avg_rating) if row.avg_rating is not None else None,
-                    "internal_count": int(row.count or 0),
+                    "internal_avg": ratings.internal_average,
+                    "internal_count": ratings.internal_count,
+                    "external": ratings.external_sources,
+                    "normalized": ratings.normalized_score,
                 }
             )
-
-        external_stmt = select(KitchenExternalRating).where(
-            KitchenExternalRating.kitchen_id.in_(kitchen_ids)
-        )
-        for rating in (await self.session.execute(external_stmt)).scalars():
-            bucket = rating_map[rating.kitchen_id]
-            external = bucket.setdefault("external", [])
-            external.append(rating)
-
         return rating_map
 
     def _score_kitchen(
@@ -620,7 +508,7 @@ class MatchingService:
     def _calculate_normalized_rating(self, rating_info: dict[str, Any]) -> float | None:
         internal_avg = rating_info.get("internal_avg")
         internal_count = rating_info.get("internal_count", 0)
-        external_sources: list[KitchenExternalRating] = rating_info.get("external", [])
+        external_sources: list[ExternalRatingModel] = rating_info.get("external", [])
 
         total_weight = float(internal_count or 0)
         weighted_sum = (internal_avg or 0) * float(internal_count or 0)
