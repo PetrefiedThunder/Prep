@@ -7,7 +7,18 @@ from uuid import UUID, uuid4
 
 import enum
 
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Numeric, String, Text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -101,10 +112,29 @@ class Booking(Base, TimestampedMixin):
     reviews: Mapped[list["Review"]] = relationship(back_populates="booking")
 
 
+class ReviewStatus(str, enum.Enum):
+    """Lifecycle state for user reviews."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class ReviewFlagStatus(str, enum.Enum):
+    """Workflow status for review moderation flags."""
+
+    OPEN = "open"
+    RESOLVED = "resolved"
+    REJECTED = "rejected"
+
+
 class Review(Base, TimestampedMixin):
     """Guest review for a completed booking."""
 
     __tablename__ = "reviews"
+    __table_args__ = (
+        UniqueConstraint("booking_id", "customer_id", name="uq_review_booking_customer"),
+    )
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     booking_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id"), index=True)
@@ -112,12 +142,34 @@ class Review(Base, TimestampedMixin):
     host_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
     customer_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
     rating: Mapped[float] = mapped_column(Float, nullable=False)
+    equipment_rating: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    cleanliness_rating: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    communication_rating: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    value_rating: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[ReviewStatus] = mapped_column(
+        Enum(ReviewStatus), nullable=False, default=ReviewStatus.PENDING
+    )
+    spam_score: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    moderated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    moderated_by: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    host_response: Mapped[str | None] = mapped_column(Text, nullable=True)
+    host_response_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    helpful_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     booking: Mapped[Booking] = relationship(back_populates="reviews")
     kitchen: Mapped[Kitchen] = relationship()
     host: Mapped[User] = relationship(foreign_keys=[host_id])
     customer: Mapped[User] = relationship(foreign_keys=[customer_id])
+    photos: Mapped[list["ReviewPhoto"]] = relationship(
+        back_populates="review", cascade="all, delete-orphan"
+    )
+    votes: Mapped[list["ReviewVote"]] = relationship(
+        back_populates="review", cascade="all, delete-orphan"
+    )
+    flags: Mapped[list["ReviewFlag"]] = relationship(
+        back_populates="review", cascade="all, delete-orphan"
+    )
 
 
 class OperationalExpense(Base, TimestampedMixin):
@@ -162,4 +214,72 @@ class CertificationDocument(Base, TimestampedMixin):
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     kitchen: Mapped[Kitchen] = relationship(back_populates="certifications")
+
+
+class ReviewPhoto(Base):
+    """User supplied media attached to a review."""
+
+    __tablename__ = "review_photos"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    review_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("reviews.id", ondelete="CASCADE"), index=True
+    )
+    url: Mapped[str] = mapped_column(String(512), nullable=False)
+    caption: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    uploaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+    review: Mapped[Review] = relationship(back_populates="photos")
+
+
+class ReviewVote(Base):
+    """Stores whether a user found a review helpful."""
+
+    __tablename__ = "review_votes"
+    __table_args__ = (
+        UniqueConstraint("review_id", "user_id", name="uq_review_vote_user"),
+    )
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    review_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("reviews.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    is_helpful: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
+
+    review: Mapped[Review] = relationship(back_populates="votes")
+    user: Mapped[User] = relationship()
+
+
+class ReviewFlag(Base, TimestampedMixin):
+    """Moderation flag raised against a review."""
+
+    __tablename__ = "review_flags"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    review_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("reviews.id", ondelete="CASCADE"), index=True
+    )
+    reporter_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    reason: Mapped[str] = mapped_column(String(255), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[ReviewFlagStatus] = mapped_column(
+        Enum(ReviewFlagStatus), nullable=False, default=ReviewFlagStatus.OPEN
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_by: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
+
+    review: Mapped[Review] = relationship(back_populates="flags")
+    reporter: Mapped[User] = relationship(foreign_keys=[reporter_id])
 
