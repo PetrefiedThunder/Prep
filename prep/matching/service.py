@@ -145,6 +145,58 @@ class MatchingService:
         await self._cache_recommendations(user_id, response)
         return response
 
+    async def recommend_top_kitchens_for_city(
+        self,
+        city: str,
+        *,
+        limit: int = 5,
+    ) -> list[KitchenMatchModel]:
+        """Return high-confidence kitchen recommendations scoped to a city."""
+
+        normalized_city = city.strip().lower()
+        if not normalized_city:
+            return []
+
+        preferences = self._normalize_preferences(
+            PreferenceSettings(preferred_cities=[normalized_city])
+        )
+
+        stmt = (
+            select(Kitchen, KitchenMatchingProfile)
+            .join(
+                KitchenMatchingProfile,
+                KitchenMatchingProfile.kitchen_id == Kitchen.id,
+                isouter=True,
+            )
+            .where(Kitchen.published.is_(True))
+            .where(Kitchen.moderation_status == "approved")
+            .where(func.lower(Kitchen.city) == normalized_city)
+            .order_by(Kitchen.trust_score.desc().nullslast())
+        )
+        result = await self.session.execute(stmt)
+        candidates = result.all()
+        if not candidates:
+            return []
+
+        kitchen_ids = [kitchen.id for kitchen, _ in candidates]
+        metrics = await self._load_booking_metrics(kitchen_ids)
+        rating_map = await self._load_rating_map(kitchen_ids)
+
+        matches: list[KitchenMatchModel] = []
+        for kitchen, profile in candidates:
+            matches.append(
+                self._score_kitchen(
+                    kitchen,
+                    profile,
+                    preferences,
+                    metrics.get(kitchen.id, {}),
+                    rating_map.get(kitchen.id, {}),
+                )
+            )
+
+        matches.sort(key=lambda item: item.confidence, reverse=True)
+        return matches[:limit]
+
     async def _compute_matches(
         self, user: User, preferences: PreferenceSettings, limit: int
     ) -> MatchResponse:
