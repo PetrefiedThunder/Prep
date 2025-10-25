@@ -483,10 +483,6 @@ class AnalyticsDashboardService:
             recent_bookings=recent_bookings,
         )
 
-            raise HTTPException(status_code=500, detail="Unable to load revenue analytics") from exc
-        await self._set_cache(cache_key, analytics, HOST_CACHE_TTL_SECONDS)
-        return analytics
-
     async def get_host_kitchen_comparison(self, host_id: UUID) -> list[KitchenPerformance]:
         cache_key = f"analytics:host:{host_id}:kitchens"
         cached = await self._get_cached(cache_key, list[KitchenPerformance])  # type: ignore[arg-type]
@@ -1022,7 +1018,7 @@ class AnalyticsDashboardService:
         bookings_by_week = {
             (bucket if isinstance(bucket, datetime) else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)).date(): _safe_int(count)
             for bucket, count in bookings_rows
-        ]
+        }
 
         conversion_series: list[TimeSeriesData] = []
         for signup in user_signups:
