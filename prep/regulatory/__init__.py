@@ -1,25 +1,70 @@
-"""Utility helpers for the regulatory integration."""
+"""Regulatory compliance utilities for the Prep platform."""
 
 from .analyzer import ComplianceAnalysis, ComplianceLevel, RegulatoryAnalyzer
+from .analytics.impact import ImpactDataSource, RegulatoryImpactAssessor
+from .analytics.trends import RegulatoryTrendAnalyzer, TrendDataSource
+from .apis.health_departments import (
+    CaliforniaHealthDepartmentAPI,
+    InspectionRecord,
+    NewYorkHealthDepartmentAPI,
+    RegulatoryAPIError,
+)
+from .apis.insurance import (
+    AllStateAPI,
+    InsuranceAPIError,
+    InsuranceVerificationAPI,
+    LibertyMutualAPI,
+    PolicyVerificationResult,
+    StateFarmAPI,
+)
+from .apis.zoning import (
+    ChicagoZoningAPI,
+    MunicipalZoningAPI,
+    NYCPlanningAPI,
+    ZoningAPIError,
+    ZoningResult,
+    SFPlanningAPI,
+)
+from .models import InsuranceRequirement, Regulation, RegulationSource
+from .monitoring.changes import Change, RegulatoryChangeDetector
+from .nlp.analyzer import RegulationNLP, Requirement
+from .prediction.engine import CompliancePredictor, PredictionResult
+from .scheduler import RegulatoryScheduler
+from .scraper import RegulatoryScraper
 
 __all__ = [
     "ComplianceAnalysis",
     "ComplianceLevel",
     "RegulatoryAnalyzer",
-"""Regulatory compliance utilities for the Prep platform."""
-
-from .models import Regulation, RegulationSource, InsuranceRequirement
-from .scraper import RegulatoryScraper
-from .analyzer import RegulatoryAnalyzer, ComplianceAnalysis, ComplianceLevel
-from .scheduler import RegulatoryScheduler
-
-__all__ = [
+    "RegulatoryScraper",
+    "RegulatoryScheduler",
     "Regulation",
     "RegulationSource",
     "InsuranceRequirement",
-    "RegulatoryScraper",
-    "RegulatoryAnalyzer",
-    "ComplianceAnalysis",
-    "ComplianceLevel",
-    "RegulatoryScheduler",
+    "CaliforniaHealthDepartmentAPI",
+    "NewYorkHealthDepartmentAPI",
+    "InspectionRecord",
+    "RegulatoryAPIError",
+    "InsuranceVerificationAPI",
+    "InsuranceAPIError",
+    "PolicyVerificationResult",
+    "StateFarmAPI",
+    "AllStateAPI",
+    "LibertyMutualAPI",
+    "MunicipalZoningAPI",
+    "SFPlanningAPI",
+    "NYCPlanningAPI",
+    "ChicagoZoningAPI",
+    "ZoningAPIError",
+    "ZoningResult",
+    "RegulatoryTrendAnalyzer",
+    "TrendDataSource",
+    "RegulatoryImpactAssessor",
+    "ImpactDataSource",
+    "RegulatoryChangeDetector",
+    "Change",
+    "RegulationNLP",
+    "Requirement",
+    "CompliancePredictor",
+    "PredictionResult",
 ]
