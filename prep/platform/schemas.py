@@ -176,6 +176,15 @@ class ComplianceDocumentResponse(_ORMBaseModel):
     notes: str | None
 
 
+class PaymentIntentCreateRequest(BaseModel):
+    booking_id: UUID
+    amount_cents: int = Field(gt=0)
+
+
+class PaymentIntentResponse(BaseModel):
+    client_secret: str = Field(min_length=1)
+
+
 def serialize_user(user: User) -> UserResponse:
     return UserResponse.model_validate(user)
 

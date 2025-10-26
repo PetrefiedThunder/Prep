@@ -23,6 +23,7 @@ dependencies = [
   "uvicorn[standard]>=0.29.0",
   "redis>=5.0.4",
   "asyncpg>=0.29.0",
+  "stripe>=8.0.0",
 ]
 
 [project.optional-dependencies]

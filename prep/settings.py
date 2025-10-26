@@ -48,6 +48,8 @@ class Settings(BaseModel):
     secret_key: str = Field(default="change-me", alias="SECRET_KEY")
     access_token_expire_minutes: int = Field(default=60, ge=5, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+    stripe_api_key: str | None = Field(default=None, alias="STRIPE_API_KEY")
+    stripe_currency: str = Field(default="usd", alias="STRIPE_CURRENCY")
 
     model_config = {
         "populate_by_name": True,
