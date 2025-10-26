@@ -4,6 +4,7 @@ from .base_engine import ComplianceEngine, ComplianceReport, ComplianceRule, Com
 from .data_validator import DataValidator
 from .food_safety_compliance_engine import DataIntelligenceAPIClient, FoodSafetyComplianceEngine
 from .coordinator import ComplianceCoordinator
+from .coi_validator import COIExtractionError, validate_coi
 from .dol_reg_compliance_engine import DOLRegComplianceEngine
 from .gdpr_ccpa_core import GDPRCCPACore
 from .hbs_model_validator import HBSModelValidator
@@ -16,6 +17,8 @@ __all__ = [
     "ComplianceRule",
     "ComplianceViolation",
     "ComplianceCoordinator",
+    "validate_coi",
+    "COIExtractionError",
     "DataValidator",
     "DataIntelligenceAPIClient",
     "FoodSafetyComplianceEngine",
