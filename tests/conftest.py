@@ -1,11 +1,41 @@
 import asyncio
 import os
+import sys
+import types
 
 import pytest
 
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 
-from prep.models.db import init_db, SessionLocal
+# Provide a lightweight Stripe stub for test environments without the SDK installed.
+if "stripe" not in sys.modules:
+    stripe_stub = types.ModuleType("stripe")
+    stripe_stub.api_key = ""
+
+    class _StripeError(Exception):
+        """Fallback Stripe error type used in tests."""
+
+        pass
+
+    class _AccountAPI:
+        def create(self, **_: object) -> None:
+            raise NotImplementedError("Stripe SDK is not installed in the test environment")
+
+    class _AccountLinkAPI:
+        def create(self, **_: object) -> None:
+            raise NotImplementedError("Stripe SDK is not installed in the test environment")
+
+    stripe_stub.Account = _AccountAPI()
+    stripe_stub.AccountLink = _AccountLinkAPI()
+
+    error_module = types.ModuleType("stripe.error")
+    error_module.StripeError = _StripeError
+    stripe_stub.error = error_module
+
+    sys.modules["stripe"] = stripe_stub
+    sys.modules["stripe.error"] = error_module
+
+from prep.models.db import SessionLocal, init_db
 
 
 @pytest.fixture(scope="session")

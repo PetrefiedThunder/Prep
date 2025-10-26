@@ -48,6 +48,13 @@ class Settings(BaseModel):
     secret_key: str = Field(default="change-me", alias="SECRET_KEY")
     access_token_expire_minutes: int = Field(default=60, ge=5, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+    stripe_secret_key: str | None = Field(default=None, alias="STRIPE_SECRET_KEY")
+    stripe_connect_refresh_url: AnyUrl = Field(
+        default="https://example.com/stripe/refresh", alias="STRIPE_CONNECT_REFRESH_URL"
+    )
+    stripe_connect_return_url: AnyUrl = Field(
+        default="https://example.com/stripe/return", alias="STRIPE_CONNECT_RETURN_URL"
+    )
     stripe_api_key: str | None = Field(default=None, alias="STRIPE_API_KEY")
     stripe_currency: str = Field(default="usd", alias="STRIPE_CURRENCY")
 
