@@ -2,12 +2,13 @@
 
 from fastapi import FastAPI
 
-from prep.api import auth, kitchens
+from prep.api import auth, kitchens, regulatory
 
 app = FastAPI(title="Prep Platform API", version="1.0.0")
 
 app.include_router(auth.router)
 app.include_router(kitchens.router)
+app.include_router(regulatory.router)
 
 @app.get("/")
 async def root() -> dict[str, str]:
