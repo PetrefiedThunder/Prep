@@ -9,7 +9,7 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text, JSON
 from sqlalchemy.dialects.postgresql import ARRAY
 
 from prep.models import Base
-from prep.core.db_types import GUID
+from prep.models.guid import GUID
 
 
 class RegulationSource(Base):
