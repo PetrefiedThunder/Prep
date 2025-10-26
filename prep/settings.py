@@ -55,6 +55,8 @@ class Settings(BaseModel):
     stripe_connect_return_url: AnyUrl = Field(
         default="https://example.com/stripe/return", alias="STRIPE_CONNECT_RETURN_URL"
     )
+    stripe_api_key: str | None = Field(default=None, alias="STRIPE_API_KEY")
+    stripe_currency: str = Field(default="usd", alias="STRIPE_CURRENCY")
 
     model_config = {
         "populate_by_name": True,

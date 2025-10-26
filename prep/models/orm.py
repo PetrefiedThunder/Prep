@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import List
+from typing import Any, List
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -13,6 +13,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    JSON,
     Numeric,
     String,
     Text,
@@ -106,6 +107,7 @@ class User(TimestampMixin, Base):
     is_suspended: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     suspension_reason: Mapped[str | None] = mapped_column(Text)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     kitchens: Mapped[List["Kitchen"]] = relationship(
         "Kitchen", back_populates="host", cascade="all, delete-orphan"
@@ -151,11 +153,14 @@ class Kitchen(TimestampMixin, Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
+    address: Mapped[str | None] = mapped_column(String(255))
     location: Mapped[str | None] = mapped_column(String(255))
     city: Mapped[str | None] = mapped_column(String(120))
     state: Mapped[str | None] = mapped_column(String(60))
     hourly_rate: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     trust_score: Mapped[float | None] = mapped_column(Float)
+    pricing: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    equipment: Mapped[list[str] | None] = mapped_column(JSON, default=list)
     moderation_status: Mapped[ModerationStatus] = mapped_column(
         Enum(ModerationStatus), default=ModerationStatus.PENDING, nullable=False
     )
@@ -168,6 +173,13 @@ class Kitchen(TimestampMixin, Base):
     )
     moderated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     rejection_reason: Mapped[str | None] = mapped_column(Text)
+    compliance_status: Mapped[str | None] = mapped_column(String(32), default="unknown")
+    risk_score: Mapped[int | None] = mapped_column(Integer)
+    last_compliance_check: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    health_permit_number: Mapped[str | None] = mapped_column(String(120))
+    last_inspection_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    insurance_info: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    zoning_type: Mapped[str | None] = mapped_column(String(120))
 
     host: Mapped[User] = relationship("User", back_populates="kitchens")
     bookings: Mapped[List["Booking"]] = relationship(
@@ -399,6 +411,29 @@ class ComplianceDocument(TimestampMixin, Base):
     reviewer: Mapped[User | None] = relationship("User", foreign_keys=[reviewer_id])
 
 
+class COIDocument(TimestampMixin, Base):
+    __tablename__ = "coi_documents"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    checksum: Mapped[str] = mapped_column(String(128), nullable=False)
+    valid: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    expiry_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    validation_errors: Mapped[str | None] = mapped_column(Text)
+
+class OperationalExpense(TimestampMixin, Base):
+    __tablename__ = "operational_expenses"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    incurred_on: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+    category: Mapped[str | None] = mapped_column(String(120))
+    description: Mapped[str | None] = mapped_column(Text)
+
 __all__ = [
     "Base",
     "Booking",
@@ -418,4 +453,5 @@ __all__ = [
     "ReviewVote",
     "User",
     "UserRole",
+    "COIDocument",
 ]

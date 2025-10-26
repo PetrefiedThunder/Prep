@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import importlib
 from typing import Generator
+from datetime import datetime
 
 import pytest
 from fastapi.testclient import TestClient
 
 import apps.compliance_service.main as compliance_main
+from prep.models.db import SessionLocal
+from prep.models.orm import COIDocument
 
 
 @pytest.fixture()
@@ -34,6 +37,32 @@ def test_get_regulatory_status(client: TestClient) -> None:
     assert payload["overall_status"] in {"on_track", "action_required"}
     assert "score" in payload
     assert "last_updated" in payload
+
+
+def test_upload_coi_persists_metadata(client: TestClient) -> None:
+    pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"
+    response = client.post(
+        "/coi",
+        files={"file": ("sample-coi.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["valid"] is True
+    expiry = datetime.fromisoformat(payload["expiry_date"])
+    assert expiry.tzinfo is not None
+
+    session = SessionLocal()
+    try:
+        documents = session.query(COIDocument).all()
+        assert len(documents) == 1
+        document = documents[0]
+        assert document.filename == "sample-coi.pdf"
+        assert document.valid is True
+        assert document.expiry_date is not None
+    finally:
+        session.query(COIDocument).delete()
+        session.commit()
+        session.close()
 
 
 def test_regulatory_document_submission_flow(client: TestClient) -> None:
