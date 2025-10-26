@@ -5,13 +5,17 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime
 import logging
+import os
 import re
 from functools import wraps
 from typing import Any, Awaitable, Callable, Dict, List, Optional, TypeVar
 
 from typing_extensions import ParamSpec
+from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 import aiohttp
+from aiobotocore.session import get_session
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
@@ -94,9 +98,17 @@ def with_backoff(*, retries: int, base_delay: float) -> Callable[[Callable[_P, A
 class RegulatoryScraper:
     """High level scraping routines for regulatory data sources."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        s3_bucket: str = "kitchenshare-etl-raw",
+        s3_client_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
         self.session: Optional[aiohttp.ClientSession] = None
         self.logger = logger
+        self._s3_bucket = s3_bucket
+        self._s3_client_kwargs = s3_client_kwargs or {}
+        self._aws_session = get_session()
 
     async def __aenter__(self) -> "RegulatoryScraper":
         self.session = aiohttp.ClientSession()
@@ -134,6 +146,20 @@ class RegulatoryScraper:
                     "Health department request for %s returned status %s", state, exc.status
                 )
             except aiohttp.ClientError as exc:  # pragma: no cover - network errors aren't deterministic
+                source_url = base_urls[state]
+                async with self.session.get(source_url) as response:
+                    if response.status == 200:
+                        raw_bytes = await response.read()
+                        await self._persist_raw_bytes(raw_bytes, source_url)
+                        content = self._decode_response(raw_bytes, response)
+                        regulations = await self.parse_health_regulations(
+                            content, state, city, source_url
+                        )
+                    else:
+                        self.logger.warning(
+                            "Health department request for %s returned status %s", state, response.status
+                        )
+            except Exception as exc:  # pragma: no cover - network errors aren't deterministic
                 self.logger.error("Error scraping %s health department: %s", state, exc)
             else:
                 regulations = await self.parse_health_regulations(
@@ -141,6 +167,43 @@ class RegulatoryScraper:
                 )
 
         return regulations
+
+    async def _persist_raw_bytes(self, payload: bytes, source_url: str) -> None:
+        """Persist the fetched payload to S3 for archival."""
+
+        if not payload:
+            return
+
+        key = self._build_s3_key(source_url)
+        try:
+            async with self._aws_session.create_client("s3", **self._s3_client_kwargs) as client:
+                await client.put_object(Bucket=self._s3_bucket, Key=key, Body=payload)
+        except Exception:  # pragma: no cover - depends on environment configuration
+            self.logger.exception("Failed to upload raw payload for %s", source_url)
+
+    def _build_s3_key(self, source_url: str) -> str:
+        """Construct an S3 object key for a given source URL."""
+
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+        filename = self._slugify_filename(source_url)
+        return f"{today}/{filename}"
+
+    def _slugify_filename(self, source_url: str) -> str:
+        parsed = urlparse(source_url)
+        candidate = parsed.path.rsplit("/", 1)[-1] or parsed.netloc or "document"
+        stem, ext = os.path.splitext(candidate)
+        if not stem:
+            stem = parsed.netloc or "document"
+        slug = re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-") or "document"
+        extension = ext.lower() if ext else ".html"
+        return f"{slug}{extension}"
+
+    def _decode_response(self, payload: bytes, response: aiohttp.ClientResponse) -> str:
+        encoding = response.charset or "utf-8"
+        try:
+            return payload.decode(encoding)
+        except (LookupError, UnicodeDecodeError):
+            return payload.decode("utf-8", errors="replace")
 
     async def parse_health_regulations(
         self, html: str, state: str, city: Optional[str], source_url: str
