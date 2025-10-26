@@ -126,7 +126,10 @@ class OrchestrationEngine:
             if engine is None:
                 continue
 
-            result = await engine.validate_compliance(entity_data, jurisdiction)
+            normalized_jurisdiction = (
+                str(jurisdiction) if jurisdiction is not None else None
+            )
+            result = await engine.validate_compliance(entity_data, normalized_jurisdiction)
             try:
                 normalized = self.schema_validator.ensure_valid(domain, result)
             except SchemaValidationError as exc:
