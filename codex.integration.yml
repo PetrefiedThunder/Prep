@@ -1,0 +1,54 @@
+# codex.integration.yml
+version: 1
+project: Prep
+owners:
+  - github: PetrefiedThunder
+
+triggers:
+  on:
+    - pull_request: [opened, synchronize, reopened, ready_for_review]
+    - issue_comment: ["@pm-run: gate", "@pm-run: shipit"]
+    - push: ["release/**"]
+
+review_gates:
+  mass_deletion:
+    threshold: 5000
+    allow_if_label: mass-change-approved
+    require_file: SAFE_DELETE.md
+  packaging:
+    pyproject_required: true
+  tests:
+    require_green_py_ci: true
+  vercel:
+    allowed_to_fail: false
+    dep_pins:
+      - package: "@fastify/websocket"
+        version: "8.3.1"
+  dialect:
+    uuid_adapter_required: prep/models/guid.py
+    forbid_pg_array_in_sqlite_tests: true
+
+artifacts:
+  collect:
+    - "pytest-report.txt"
+    - "ruff-report.txt"
+    - "mypy-report.txt"
+    - "vercel-build-log.txt"
+
+labels:
+  ready: ready-to-merge
+  hold: do-not-merge
+
+outputs:
+  comment_templates:
+    gate_pass: |
+      ✅ **Gate Check Passed**
+      - Python CI: green
+      - Mass deletion guard: satisfied
+      - Packaging: valid
+      - Vercel: green / de-scoped as declared
+      Merging is unblocked. Proceed with rebase-merge and tag.
+    gate_fail: |
+      ❌ **Gate Check Failed**
+      - {{reason_list}}
+      Please address blockers; re-run with `@pm-run: gate`.
