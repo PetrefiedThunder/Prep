@@ -410,6 +410,18 @@ class ComplianceDocument(TimestampMixin, Base):
     reviewer: Mapped[User | None] = relationship("User", foreign_keys=[reviewer_id])
 
 
+class COIDocument(TimestampMixin, Base):
+    __tablename__ = "coi_documents"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    checksum: Mapped[str] = mapped_column(String(128), nullable=False)
+    valid: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    expiry_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    validation_errors: Mapped[str | None] = mapped_column(Text)
+
 class OperationalExpense(TimestampMixin, Base):
     __tablename__ = "operational_expenses"
 
@@ -440,4 +452,5 @@ __all__ = [
     "ReviewVote",
     "User",
     "UserRole",
+    "COIDocument",
 ]
