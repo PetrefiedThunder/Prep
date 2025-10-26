@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { listings } from '@/lib/mock-data';
+import { RevenueSparkline } from '@/components/analytics/revenue-sparkline';
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@/components/ui';
 
 export default function HostDashboard({ params: { locale } }: { params: { locale: string } }) {
@@ -14,6 +15,9 @@ export default function HostDashboard({ params: { locale } }: { params: { locale
           <Link href={`/${locale}/host/new`}>Create listing</Link>
         </Button>
       </header>
+      <section>
+        <RevenueSparkline className="max-w-xl" />
+      </section>
       <section className="grid gap-6 md:grid-cols-2">
         {listings.map((listing) => (
           <Card key={listing.id}>
