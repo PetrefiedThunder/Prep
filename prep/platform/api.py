@@ -130,6 +130,18 @@ async def list_reviews(
     return [schemas.serialize_review(review) for review in reviews]
 
 
+@router.post("/payments/intent", response_model=schemas.PaymentIntentResponse)
+async def create_payment_intent(
+    payload: schemas.PaymentIntentCreateRequest,
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.PaymentIntentResponse:
+    try:
+        client_secret = await service.create_payment_intent(payload)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    return schemas.PaymentIntentResponse(client_secret=client_secret)
+
+
 @router.post(
     "/compliance", response_model=schemas.ComplianceDocumentResponse, status_code=status.HTTP_201_CREATED
 )

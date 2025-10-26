@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
+import stripe
 from sqlalchemy import Select, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -172,6 +174,48 @@ class PlatformService:
             extra={"booking_id": str(booking.id), "status": booking.status.value},
         )
         return booking
+
+    async def create_payment_intent(
+        self, payload: schemas.PaymentIntentCreateRequest
+    ) -> str:
+        if not self._settings.stripe_api_key:
+            raise PlatformError("Stripe API key not configured", status_code=500)
+
+        booking = await self._session.get(Booking, payload.booking_id)
+        if booking is None:
+            raise PlatformError("Booking not found", status_code=404)
+
+        stripe.api_key = self._settings.stripe_api_key
+        try:
+            intent = await asyncio.to_thread(
+                stripe.PaymentIntent.create,
+                amount=payload.amount_cents,
+                currency=self._settings.stripe_currency,
+                metadata={"booking_id": str(payload.booking_id)},
+                automatic_payment_methods={"enabled": True},
+            )
+        except stripe.error.StripeError as exc:  # type: ignore[attr-defined]
+            logger.exception(
+                "Failed to create Stripe payment intent",
+                extra={"booking_id": str(payload.booking_id)},
+            )
+            raise PlatformError("Unable to create payment intent", status_code=502) from exc
+
+        client_secret = getattr(intent, "client_secret", None)
+        if client_secret is None and isinstance(intent, dict):
+            client_secret = intent.get("client_secret")
+
+        if not client_secret:
+            raise PlatformError("Payment intent missing client secret", status_code=502)
+
+        logger.info(
+            "Created payment intent",
+            extra={
+                "booking_id": str(payload.booking_id),
+                "payment_intent_id": getattr(intent, "id", None),
+            },
+        )
+        return client_secret
 
     async def create_review(self, payload: schemas.ReviewCreateRequest) -> Review:
         booking = await self._session.get(Booking, payload.booking_id)
