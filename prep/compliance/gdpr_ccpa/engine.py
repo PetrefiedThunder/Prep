@@ -32,6 +32,8 @@ class PrivacyComplianceResult:
     overall_compliance: float
     required_actions: List[str]
     summary: str = ""
+    schema_version: str = "privacy-compliance.v1"
+    domain: str = ComplianceDomain.GDPR_CCPA.value
 
 
 @dataclass
@@ -40,6 +42,7 @@ class PrivacyEvidencePackage:
 
     evidence_items: Dict[str, Any] = field(default_factory=dict)
     generated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    schema_version: str = "privacy-evidence.v1"
 
 
 class GDPRCCPAEngine(ComplianceEngine):

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Iterable, List, Mapping
 
 from prep.core.orchestration import (
@@ -13,6 +15,7 @@ from prep.core.orchestration import (
     OrchestrationEngine,
     UnifiedComplianceReport,
 )
+from prep.core.evidence_vault import EvidenceVault
 
 
 @dataclass
@@ -23,7 +26,7 @@ class _StubEvidence:
 class _StubEngine(ComplianceEngine):
     def __init__(self, result: ComplianceResult) -> None:
         self._result = result
-        self.evidence_requests: list[Iterable[str]] = []
+        self.evidence_requests: list[List[str]] = []
 
     async def validate_compliance(
         self, entity_data: Mapping[str, Any], jurisdiction: str | None
@@ -31,16 +34,19 @@ class _StubEngine(ComplianceEngine):
         return self._result
 
     async def generate_evidence(self, requirements: Iterable[str]) -> List[_StubEvidence]:
-        self.evidence_requests.append(list(requirements))
-        return [_StubEvidence({"requirements": list(requirements)})]
+        captured = list(requirements)
+        self.evidence_requests.append(captured)
+        return [_StubEvidence({"requirements": captured, "schema_version": "stub-evidence.v1"})]
 
     async def monitor_changes(self) -> List[Any]:
         return []
 
 
 def test_orchestration_smoke_generates_report_and_audit() -> None:
-    async def _run() -> None:
-        orchestrator = OrchestrationEngine()
+    async def _run(evidence_dir: Path) -> None:
+        orchestrator = OrchestrationEngine(
+            evidence_vault=EvidenceVault(base_dir=evidence_dir)
+        )
 
         gdpr_result = ComplianceResult(
             domain=ComplianceDomain.GDPR_CCPA,
@@ -57,8 +63,11 @@ def test_orchestration_smoke_generates_report_and_audit() -> None:
             metadata={"jurisdiction": "us"},
         )
 
-        orchestrator.register_engine(ComplianceDomain.GDPR_CCPA, _StubEngine(gdpr_result))
-        orchestrator.register_engine(ComplianceDomain.AML_KYC, _StubEngine(aml_result))
+        gdpr_engine = _StubEngine(gdpr_result)
+        aml_engine = _StubEngine(aml_result)
+
+        orchestrator.register_engine(ComplianceDomain.GDPR_CCPA, gdpr_engine)
+        orchestrator.register_engine(ComplianceDomain.AML_KYC, aml_engine)
 
         entity_payload = {
             "id": "42c46fd8-3f8c-42fe-9d6f-2fb3246ab4c4",
@@ -70,6 +79,10 @@ def test_orchestration_smoke_generates_report_and_audit() -> None:
         report = await orchestrator.orchestrate_compliance_check(
             [ComplianceDomain.GDPR_CCPA, ComplianceDomain.AML_KYC],
             entity_payload,
+            evidence_requirements={
+                ComplianceDomain.GDPR_CCPA: ["data_mapping"],
+                ComplianceDomain.AML_KYC: ["customer_due_diligence"],
+            },
         )
 
         assert isinstance(report, UnifiedComplianceReport)
@@ -83,11 +96,26 @@ def test_orchestration_smoke_generates_report_and_audit() -> None:
         assert 0.0 <= report.overall_risk_score <= 1.0
 
         audit_records = await orchestrator.audit_trail.list_records()
-        assert len(audit_records) >= 2
-        assert {record.details["domain"] for record in audit_records} == {
+        compliance_records = [
+            record for record in audit_records if record.category == "compliance_check"
+        ]
+        assert len(compliance_records) == 2
+        assert {record.details["domain"] for record in compliance_records} == {
             ComplianceDomain.GDPR_CCPA.value,
             ComplianceDomain.AML_KYC.value,
         }
-        assert all(record.details["entity_id"] == entity_payload["id"] for record in audit_records)
+        assert all(
+            record.details["entity_id"] == entity_payload["id"]
+            for record in compliance_records
+        )
+        assert {record.details["schema_version"] for record in compliance_records} == {
+            "privacy-compliance.v1",
+            "aml-compliance.v1",
+        }
+        evidence_refs = [record.details["evidence"] for record in compliance_records]
+        assert all(ref and Path(ref["path"]).exists() for ref in evidence_refs)
+        assert gdpr_engine.evidence_requests == [["data_mapping"]]
+        assert aml_engine.evidence_requests == [["customer_due_diligence"]]
 
-    asyncio.run(_run())
+    with TemporaryDirectory() as tmp_dir:
+        asyncio.run(_run(Path(tmp_dir)))
