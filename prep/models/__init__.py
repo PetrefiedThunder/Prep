@@ -14,8 +14,10 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, JSON, UUID as PGUUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSON
 from sqlalchemy.orm import declarative_base
+
+from prep.core.db_types import GUID
 
 Base = declarative_base()
 
@@ -25,7 +27,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
@@ -40,9 +42,9 @@ class Kitchen(Base):
 
     __tablename__ = "kitchens"
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
-    host_id = Column(PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    host_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
     address = Column(Text, nullable=False)
     cert_level = Column(String)
     photos = Column(ARRAY(String))
@@ -67,9 +69,9 @@ class Booking(Base):
 
     __tablename__ = "bookings"
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    kitchen_id = Column(PGUUID(as_uuid=True), ForeignKey("kitchens.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
+    kitchen_id = Column(GUID(), ForeignKey("kitchens.id"), nullable=False)
     start_time = Column(DateTime, nullable=False)
     end_time = Column(DateTime, nullable=False)
     status = Column(String, default="pending")
@@ -83,9 +85,9 @@ class Review(Base):
 
     __tablename__ = "reviews"
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    kitchen_id = Column(PGUUID(as_uuid=True), ForeignKey("kitchens.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
+    kitchen_id = Column(GUID(), ForeignKey("kitchens.id"), nullable=False)
     rating = Column(Integer, nullable=False)
     comment = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -96,12 +98,12 @@ class ComplianceDocument(Base):
 
     __tablename__ = "compliance_documents"
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    kitchen_id = Column(PGUUID(as_uuid=True), ForeignKey("kitchens.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    kitchen_id = Column(GUID(), ForeignKey("kitchens.id"), nullable=False)
     document_type = Column(String, nullable=False)
     file_url = Column(String, nullable=False)
     status = Column(String, default="pending")
-    verified_by = Column(PGUUID(as_uuid=True), ForeignKey("users.id"))
+    verified_by = Column(GUID(), ForeignKey("users.id"))
     verified_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
 

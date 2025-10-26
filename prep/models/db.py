@@ -20,35 +20,9 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy.types import CHAR, TypeDecorator
 
-
-class GUID(TypeDecorator):
-    """Platform-independent GUID type."""
-
-    impl = PG_UUID
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):  # type: ignore[override]
-        if dialect.name == "postgresql":
-            return dialect.type_descriptor(PG_UUID(as_uuid=True))
-        return dialect.type_descriptor(CHAR(36))
-
-    def process_bind_param(self, value, dialect):  # type: ignore[override]
-        if value is None:
-            return value
-        if isinstance(value, uuid.UUID):
-            return value if dialect.name == "postgresql" else str(value)
-        return str(uuid.UUID(str(value)))
-
-    def process_result_value(self, value, dialect):  # type: ignore[override]
-        if value is None:
-            return value
-        if isinstance(value, uuid.UUID):
-            return value
-        return uuid.UUID(str(value))
+from prep.core.db_types import GUID
 
 
 class Base(DeclarativeBase):

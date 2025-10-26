@@ -1,9 +1,11 @@
+import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pytest
+import sqlalchemy as sa
 from phase12.quiet_mode_core import QuietMode
 from phase12.bci_signal_router import BCIRouter
 from phase12.mobility_ui_kit import TwoButtonNavigator
@@ -28,3 +30,17 @@ def navigator():
 @pytest.fixture
 def sample_profile():
     return MobilityProfile(reach_angle=45, max_transfer_height=32, fine_motor_control=True)
+
+
+@pytest.fixture(scope="session")
+def engine():
+    url = os.getenv("POSTGRES_URL", "sqlite+pysqlite:///:memory:")
+    engine = sa.create_engine(url, future=True)
+    try:
+        yield engine
+    finally:
+        engine.dispose()
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line("markers", "requires_pg: needs PostgreSQL to run")
