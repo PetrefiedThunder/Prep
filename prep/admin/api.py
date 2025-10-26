@@ -48,13 +48,13 @@ router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 def _build_kitchen_summary(kitchen: Kitchen) -> KitchenSummary:
     """Convert a Kitchen ORM object into a summary schema."""
 
-    owner = kitchen.owner
+    host = kitchen.host
     return KitchenSummary(
         id=kitchen.id,
         name=kitchen.name,
-        owner_id=owner.id,
-        owner_email=owner.email,
-        owner_name=owner.full_name,
+        owner_id=host.id,
+        owner_email=host.email,
+        owner_name=host.full_name,
         location=kitchen.location,
         submitted_at=kitchen.submitted_at,
         moderation_status=kitchen.moderation_status,
@@ -84,17 +84,17 @@ def _build_certification_summary(document: CertificationDocument) -> Certificati
 
 
 async def _get_kitchen_or_404(db: AsyncSession, kitchen_id: UUID) -> Kitchen:
-    """Fetch a kitchen with related owner and certifications or raise 404."""
+    """Fetch a kitchen with related host and certifications or raise 404."""
 
     result = await db.execute(
         select(Kitchen)
         .options(
-            joinedload(Kitchen.owner),
+            joinedload(Kitchen.host),
             joinedload(Kitchen.certifications),
         )
         .where(Kitchen.id == kitchen_id)
     )
-    kitchen = result.scalar_one_or_none()
+    kitchen = result.unique().scalar_one_or_none()
     if kitchen is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kitchen not found")
     return kitchen
@@ -140,7 +140,7 @@ async def get_pending_kitchens(
 
     query = (
         select(Kitchen)
-        .options(joinedload(Kitchen.owner))
+        .options(joinedload(Kitchen.host))
         .join(User)
         .where(and_(*filters))
         .order_by(Kitchen.submitted_at.desc())
@@ -219,7 +219,7 @@ async def moderate_kitchen(
     return ModerationResponse(kitchen=detail, message=message)
 
 
-@router.get("/kitchens/stats", response_model=KitchenModerationStats)
+@router.get("/metrics/kitchens", response_model=KitchenModerationStats)
 async def get_kitchen_moderation_stats(
     db: AsyncSession = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),

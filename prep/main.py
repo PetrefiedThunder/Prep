@@ -2,8 +2,9 @@
 
 from fastapi import FastAPI
 
+from prep.admin.api import router as admin_router
+from prep.analytics.dashboard_api import router as analytics_router
 from prep.api import admin_regulatory, auth, bookings, kitchens, regulatory, search
-from prep.api import auth, kitchens, regulatory
 
 app = FastAPI(title="Prep Platform API", version="1.0.0")
 
@@ -13,7 +14,8 @@ app.include_router(bookings.router)
 app.include_router(search.router)
 app.include_router(regulatory.router)
 app.include_router(admin_regulatory.router)
-app.include_router(regulatory.router)
+app.include_router(admin_router)
+app.include_router(analytics_router)
 
 @app.get("/")
 async def root() -> dict[str, str]:

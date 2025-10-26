@@ -6,21 +6,9 @@ import os
 
 from fastapi import APIRouter
 
-from .api import AdminDashboardAPI, get_admin_dashboard_api, router as legacy_dashboard_router
-from .certification_api import (
-    CertificationVerificationAPI,
-    certification_router as legacy_certification_router,
-    get_certification_verification_api,
-)
-from .dashboard_db_api import router as database_dashboard_router
-"""Admin dashboard API package exports."""
-
-from __future__ import annotations
-
-from fastapi import APIRouter
-
 from .analytics_api import get_analytics_service, router as analytics_router
-from .api import AdminDashboardAPI, get_admin_dashboard_api, router as dashboard_router
+from .api import router as legacy_dashboard_router
+from .dashboard_db_api import router as database_dashboard_router
 
 try:  # pragma: no cover - degraded environments without certification API
     from .certification_api import (
@@ -45,20 +33,29 @@ if os.getenv("PREP_USE_DB_ADMIN_ROUTER") == "1":
 else:
     router.include_router(legacy_dashboard_router)
 
-certification_router = legacy_certification_router
 router.include_router(certification_router)
 router.include_router(analytics_router)
 
 __all__ = [
-    "AdminDashboardAPI",
     "CertificationVerificationAPI",
     "certification_router",
     "database_dashboard_router",
-    "get_admin_dashboard_api",
     "get_analytics_service",
     "get_certification_verification_api",
+    "legacy_dashboard_router",
     "router",
 ]
-from prep.admin.api import router
+"""Prep admin package exports."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter
+
+from .api import router as admin_router
+from .analytics_api import router as analytics_router
+
+router = APIRouter()
+router.include_router(admin_router)
+router.include_router(analytics_router)
 
 __all__ = ["router"]
