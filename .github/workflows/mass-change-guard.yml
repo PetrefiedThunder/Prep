@@ -1,0 +1,25 @@
+name: Mass Change Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deletions threshold
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const threshold = 2000;
+            const {owner, repo} = context.repo;
+            const files = await github.paginate(github.rest.pulls.listFiles, {owner, repo, pull_number: pr.number, per_page: 100});
+            const hasSafeDelete = files.some(f => f.filename.toLowerCase() === "safe_delete.md");
+            const deletions = pr.deletions ?? 0;
+            if (deletions > threshold && !hasSafeDelete) {
+              core.setFailed(`Deletions ${deletions} exceed ${threshold} and SAFE_DELETE.md not present.`);
+            } else {
+              core.info(`Deletions: ${deletions}. SAFE_DELETE.md present? ${hasSafeDelete}`);
+            }
