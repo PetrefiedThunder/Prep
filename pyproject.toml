@@ -1,45 +1,40 @@
 [build-system]
-requires = ["setuptools>=67", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "prep"
 version = "0.1.0"
-description = "Prep enterprise compliance orchestration platform"
+description = "Prep – Enterprise Compliance Orchestration"
 readme = "README.md"
 requires-python = ">=3.10"
+authors = [{ name = "Prep Platform Automation" }]
+license = { text = "MIT" }
+
 dependencies = [
-    "asyncpg>=0.29.0",
-    "fastapi>=0.110.0",
-    "httpx>=0.25.0",
-    "pyjwt>=2.9.0",
-    "pydantic>=2.6",
-    "python-dateutil>=2.9.0",
-    "pyyaml>=6.0.0",
-    "redis>=5.0.4",
-    "SQLAlchemy>=2.0.30",
-    "sqlalchemy[asyncio]>=2.0.29",
-    "uvicorn[standard]>=0.29.0",
+  "fastapi>=0.110.0",
+  "SQLAlchemy>=2.0.30",
+  "sqlalchemy[asyncio]>=2.0.29",
+  "httpx>=0.25.0",
+  "pyjwt>=2.9.0",
+  "pyyaml>=6.0.0",
+  "python-dateutil>=2.9.0",
+  "pydantic>=2.5.0",
+  "uvicorn[standard]>=0.29.0",
+  "redis>=5.0.4",
+  "asyncpg>=0.29.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "hypothesis>=6.108.1",
-    "mypy>=1.10.0",
-    "pytest>=8.2.0",
-    "pytest-asyncio>=0.23.6",
-    "ruff>=0.6.0",
+  "pytest==8.4.1",
+  "hypothesis>=6.108.1",
+  "ruff>=0.6.8",
+  "mypy>=1.11.1",
 ]
+
+[tool.setuptools]
+packages = ["prep"]
 
 [project.scripts]
 prep-compliance = "prep.compliance.cli:main"
-
-[tool.pytest.ini_options]
-addopts = "-q"
-asyncio_mode = "strict"
-pythonpath = ["."]
-testpaths = ["tests"]
-
-[tool.setuptools.packages.find]
-include = ["prep*"]
-exclude = ["tests*"]
