@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prep.database.connection import get_db
-from prep.models import Booking, Kitchen
+from prep.models import Booking, BookingStatus, Kitchen
 
 from .kitchens import analyze_kitchen_compliance
 
@@ -69,11 +69,12 @@ async def create_booking(
             background_tasks.add_task(analyze_kitchen_compliance, str(kitchen.id))
 
     new_booking = Booking(
-        user_id=user_uuid,
+        customer_id=user_uuid,
+        host_id=kitchen.host_id,
         kitchen_id=kitchen_uuid,
         start_time=booking_data.start_time,
         end_time=booking_data.end_time,
-        status="pending",
+        status=BookingStatus.PENDING,
     )
 
     db.add(new_booking)
@@ -82,11 +83,11 @@ async def create_booking(
 
     return BookingResponse(
         id=str(new_booking.id),
-        user_id=str(new_booking.user_id),
+        user_id=str(new_booking.customer_id),
         kitchen_id=str(new_booking.kitchen_id),
         start_time=new_booking.start_time,
         end_time=new_booking.end_time,
-        status=new_booking.status,
+        status=new_booking.status.value,
         created_at=new_booking.created_at,
         updated_at=new_booking.updated_at,
     )
