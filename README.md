@@ -23,10 +23,26 @@ This repository hosts early prototypes for the Prep accessibility platform and r
    npm install
    ```
 
+### Optional tools
+- Install [Ruff](https://docs.astral.sh/ruff/) to lint Python modules quickly:
+  ```bash
+  ruff check .
+  ```
+- Install [Prettier](https://prettier.io/) if you plan to modify the TypeScript or frontend code:
+  ```bash
+  npm install --global prettier
+  ```
+
 ## Testing
 Run the test suite with:
 ```bash
 pytest
+```
+
+For TypeScript or frontend changes, run the accompanying checks from the repository root:
+```bash
+npm run lint
+npm run test
 ```
 
 ## Submodules
