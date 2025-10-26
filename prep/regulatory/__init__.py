@@ -77,6 +77,14 @@ _safe_import(
 _safe_import(
     ".nlp.analyzer",
     ["RegulationNLP", "Requirement"],
+from .apis.esignature import DocuSignAPIError, DocuSignClient, EnvelopeSummary
+from .apis.insurance import (
+    AllStateAPI,
+    InsuranceAPIError,
+    InsuranceVerificationAPI,
+    LibertyMutualAPI,
+    PolicyVerificationResult,
+    StateFarmAPI,
 )
 _safe_import(
     ".prediction.engine",
@@ -86,3 +94,42 @@ _safe_import(".scheduler", ["RegulatoryScheduler"])
 _safe_import(".scraper", ["RegulatoryScraper"])
 _safe_import(".loader", ["load_regdoc"])
 
+__all__ = [
+    "ComplianceAnalysis",
+    "ComplianceLevel",
+    "RegulatoryAnalyzer",
+    "RegulatoryScraper",
+    "DocuSignClient",
+    "DocuSignAPIError",
+    "EnvelopeSummary",
+    "RegulatoryScheduler",
+    "Regulation",
+    "RegulationSource",
+    "InsuranceRequirement",
+    "CaliforniaHealthDepartmentAPI",
+    "NewYorkHealthDepartmentAPI",
+    "InspectionRecord",
+    "RegulatoryAPIError",
+    "InsuranceVerificationAPI",
+    "InsuranceAPIError",
+    "PolicyVerificationResult",
+    "StateFarmAPI",
+    "AllStateAPI",
+    "LibertyMutualAPI",
+    "MunicipalZoningAPI",
+    "SFPlanningAPI",
+    "NYCPlanningAPI",
+    "ChicagoZoningAPI",
+    "ZoningAPIError",
+    "ZoningResult",
+    "RegulatoryTrendAnalyzer",
+    "TrendDataSource",
+    "RegulatoryImpactAssessor",
+    "ImpactDataSource",
+    "RegulatoryChangeDetector",
+    "Change",
+    "RegulationNLP",
+    "Requirement",
+    "CompliancePredictor",
+    "PredictionResult",
+]

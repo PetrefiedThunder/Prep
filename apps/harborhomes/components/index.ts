@@ -5,3 +5,4 @@ export * from './listing/listing-card';
 export * from './listing/listing-gallery';
 export * from './listing/booking-card';
 export * from './theme-toggle';
+export * from './analytics/revenue-sparkline';

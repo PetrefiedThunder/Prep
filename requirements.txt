@@ -9,3 +9,4 @@ bcrypt==4.0.1
 aiohttp==3.12.14
 aioschedule==0.5.2
 beautifulsoup4==4.12.2
+aiobotocore==2.13.0
