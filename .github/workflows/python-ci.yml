@@ -1,0 +1,55 @@
+name: Python CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  mass-change-guard:
+    if: github.event.pull_request != null
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce mass-deletion approval
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const core = require('@actions/core');
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.info('No pull request context; skipping guard.');
+              return;
+            }
+            const deletions = pr.deletions || 0;
+            const labels = (pr.labels || []).map(label => label.name);
+            const threshold = 5000;
+            if (deletions > threshold && !labels.includes('mass-change-approved')) {
+              core.setFailed(`PR deletes ${deletions} lines which exceeds ${threshold}. Add the mass-change-approved label to proceed.`);
+            } else {
+              core.info(`Deletion count ${deletions} within threshold or approved.`);
+            }
+
+  quality-gates:
+    needs: mass-change-guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+          pip install ruff mypy
+      - name: Ruff lint
+        run: ruff check .
+      - name: Type check
+        run: mypy .
+      - name: Run pytest
+        env:
+          PYTHONPATH: .
+        run: pytest -q

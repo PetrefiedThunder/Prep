@@ -1,46 +1,34 @@
 import os
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
+import asyncio
 import pytest
-import sqlalchemy as sa
-from phase12.quiet_mode_core import QuietMode
-from phase12.bci_signal_router import BCIRouter
-from phase12.mobility_ui_kit import TwoButtonNavigator
-from phase12.ergonomic_kitchen_matcher import MobilityProfile
 
+from sqlalchemy.orm import Session
 
-@pytest.fixture
-def quiet_mode():
-    return QuietMode()
+# Ensure SQLite is used in tests unless explicitly overridden
+os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 
-
-@pytest.fixture
-def bci_router():
-    return BCIRouter()
-
-
-@pytest.fixture
-def navigator():
-    return TwoButtonNavigator(["opt1", "opt2", "opt3"])
-
-
-@pytest.fixture
-def sample_profile():
-    return MobilityProfile(reach_angle=45, max_transfer_height=32, fine_motor_control=True)
+from prep.models.db import engine, SessionLocal, init_db  # noqa: E402
 
 
 @pytest.fixture(scope="session")
-def engine():
-    url = os.getenv("POSTGRES_URL", "sqlite+pysqlite:///:memory:")
-    engine = sa.create_engine(url, future=True)
+def event_loop():
+    # pytest-asyncio compat on some CI images
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _create_schema():
+    # create all tables once for the in-memory SQLite; each test gets fresh session
+    init_db()
+    yield
+
+
+@pytest.fixture
+def db_session() -> Session:
+    session = SessionLocal()
     try:
-        yield engine
+        yield session
     finally:
-        engine.dispose()
-
-
-def pytest_configure(config: pytest.Config) -> None:
-    config.addinivalue_line("markers", "requires_pg: needs PostgreSQL to run")
+        session.close()
