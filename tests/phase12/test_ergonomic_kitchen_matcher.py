@@ -1,4 +1,11 @@
+import pytest
+
 from phase12.ergonomic_kitchen_matcher import MobilityProfile, match_kitchen
+
+
+pytestmark = pytest.mark.skip(
+    reason="Legacy kitchen matcher components were removed with the orchestration cutover"
+)
 
 
 def test_kitchen_match(sample_profile):

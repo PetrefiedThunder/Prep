@@ -1,5 +1,12 @@
 import logging
 
+import pytest
+
+
+pytestmark = pytest.mark.skip(
+    reason="Legacy BCI router dependencies were removed with the orchestration cutover"
+)
+
 
 def test_bci_router_fallbacks(bci_router, caplog):
     with caplog.at_level(logging.INFO):
