@@ -1,0 +1,226 @@
+# Default values for prepchef
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+global:
+  environment: staging
+
+# Node API service
+nodeApi:
+  name: node-api
+  replicaCount: 2
+  image:
+    repository: prepchef/node-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 75
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 3000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /health/ready
+      port: 3000
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Python Compliance service
+pythonCompliance:
+  name: python-compliance
+  replicaCount: 2
+  image:
+    repository: prepchef/python-compliance
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 80
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 40
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /health/ready
+      port: 8000
+    initialDelaySeconds: 15
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Frontend service
+frontend:
+  name: frontend
+  replicaCount: 2
+  image:
+    repository: prepchef/frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: LoadBalancer
+    port: 80
+    targetPort: 3000
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+# PostgreSQL (external managed service recommended for production)
+postgres:
+  enabled: true
+  host: postgres-service
+  port: 5432
+  database: prepchef
+  username: postgres
+  # Password should be stored in secrets
+
+# Redis (external managed service recommended for production)
+redis:
+  enabled: true
+  host: redis-service
+  port: 6379
+
+# MinIO / S3
+minio:
+  enabled: true
+  endpoint: minio-service:9000
+  accessKey: minioadmin
+  # secretKey should be stored in secrets
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: api.prepchef.staging.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: node-api
+    - host: compliance.prepchef.staging.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: python-compliance
+    - host: prepchef.staging.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+  tls:
+    - secretName: prepchef-staging-tls
+      hosts:
+        - api.prepchef.staging.example.com
+        - compliance.prepchef.staging.example.com
+        - prepchef.staging.example.com
+
+# ConfigMap data
+config:
+  nodeEnv: staging
+  logLevel: info
+  stripeWebhookPath: /webhooks/stripe
+
+# Secret names (secrets should be created separately)
+secrets:
+  name: prepchef-secrets
+  # Reference existing secrets
+  databaseUrl: DATABASE_URL
+  redisUrl: REDIS_URL
+  jwtSecret: JWT_SECRET
+  stripeSecretKey: STRIPE_SECRET_KEY
+  stripeWebhookSecret: STRIPE_WEBHOOK_SECRET
+  minioSecretKey: MINIO_SECRET_KEY
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: prepchef-sa
+
+# RBAC
+rbac:
+  create: true
+
+# Pod Security
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+# Node selector for scheduling
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - prepchef
+          topologyKey: kubernetes.io/hostname
