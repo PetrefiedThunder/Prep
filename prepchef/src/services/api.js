@@ -24,6 +24,31 @@ class ApiService {
     return response.json();
   }
 
+  async get(endpoint, token) {
+    const headers = token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : undefined;
+
+    return this.request(endpoint, {
+      method: 'GET',
+      headers,
+    });
+  }
+
+  async post(endpoint, body, token) {
+    const headers = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
+    return this.request(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+  }
+
   async register(userData) {
     return this.request('/auth/register', {
       method: 'POST',
