@@ -17,7 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY, JSON
 from sqlalchemy.orm import declarative_base
 
-from prep.core.db_types import GUID
+from prep.models.guid import GUID
 
 Base = declarative_base()
 
