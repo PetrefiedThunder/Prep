@@ -9,6 +9,7 @@ from apps.compliance_service.main import app as compliance_app
 from prep.admin.api import router as admin_router
 from prep.analytics.advanced_api import router as advanced_analytics_router
 from prep.analytics.dashboard_api import router as analytics_router
+from prep.analytics.host_metrics_api import router as host_metrics_router
 from prep.cities.api import router as cities_router
 from prep.kitchen_cam.api import router as kitchen_cam_router
 from prep.matching.api import router as matching_router
@@ -26,6 +27,7 @@ def _build_router() -> APIRouter:
     router.include_router(mobile_router)
     router.include_router(admin_router)
     router.include_router(analytics_router)
+    router.include_router(host_metrics_router)
     router.include_router(advanced_analytics_router)
     router.include_router(matching_router)
     router.include_router(reviews_router)
