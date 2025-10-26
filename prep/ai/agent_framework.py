@@ -83,6 +83,7 @@ class AIAgent(ABC):
     @abstractmethod
     async def execute_task(self, task_description: str, context: Dict[str, Any]) -> AgentResponse:
         """Execute a domain-specific task and return an agent response."""
+        raise NotImplementedError
 
     async def safe_execute(self, task: str, context: Dict[str, Any]) -> SafeAgentResponse:
         """Execute an agent task with safety and validation gates applied."""
