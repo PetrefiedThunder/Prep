@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 import logging
 import os
 import re
+from functools import wraps
+from typing import Any, Awaitable, Callable, Dict, List, Optional, TypeVar
+
+from typing_extensions import ParamSpec
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
@@ -14,6 +19,80 @@ from aiobotocore.session import get_session
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
+
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
+class ServerSideError(RuntimeError):
+    """Raised when an upstream server responds with a 5xx status code."""
+
+    def __init__(self, url: str, status: int, *, body: str | None = None) -> None:
+        super().__init__(f"Server error {status} for {url}")
+        self.url = url
+        self.status = status
+        self.body = body
+
+
+def _extract_status(exc: BaseException) -> Optional[int]:
+    """Return an HTTP status code from a raised exception if available."""
+
+    for attribute in ("status", "status_code"):
+        value = getattr(exc, attribute, None)
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str) and value.isdigit():
+            return int(value)
+
+    response = getattr(exc, "response", None)
+    if response is not None:
+        for attribute in ("status", "status_code"):
+            value = getattr(response, attribute, None)
+            if isinstance(value, int):
+                return value
+            if isinstance(value, str) and value.isdigit():
+                return int(value)
+
+    return None
+
+
+def with_backoff(*, retries: int, base_delay: float) -> Callable[[Callable[_P, Awaitable[_R]]], Callable[_P, Awaitable[_R]]]:
+    """Retry an async callable on retryable HTTP errors with exponential backoff."""
+
+    def decorator(func: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
+        if not asyncio.iscoroutinefunction(func):
+            raise TypeError("with_backoff can only be applied to async callables")
+
+        @wraps(func)
+        async def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+            attempt = 0
+            delay = base_delay
+            while True:
+                try:
+                    return await func(*args, **kwargs)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:  # pragma: no cover - defensive fallback
+                    status = _extract_status(exc)
+                    if status is not None and 500 <= status < 600 and attempt < retries:
+                        attempt += 1
+                        logger.warning(
+                            "Retrying after %s error for %s (attempt %s/%s) in %.1fs",
+                            status,
+                            getattr(exc, "url", None) or getattr(exc, "request", exc),
+                            attempt,
+                            retries,
+                            delay,
+                        )
+                        await asyncio.sleep(delay)
+                        delay *= 2
+                        continue
+                    raise
+
+        return wrapper
+
+    return decorator
 
 
 class RegulatoryScraper:
@@ -57,6 +136,16 @@ class RegulatoryScraper:
 
         if state in base_urls:
             try:
+                content = await self._fetch_health_department_page(base_urls[state])
+            except ServerSideError as exc:
+                self.logger.error(
+                    "Health department request for %s failed with status %s after retries", state, exc.status
+                )
+            except aiohttp.ClientResponseError as exc:
+                self.logger.warning(
+                    "Health department request for %s returned status %s", state, exc.status
+                )
+            except aiohttp.ClientError as exc:  # pragma: no cover - network errors aren't deterministic
                 source_url = base_urls[state]
                 async with self.session.get(source_url) as response:
                     if response.status == 200:
@@ -72,6 +161,10 @@ class RegulatoryScraper:
                         )
             except Exception as exc:  # pragma: no cover - network errors aren't deterministic
                 self.logger.error("Error scraping %s health department: %s", state, exc)
+            else:
+                regulations = await self.parse_health_regulations(
+                    content, state, city, base_urls[state]
+                )
 
         return regulations
 
@@ -245,6 +338,28 @@ class RegulatoryScraper:
             )
 
         return zoning_data
+
+
+    @with_backoff(retries=5, base_delay=1.5)
+    async def _fetch_health_department_page(self, url: str, *, params: Optional[Dict[str, Any]] = None) -> str:
+        """Retrieve a health department page, retrying on transient server failures."""
+
+        if not self.session:
+            raise RuntimeError("RegulatoryScraper session is not initialized. Use as async context manager.")
+
+        async with self.session.get(url, params=params) as response:
+            body = await response.text()
+            if 500 <= response.status < 600:
+                raise ServerSideError(url, response.status, body=body[:500])
+            if response.status >= 400:
+                raise aiohttp.ClientResponseError(
+                    response.request_info,
+                    response.history,
+                    status=response.status,
+                    message=body[:500],
+                    headers=response.headers,
+                )
+            return body
 
 
 __all__ = ["RegulatoryScraper"]
