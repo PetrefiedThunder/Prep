@@ -1,0 +1,35 @@
+{
+  "nav": {
+    "becomeHost": "Host with HarborHomes",
+    "trips": "Trips",
+    "wishlists": "Wishlists",
+    "inbox": "Inbox"
+  },
+  "home": {
+    "headline": "Thoughtful stays anchored in comfort",
+    "subheadline": "Discover design-led homes curated by HarborHomes concierges.",
+    "featured": "Featured stays",
+    "categories": "Explore by vibe",
+    "promo": "Join HarborHomes+ for elevated arrival perks"
+  },
+  "search": {
+    "title": "Find your HarborHome",
+    "results": "Results",
+    "filters": "Filters",
+    "map": "Map",
+    "list": "List"
+  },
+  "listing": {
+    "book": "Book your stay",
+    "night": "/night",
+    "total": "Total before taxes",
+    "policies": "Policies"
+  },
+  "checkout": {
+    "review": "Review your trip",
+    "details": "Guest details",
+    "payment": "Payment",
+    "confirmation": "Confirmation",
+    "complete": "Booking confirmed!"
+  }
+}
