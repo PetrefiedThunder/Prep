@@ -7,6 +7,7 @@ from .health_departments import (
     NewYorkHealthDepartmentAPI,
     RegulatoryAPIError,
 )
+from .esignature import DocuSignAPIError, DocuSignClient, EnvelopeSummary
 from .insurance import (
     AllStateAPI,
     InsuranceAPIError,
@@ -28,6 +29,9 @@ __all__ = [
     "BaseAPIClient",
     "RegulatoryAPIError",
     "InspectionRecord",
+    "DocuSignClient",
+    "DocuSignAPIError",
+    "EnvelopeSummary",
     "CaliforniaHealthDepartmentAPI",
     "NewYorkHealthDepartmentAPI",
     "InsuranceVerificationAPI",

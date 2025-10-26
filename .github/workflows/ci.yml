@@ -1,236 +1,42 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches:
+      - main
   pull_request:
-    branches: [main, develop]
-
-env:
-  NODE_VERSION: '20.x'
 
 jobs:
-  lint:
-    name: Lint & Format Check
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          python-version: '3.11'
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Run ESLint
-        run: npm run lint --if-present
-
-      - name: Check formatting (Prettier)
-        run: npx prettier --check "**/*.{ts,tsx,js,jsx,json,md}" || true
-
-  typecheck:
-    name: TypeScript Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Type check backend
-        working-directory: ./prepchef
-        run: npx tsc --noEmit
-
-      - name: Type check frontend
-        working-directory: ./apps/web
-        run: npm run build
-
-  test-backend:
-    name: Backend Tests
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgis/postgis:15-3.4
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD != '' && secrets.POSTGRES_PASSWORD || 'postgres' }}
-          POSTGRES_DB: prepchef_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        command: >-
-          redis-server --requirepass ${{ secrets.REDIS_PASSWORD != '' && secrets.REDIS_PASSWORD || 'redispass' }}
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli -a ${{ secrets.REDIS_PASSWORD != '' && secrets.REDIS_PASSWORD || 'redispass' }} ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Apply database schema
-        working-directory: ./prepchef
-        env:
-          DATABASE_URL: postgresql://postgres:${{ secrets.POSTGRES_PASSWORD != '' && secrets.POSTGRES_PASSWORD || 'postgres' }}@localhost:5432/prepchef_test
         run: |
-          npx prisma generate
-          npx prisma db push --skip-generate
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install black isort pytest pytest-xdist pytest-cov bandit
 
-      - name: Run backend tests
-        working-directory: ./prepchef
-        env:
-          DATABASE_URL: postgresql://postgres:${{ secrets.POSTGRES_PASSWORD != '' && secrets.POSTGRES_PASSWORD || 'postgres' }}@localhost:5432/prepchef_test
-          REDIS_URL: redis://:${{ secrets.REDIS_PASSWORD != '' && secrets.REDIS_PASSWORD || 'redispass' }}@localhost:6379
-          JWT_SECRET: test-secret-key
-          NODE_ENV: test
-        run: npm run test --if-present -- --coverage
+      - name: Run Black
+        run: black --check .
 
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
+      - name: Run isort
+        run: isort --check-only .
+
+      - name: Run pytest
+        run: pytest -n auto --cov=src --cov-report=xml
+
+      - name: Run Bandit
+        run: bandit -r src
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
         with:
-          files: ./prepchef/coverage/lcov.info
-          flags: backend
-          name: backend-coverage
-
-  test-frontend:
-    name: Frontend Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        working-directory: ./apps/web
-        run: npm ci
-
-      - name: Run frontend tests
-        working-directory: ./apps/web
-        run: npm run test -- --coverage
-
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./apps/web/coverage/lcov.info
-          flags: frontend
-          name: frontend-coverage
-
-  build:
-    name: Build All Packages
-    runs-on: ubuntu-latest
-    needs: [lint, typecheck]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build backend
-        working-directory: ./prepchef
-        run: npm run build --if-present
-
-      - name: Build frontend
-        working-directory: ./apps/web
-        run: npm run build
-
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend, build]
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    environment:
-      name: staging
-      url: https://prepchef-staging.fly.dev
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Fly.io CLI
-        uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Deploy backend to Fly.io (staging)
-        working-directory: ./prepchef
-        run: flyctl deploy --remote-only --config fly.staging.toml
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-      - name: Deploy frontend to Vercel (staging)
-        working-directory: ./apps/web
-        run: |
-          npm install -g vercel
-          vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --yes
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend, build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment:
-      name: production
-      url: https://prepchef.com
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Fly.io CLI
-        uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Deploy backend to Fly.io (production)
-        working-directory: ./prepchef
-        run: flyctl deploy --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-      - name: Deploy frontend to Vercel (production)
-        working-directory: ./apps/web
-        run: |
-          npm install -g vercel
-          vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Run smoke tests
-        run: |
-          curl -f https://prepchef.com/healthz || exit 1
-          curl -f https://api.prepchef.com/healthz || exit 1
+          files: ./coverage.xml

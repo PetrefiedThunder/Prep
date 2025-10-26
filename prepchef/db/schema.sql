@@ -415,9 +415,8 @@ CREATE POLICY bookings_select_own ON bookings
         )
     );
 
--- Materialized view for listing statistics
 CREATE MATERIALIZED VIEW listing_stats AS
-SELECT 
+SELECT
     l.id AS listing_id,
     COUNT(DISTINCT b.id) AS total_bookings,
     COUNT(DISTINCT b.renter_id) AS unique_renters,
@@ -431,6 +430,43 @@ LEFT JOIN reviews r ON l.id = r.listing_id AND r.deleted_at IS NULL
 GROUP BY l.id;
 
 CREATE UNIQUE INDEX idx_listing_stats_id ON listing_stats(listing_id);
+
+-- Materialized view for host performance metrics over the past 30 days
+CREATE MATERIALIZED VIEW mv_host_metrics AS
+WITH hosts AS (
+    SELECT DISTINCT
+        k.host_id
+    FROM kitchens k
+    WHERE k.host_id IS NOT NULL
+), recent_bookings AS (
+    SELECT
+        k.host_id,
+        SUM(b.total_amount) AS total_revenue_cents,
+        COUNT(*) AS completed_shifts
+    FROM bookings b
+    JOIN kitchens k ON k.id = b.kitchen_id
+    WHERE b.status = 'completed'
+      AND b.end_time >= NOW() - INTERVAL '30 days'
+    GROUP BY k.host_id
+), recent_incidents AS (
+    SELECT
+        hi.host_id,
+        COUNT(*) AS incident_count
+    FROM host_incidents hi
+    WHERE hi.occurred_at >= NOW() - INTERVAL '30 days'
+    GROUP BY hi.host_id
+)
+SELECT
+    h.host_id,
+    COALESCE(rb.total_revenue_cents, 0) AS total_revenue_cents,
+    COALESCE(rb.completed_shifts, 0) AS completed_shifts,
+    COALESCE(ri.incident_count, 0) AS incident_count,
+    NOW() AS calculated_at
+FROM hosts h
+LEFT JOIN recent_bookings rb ON h.host_id = rb.host_id
+LEFT JOIN recent_incidents ri ON h.host_id = ri.host_id;
+
+CREATE UNIQUE INDEX idx_mv_host_metrics_host_id ON mv_host_metrics(host_id);
 
 -- Refresh materialized view function
 CREATE OR REPLACE FUNCTION refresh_listing_stats()

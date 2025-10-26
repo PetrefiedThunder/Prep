@@ -6,15 +6,22 @@ from datetime import datetime, timezone
 from enum import Enum
 import asyncio
 from typing import Any, Dict, List, Optional
+import hashlib
+from collections.abc import Generator
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from prep.compliance.data_validator import DataValidator
 from prep.compliance.food_safety_compliance_engine import (
     DataIntelligenceAPIClient,
     FoodSafetyComplianceEngine,
 )
+from prep.compliance.coi_validation import COIValidationResult, validate_coi
+from prep.models.db import SessionLocal
+from prep.models.orm import COIDocument
 
 
 class KitchenPayload(BaseModel):
@@ -45,6 +52,14 @@ def _build_engine() -> FoodSafetyComplianceEngine:
 
 engine = _build_engine()
 app = FastAPI(title="Prep Compliance Service", version=ENGINE_VERSION)
+
+
+def _get_session() -> Generator[Session, None, None]:
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 class Role(str, Enum):
@@ -251,6 +266,66 @@ def health_check() -> Dict[str, Any]:
         "version": ENGINE_VERSION,
         "engine": engine.name,
     }
+
+
+@app.post("/coi", status_code=status.HTTP_201_CREATED)
+async def upload_coi(
+    file: UploadFile = File(...),
+    session: Session = Depends(_get_session),
+) -> Dict[str, Any]:
+    """Accept a COI PDF upload, validate it, and persist metadata."""
+
+    if file.content_type and not file.content_type.lower().endswith("pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "Only PDF uploads are supported."},
+        )
+
+    try:
+        payload = await file.read()
+        if not payload:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "Uploaded document is empty."},
+            )
+
+        try:
+            validation: COIValidationResult = validate_coi(payload)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": str(exc) or "Invalid COI document."},
+            ) from exc
+
+        document = COIDocument(
+            filename=file.filename or "coi.pdf",
+            content_type=file.content_type or "application/pdf",
+            file_size=len(payload),
+            checksum=hashlib.sha256(payload).hexdigest(),
+            valid=validation.valid,
+            expiry_date=validation.expiry_date,
+            validation_errors="; ".join(validation.errors) if validation.errors else None,
+        )
+
+        try:
+            session.add(document)
+            session.commit()
+        except SQLAlchemyError as exc:  # pragma: no cover - defensive guard
+            session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={
+                    "error": "Failed to persist COI metadata.",
+                    "details": str(exc),
+                },
+            ) from exc
+
+        return {
+            "valid": validation.valid,
+            "expiry_date": validation.expiry_date.isoformat(),
+        }
+    finally:
+        await file.close()
 
 
 @app.post("/v1/report")
