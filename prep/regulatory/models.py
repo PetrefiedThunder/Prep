@@ -6,9 +6,10 @@ from datetime import datetime
 import uuid
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text, JSON
-from sqlalchemy.dialects.postgresql import ARRAY, UUID as PGUUID
+from sqlalchemy.dialects.postgresql import ARRAY
 
 from prep.models import Base
+from prep.core.db_types import GUID
 
 
 class RegulationSource(Base):
@@ -16,7 +17,7 @@ class RegulationSource(Base):
 
     __tablename__ = "regulation_sources"
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     state = Column(String(2), nullable=False)
     city = Column(String(100))
     source_url = Column(Text, nullable=False)
@@ -31,8 +32,8 @@ class Regulation(Base):
 
     __tablename__ = "regulations"
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source_id = Column(PGUUID(as_uuid=True), ForeignKey("regulation_sources.id"))
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    source_id = Column(GUID(), ForeignKey("regulation_sources.id"))
     regulation_type = Column(String(100), nullable=False)
     title = Column(Text, nullable=False)
     description = Column(Text)
@@ -51,7 +52,7 @@ class InsuranceRequirement(Base):
 
     __tablename__ = "insurance_requirements"
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     state = Column(String(2), nullable=False)
     city = Column(String(100))
     minimum_coverage = Column(JSON)
