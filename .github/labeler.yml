@@ -1,0 +1,12 @@
+orchestration:
+  - "prep/core/**"
+  - "prep/compliance/**"
+
+infra:
+  - ".github/**"
+  - "Dockerfile"
+  - "docker-compose.yml"
+
+frontend:
+  - "apps/**"
+  - "harborhomes/**"

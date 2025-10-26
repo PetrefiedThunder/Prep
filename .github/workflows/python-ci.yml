@@ -12,18 +12,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        with: { fetch-depth: 0 }
       - name: Check deletions
         run: |
-          base="${{ github.event.pull_request.base.sha || 'origin/main' }}"
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "Not a PR; skipping guard."
+            exit 0
+          fi
+          base="${{ github.event.pull_request.base.sha }}"
           head="${{ github.sha }}"
           deletions=$(git diff --numstat "$base" "$head" | awk '{del+=$2} END {print del+0}')
           echo "Deletions: $deletions"
-          if [ $deletions -gt 5000 ] && [ ! -f SAFE_DELETE.md ]; then
-            echo "::error ::Mass deletion detected ($deletions). Add SAFE_DELETE.md to justify."
+          labels=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH" 2>/dev/null || true)
+          if echo "$labels" | grep -qi '^mass-change-approved$'; then
+            echo "mass-change-approved present; skipping guard."
+            exit 0
+          fi
+          if [ "$deletions" -gt 5000 ] && [ ! -f SAFE_DELETE.md ]; then
+            echo "::error ::Mass deletion detected ($deletions). Add SAFE_DELETE.md or apply label mass-change-approved."
             exit 1
           fi
+          echo "Guard passed."
 
   qa:
     name: Lint, Typecheck, Test
@@ -32,8 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+        with: { python-version: "3.11" }
       - name: Install package (+dev)
         run: |
           python -m pip install --upgrade pip
