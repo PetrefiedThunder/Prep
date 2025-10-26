@@ -32,6 +32,8 @@ class AuditService:
         domain: Any,
         entity_id: str,
         result: Any,
+        schema_version: str | None = None,
+        evidence_reference: Dict[str, str] | None = None,
     ) -> AuditRecord:
         """Persist an audit record for a compliance check."""
 
@@ -41,12 +43,35 @@ class AuditService:
             "result_summary": getattr(result, "summary", None),
             "overall_compliance": getattr(result, "overall_compliance", None),
             "risk_level": getattr(result, "risk_level", None),
+            "schema_version": schema_version,
+            "evidence": evidence_reference,
         }
 
         record = AuditRecord(
             timestamp=datetime.now(timezone.utc),
             category="compliance_check",
             details=details,
+        )
+        self._records.append(record)
+        return record
+
+    async def record_validation_failure(
+        self,
+        *,
+        domain: Any,
+        entity_id: str,
+        errors: List[str],
+    ) -> AuditRecord:
+        """Record a validation failure emitted by a compliance engine."""
+
+        record = AuditRecord(
+            timestamp=datetime.now(timezone.utc),
+            category="compliance_validation_error",
+            details={
+                "entity_id": entity_id,
+                "domain": getattr(domain, "value", str(domain)),
+                "errors": errors,
+            },
         )
         self._records.append(record)
         return record

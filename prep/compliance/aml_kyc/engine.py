@@ -35,6 +35,8 @@ class AMLComplianceResult:
     suspicious_activities: List[str]
     required_reports: List[str]
     score: float
+    schema_version: str = "aml-compliance.v1"
+    domain: str = ComplianceDomain.AML_KYC.value
 
 
 class AMLKYCEngine(ComplianceEngine):

@@ -9,6 +9,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional
 
 from .audit import AuditService
+from .evidence_vault import EvidenceVault
+from .schema_validation import SchemaValidationError, SchemaValidator
 
 if TYPE_CHECKING:
     from .data_pipeline import UnifiedDataPipeline
@@ -86,12 +88,19 @@ class ComplianceEngine(ABC):
 class OrchestrationEngine:
     """Coordinates multi-domain compliance checks across engines."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        evidence_vault: EvidenceVault | None = None,
+        schema_validator: SchemaValidator | None = None,
+    ) -> None:
         from .data_pipeline import UnifiedDataPipeline
 
         self.engines: Dict[ComplianceDomain, ComplianceEngine] = {}
         self.data_pipeline: "UnifiedDataPipeline" = UnifiedDataPipeline()
         self.audit_trail = AuditService()
+        self.evidence_vault = evidence_vault or EvidenceVault()
+        self.schema_validator = schema_validator or SchemaValidator()
 
     def register_engine(self, domain: ComplianceDomain, engine: ComplianceEngine) -> None:
         """Register a compliance engine for a specific domain."""
@@ -99,12 +108,18 @@ class OrchestrationEngine:
         self.engines[domain] = engine
 
     async def orchestrate_compliance_check(
-        self, domains: Iterable[ComplianceDomain], entity_data: Dict[str, Any]
+        self,
+        domains: Iterable[ComplianceDomain],
+        entity_data: Dict[str, Any],
+        *,
+        evidence_requirements: Mapping[ComplianceDomain, Iterable[str]] | None = None,
     ) -> UnifiedComplianceReport:
         """Execute a compliance assessment across multiple domains."""
 
         results: Dict[ComplianceDomain, Any] = {}
         jurisdiction = entity_data.get("jurisdiction")
+        entity_id = str(entity_data.get("id", "unknown"))
+        evidence_requirements = evidence_requirements or {}
 
         for domain in domains:
             engine = self.engines.get(domain)
@@ -112,12 +127,34 @@ class OrchestrationEngine:
                 continue
 
             result = await engine.validate_compliance(entity_data, jurisdiction)
+            try:
+                normalized = self.schema_validator.ensure_valid(domain, result)
+            except SchemaValidationError as exc:
+                await self.audit_trail.record_validation_failure(
+                    domain=domain,
+                    entity_id=entity_id,
+                    errors=exc.errors,
+                )
+                continue
+
+            evidence_reference = None
+            requirements = evidence_requirements.get(domain)
+            if requirements:
+                evidence_payload = await engine.generate_evidence(requirements)
+                evidence_reference = self.evidence_vault.store(
+                    entity_id=entity_id,
+                    domain=domain,
+                    evidence=evidence_payload,
+                )
+
             results[domain] = result
 
             await self.audit_trail.record_compliance_check(
                 domain=domain,
-                entity_id=str(entity_data.get("id", "unknown")),
+                entity_id=entity_id,
                 result=result,
+                schema_version=normalized.get("x-schema-version"),
+                evidence_reference=evidence_reference,
             )
 
         return UnifiedComplianceReport(
