@@ -21,8 +21,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+from prep.core.db_types import GUID
 
 
 class Base(DeclarativeBase):
@@ -53,7 +54,7 @@ class User(Base, TimestampedMixin):
 
     __tablename__ = "users"
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(255))
     hashed_password: Mapped[str] = mapped_column(String(255), default="", nullable=False)
@@ -76,10 +77,10 @@ class Kitchen(Base, TimestampedMixin):
 
     __tablename__ = "kitchens"
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    host_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    host_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("users.id"), index=True)
     city: Mapped[str | None] = mapped_column(String(120), nullable=True)
     state: Mapped[str | None] = mapped_column(String(60), nullable=True)
     hourly_rate: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
@@ -115,10 +116,10 @@ class Booking(Base, TimestampedMixin):
 
     __tablename__ = "bookings"
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    host_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
-    customer_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
-    kitchen_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("kitchens.id"), index=True)
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    host_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("users.id"), index=True)
+    customer_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("users.id"), index=True)
+    kitchen_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("kitchens.id"), index=True)
     status: Mapped[BookingStatus] = mapped_column(Enum(BookingStatus), nullable=False, default=BookingStatus.PENDING)
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -159,11 +160,11 @@ class Review(Base, TimestampedMixin):
         UniqueConstraint("booking_id", "customer_id", name="uq_review_booking_customer"),
     )
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    booking_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id"), index=True)
-    kitchen_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("kitchens.id"), index=True)
-    host_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
-    customer_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    booking_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("bookings.id"), index=True)
+    kitchen_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("kitchens.id"), index=True)
+    host_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("users.id"), index=True)
+    customer_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("users.id"), index=True)
     rating: Mapped[float] = mapped_column(Float, nullable=False)
     equipment_rating: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     cleanliness_rating: Mapped[float] = mapped_column(Float, nullable=False, default=0)
@@ -175,7 +176,7 @@ class Review(Base, TimestampedMixin):
     )
     spam_score: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     moderated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    moderated_by: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    moderated_by: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("users.id"), nullable=True)
     host_response: Mapped[str | None] = mapped_column(Text, nullable=True)
     host_response_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     helpful_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -212,9 +213,9 @@ class ComplianceDocument(Base, TimestampedMixin):
         UniqueConstraint("kitchen_id", "document_type", name="uq_compliance_document"),
     )
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    kitchen_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("kitchens.id"), index=True)
-    uploader_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    kitchen_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("kitchens.id"), index=True)
+    uploader_id: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("users.id"))
     document_type: Mapped[str] = mapped_column(String(120), nullable=False)
     document_url: Mapped[str] = mapped_column(String(512), nullable=False)
     verification_status: Mapped[ComplianceDocumentStatus] = mapped_column(
@@ -224,7 +225,7 @@ class ComplianceDocument(Base, TimestampedMixin):
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    reviewer_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    reviewer_id: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("users.id"))
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     kitchen: Mapped[Kitchen] = relationship(back_populates="compliance_documents")
@@ -237,7 +238,7 @@ class OperationalExpense(Base, TimestampedMixin):
 
     __tablename__ = "operational_expenses"
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     category: Mapped[str] = mapped_column(String(120))
     amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     incurred_on: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
@@ -247,9 +248,9 @@ class KitchenModerationEvent(Base):
 
     __tablename__ = "kitchen_moderation_events"
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    kitchen_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("kitchens.id"), index=True)
-    admin_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    kitchen_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("kitchens.id"), index=True)
+    admin_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("users.id"))
     action: Mapped[str] = mapped_column(String(50))
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -265,7 +266,7 @@ class UserMatchingPreference(Base, TimestampedMixin):
     __tablename__ = "user_matching_preferences"
 
     user_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True
+        GUID(), ForeignKey("users.id"), primary_key=True
     )
     equipment: Mapped[list[str]] = mapped_column(JSON, default=list)
     certifications: Mapped[list[str]] = mapped_column(JSON, default=list)
@@ -287,7 +288,7 @@ class KitchenMatchingProfile(Base, TimestampedMixin):
     __tablename__ = "kitchen_matching_profiles"
 
     kitchen_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("kitchens.id"), primary_key=True
+        GUID(), ForeignKey("kitchens.id"), primary_key=True
     )
     equipment: Mapped[list[str]] = mapped_column(JSON, default=list)
     certifications: Mapped[list[str]] = mapped_column(JSON, default=list)
@@ -310,9 +311,9 @@ class KitchenExternalRating(Base, TimestampedMixin):
         UniqueConstraint("kitchen_id", "source", name="uq_external_rating_source"),
     )
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     kitchen_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("kitchens.id"), index=True
+        GUID(), ForeignKey("kitchens.id"), index=True
     )
     source: Mapped[str] = mapped_column(String(50), nullable=False)
     rating: Mapped[float] = mapped_column(Float, nullable=False)
@@ -333,9 +334,9 @@ class KitchenRatingHistory(Base):
 
     __tablename__ = "kitchen_rating_history"
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     kitchen_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("kitchens.id"), index=True
+        GUID(), ForeignKey("kitchens.id"), index=True
     )
     source: Mapped[str] = mapped_column(String(50), nullable=False)
     rating: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -355,9 +356,9 @@ class KitchenSentimentTrend(Base):
 
     __tablename__ = "kitchen_sentiment_trends"
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     kitchen_id: Mapped[UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("kitchens.id"), nullable=True, index=True
+        GUID(), ForeignKey("kitchens.id"), nullable=True, index=True
     )
     source: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     window_start: Mapped[datetime] = mapped_column(
@@ -381,8 +382,8 @@ class CertificationDocument(Base, TimestampedMixin):
 
     __tablename__ = "certification_documents"
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    kitchen_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("kitchens.id"), index=True)
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    kitchen_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("kitchens.id"), index=True)
     document_type: Mapped[str] = mapped_column(String(120))
     status: Mapped[str] = mapped_column(String(50), default="pending")
     file_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
@@ -398,9 +399,9 @@ class ReviewPhoto(Base):
 
     __tablename__ = "review_photos"
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     review_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("reviews.id", ondelete="CASCADE"), index=True
+        GUID(), ForeignKey("reviews.id", ondelete="CASCADE"), index=True
     )
     url: Mapped[str] = mapped_column(String(512), nullable=False)
     caption: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -419,12 +420,12 @@ class ReviewVote(Base):
         UniqueConstraint("review_id", "user_id", name="uq_review_vote_user"),
     )
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     review_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("reviews.id", ondelete="CASCADE"), index=True
+        GUID(), ForeignKey("reviews.id", ondelete="CASCADE"), index=True
     )
     user_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     is_helpful: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     updated_at: Mapped[datetime] = mapped_column(
@@ -440,12 +441,12 @@ class ReviewFlag(Base, TimestampedMixin):
 
     __tablename__ = "review_flags"
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     review_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("reviews.id", ondelete="CASCADE"), index=True
+        GUID(), ForeignKey("reviews.id", ondelete="CASCADE"), index=True
     )
     reporter_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     reason: Mapped[str] = mapped_column(String(255), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -454,7 +455,7 @@ class ReviewFlag(Base, TimestampedMixin):
     )
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     resolved_by: Mapped[UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+        GUID(), ForeignKey("users.id"), nullable=True
     )
 
     review: Mapped[Review] = relationship(back_populates="flags")
