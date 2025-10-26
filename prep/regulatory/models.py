@@ -63,4 +63,23 @@ class InsuranceRequirement(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
 
-__all__ = ["RegulationSource", "Regulation", "InsuranceRequirement"]
+class RegDoc(Base):
+    """Normalized regulatory documents with content hashing."""
+
+    __tablename__ = "regdocs"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    sha256_hash = Column(String(64), nullable=False, unique=True, index=True)
+    jurisdiction = Column(String(120))
+    state = Column(String(2))
+    city = Column(String(120))
+    doc_type = Column(String(100))
+    title = Column(String(255))
+    summary = Column(Text)
+    source_url = Column(Text)
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+__all__ = ["RegulationSource", "Regulation", "InsuranceRequirement", "RegDoc"]
