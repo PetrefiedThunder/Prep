@@ -5,6 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "prep"
 version = "0.1.0"
+description = "Prep orchestration platform"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110",
+    "pydantic>=2.6",
+    "sqlalchemy>=2.0",
 description = "Prep enterprise compliance orchestration platform"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -24,6 +31,19 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "mypy>=1.10",
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+include = ["prep*"]
+exclude = ["tests*"]
     "pytest>=8.2.0",
     "pytest-asyncio>=0.23.6",
     "hypothesis>=6.108.1",

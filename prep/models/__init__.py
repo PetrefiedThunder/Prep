@@ -1,3 +1,4 @@
+# Central exports for database and ORM primitives.
 """SQLAlchemy ORM models for the Prep platform."""
 
 from __future__ import annotations
@@ -107,12 +108,14 @@ class ComplianceDocument(Base):
     verified_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+from .db import engine, SessionLocal, get_db_url
+from .orm import Base
+from .guid import GUID
 
 __all__ = [
     "Base",
-    "User",
-    "Kitchen",
-    "Booking",
-    "Review",
-    "ComplianceDocument",
+    "engine",
+    "SessionLocal",
+    "get_db_url",
+    "GUID",
 ]
