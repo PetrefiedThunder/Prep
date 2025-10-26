@@ -23,7 +23,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from prep.core.db_types import GUID
+from prep.models.guid import GUID
 
 
 class Base(DeclarativeBase):

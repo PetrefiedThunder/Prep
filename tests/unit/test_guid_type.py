@@ -6,7 +6,7 @@ import uuid
 import pytest
 import sqlalchemy as sa
 
-from prep.core.db_types import GUID
+from prep.models.guid import GUID
 
 
 def test_guid_sqlite_round_trip(engine):
