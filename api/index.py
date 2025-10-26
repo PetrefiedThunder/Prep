@@ -14,6 +14,7 @@ from prep.kitchen_cam.api import router as kitchen_cam_router
 from prep.matching.api import router as matching_router
 from prep.mobile.api import router as mobile_router
 from prep.platform.api import router as platform_router
+from prep.payments.api import router as payments_router
 from prep.ratings.api import router as ratings_router
 from prep.reviews.api import router as reviews_router
 
@@ -32,6 +33,7 @@ def _build_router() -> APIRouter:
     router.include_router(ratings_router)
     router.include_router(cities_router)
     router.include_router(kitchen_cam_router)
+    router.include_router(payments_router)
     return router
 
 
