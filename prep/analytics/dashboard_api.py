@@ -20,7 +20,7 @@ from sqlalchemy.orm import aliased
 from prep.auth import get_current_admin, get_current_user
 from prep.cache import get_redis
 from prep.database import get_db
-from prep.models import (
+from prep.models.pydantic_exports import (
     AdminPerformanceMetrics,
     AdminTeamMemberPerformance,
     BookingAnalytics,

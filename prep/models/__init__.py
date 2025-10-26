@@ -1,111 +1,107 @@
-"""Pydantic models for the Prep platform."""
+"""SQLAlchemy ORM models for the Prep platform."""
 
-from .admin import (
-    AdminUser,
-    BookingStatistics,
-    CertificationStatus,
-    HostPerformanceMetrics,
-    KitchenPerformanceSummary,
-    ModerationAction,
-    ModerationFilters,
-    ModerationRequest,
-    ModerationResult,
-    Pagination,
-    PendingKitchen,
-    PendingKitchensResponse,
-    PlatformOverview,
-    RevenueAnalytics,
-    SortField,
-    SortOrder,
-    TimeSeriesPoint,
+from __future__ import annotations
+
+from datetime import datetime
+import uuid
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
 )
-from .analytics_models import (
-    AdminOverview,
-    BookingAnalytics,
-    CancellationReason,
-    ExportFormat,
-    ExportResult,
-    FinancialHealthMetrics,
-    GrowthChannelBreakdown,
-    HostOverview,
-    KitchenPerformance,
-    KitchenRevenue,
-    PaymentMethodBreakdown,
-    PlatformHealthMetrics,
-    PlatformGrowthMetrics,
-    PlatformOverviewMetrics,
-    RecentBooking,
-    RegionPerformance,
-    ReportType,
-    ModerationQueueMetrics,
-    AdminPerformanceMetrics,
-    AdminTeamMemberPerformance,
-    RevenueAnalytics,
-    TimeSeriesData,
-    TimeSlotPopularity,
-    Timeframe,
-    User,
-)
-from .certification_models import (
-    CertificationDetail,
-    CertificationDocument,
-    CertificationVerificationRequest,
-    PendingCertificationSummary,
-    PendingCertificationsResponse,
-    VerificationAction,
-    VerificationEvent,
-    VerificationResult,
-)
+from sqlalchemy.dialects.postgresql import ARRAY, JSON, UUID as PGUUID
+from sqlalchemy.orm import declarative_base
+
+Base = declarative_base()
+
+
+class User(Base):
+    """Registered Prep platform user."""
+
+    __tablename__ = "users"
+
+    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, nullable=False)
+    verified = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Kitchen(Base):
+    """Kitchen listing managed by a host."""
+
+    __tablename__ = "kitchens"
+
+    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False)
+    host_id = Column(PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    address = Column(Text, nullable=False)
+    cert_level = Column(String)
+    photos = Column(ARRAY(String))
+    pricing = Column(JSON)
+    description = Column(Text)
+    equipment = Column(ARRAY(String))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Booking(Base):
+    """Booking created by a renter for a kitchen."""
+
+    __tablename__ = "bookings"
+
+    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    kitchen_id = Column(PGUUID(as_uuid=True), ForeignKey("kitchens.id"), nullable=False)
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
+    status = Column(String, default="pending")
+    total_amount = Column(Integer)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Review(Base):
+    """Kitchen review authored by a renter."""
+
+    __tablename__ = "reviews"
+
+    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    kitchen_id = Column(PGUUID(as_uuid=True), ForeignKey("kitchens.id"), nullable=False)
+    rating = Column(Integer, nullable=False)
+    comment = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ComplianceDocument(Base):
+    """Compliance documentation linked to a kitchen."""
+
+    __tablename__ = "compliance_documents"
+
+    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    kitchen_id = Column(PGUUID(as_uuid=True), ForeignKey("kitchens.id"), nullable=False)
+    document_type = Column(String, nullable=False)
+    file_url = Column(String, nullable=False)
+    status = Column(String, default="pending")
+    verified_by = Column(PGUUID(as_uuid=True), ForeignKey("users.id"))
+    verified_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 
 __all__ = [
-    "AdminUser",
-    "BookingStatistics",
-    "CertificationStatus",
-    "HostPerformanceMetrics",
-    "KitchenPerformanceSummary",
-    "ModerationAction",
-    "ModerationFilters",
-    "ModerationRequest",
-    "ModerationResult",
-    "Pagination",
-    "PendingKitchen",
-    "PendingKitchensResponse",
-    "PlatformOverview",
-    "RevenueAnalytics",
-    "SortField",
-    "SortOrder",
-    "TimeSeriesPoint",
-    "AdminOverview",
-    "BookingAnalytics",
-    "CancellationReason",
-    "ExportFormat",
-    "ExportResult",
-    "FinancialHealthMetrics",
-    "GrowthChannelBreakdown",
-    "HostOverview",
-    "ModerationQueueMetrics",
-    "AdminPerformanceMetrics",
-    "AdminTeamMemberPerformance",
-    "KitchenPerformance",
-    "KitchenRevenue",
-    "PaymentMethodBreakdown",
-    "PlatformHealthMetrics",
-    "PlatformGrowthMetrics",
-    "PlatformOverviewMetrics",
-    "RecentBooking",
-    "RegionPerformance",
-    "ReportType",
-    "RevenueAnalytics",
-    "TimeSeriesData",
-    "TimeSlotPopularity",
-    "Timeframe",
+    "Base",
     "User",
-    "CertificationDetail",
-    "CertificationDocument",
-    "CertificationVerificationRequest",
-    "PendingCertificationSummary",
-    "PendingCertificationsResponse",
-    "VerificationAction",
-    "VerificationEvent",
-    "VerificationResult",
+    "Kitchen",
+    "Booking",
+    "Review",
+    "ComplianceDocument",
 ]
