@@ -17,6 +17,3 @@ __all__ = [
     "regulatory",
     "search",
 ]
-from . import auth, kitchens, regulatory
-
-__all__ = ["auth", "kitchens", "regulatory"]
