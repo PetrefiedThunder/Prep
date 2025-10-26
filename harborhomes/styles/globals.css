@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand: 11 85% 54%;
+  --brand-contrast: 0 0% 100%;
+  --ink: 222 47% 11%;
+  --muted-ink: 222 20% 35%;
+  --bg: 0 0% 100%;
+  --surface: 210 20% 98%;
+  --border: 214 20% 89%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --brand: 12 80% 60%;
+    --brand-contrast: 210 40% 8%;
+    --ink: 210 40% 92%;
+    --muted-ink: 210 12% 70%;
+    --bg: 222 40% 8%;
+    --surface: 222 35% 12%;
+    --border: 220 28% 25%;
+  }
+}
+
+:root {
+  color: hsl(var(--ink));
+  background-color: hsl(var(--bg));
+}
+
+body {
+  font-feature-settings: "liga" 1, "kern" 1;
+}
+
+* {
+  @apply border-border;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.focus-ring {
+  @apply outline-none ring-2 ring-brand ring-offset-2 ring-offset-surface;
+}

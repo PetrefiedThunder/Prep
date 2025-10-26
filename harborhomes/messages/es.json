@@ -1,0 +1,35 @@
+{
+  "nav": {
+    "becomeHost": "Anfitriona con HarborHomes",
+    "trips": "Viajes",
+    "wishlists": "Favoritos",
+    "inbox": "Mensajes"
+  },
+  "home": {
+    "headline": "Estancias cuidadas con calidez",
+    "subheadline": "Descubre hogares de diseño seleccionados por las conserjes de HarborHomes.",
+    "featured": "Alojamientos destacados",
+    "categories": "Explora por ambiente",
+    "promo": "Únete a HarborHomes+ para recibir beneficios de bienvenida"
+  },
+  "search": {
+    "title": "Encuentra tu HarborHome",
+    "results": "Resultados",
+    "filters": "Filtros",
+    "map": "Mapa",
+    "list": "Lista"
+  },
+  "listing": {
+    "book": "Reserva tu estancia",
+    "night": "/noche",
+    "total": "Total antes de impuestos",
+    "policies": "Políticas"
+  },
+  "checkout": {
+    "review": "Revisa tu viaje",
+    "details": "Datos de huéspedes",
+    "payment": "Pago",
+    "confirmation": "Confirmación",
+    "complete": "¡Reserva confirmada!"
+  }
+}
