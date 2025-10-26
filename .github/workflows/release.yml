@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Semver tag (e.g., v0.1.0)"
+        required: true
+
+jobs:
+  draft-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Build release notes
+        id: notes
+        run: |
+          echo "## Changes" > RELEASE_BODY.md
+          git log --pretty=format:'- %s (%h)' $(git describe --tags --abbrev=0 --tags --match "v*" 2>/dev/null || echo HEAD^)..HEAD >> RELEASE_BODY.md
+      - name: Create tag
+        run: |
+          git config user.name "prep-release-bot"
+          git config user.email "bot@prep.local"
+          git tag -a "${{ github.event.inputs.tag }}" -m "Release ${{ github.event.inputs.tag }}"
+          git push origin "${{ github.event.inputs.tag }}"
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag }}
+          body_path: RELEASE_BODY.md
