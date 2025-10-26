@@ -63,4 +63,23 @@ class InsuranceRequirement(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
 
-__all__ = ["RegulationSource", "Regulation", "InsuranceRequirement"]
+class RegDoc(Base):
+    """Normalized regulatory document content."""
+
+    __tablename__ = "reg_docs"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    jurisdiction = Column(String(100), nullable=False)
+    code_section = Column(String(100), nullable=False)
+    requirement_text = Column(Text, nullable=False)
+    effective_date = Column(DateTime)
+    citation_url = Column(Text)
+    sha256_hash = Column(String(64), nullable=False, unique=True)
+
+
+__all__ = [
+    "RegulationSource",
+    "Regulation",
+    "InsuranceRequirement",
+    "RegDoc",
+]
