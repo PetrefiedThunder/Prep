@@ -54,7 +54,7 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from prep.models import (
+from prep.models.pydantic_exports import (
     CertificationDetail,
     CertificationDocument,
     CertificationVerificationRequest,

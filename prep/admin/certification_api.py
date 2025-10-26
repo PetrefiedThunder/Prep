@@ -326,7 +326,7 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from prep.admin.workflows import CertificationVerificationWorkflow
-from prep.models import (
+from prep.models.pydantic_exports import (
     AdminUser,
     CertificationDetail,
     CertificationVerificationRequest,

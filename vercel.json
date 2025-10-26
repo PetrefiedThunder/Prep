@@ -2,20 +2,17 @@
   "version": 2,
   "builds": [
     {
-      "src": "apps/web/package.json",
+      "src": "prepchef/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "apps/web/dist"
+        "distDir": "dist"
       }
     }
   ],
   "routes": [
     {
-      "handle": "filesystem"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/prepchef/dist/$1"
     }
   ]
 }
