@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import hashlib
 import logging
 import os
 import re
@@ -93,7 +94,8 @@ class RegulatoryScraper:
 
         today = datetime.utcnow().strftime("%Y-%m-%d")
         filename = self._slugify_filename(source_url)
-        return f"{today}/{filename}"
+        digest = hashlib.sha256(source_url.encode("utf-8")).hexdigest()[:16]
+        return f"{today}/{digest}-{filename}"
 
     def _slugify_filename(self, source_url: str) -> str:
         parsed = urlparse(source_url)
