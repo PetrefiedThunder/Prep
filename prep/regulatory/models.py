@@ -6,7 +6,7 @@ from datetime import datetime
 import uuid
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text, JSON
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.ext.mutable import MutableList
 
 from prep.models import Base
 from prep.models.guid import GUID
@@ -38,7 +38,7 @@ class Regulation(Base):
     title = Column(Text, nullable=False)
     description = Column(Text)
     requirements = Column(JSON)
-    applicable_to = Column(ARRAY(String))
+    applicable_to = Column(MutableList.as_mutable(JSON))
     effective_date = Column(DateTime)
     expiration_date = Column(DateTime)
     jurisdiction = Column(String(100))
@@ -56,7 +56,7 @@ class InsuranceRequirement(Base):
     state = Column(String(2), nullable=False)
     city = Column(String(100))
     minimum_coverage = Column(JSON)
-    required_policies = Column(ARRAY(String))
+    required_policies = Column(MutableList.as_mutable(JSON))
     special_requirements = Column(Text)
     notes = Column(Text)
     source_url = Column(Text)
