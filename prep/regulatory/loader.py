@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import Any, Mapping
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from prep.cache import RedisProtocol
 from prep.regulatory.models import RegDoc
+
+logger = logging.getLogger(__name__)
 
 _REGDOC_FIELDS = {
     "sha256_hash",
@@ -40,13 +45,63 @@ def _normalize_regdoc(payload: Mapping[str, Any]) -> dict[str, Any]:
     return normalized
 
 
-def load_regdoc(session: Session, regdocs: list[dict[str, Any]]) -> int:
+def _invalidate_rules_cache(redis_client: RedisProtocol) -> None:
+    """Invalidate cached regulatory rule entries stored in Redis."""
+
+    async def _invalidate() -> None:
+        try:
+            keys = await redis_client.keys("rules:*")
+        except Exception:
+            logger.exception("Failed to enumerate regulatory rule cache keys")
+            return
+
+        if not keys:
+            return
+
+        try:
+            await redis_client.delete(*keys)
+        except Exception:
+            logger.exception("Failed to delete regulatory rule cache keys", extra={"keys": keys})
+            return
+
+        logger.info(
+            "Invalidated %d regulatory rule cache keys",
+            len(keys),
+            extra={"invalidated_keys": sorted(keys)},
+        )
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        try:
+            asyncio.run(_invalidate())
+        except Exception:
+            logger.exception("Unhandled error invalidating regulatory rule cache")
+    else:
+        task = loop.create_task(_invalidate())
+
+        def _log_task_result(fut: asyncio.Future[None]) -> None:
+            try:
+                fut.result()
+            except Exception:
+                logger.exception("Unhandled error invalidating regulatory rule cache")
+
+        task.add_done_callback(_log_task_result)
+
+
+def load_regdoc(
+    session: Session,
+    regdocs: list[dict[str, Any]],
+    *,
+    redis_client: RedisProtocol | None = None,
+) -> int:
     """Insert or update :class:`RegDoc` rows based on their SHA-256 hash."""
 
     if not regdocs:
         return 0
 
     inserted = 0
+    updated = 0
     for entry in regdocs:
         normalized = _normalize_regdoc(entry)
         sha_hash = normalized["sha256_hash"]
@@ -59,10 +114,17 @@ def load_regdoc(session: Session, regdocs: list[dict[str, Any]]) -> int:
             session.add(RegDoc(**normalized))
             inserted += 1
         else:
+            changed = False
             for key, value in normalized.items():
-                setattr(existing, key, value)
+                if getattr(existing, key) != value:
+                    setattr(existing, key, value)
+                    changed = True
+            if changed:
+                updated += 1
 
     session.flush()
+    if redis_client is not None and (inserted or updated):
+        _invalidate_rules_cache(redis_client)
     return inserted
 
 

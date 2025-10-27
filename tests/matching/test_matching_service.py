@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from typing import Any, AsyncGenerator
+from fnmatch import fnmatch
 from uuid import UUID, uuid4
 
 import pytest
@@ -44,6 +45,17 @@ class InMemoryRedis(RedisProtocol):
             self.store.pop(key, None)
         else:
             self.store[key] = value
+
+    async def delete(self, *keys: str) -> int:
+        removed = 0
+        for key in keys:
+            if key in self.store:
+                self.store.pop(key, None)
+                removed += 1
+        return removed
+
+    async def keys(self, pattern: str) -> list[str]:
+        return [key for key in self.store if fnmatch(key, pattern)]
 
 
 @pytest.fixture()
