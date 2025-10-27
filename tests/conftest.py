@@ -139,6 +139,13 @@ if "stripe" not in sys.modules:
     sys.modules["stripe"] = stripe_stub
     sys.modules["stripe.error"] = error_module
 
+try:  # pragma: no cover - dependency availability varies per environment
+    from prep.models.db import SessionLocal, init_db  # type: ignore
+except ModuleNotFoundError as exc:  # pragma: no cover - allow tests without SQLAlchemy
+    if exc.name != "sqlalchemy":
+        raise
+    SessionLocal = None  # type: ignore
+    init_db = None  # type: ignore
 if "aiohttp" not in sys.modules:
     try:
         import aiohttp as _aiohttp  # type: ignore  # pragma: no cover - prefer real installation when available
@@ -220,6 +227,7 @@ def _create_schema():
 @pytest.fixture
 def db_session():
     if SessionLocal is None:
+        pytest.skip("SQLAlchemy is not available in the test environment")
         pytest.skip("Database layer is not available in this environment")
 
     session = SessionLocal()
