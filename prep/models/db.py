@@ -26,6 +26,7 @@ from .orm import (
     ReviewPhoto,
     ReviewStatus,
     ReviewVote,
+    RecurringBookingTemplate,
     User,
     UserRole,
 )
@@ -91,6 +92,7 @@ __all__ = [
     "ReviewPhoto",
     "ReviewStatus",
     "ReviewVote",
+    "RecurringBookingTemplate",
     "SessionLocal",
     "User",
     "UserRole",
