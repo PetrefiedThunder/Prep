@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from prep.admin.api import router
@@ -17,6 +18,7 @@ from prep.models.db import (
     Base,
     CertificationDocument,
     CertificationReviewStatus,
+    ChecklistTemplate,
     Kitchen,
     ModerationStatus,
     User,
@@ -236,3 +238,70 @@ async def test_stats_endpoints(client: AsyncClient, app: FastAPI) -> None:
     user_stats = await client.get("/api/v1/admin/users/stats")
     assert user_stats.status_code == 200
     assert user_stats.json()["admins"] >= 1
+
+
+@pytest.mark.anyio
+async def test_create_checklist_template_versions(client: AsyncClient, app: FastAPI) -> None:
+    response = await client.post(
+        "/api/v1/admin/checklist-template",
+        json={
+            "name": "Host Onboarding",
+            "description": "Initial readiness checklist",
+            "schema": {
+                "title": "Host onboarding",
+                "type": "object",
+                "properties": {
+                    "kitchen": {"type": "string"},
+                    "insurance": {"type": "boolean"},
+                },
+            },
+        },
+    )
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["version"] == 1
+    assert payload["schema"]["properties"]["kitchen"]["type"] == "string"
+
+    response_second = await client.post(
+        "/api/v1/admin/checklist-template",
+        json={
+            "name": "Host Onboarding",
+            "description": "Adds training acknowledgement",
+            "schema": {
+                "title": "Host onboarding",
+                "type": "object",
+                "properties": {
+                    "kitchen": {"type": "string"},
+                    "insurance": {"type": "boolean"},
+                    "training": {"type": "string"},
+                },
+            },
+        },
+    )
+    assert response_second.status_code == 201
+    second_payload = response_second.json()
+    assert second_payload["version"] == 2
+    assert "training" in second_payload["schema"]["properties"]
+
+    session_factory = app.state.session_factory
+    async with session_factory() as session:
+        result = await session.execute(
+            select(ChecklistTemplate).where(ChecklistTemplate.name == "Host Onboarding")
+        )
+        templates = result.scalars().all()
+        assert len(templates) == 2
+        assert {template.version for template in templates} == {1, 2}
+
+
+@pytest.mark.anyio
+async def test_create_checklist_template_requires_type(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/v1/admin/checklist-template",
+        json={
+            "name": "Missing Type",
+            "schema": {"title": "Incomplete schema"},
+        },
+    )
+    assert response.status_code == 422
+    errors = response.json()["detail"]
+    assert any("type" in error["msg"].lower() for error in errors)

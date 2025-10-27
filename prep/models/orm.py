@@ -17,6 +17,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, mapped_column, relationship
 
@@ -197,6 +198,21 @@ class Kitchen(TimestampMixin, Base):
     compliance_documents: Mapped[List["ComplianceDocument"]] = relationship(
         "ComplianceDocument", back_populates="kitchen", cascade="all, delete-orphan"
     )
+
+
+class ChecklistTemplate(TimestampMixin, Base):
+    """Versioned JSON schema used to power dynamic admin checklists."""
+
+    __tablename__ = "checklist_templates"
+    __table_args__ = (
+        UniqueConstraint("name", "version", name="uq_checklist_template_name_version"),
+    )
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    schema: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
 
 
 class Booking(TimestampMixin, Base):
