@@ -223,6 +223,7 @@ class Booking(TimestampMixin, Base):
     payment_method: Mapped[str] = mapped_column(String(50), default="card", nullable=False)
     source: Mapped[str | None] = mapped_column(String(120))
     cancellation_reason: Mapped[str | None] = mapped_column(String(255))
+    stripe_payment_intent_id: Mapped[str | None] = mapped_column(String(255))
 
     kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="bookings")
     host: Mapped[User] = relationship(
