@@ -1,51 +1,51 @@
-import { useEffect, useState } from 'react';
+import useSWR, { type SWRConfiguration, type SWRResponse } from 'swr';
+
+type HostIdentifier = string | number | null | undefined;
+
+type UseHostMetricsReturn<T> = Pick<
+  SWRResponse<T, Error>,
+  'data' | 'error' | 'mutate' | 'isValidating'
+> & {
+  isLoading: boolean;
+};
+
+const fetchHostMetrics = async <T>(url: string): Promise<T> => {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch host metrics: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json() as Promise<T>;
+};
+
+const swrConfig: SWRConfiguration = {
+  refreshInterval: 30_000,
+};
 
 /**
  * React hook that retrieves analytics metrics for a specific host.
  *
  * @param hostId - Identifier for the host whose metrics should be fetched.
- * @returns The parsed JSON payload returned from the analytics endpoint or `null` while loading/when unavailable.
+ * @returns SWR response slice with loading state for the requested host metrics.
  */
-export function useHostMetrics<T = unknown>(hostId: string | number | null | undefined) {
-  const [metrics, setMetrics] = useState<T | null>(null);
+export function useHostMetrics<T = unknown>(hostId: HostIdentifier): UseHostMetricsReturn<T> {
+  const shouldFetch = hostId !== null && hostId !== undefined && `${hostId}`.length > 0;
 
-  useEffect(() => {
-    if (hostId === null || hostId === undefined || hostId === '') {
-      setMetrics(null);
-      return;
-    }
+  const swrResponse = useSWR<T, Error>(
+    shouldFetch ? `/analytics/host/${hostId}` : null,
+    (url) => fetchHostMetrics<T>(url),
+    {
+      ...swrConfig,
+      refreshInterval: shouldFetch ? swrConfig.refreshInterval : 0,
+    },
+  );
 
-    const controller = new AbortController();
-
-    const fetchMetrics = async () => {
-      try {
-        const response = await fetch(`/analytics/host/${hostId}`, {
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch host metrics: ${response.status} ${response.statusText}`);
-        }
-
-        const payload: T = await response.json();
-        if (!controller.signal.aborted) {
-          setMetrics(payload);
-        }
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-        console.error('Error fetching host metrics', error);
-        setMetrics(null);
-      }
-    };
-
-    fetchMetrics();
-
-    return () => {
-      controller.abort();
-    };
-  }, [hostId]);
-
-  return metrics;
+  return {
+    data: swrResponse.data,
+    error: swrResponse.error,
+    mutate: swrResponse.mutate,
+    isValidating: swrResponse.isValidating,
+    isLoading: shouldFetch ? swrResponse.isLoading : false,
+  };
 }
