@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+import importlib.util
 import re
 from typing import Dict, List
 
 # Regular expression matching section headings for common regulatory formats,
 # including FDA CFR style identifiers (e.g. ``Sec. 117.8`` or ``§ 117.4``) and
 # FDA Food Code identifiers (e.g. ``3-301.11``).
+from pdfminer.high_level import extract_text
+from pdfminer.pdfparser import PDFSyntaxError
+
+# Regular expression matching Food Code style section headings. These typically
+# look like ``3-301.11 Preventing Contamination from Hands`` where the numeric
+# identifier always begins a new line.
 _SECTION_HEADING_RE = re.compile(
     r"""
     ^\s*
@@ -70,3 +78,56 @@ def extract_reg_sections(text: str) -> List[Dict[str, str]]:
         })
 
     return sections
+
+
+def pdf_to_text(pdf_path: str | Path, *, min_characters: int = 100) -> str:
+    """Return text extracted from *pdf_path* using PDFMiner with OCR fallback.
+
+    Parameters
+    ----------
+    pdf_path:
+        Path to the PDF document.
+    min_characters:
+        Minimum number of characters required to trust the PDFMiner output. If
+        the extracted text is shorter than this threshold, an OCR pass using
+        ``pytesseract`` is attempted when the optional dependencies are
+        available.
+    """
+
+    path = Path(pdf_path)
+
+    try:
+        extracted_text = extract_text(str(path)).strip()
+    except PDFSyntaxError:
+        extracted_text = ""
+
+    if len(extracted_text) >= min_characters:
+        return extracted_text
+
+    pdf2image_spec = importlib.util.find_spec("pdf2image")
+    pytesseract_spec = importlib.util.find_spec("pytesseract")
+
+    if pdf2image_spec is None or pytesseract_spec is None:
+        return extracted_text
+
+    from pdf2image import convert_from_path  # type: ignore
+    import pytesseract  # type: ignore
+
+    try:
+        images = convert_from_path(str(path))
+    except Exception:
+        return extracted_text
+
+    ocr_segments: List[str] = []
+    for image in images:
+        try:
+            ocr_result = pytesseract.image_to_string(image).strip()
+        except Exception:
+            continue
+        if ocr_result:
+            ocr_segments.append(ocr_result)
+
+    if not ocr_segments:
+        return extracted_text
+
+    return "\n\n".join(ocr_segments)
