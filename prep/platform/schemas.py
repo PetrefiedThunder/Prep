@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr, Field
 
 from prep.models.orm import (
     Booking,
@@ -14,6 +14,7 @@ from prep.models.orm import (
     ComplianceDocumentStatus,
     Kitchen,
     Review,
+    SubleaseContractStatus,
     User,
     UserRole,
 )
@@ -183,6 +184,30 @@ class PaymentIntentCreateRequest(BaseModel):
 
 class PaymentIntentResponse(BaseModel):
     client_secret: str = Field(min_length=1)
+
+
+class SubleaseContractSendRequest(BaseModel):
+    booking_id: UUID
+    signer_email: EmailStr
+    signer_name: str | None = Field(default=None, max_length=255)
+    return_url: AnyUrl | None = None
+
+
+class SubleaseContractSendResponse(BaseModel):
+    booking_id: UUID
+    envelope_id: str = Field(min_length=1)
+    sign_url: str = Field(min_length=1)
+
+
+class SubleaseContractStatusResponse(BaseModel):
+    booking_id: UUID
+    envelope_id: str = Field(min_length=1)
+    status: SubleaseContractStatus
+    sign_url: str | None
+    document_s3_bucket: str | None
+    document_s3_key: str | None
+    completed_at: datetime | None
+    last_checked_at: datetime | None
 
 
 def serialize_user(user: User) -> UserResponse:

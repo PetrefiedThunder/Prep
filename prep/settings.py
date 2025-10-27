@@ -57,6 +57,19 @@ class Settings(BaseModel):
     )
     stripe_api_key: str | None = Field(default=None, alias="STRIPE_API_KEY")
     stripe_currency: str = Field(default="usd", alias="STRIPE_CURRENCY")
+    docusign_base_url: AnyUrl = Field(
+        default="https://demo.docusign.net/restapi", alias="DOCUSIGN_BASE_URL"
+    )
+    docusign_account_id: str | None = Field(default=None, alias="DOCUSIGN_ACCOUNT_ID")
+    docusign_access_token: str | None = Field(default=None, alias="DOCUSIGN_ACCESS_TOKEN")
+    docusign_sublease_template_id: str | None = Field(
+        default=None, alias="DOCUSIGN_SUBLEASE_TEMPLATE_ID"
+    )
+    docusign_return_url: AnyUrl = Field(
+        default="https://example.com/docusign/return", alias="DOCUSIGN_RETURN_URL"
+    )
+    docusign_ping_url: AnyUrl | None = Field(default=None, alias="DOCUSIGN_PING_URL")
+    contracts_s3_bucket: str | None = Field(default=None, alias="CONTRACTS_S3_BUCKET")
 
     model_config = {
         "populate_by_name": True,
