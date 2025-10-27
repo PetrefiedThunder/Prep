@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta, timezone
 from datetime import datetime, timedelta
 from typing import Optional
 from uuid import UUID
@@ -18,7 +19,10 @@ from dateutil.rrule import rrulestr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER
 from prep.database.connection import get_db
+from prep.models import Booking, BookingStatus, Kitchen
+from prep.settings import get_settings
 from prep.models import Booking, BookingStatus, Kitchen, RecurringBookingTemplate
 
 from .kitchens import analyze_kitchen_compliance
@@ -131,6 +135,32 @@ async def create_booking(
     db: AsyncSession = Depends(get_db),
 ) -> BookingResponse:
     """Create a booking after verifying kitchen compliance."""
+
+    settings = get_settings()
+
+    if settings.compliance_controls_enabled:
+        def _normalize(dt: datetime) -> datetime:
+            return dt.astimezone(timezone.utc) if dt.tzinfo else dt
+
+        start_dt = _normalize(booking_data.start_time)
+        end_dt = _normalize(booking_data.end_time)
+
+        if start_dt.weekday() >= 5 or end_dt.weekday() >= 5:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=BOOKING_COMPLIANCE_BANNER,
+            )
+
+        start_minutes = start_dt.hour * 60 + start_dt.minute
+        end_minutes = end_dt.hour * 60 + end_dt.minute
+        earliest_minutes = 8 * 60
+        latest_minutes = 13 * 60
+
+        if start_minutes < earliest_minutes or end_minutes > latest_minutes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=BOOKING_COMPLIANCE_BANNER,
+            )
 
     try:
         kitchen_uuid = uuid.UUID(booking_data.kitchen_id)

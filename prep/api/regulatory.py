@@ -35,6 +35,7 @@ async def list_regulations(
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import Dict, Iterable, List, Optional
 
@@ -43,12 +44,16 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER
 from prep.database.connection import AsyncSessionLocal, get_db
 from prep.regulatory.analyzer import RegulatoryAnalyzer
 from prep.regulatory.models import InsuranceRequirement, Regulation, RegulationSource
 from prep.regulatory.scraper import RegulatoryScraper
+from prep.settings import get_settings
 
 router = APIRouter(prefix="/regulatory")
+
+logger = logging.getLogger(__name__)
 
 
 class ScrapeRequest(BaseModel):
@@ -103,7 +108,20 @@ async def check_compliance(
     )
     analysis = await analyzer.analyze_kitchen_compliance(request.kitchen_data, regulations)
 
-    return {
+    settings = get_settings()
+    banner: str | None = None
+    if settings.compliance_controls_enabled:
+        banner = BOOKING_COMPLIANCE_BANNER
+        logger.info(
+            "Compliance decision issued",
+            extra={
+                "kitchen_id": request.kitchen_id,
+                "compliance_level": analysis.overall_compliance.value,
+                "risk_score": analysis.risk_score,
+            },
+        )
+
+    response = {
         "kitchen_id": request.kitchen_id,
         "compliance_level": analysis.overall_compliance.value,
         "risk_score": analysis.risk_score,
@@ -111,6 +129,11 @@ async def check_compliance(
         "recommendations": analysis.recommendations,
         "last_analyzed": analysis.last_analyzed.isoformat(),
     }
+
+    if banner:
+        response["booking_restrictions_banner"] = banner
+
+    return response
 
 
 @router.get("/regulations/{state}")
