@@ -18,6 +18,7 @@ from prep.platform.api import router as platform_router
 from prep.payments.api import router as payments_router
 from prep.ratings.api import router as ratings_router
 from prep.reviews.api import router as reviews_router
+from prep.test_data import router as test_data_router
 from prep.verification_tasks.api import router as verification_tasks_router
 
 
@@ -37,6 +38,7 @@ def _build_router() -> APIRouter:
     router.include_router(cities_router)
     router.include_router(kitchen_cam_router)
     router.include_router(payments_router)
+    router.include_router(test_data_router)
     router.include_router(verification_tasks_router)
     return router
 

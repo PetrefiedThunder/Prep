@@ -1,5 +1,19 @@
 import { APIRequestContext, expect } from '@playwright/test';
 
+export interface UserPayload {
+  email: string;
+  password: string;
+  role: string;
+  name: string;
+}
+
+export interface UserResponse {
+  id: string;
+  email: string;
+  role: string;
+  name: string;
+}
+
 export interface KitchenPayload {
   name: string;
   slug: string;
@@ -20,10 +34,17 @@ export interface CertificationPayload {
   status?: 'pending' | 'approved' | 'rejected';
 }
 
+export interface HostMetricsPayload {
+  hostId: string;
+  revenueLast30: number;
+  shifts30: number;
+  incidentRate: number;
+}
+
 export class TestDataApiClient {
   constructor(private readonly request: APIRequestContext) {}
 
-  async ensureUser(user: { email: string; password: string; role: string; name: string }) {
+  async ensureUser(user: UserPayload): Promise<UserResponse> {
     const response = await this.request.post('/api/test-data/users', {
       data: user,
     });
@@ -67,6 +88,20 @@ export class TestDataApiClient {
         renterEmail,
         start,
         end,
+      },
+    });
+
+    expect(response.ok()).toBeTruthy();
+    return response.json();
+  }
+
+  async seedHostMetrics({ hostId, revenueLast30, shifts30, incidentRate }: HostMetricsPayload) {
+    const response = await this.request.post('/api/test-data/host-metrics', {
+      data: {
+        host_id: hostId,
+        revenue_last_30: revenueLast30,
+        shifts_30: shifts30,
+        incident_rate: incidentRate,
       },
     });
 
