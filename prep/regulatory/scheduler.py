@@ -8,6 +8,7 @@ from typing import List
 
 import aioschedule as schedule
 
+from jobs import run_expiry_check_async
 from prep.regulatory.scraper import RegulatoryScraper
 
 
@@ -25,6 +26,7 @@ class RegulatoryScheduler:
         schedule.every().day.at("02:00").do(self.scrape_priority_states)
         schedule.every().sunday.at("03:00").do(self.scrape_all_states)
         schedule.every().month.do(self.deep_scrape)
+        schedule.every().day.at("05:00").do(self.run_coi_expiry_checks)
 
         self.logger.info("Regulatory scheduler started")
 
@@ -119,6 +121,20 @@ class RegulatoryScheduler:
 
         self.logger.info("Starting monthly deep scrape")
         # Placeholder for extended scraping logic.
+
+    async def run_coi_expiry_checks(self) -> None:
+        """Trigger the COI expiry job and log the resulting summary."""
+
+        summary = await run_expiry_check_async()
+        self.logger.info(
+            "COI expiry job completed",
+            extra={
+                "total_documents": summary.total_documents,
+                "sms_sent": summary.sms_sent,
+                "emails_sent": summary.emails_sent,
+                "skipped": summary.skipped,
+            },
+        )
 
     async def save_regulations(self, state: str, regulations: List[dict]) -> None:
         """Persist scraped regulations to storage (placeholder)."""

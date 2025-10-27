@@ -1,0 +1,44 @@
+name: Run smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Override BASE_URL for the smoke test'
+        required: false
+        default: ''
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Configure BASE_URL
+        env:
+          PERF_BASE_URL: ${{ secrets.PERF_BASE_URL }}
+        run: |
+          if [ -n "${{ github.event.inputs.base_url }}" ]; then
+            echo "BASE_URL=${{ github.event.inputs.base_url }}" >> "$GITHUB_ENV"
+          elif [ -n "$PERF_BASE_URL" ]; then
+            echo "BASE_URL=$PERF_BASE_URL" >> "$GITHUB_ENV"
+          else
+            echo "BASE_URL is required. Provide it via the workflow input or PERF_BASE_URL secret." >&2
+            exit 1
+          fi
+
+      - name: Install k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run k6 smoke test
+        run: k6 run perf/smoke.js
+
+      - name: Upload k6 summary
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: k6-smoke-summary
+          path: k6-smoke-summary.json
+          if-no-files-found: warn

@@ -12,12 +12,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Select, and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER
 from prep.database.connection import AsyncSessionLocal, get_db
 from prep.models import Kitchen
 from prep.notifications.regulatory import RegulatoryNotifier
 from prep.notifications.service import NotificationService
 from prep.regulatory.analyzer import RegulatoryAnalyzer
 from prep.regulatory.service import get_regulations_for_jurisdiction
+from prep.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +65,7 @@ class KitchenComplianceResponse(BaseModel):
     last_analyzed: str
     city: Optional[str] = None
     state: Optional[str] = None
+    booking_restrictions_banner: Optional[str] = None
 
 
 def _serialize_kitchen(kitchen: Kitchen) -> KitchenResponse:
@@ -173,6 +176,11 @@ async def get_kitchen_compliance(
     regulations = await get_regulations_for_jurisdiction(db, kitchen.state, kitchen.city)
     analysis = await analyzer.analyze_kitchen_compliance(kitchen_payload, regulations)
 
+    settings = get_settings()
+    banner = (
+        BOOKING_COMPLIANCE_BANNER if settings.compliance_controls_enabled else None
+    )
+
     return KitchenComplianceResponse(
         kitchen_id=str(kitchen.id),
         compliance_level=analysis.overall_compliance.value,
@@ -182,6 +190,7 @@ async def get_kitchen_compliance(
         last_analyzed=analysis.last_analyzed.isoformat(),
         city=kitchen.city,
         state=kitchen.state,
+        booking_restrictions_banner=banner,
     )
 
 

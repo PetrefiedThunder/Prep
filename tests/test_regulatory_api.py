@@ -2,16 +2,23 @@
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, ClassVar, Generator, Tuple
+from typing import Generator
+from datetime import datetime, timedelta
+from types import SimpleNamespace
+from collections.abc import Generator
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 import apps.compliance_service.main as compliance_main
+import prep.compliance.coi_validator as coi_validator
 from prep.models.db import SessionLocal
 from prep.models.orm import (
     Booking,
@@ -23,6 +30,8 @@ from prep.models.orm import (
     User,
     UserRole,
 )
+from prep.models.orm import COIDocument
+from prep.regulatory.ingest_state import store_status
 
 
 @pytest.fixture()
@@ -187,7 +196,33 @@ def test_get_regulatory_status(client: TestClient) -> None:
     assert "last_updated" in payload
 
 
-def test_upload_coi_persists_metadata(client: TestClient) -> None:
+def _mock_coi(monkeypatch: pytest.MonkeyPatch, text: str) -> None:
+    class _Image:
+        pass
+
+    monkeypatch.setattr(
+        coi_validator,
+        "convert_from_bytes",
+        lambda _: [_Image()],
+    )
+    monkeypatch.setattr(
+        coi_validator,
+        "pytesseract",
+        SimpleNamespace(image_to_string=lambda __: text),
+    )
+
+
+def test_upload_coi_persists_metadata(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _mock_coi(
+        monkeypatch,
+        (
+            "Policy Number: P-123456\n"
+            "Named Insured: Prep Kitchens LLC\n"
+            "Expiration Date: December 31, 2099\n"
+        ),
+    )
     pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"
     response = client.post(
         "/coi",
@@ -207,10 +242,37 @@ def test_upload_coi_persists_metadata(client: TestClient) -> None:
         assert document.filename == "sample-coi.pdf"
         assert document.valid is True
         assert document.expiry_date is not None
+        assert document.policy_number == "P-123456"
+        assert document.insured_name == "Prep Kitchens LLC"
+        assert document.expiry_date.tzinfo is not None
     finally:
         session.query(COIDocument).delete()
         session.commit()
         session.close()
+
+
+def test_upload_coi_marks_expired_documents_invalid(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _mock_coi(
+        monkeypatch,
+        (
+            "Policy Number: OLD-01\n"
+            "Named Insured: Legacy Prep\n"
+            "Expiration Date: January 1, 2000\n"
+        ),
+    )
+    response = client.post(
+        "/coi",
+        files={"file": ("expired.pdf", b"%PDF", "application/pdf")},
+    )
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["valid"] is False
+    expiry = datetime.fromisoformat(payload["expiry_date"])
+    assert expiry.year == 2000
+    assert expiry.tzinfo is not None
+    assert expiry.tzinfo.utcoffset(expiry) == timedelta(0)
 
 
 def test_regulatory_document_submission_flow(client: TestClient) -> None:
@@ -355,3 +417,26 @@ def test_generate_compliance_packet_handles_missing_booking(
     )
     assert response.status_code == 404
     assert not storage.put_calls
+def test_etl_status_endpoint_returns_cached_state(client: TestClient) -> None:
+    now = datetime.now(UTC)
+    asyncio.run(
+        store_status(
+            {
+                "last_run": now,
+                "states_processed": ["CA", "NY"],
+                "documents_processed": 5,
+                "documents_inserted": 3,
+                "documents_updated": 2,
+                "documents_changed": 1,
+                "failures": ["slow fetch"],
+            }
+        )
+    )
+
+    response = client.get("/etl/status", headers=_headers("admin"))
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["documents_processed"] == 5
+    assert payload["documents_changed"] == 1
+    assert payload["states_processed"] == ["CA", "NY"]
+    assert payload["failures"] == ["slow fetch"]
