@@ -57,6 +57,9 @@ class Settings(BaseModel):
     )
     stripe_api_key: str | None = Field(default=None, alias="STRIPE_API_KEY")
     stripe_currency: str = Field(default="usd", alias="STRIPE_CURRENCY")
+    compliance_controls_enabled: bool = Field(
+        default=False, alias="COMPLIANCE_CONTROLS_ENABLED"
+    )
 
     model_config = {
         "populate_by_name": True,
