@@ -108,6 +108,38 @@ class DocuSignClient:
         )
         return envelope_id, signing_url
 
+    def get_envelope_status(self, envelope_id: str) -> str:
+        """Return the DocuSign processing status for an envelope."""
+
+        url = f"{self.base_url}/v2.1/accounts/{self.account_id}/envelopes/{envelope_id}"
+        response = self._request("get", url)
+        status = response.get("status")
+        if not status:
+            raise DocuSignError("DocuSign response did not include an envelope status")
+        return status
+
+    def download_document(self, envelope_id: str, document_id: str = "combined") -> bytes:
+        """Download a document for the specified envelope."""
+
+        if self.session is None:
+            self.session = requests.Session()
+
+        url = (
+            f"{self.base_url}/v2.1/accounts/{self.account_id}/envelopes/"
+            f"{envelope_id}/documents/{document_id}"
+        )
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Accept": "application/pdf",
+        }
+        response = self.session.get(url, headers=headers)
+        if not response.ok:
+            raise DocuSignError(
+                "DocuSign API request failed with status "
+                f"{response.status_code}: {response.text}"
+            )
+        return response.content
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
