@@ -3,6 +3,13 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta
+from typing import Optional
+from uuid import UUID
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy import select, text
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
@@ -17,6 +24,9 @@ from prep.models import Booking, BookingStatus, Kitchen, RecurringBookingTemplat
 from .kitchens import analyze_kitchen_compliance
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
+
+
+BOOKING_BUFFER = timedelta(minutes=30)
 
 
 class BookingCreate(BaseModel):
@@ -39,6 +49,52 @@ class BookingResponse(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+
+def _advisory_lock_key(kitchen_id: UUID) -> int:
+    """Derive a signed 64-bit advisory lock key from a UUID."""
+
+    raw = int.from_bytes(kitchen_id.bytes[:8], byteorder="big", signed=False)
+    if raw >= 2**63:
+        raw -= 2**64
+    return raw
+
+
+async def _acquire_kitchen_lock(db: AsyncSession, kitchen_id: UUID) -> None:
+    """Acquire a transaction-scoped advisory lock for a kitchen."""
+
+    bind = getattr(db, "bind", None)
+    if bind is None or getattr(bind.dialect, "name", "") != "postgresql":
+        return
+
+    await db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _advisory_lock_key(kitchen_id)})
+
+
+async def _find_conflicting_booking(
+    db: AsyncSession,
+    kitchen_id: UUID,
+    start_time: datetime,
+    end_time: datetime,
+    buffer: timedelta = BOOKING_BUFFER,
+) -> Optional[Booking]:
+    """Return an existing booking that overlaps the requested window (with buffer)."""
+
+    window_start = start_time - buffer
+    window_end = end_time + buffer
+
+    stmt = (
+        select(Booking)
+        .where(
+            Booking.kitchen_id == kitchen_id,
+            Booking.status != BookingStatus.CANCELLED,
+            Booking.start_time < window_end,
+            Booking.end_time > window_start,
+        )
+        .order_by(Booking.start_time)
+        .limit(1)
+    )
+
+    result = await db.execute(stmt)
+    return result.scalars().first()
 
 
 class RecurringBookingCreate(BaseModel):
@@ -96,6 +152,25 @@ async def create_booking(
     if kitchen.last_compliance_check:
         if (datetime.utcnow() - kitchen.last_compliance_check) > timedelta(days=30):
             background_tasks.add_task(analyze_kitchen_compliance, str(kitchen.id))
+
+    await _acquire_kitchen_lock(db, kitchen_uuid)
+
+    conflict = await _find_conflicting_booking(
+        db,
+        kitchen_uuid,
+        booking_data.start_time,
+        booking_data.end_time,
+    )
+
+    if conflict:
+        await db.rollback()
+        buffer_minutes = int(BOOKING_BUFFER.total_seconds() // 60)
+        message = (
+            "Requested booking overlaps with an existing booking from "
+            f"{conflict.start_time.isoformat()} to {conflict.end_time.isoformat()} "
+            f"including a {buffer_minutes}-minute buffer."
+        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=message)
 
     new_booking = Booking(
         customer_id=user_uuid,
