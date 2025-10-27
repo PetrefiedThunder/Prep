@@ -104,3 +104,4 @@ __all__ = [
     "InsuranceRequirement",
     "RegDoc",
 ]
+__all__ = ["RegulationSource", "Regulation", "InsuranceRequirement", "RegDoc"]
