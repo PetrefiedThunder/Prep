@@ -45,6 +45,26 @@ npm run lint
 npm run test
 ```
 
+## Database migrations
+
+### Host metrics materialized view
+The analytics API expects the `mv_host_metrics` materialized view to be present and populated. To provision or update the view:
+
+1. Apply the migration:
+   ```bash
+   psql $DATABASE_URL <<'SQL'
+   \i migrations/006_create_mv_host_metrics.sql
+   SQL
+   ```
+   Replace `$DATABASE_URL` with the connection string for the target environment.
+2. Populate the view using the provided helper script (required because the migration creates the view with `WITH NO DATA`):
+   ```bash
+   python scripts/refresh_views.py
+   ```
+   The script respects standard `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` environment variables, or you can supply a full DSN via `--dsn`.
+
+Include both steps in your deployment pipeline so new environments expose consistent analytics results.
+
 ## Submodules
 - `auto_projection_bot/` – Generates automated financial projections.  
 - `dol_reg_compliance_engine/` – Ensures Department of Labor regulation compliance.  

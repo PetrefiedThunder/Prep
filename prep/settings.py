@@ -59,6 +59,25 @@ class Settings(BaseModel):
     stripe_currency: str = Field(default="usd", alias="STRIPE_CURRENCY")
     compliance_controls_enabled: bool = Field(
         default=False, alias="COMPLIANCE_CONTROLS_ENABLED"
+    twilio_from_number: str | None = Field(default=None, alias="TWILIO_FROM_NUMBER")
+    compliance_ops_phone: str | None = Field(default=None, alias="COMPLIANCE_OPS_PHONE")
+    compliance_ops_email: str | None = Field(default=None, alias="COMPLIANCE_OPS_EMAIL")
+    alert_email_sender: str = Field(default="alerts@prep.test", alias="ALERT_EMAIL_SENDER")
+    docusign_base_url: AnyUrl = Field(
+        default="https://demo.docusign.net/restapi", alias="DOCUSIGN_BASE_URL"
+    )
+    docusign_account_id: str | None = Field(default=None, alias="DOCUSIGN_ACCOUNT_ID")
+    docusign_access_token: str | None = Field(default=None, alias="DOCUSIGN_ACCESS_TOKEN")
+    docusign_sublease_template_id: str | None = Field(
+        default=None, alias="DOCUSIGN_SUBLEASE_TEMPLATE_ID"
+    )
+    docusign_return_url: AnyUrl = Field(
+        default="https://example.com/docusign/return", alias="DOCUSIGN_RETURN_URL"
+    )
+    docusign_ping_url: AnyUrl | None = Field(default=None, alias="DOCUSIGN_PING_URL")
+    contracts_s3_bucket: str | None = Field(default=None, alias="CONTRACTS_S3_BUCKET")
+    stripe_webhook_secret: str | None = Field(
+        default=None, alias="STRIPE_WEBHOOK_SECRET"
     )
 
     model_config = {

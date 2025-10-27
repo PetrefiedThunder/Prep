@@ -2,26 +2,32 @@ from __future__ import annotations
 
 import os
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timezone
 from enum import Enum
 import asyncio
-from typing import Any, Dict, List, Optional
 import hashlib
+import os
 from collections.abc import Generator
+from dataclasses import asdict
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from prep.compliance.coi_validation import COIValidationResult, validate_coi
 from prep.compliance.data_validator import DataValidator
 from prep.compliance.food_safety_compliance_engine import (
     DataIntelligenceAPIClient,
     FoodSafetyComplianceEngine,
 )
-from prep.compliance.coi_validation import COIValidationResult, validate_coi
+from prep.compliance import COIExtractionError, validate_coi
 from prep.models.db import SessionLocal
 from prep.models.orm import COIDocument
+from prep.regulatory.ingest_state import fetch_status
 
 
 class KitchenPayload(BaseModel):
@@ -29,7 +35,7 @@ class KitchenPayload(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    license_info: Dict[str, Any]
+    license_info: dict[str, Any]
     inspection_history: list[Any] = Field(default_factory=list)
 
 
@@ -39,7 +45,7 @@ ENGINE_VERSION = FoodSafetyComplianceEngine.ENGINE_VERSION
 def _build_engine() -> FoodSafetyComplianceEngine:
     """Instantiate the compliance engine with optional external client."""
 
-    api_client: Optional[DataIntelligenceAPIClient] = None
+    api_client: DataIntelligenceAPIClient | None = None
     base_url = os.getenv("DATA_INTELLIGENCE_API_URL")
     if base_url:
         api_client = DataIntelligenceAPIClient(
@@ -84,7 +90,7 @@ class RegulatoryStatus(BaseModel):
 class ComplianceCheckRequest(BaseModel):
     """Request payload for initiating a compliance check."""
 
-    kitchen_payload: Optional[Dict[str, Any]] = None
+    kitchen_payload: dict[str, Any] | None = None
     scope: str = "full"
 
 
@@ -92,7 +98,7 @@ class ComplianceCheckResult(BaseModel):
     """Response returned after a compliance check run."""
 
     status: str
-    report: Optional[Dict[str, Any]] = None
+    report: dict[str, Any] | None = None
     executed_at: datetime
 
 
@@ -104,7 +110,7 @@ class RegulatoryDocument(BaseModel):
     status: str
     owner: Role
     due_date: datetime
-    submitted_at: Optional[datetime] = None
+    submitted_at: datetime | None = None
 
 
 class DocumentSubmissionRequest(BaseModel):
@@ -145,6 +151,18 @@ class ManualMonitoringRun(BaseModel):
     reason: str
 
 
+class EtlRunStatus(BaseModel):
+    """Latest ETL run metadata exposed to observability dashboards."""
+
+    last_run: datetime | None = None
+    states_processed: list[str] = Field(default_factory=list)
+    documents_processed: int = 0
+    documents_inserted: int = 0
+    documents_updated: int = 0
+    documents_changed: int = 0
+    failures: list[str] = Field(default_factory=list)
+
+
 class ComplianceHistoryEntry(BaseModel):
     """Audit trail entry for compliance events."""
 
@@ -154,36 +172,36 @@ class ComplianceHistoryEntry(BaseModel):
     description: str
 
 
-_documents: List[RegulatoryDocument] = [
+_documents: list[RegulatoryDocument] = [
     RegulatoryDocument(
         id="occupancy-license",
         name="Commercial Occupancy License",
         status="approved",
         owner=Role.HOST,
-        due_date=datetime(2024, 9, 30, tzinfo=timezone.utc),
-        submitted_at=datetime(2024, 2, 15, tzinfo=timezone.utc),
+        due_date=datetime(2024, 9, 30, tzinfo=UTC),
+        submitted_at=datetime(2024, 2, 15, tzinfo=UTC),
     ),
     RegulatoryDocument(
         id="food-handler-cert",
         name="Food Handler Certificate",
         status="pending",
         owner=Role.RENTER,
-        due_date=datetime(2024, 6, 1, tzinfo=timezone.utc),
+        due_date=datetime(2024, 6, 1, tzinfo=UTC),
     ),
     RegulatoryDocument(
         id="safety-audit",
         name="Kitchen Safety Audit",
         status="in_review",
         owner=Role.ADMIN,
-        due_date=datetime(2024, 5, 12, tzinfo=timezone.utc),
-        submitted_at=datetime(2024, 4, 25, tzinfo=timezone.utc),
+        due_date=datetime(2024, 5, 12, tzinfo=UTC),
+        submitted_at=datetime(2024, 4, 25, tzinfo=UTC),
     ),
 ]
 
-_alerts: List[MonitoringAlert] = [
+_alerts: list[MonitoringAlert] = [
     MonitoringAlert(
         id="alert-001",
-        created_at=datetime(2024, 4, 20, 9, 30, tzinfo=timezone.utc),
+        created_at=datetime(2024, 4, 20, 9, 30, tzinfo=UTC),
         severity="warning",
         message="Pending sanitation inspection exceeds SLA",
         acknowledged=False,
@@ -194,26 +212,26 @@ _alerts: List[MonitoringAlert] = [
 class HistoryResponse(BaseModel):
     """Container for history entries with metadata."""
 
-    items: List[ComplianceHistoryEntry]
+    items: list[ComplianceHistoryEntry]
     total: int
 
-_history: List[ComplianceHistoryEntry] = [
+_history: list[ComplianceHistoryEntry] = [
     ComplianceHistoryEntry(
         id="hist-001",
-        occurred_at=datetime(2024, 4, 21, 14, 15, tzinfo=timezone.utc),
+        occurred_at=datetime(2024, 4, 21, 14, 15, tzinfo=UTC),
         actor=Role.ADMIN,
         description="Manual override approved for refrigeration maintenance window.",
     ),
     ComplianceHistoryEntry(
         id="hist-002",
-        occurred_at=datetime(2024, 4, 18, 11, 0, tzinfo=timezone.utc),
+        occurred_at=datetime(2024, 4, 18, 11, 0, tzinfo=UTC),
         actor=Role.HOST,
         description="Submitted occupancy license renewal documentation.",
     ),
 ]
 
 _monitoring_status = MonitoringStatus(
-    last_run=datetime(2024, 4, 22, 6, 45, tzinfo=timezone.utc),
+    last_run=datetime(2024, 4, 22, 6, 45, tzinfo=UTC),
     healthy=True,
     active_alerts=len(_alerts),
 )
@@ -237,7 +255,7 @@ async def get_current_role(x_user_role: str = Header(..., alias="X-User-Role")) 
     return _get_role_or_401(x_user_role)
 
 
-def _require_role(role: Role, allowed: List[Role]) -> None:
+def _require_role(role: Role, allowed: list[Role]) -> None:
     if role not in allowed:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -246,7 +264,7 @@ def _require_role(role: Role, allowed: List[Role]) -> None:
 
 
 def _compute_status_snapshot() -> RegulatoryStatus:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     pending_documents = len([doc for doc in _documents if doc.status != "approved"])
     return RegulatoryStatus(
         overall_status="on_track" if pending_documents == 0 else "action_required",
@@ -258,7 +276,7 @@ def _compute_status_snapshot() -> RegulatoryStatus:
 
 
 @app.get("/healthz")
-def health_check() -> Dict[str, Any]:
+def health_check() -> dict[str, Any]:
     """Simple readiness and liveness endpoint."""
 
     return {
@@ -273,6 +291,8 @@ async def upload_coi(
     file: UploadFile = File(...),
     session: Session = Depends(_get_session),
 ) -> Dict[str, Any]:
+    """Accept a COI PDF upload, run OCR extraction, and persist metadata."""
+) -> dict[str, Any]:
     """Accept a COI PDF upload, validate it, and persist metadata."""
 
     if file.content_type and not file.content_type.lower().endswith("pdf"):
@@ -290,21 +310,47 @@ async def upload_coi(
             )
 
         try:
-            validation: COIValidationResult = validate_coi(payload)
-        except ValueError as exc:
+            metadata = validate_coi(payload)
+        except COIExtractionError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"error": str(exc) or "Invalid COI document."},
             ) from exc
+
+        try:
+            expiry_value = metadata["expiry_date"]
+        except KeyError as exc:  # pragma: no cover - defensive guard
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "Expiry date missing from COI document."},
+            ) from exc
+
+        try:
+            expiry_date_obj = date.fromisoformat(expiry_value)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "Invalid expiry date format extracted from COI."},
+            ) from exc
+
+        expiry_datetime = datetime.combine(
+            expiry_date_obj,
+            time.min,
+            tzinfo=timezone.utc,
+        )
+        is_valid = expiry_date_obj >= datetime.now(timezone.utc).date()
+        validation_errors = None if is_valid else "COI document has expired."
 
         document = COIDocument(
             filename=file.filename or "coi.pdf",
             content_type=file.content_type or "application/pdf",
             file_size=len(payload),
             checksum=hashlib.sha256(payload).hexdigest(),
-            valid=validation.valid,
-            expiry_date=validation.expiry_date,
-            validation_errors="; ".join(validation.errors) if validation.errors else None,
+            valid=is_valid,
+            expiry_date=expiry_datetime,
+            policy_number=metadata.get("policy_number"),
+            insured_name=metadata.get("insured_name"),
+            validation_errors=validation_errors,
         )
 
         try:
@@ -321,15 +367,15 @@ async def upload_coi(
             ) from exc
 
         return {
-            "valid": validation.valid,
-            "expiry_date": validation.expiry_date.isoformat(),
+            "valid": is_valid,
+            "expiry_date": expiry_datetime.isoformat(),
         }
     finally:
         await file.close()
 
 
 @app.post("/v1/report")
-async def generate_compliance_report(payload: KitchenPayload) -> Dict[str, Any]:
+async def generate_compliance_report(payload: KitchenPayload) -> dict[str, Any]:
     """Validate input payload and return a serialized compliance report."""
 
     kitchen_data = payload.model_dump()
@@ -367,8 +413,8 @@ async def run_compliance_check(
     """Trigger a compliance check leveraging the existing engine."""
 
     _require_role(role, [Role.ADMIN, Role.HOST])
-    executed_at = datetime.now(timezone.utc)
-    report: Optional[Dict[str, Any]] = None
+    executed_at = datetime.now(UTC)
+    report: dict[str, Any] | None = None
     if request.kitchen_payload:
         validation_errors = DataValidator.validate_kitchen_data(request.kitchen_payload)
         if validation_errors:
@@ -388,8 +434,8 @@ async def run_compliance_check(
     return ComplianceCheckResult(status="completed", report=report, executed_at=executed_at)
 
 
-@app.get("/api/v1/regulatory/documents", response_model=List[RegulatoryDocument])
-async def list_regulatory_documents(role: Role = Depends(get_current_role)) -> List[RegulatoryDocument]:
+@app.get("/api/v1/regulatory/documents", response_model=list[RegulatoryDocument])
+async def list_regulatory_documents(role: Role = Depends(get_current_role)) -> list[RegulatoryDocument]:
     """List regulatory documents filtered based on the caller's role."""
 
     _require_role(role, [Role.ADMIN, Role.HOST, Role.RENTER, Role.GOVERNMENT])
@@ -417,7 +463,7 @@ async def submit_regulatory_document(
                 updated_doc = doc.model_copy(
                     update={
                         "status": "submitted",
-                        "submitted_at": datetime.now(timezone.utc),
+                        "submitted_at": datetime.now(UTC),
                     }
                 )
                 _documents[index] = updated_doc
@@ -457,6 +503,39 @@ async def get_monitoring_status(role: Role = Depends(get_current_role)) -> Monit
     return _monitoring_status
 
 
+@app.get("/etl/status", response_model=EtlRunStatus)
+async def get_etl_status(role: Role = Depends(get_current_role)) -> EtlRunStatus:
+    """Return the cached metadata for the regulatory ingestion workflow."""
+
+    _require_role(role, [Role.ADMIN, Role.GOVERNMENT])
+    status_payload = await fetch_status()
+    if not status_payload:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"error": "No ingestion runs have been recorded."},
+        )
+
+    last_run_value = status_payload.get("last_run")
+    last_run: datetime | None = None
+    if isinstance(last_run_value, str):
+        try:
+            last_run = datetime.fromisoformat(last_run_value)
+        except ValueError:
+            last_run = None
+    elif isinstance(last_run_value, datetime):
+        last_run = last_run_value
+
+    return EtlRunStatus(
+        last_run=last_run,
+        states_processed=list(status_payload.get("states_processed", [])),
+        documents_processed=int(status_payload.get("documents_processed", 0) or 0),
+        documents_inserted=int(status_payload.get("documents_inserted", 0) or 0),
+        documents_updated=int(status_payload.get("documents_updated", 0) or 0),
+        documents_changed=int(status_payload.get("documents_changed", 0) or 0),
+        failures=[str(item) for item in status_payload.get("failures", [])],
+    )
+
+
 @app.post(
     "/api/v1/regulatory/monitoring/alerts",
     response_model=MonitoringAlert,
@@ -471,7 +550,7 @@ async def create_monitoring_alert(
     _require_role(role, [Role.ADMIN])
     new_alert = MonitoringAlert(
         id=f"alert-{len(_alerts)+1:03d}",
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         severity=request.severity,
         message=request.message,
         acknowledged=False,
@@ -481,7 +560,7 @@ async def create_monitoring_alert(
         global _monitoring_status
         _monitoring_status = _monitoring_status.model_copy(
             update={
-                "last_run": datetime.now(timezone.utc),
+                "last_run": datetime.now(UTC),
                 "healthy": _monitoring_status.healthy and request.severity != "critical",
                 "active_alerts": len([alert for alert in _alerts if not alert.acknowledged]),
             }
@@ -489,8 +568,8 @@ async def create_monitoring_alert(
     return new_alert
 
 
-@app.get("/api/v1/regulatory/monitoring/alerts", response_model=List[MonitoringAlert])
-async def list_monitoring_alerts(role: Role = Depends(get_current_role)) -> List[MonitoringAlert]:
+@app.get("/api/v1/regulatory/monitoring/alerts", response_model=list[MonitoringAlert])
+async def list_monitoring_alerts(role: Role = Depends(get_current_role)) -> list[MonitoringAlert]:
     """Return active monitoring alerts."""
 
     _require_role(role, [Role.ADMIN, Role.GOVERNMENT])
@@ -508,7 +587,7 @@ async def trigger_monitoring_run(
     """Trigger a manual monitoring execution."""
 
     _require_role(role, [Role.ADMIN, Role.GOVERNMENT])
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     async with _state_lock:
         global _monitoring_status
         _monitoring_status = _monitoring_status.model_copy(

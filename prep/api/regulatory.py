@@ -17,11 +17,19 @@ router = APIRouter(prefix="/regulatory", tags=["regulatory"])
 async def list_regulations(
     state: str,
     city: Optional[str] = Query(default=None),
+    country_code: str = Query(default="US", min_length=2, max_length=2),
+    state_province: Optional[str] = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Return regulations for the provided jurisdiction."""
 
-    regulations = await get_regulations_for_jurisdiction(db, state, city)
+    regulations = await get_regulations_for_jurisdiction(
+        db,
+        state,
+        city,
+        country_code=country_code.upper(),
+        state_province=state_province,
+    )
     return {"regulations": regulations}
 """FastAPI endpoints for regulatory data and compliance analysis."""
 
@@ -31,7 +39,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Iterable, List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,6 +60,7 @@ class ScrapeRequest(BaseModel):
     """Request body for initiating a scraping job."""
 
     states: List[str]
+    country_code: str = "US"
     cities: Optional[List[str]] = None
     force_refresh: bool = False
 
@@ -62,6 +71,8 @@ class ComplianceCheckRequest(BaseModel):
     kitchen_id: str
     state: str
     city: str
+    country_code: str = "US"
+    state_province: Optional[str] = None
     kitchen_data: Dict
 
 
@@ -71,7 +82,12 @@ async def scrape_regulations(
 ) -> Dict:
     """Trigger regulatory data scraping."""
 
-    background_tasks.add_task(run_scraping_task, request.states, request.cities)
+    background_tasks.add_task(
+        run_scraping_task,
+        request.states,
+        request.cities,
+        request.country_code.upper(),
+    )
     return {"status": "started", "message": f"Scraping regulations for {len(request.states)} states"}
 
 
@@ -83,7 +99,13 @@ async def check_compliance(
     """Check kitchen compliance with regulations."""
 
     analyzer = RegulatoryAnalyzer()
-    regulations = await get_regulations_for_jurisdiction(db, request.state, request.city)
+    regulations = await get_regulations_for_jurisdiction(
+        db,
+        request.state,
+        request.city,
+        country_code=request.country_code.upper(),
+        state_province=request.state_province,
+    )
     analysis = await analyzer.analyze_kitchen_compliance(request.kitchen_data, regulations)
 
     settings = get_settings()
@@ -118,30 +140,63 @@ async def check_compliance(
 async def get_regulations(
     state: str,
     city: Optional[str] = None,
+    country_code: str = Query(default="US", min_length=2, max_length=2),
+    state_province: Optional[str] = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> Dict:
     """Get regulations for a specific state/city."""
 
-    regulations = await get_regulations_for_jurisdiction(db, state, city)
-    return {"state": state, "city": city, "regulations": regulations}
+    regulations = await get_regulations_for_jurisdiction(
+        db,
+        state,
+        city,
+        country_code=country_code.upper(),
+        state_province=state_province,
+    )
+    return {
+        "state": state,
+        "city": city,
+        "state_province": state_province or state,
+        "country_code": country_code.upper(),
+        "regulations": regulations,
+    }
 
 
 @router.get("/insurance/{state}")
-async def get_insurance_requirements(state: str, city: Optional[str] = None) -> Dict:
+async def get_insurance_requirements(
+    state: str,
+    city: Optional[str] = None,
+    country_code: str = Query(default="US", min_length=2, max_length=2),
+    state_province: Optional[str] = Query(default=None),
+) -> Dict:
     """Get insurance requirements for a state/city."""
 
     async with RegulatoryScraper() as scraper:
         requirements = await scraper.scrape_insurance_requirements(state)
+    normalized_country = (country_code or "US").upper()
+    province = state_province or state
+    enriched_requirements = dict(requirements)
+    enriched_requirements.setdefault("country_code", normalized_country)
+    enriched_requirements.setdefault("state_province", province)
 
-    return {"state": state, "city": city, "requirements": requirements}
+    return {
+        "state": state,
+        "city": city,
+        "state_province": province,
+        "country_code": normalized_country,
+        "requirements": enriched_requirements,
+    }
 
 
 async def run_scraping_task(
-    states: Iterable[str], cities: Optional[Iterable[Optional[str]]] = None
+    states: Iterable[str],
+    cities: Optional[Iterable[Optional[str]]] = None,
+    country_code: str = "US",
 ) -> None:
     """Background task for regulatory scraping."""
 
     async with RegulatoryScraper() as scraper:
+        normalized_country = (country_code or "US").upper()
         for state in states:
             health_regs = await scraper.scrape_health_department(state)
             insurance_reqs = await scraper.scrape_insurance_requirements(state)
@@ -150,16 +205,41 @@ async def run_scraping_task(
             for city in target_cities:
                 zoning_regs = await scraper.scrape_zoning_regulations(city, state)
                 async with AsyncSessionLocal() as session:
-                    await save_regulations_to_db(session, health_regs + zoning_regs, state, city)
-                    await save_insurance_requirements(session, insurance_reqs, state, city)
+                    await save_regulations_to_db(
+                        session,
+                        health_regs + zoning_regs,
+                        state,
+                        city,
+                        country_code=normalized_country,
+                        state_province=state,
+                    )
+                    await save_insurance_requirements(
+                        session,
+                        insurance_reqs,
+                        state,
+                        city,
+                        country_code=normalized_country,
+                        state_province=state,
+                    )
 
 
 async def get_regulations_for_jurisdiction(
-    db: AsyncSession, state: str, city: Optional[str] = None
+    db: AsyncSession,
+    state: str,
+    city: Optional[str] = None,
+    *,
+    country_code: str = "US",
+    state_province: Optional[str] = None,
 ) -> List[Dict]:
     """Get regulations from database for a jurisdiction."""
 
-    query = select(Regulation).where(Regulation.jurisdiction == (city or state))
+    normalized_country = (country_code or "US").upper()
+    province = state_province or state.upper()
+    query = select(Regulation).where(
+        Regulation.jurisdiction == (city or state),
+        Regulation.country_code == normalized_country,
+        Regulation.state_province == province,
+    )
     result = await db.execute(query)
     regulations = result.scalars().all()
     return [
@@ -171,6 +251,8 @@ async def get_regulations_for_jurisdiction(
             "requirements": regulation.requirements,
             "applicable_to": regulation.applicable_to,
             "jurisdiction": regulation.jurisdiction,
+            "country_code": regulation.country_code,
+            "state_province": regulation.state_province,
             "citation": regulation.citation,
         }
         for regulation in regulations
@@ -178,18 +260,32 @@ async def get_regulations_for_jurisdiction(
 
 
 async def save_regulations_to_db(
-    db: AsyncSession, regulations: List[Dict], state: str, city: Optional[str]
+    db: AsyncSession,
+    regulations: List[Dict],
+    state: str,
+    city: Optional[str],
+    *,
+    country_code: str = "US",
+    state_province: Optional[str] = None,
 ) -> None:
     """Persist regulation entries to the database."""
 
     if not regulations:
         return
 
+    normalized_country = (country_code or "US").upper()
+    state_code = state.upper()
+    province = state_province or state_code
+
     for data in regulations:
         source_url = data.get("source_url") or "unknown"
         source_type = data.get("source_type")
+        entry_country = (data.get("country_code") or normalized_country).upper()
+        entry_province = data.get("state_province") or province
         source_query = select(RegulationSource).where(
-            RegulationSource.state == state,
+            RegulationSource.country_code == entry_country,
+            RegulationSource.state == state_code,
+            RegulationSource.state_province == entry_province,
             RegulationSource.city == city,
             RegulationSource.source_url == source_url,
         )
@@ -198,7 +294,9 @@ async def save_regulations_to_db(
 
         if not source:
             source = RegulationSource(
-                state=state,
+                country_code=entry_country,
+                state=state_code,
+                state_province=entry_province,
                 city=city,
                 source_url=source_url,
                 source_type=source_type,
@@ -214,6 +312,8 @@ async def save_regulations_to_db(
             Regulation.regulation_type == data.get("regulation_type"),
             Regulation.title == data.get("title"),
             Regulation.jurisdiction == data.get("jurisdiction"),
+            Regulation.country_code == entry_country,
+            Regulation.state_province == entry_province,
         )
         regulation_result = await db.execute(regulation_query)
         regulation = regulation_result.scalars().first()
@@ -225,6 +325,8 @@ async def save_regulations_to_db(
             regulation.effective_date = data.get("effective_date")
             regulation.expiration_date = data.get("expiration_date")
             regulation.citation = data.get("citation")
+            regulation.country_code = entry_country
+            regulation.state_province = entry_province
         else:
             regulation = Regulation(
                 source_id=source.id,
@@ -236,6 +338,8 @@ async def save_regulations_to_db(
                 effective_date=data.get("effective_date"),
                 expiration_date=data.get("expiration_date"),
                 jurisdiction=data.get("jurisdiction") or state,
+                country_code=entry_country,
+                state_province=entry_province,
                 citation=data.get("citation"),
             )
             db.add(regulation)
@@ -244,18 +348,33 @@ async def save_regulations_to_db(
 
 
 async def save_insurance_requirements(
-    db: AsyncSession, requirements: Dict, state: str, city: Optional[str]
+    db: AsyncSession,
+    requirements: Dict,
+    state: str,
+    city: Optional[str],
+    *,
+    country_code: str = "US",
+    state_province: Optional[str] = None,
 ) -> None:
     """Persist insurance requirements to the database."""
 
+    country = (country_code or "US").upper()
+    state_code = state.upper()
+    province = state_province or state_code
+
     query = select(InsuranceRequirement).where(
-        InsuranceRequirement.state == state,
+        InsuranceRequirement.country_code == country,
+        InsuranceRequirement.state == state_code,
+        InsuranceRequirement.state_province == province,
         InsuranceRequirement.city == city,
     )
     result = await db.execute(query)
     record = result.scalars().first()
 
     if record:
+        record.country_code = country
+        record.state = state_code
+        record.state_province = province
         record.minimum_coverage = requirements.get("minimum_coverage")
         record.required_policies = requirements.get("required_policies")
         record.special_requirements = requirements.get("special_requirements")
@@ -263,7 +382,9 @@ async def save_insurance_requirements(
         record.source_url = requirements.get("source_url")
     else:
         record = InsuranceRequirement(
-            state=state,
+            country_code=country,
+            state=state_code,
+            state_province=province,
             city=city,
             minimum_coverage=requirements.get("minimum_coverage"),
             required_policies=requirements.get("required_policies"),

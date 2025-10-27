@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prep.database import get_db
@@ -35,3 +35,21 @@ async def connect_stripe_account(
     except PaymentsError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     return PaymentsConnectResponse(account_id=account_id, onboarding_url=onboarding_url)
+
+
+@router.post("/webhook", status_code=status.HTTP_204_NO_CONTENT)
+async def handle_webhook(
+    request: Request,
+    service: PaymentsService = Depends(get_payments_service),
+) -> Response:
+    """Handle incoming Stripe webhook calls."""
+
+    payload = await request.body()
+    signature = request.headers.get("stripe-signature")
+
+    try:
+        await service.process_webhook(payload, signature)
+    except PaymentsError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
