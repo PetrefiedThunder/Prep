@@ -18,6 +18,9 @@ async def get_regulations_for_jurisdiction(
     db: AsyncSession,
     state: Optional[str],
     city: Optional[str] = None,
+    *,
+    country_code: str = "US",
+    state_province: Optional[str] = None,
 ) -> List[Dict[str, str]]:
     """Return regulatory updates for the given jurisdiction."""
 
@@ -34,6 +37,8 @@ async def get_regulations_for_jurisdiction(
         LIMIT 25
         """
     )
+    normalized_country = (country_code or "US").upper()
+    province = state_province or (state.upper() if state else None)
     result = await db.execute(stmt, {"state": state.upper(), "city": city})
     rows = result.mappings().all()
 
@@ -47,6 +52,9 @@ async def get_regulations_for_jurisdiction(
                 "regulation_type": row.get("regulation_type", "general"),
                 "effective_date": _format_date(row.get("effective_date")),
                 "guidance": row.get("change_description"),
+                "country_code": normalized_country,
+                "state_province": province,
+                "city": row.get("city"),
             }
         )
 
@@ -59,6 +67,9 @@ async def get_regulations_for_jurisdiction(
                 "regulation_type": "general",
                 "effective_date": None,
                 "guidance": "Schedule a compliance review and ensure all documents are uploaded.",
+                "country_code": normalized_country,
+                "state_province": province,
+                "city": city,
             }
         )
 
