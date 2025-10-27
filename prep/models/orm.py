@@ -221,6 +221,8 @@ class Booking(TimestampMixin, Base):
     platform_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
     host_payout_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
     payment_method: Mapped[str] = mapped_column(String(50), default="card", nullable=False)
+    payment_intent_id: Mapped[str | None] = mapped_column(String(255))
+    paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     source: Mapped[str | None] = mapped_column(String(120))
     cancellation_reason: Mapped[str | None] = mapped_column(String(255))
 
@@ -234,6 +236,13 @@ class Booking(TimestampMixin, Base):
     reviews: Mapped[List["Review"]] = relationship(
         "Review", back_populates="booking", cascade="all, delete-orphan"
     )
+
+
+class StripeWebhookEvent(TimestampMixin, Base):
+    __tablename__ = "stripe_webhook_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
 
 
 class Review(TimestampMixin, Base):
