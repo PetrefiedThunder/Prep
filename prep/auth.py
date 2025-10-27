@@ -2,44 +2,59 @@
 
 from __future__ import annotations
 
-import base64
-import json
 from typing import Any
 from uuid import UUID
 
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prep.database import get_db
 from prep.models.orm import User, UserRole
+from prep.settings import Settings, get_settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 
-def _decode_jwt(token: str) -> dict[str, Any]:
-    """Decode a JWT payload without verifying the signature."""
+_ALLOWED_JWT_ALGORITHMS: tuple[str, ...] = ("HS256",)
+
+
+def _decode_jwt(token: str, settings: Settings) -> dict[str, Any]:
+    """Decode and validate a JWT payload."""
 
     try:
-        payload_segment = token.split(".")[1]
-    except IndexError as exc:  # pragma: no cover - defensive guard
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token format") from exc
+        header = jwt.get_unverified_header(token)
+    except jwt.PyJWTError as exc:  # pragma: no cover - defensive guard
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token header") from exc
 
-    padding = "=" * (-len(payload_segment) % 4)
+    algorithm = header.get("alg")
+    if algorithm not in _ALLOWED_JWT_ALGORITHMS:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unsupported token algorithm")
+
     try:
-        decoded = base64.urlsafe_b64decode(payload_segment + padding)
-        return json.loads(decoded.decode("utf-8"))
-    except (ValueError, json.JSONDecodeError) as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload") from exc
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=_ALLOWED_JWT_ALGORITHMS,
+        )
+    except jwt.PyJWTError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token signature") from exc
+
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+
+    return payload
 
 
 async def get_current_admin(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> User:
     """Resolve and authorize the currently authenticated admin user."""
 
-    user, roles = await _resolve_user(token, db)
+    user, roles = await _resolve_user(token, db, settings)
     if "admin" not in roles and not user.is_admin and user.role is not UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
 
@@ -52,10 +67,11 @@ async def get_current_admin(
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> User:
     """Resolve the currently authenticated user for analytics endpoints."""
 
-    user, roles = await _resolve_user(token, db)
+    user, roles = await _resolve_user(token, db, settings)
     if user.is_suspended or not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is not active")
 
@@ -65,10 +81,10 @@ async def get_current_user(
     return user
 
 
-async def _resolve_user(token: str, db: AsyncSession) -> tuple[User, list[str]]:
+async def _resolve_user(token: str, db: AsyncSession, settings: Settings) -> tuple[User, list[str]]:
     """Decode the token and load the associated user."""
 
-    payload = _decode_jwt(token)
+    payload = _decode_jwt(token, settings)
     subject = payload.get("sub")
     roles = payload.get("roles", [])
     if not subject:
