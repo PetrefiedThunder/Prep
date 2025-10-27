@@ -35,7 +35,13 @@ if "stripe" not in sys.modules:
     sys.modules["stripe"] = stripe_stub
     sys.modules["stripe.error"] = error_module
 
-from prep.models.db import SessionLocal, init_db
+try:  # pragma: no cover - dependency availability varies per environment
+    from prep.models.db import SessionLocal, init_db  # type: ignore
+except ModuleNotFoundError as exc:  # pragma: no cover - allow tests without SQLAlchemy
+    if exc.name != "sqlalchemy":
+        raise
+    SessionLocal = None  # type: ignore
+    init_db = None  # type: ignore
 
 
 @pytest.fixture(scope="session")
@@ -47,12 +53,19 @@ def event_loop():
 
 @pytest.fixture(scope="session", autouse=True)
 def _create_schema():
+    if init_db is None:
+        yield
+        return
+
     init_db()
     yield
 
 
 @pytest.fixture
 def db_session():
+    if SessionLocal is None:
+        pytest.skip("SQLAlchemy is not available in the test environment")
+
     session = SessionLocal()
     try:
         yield session
