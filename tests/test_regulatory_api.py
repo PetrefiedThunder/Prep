@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import importlib
-from typing import Generator
-from datetime import datetime
+from collections.abc import Generator
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +13,7 @@ from fastapi.testclient import TestClient
 import apps.compliance_service.main as compliance_main
 from prep.models.db import SessionLocal
 from prep.models.orm import COIDocument
+from prep.regulatory.ingest_state import store_status
 
 
 @pytest.fixture()
@@ -151,3 +153,28 @@ def test_trigger_monitoring_run(client: TestClient) -> None:
     payload = response.json()
     assert payload["healthy"] is True
     assert "last_run" in payload
+
+
+def test_etl_status_endpoint_returns_cached_state(client: TestClient) -> None:
+    now = datetime.now(UTC)
+    asyncio.run(
+        store_status(
+            {
+                "last_run": now,
+                "states_processed": ["CA", "NY"],
+                "documents_processed": 5,
+                "documents_inserted": 3,
+                "documents_updated": 2,
+                "documents_changed": 1,
+                "failures": ["slow fetch"],
+            }
+        )
+    )
+
+    response = client.get("/etl/status", headers=_headers("admin"))
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["documents_processed"] == 5
+    assert payload["documents_changed"] == 1
+    assert payload["states_processed"] == ["CA", "NY"]
+    assert payload["failures"] == ["slow fetch"]

@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import AsyncGenerator
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
@@ -14,6 +15,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from stripe.error import SignatureVerificationError
+from stripe.error import StripeError
 
 from prep.database import get_db
 from prep.models.orm import Base, Booking, Kitchen, StripeWebhookEvent, User, UserRole
@@ -255,3 +257,137 @@ async def test_webhook_is_idempotent(
 
         events = await session.scalars(select(StripeWebhookEvent))
         assert [event.event_id for event in events] == ["evt_456"]
+async def test_connect_endpoint_validates_payload(client: AsyncClient) -> None:
+    response = await client.post("/payments/connect", json={"user_id": "not-a-uuid"})
+
+    assert response.status_code == 422
+
+
+@pytest.mark.anyio("asyncio")
+async def test_connect_endpoint_user_not_found(client: AsyncClient) -> None:
+    response = await client.post("/payments/connect", json={"user_id": str(uuid4())})
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "User not found"
+
+
+@pytest.mark.anyio("asyncio")
+async def test_connect_endpoint_requires_host_role(
+    app: FastAPI, client: AsyncClient
+) -> None:
+    state_factory: _AsyncSessionFactory = app.state.sessions
+    async with state_factory.session() as session:
+        customer = User(
+            email="customer@example.com",
+            full_name="Customer Example",
+            role=UserRole.CUSTOMER,
+            is_active=True,
+        )
+        session.add(customer)
+        await session.commit()
+        await session.refresh(customer)
+
+    response = await client.post("/payments/connect", json={"user_id": str(customer.id)})
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only host accounts can connect payouts"
+
+
+@pytest.mark.anyio("asyncio")
+async def test_connect_endpoint_requires_stripe_configuration(
+    app: FastAPI, client: AsyncClient
+) -> None:
+    host = await _create_host(app)
+
+    app.dependency_overrides[get_settings] = lambda: Settings()
+
+    response = await client.post("/payments/connect", json={"user_id": str(host.id)})
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Stripe secret key is not configured"
+
+
+@pytest.mark.anyio("asyncio")
+async def test_connect_endpoint_handles_stripe_account_error(
+    app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    host = await _create_host(app)
+
+    account_create = Mock(side_effect=StripeError(message="boom"))
+    account_link_create = Mock()
+    monkeypatch.setattr("stripe.Account.create", account_create)
+    monkeypatch.setattr("stripe.AccountLink.create", account_link_create)
+
+    response = await client.post("/payments/connect", json={"user_id": str(host.id)})
+
+    assert response.status_code == 502
+    assert (
+        response.json()["detail"] == "Failed to initialize Stripe Connect onboarding"
+    )
+
+    state_factory: _AsyncSessionFactory = app.state.sessions
+    async with state_factory.session() as session:
+        refreshed = await session.get(User, host.id)
+        assert refreshed is not None
+        assert refreshed.stripe_account_id is None
+
+    account_link_create.assert_not_called()
+
+
+@pytest.mark.anyio("asyncio")
+async def test_connect_endpoint_handles_stripe_account_link_error(
+    app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    host = await _create_host(app)
+
+    account_create = Mock(return_value=SimpleNamespace(id="acct_123"))
+    account_link_create = Mock(side_effect=StripeError(message="link error"))
+    monkeypatch.setattr("stripe.Account.create", account_create)
+    monkeypatch.setattr("stripe.AccountLink.create", account_link_create)
+
+    response = await client.post("/payments/connect", json={"user_id": str(host.id)})
+
+    assert response.status_code == 502
+    assert (
+        response.json()["detail"] == "Failed to initialize Stripe Connect onboarding"
+    )
+
+    state_factory: _AsyncSessionFactory = app.state.sessions
+    async with state_factory.session() as session:
+        refreshed = await session.get(User, host.id)
+        assert refreshed is not None
+        assert refreshed.stripe_account_id is None
+
+
+@pytest.mark.anyio("asyncio")
+async def test_connect_endpoint_reuses_existing_stripe_account(
+    app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    host = await _create_host(app)
+
+    state_factory: _AsyncSessionFactory = app.state.sessions
+    async with state_factory.session() as session:
+        persisted = await session.get(User, host.id)
+        assert persisted is not None
+        persisted.stripe_account_id = "acct_existing"
+        await session.commit()
+
+    account_create = Mock()
+    account_link_create = Mock(
+        return_value=SimpleNamespace(url="https://connect.stripe.com/setup/s/example")
+    )
+    monkeypatch.setattr("stripe.Account.create", account_create)
+    monkeypatch.setattr("stripe.AccountLink.create", account_link_create)
+
+    response = await client.post("/payments/connect", json={"user_id": str(host.id)})
+
+    assert response.status_code == 201
+    assert response.json()["account_id"] == "acct_existing"
+
+    account_create.assert_not_called()
+    account_link_create.assert_called_once_with(
+        account="acct_existing",
+        refresh_url="https://example.com/refresh",
+        return_url="https://example.com/return",
+        type="account_onboarding",
+    )

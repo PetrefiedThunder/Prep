@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -12,9 +13,9 @@ from .orm import (
     Base,
     Booking,
     BookingStatus,
-    COIDocument,
     CertificationDocument,
     CertificationReviewStatus,
+    COIDocument,
     ComplianceDocument,
     ComplianceDocumentStatus,
     Kitchen,
@@ -70,6 +71,10 @@ def session_scope() -> Iterator:
 
 
 def init_db() -> None:
+    # Import modules that define additional models to ensure they are registered
+    # on the global SQLAlchemy metadata before creating tables.
+    import prep.regulatory.models  # noqa: F401
+
     Base.metadata.create_all(bind=engine)
 
 
