@@ -7,6 +7,9 @@ import importlib.util
 import re
 from typing import Dict, List
 
+# Regular expression matching section headings for common regulatory formats,
+# including FDA CFR style identifiers (e.g. ``Sec. 117.8`` or ``§ 117.4``) and
+# FDA Food Code identifiers (e.g. ``3-301.11``).
 from pdfminer.high_level import extract_text
 from pdfminer.pdfparser import PDFSyntaxError
 
@@ -14,19 +17,31 @@ from pdfminer.pdfparser import PDFSyntaxError
 # look like ``3-301.11 Preventing Contamination from Hands`` where the numeric
 # identifier always begins a new line.
 _SECTION_HEADING_RE = re.compile(
-    r"^\s*(?P<section>\d+-\d+(?:\.\d+)*(?:\([A-Za-z0-9]+\))*)\s+"
-    r"(?P<heading>[^\n]+)",
-    flags=re.MULTILINE,
+    r"""
+    ^\s*
+    (
+        (?:(?:Sec\.?|Section|§)\s*)
+        (?P<fda_section>\d+(?:\.\d+)*(?:\([A-Za-z0-9]+\))*)
+        (?:\s*(?:[-–—]{1,2}|:)\s*|\s+)
+        (?P<fda_heading>[^\n]+)
+        |
+        (?P<food_section>\d+-\d+(?:\.\d+)*(?:\([A-Za-z0-9]+\))*)
+        \s+
+        (?P<food_heading>[^\n]+)
+    )
+    """,
+    flags=re.MULTILINE | re.VERBOSE | re.IGNORECASE,
 )
 
 
 def extract_reg_sections(text: str) -> List[Dict[str, str]]:
-    """Extract Food Code style regulatory sections from *text*.
+    """Extract regulatory sections from *text*.
 
     Parameters
     ----------
     text:
-        Raw regulatory text that may contain sections like ``3-301.11``.
+        Raw regulatory text that may contain sections like ``3-301.11`` or
+        ``Sec. 117.8``.
 
     Returns
     -------
@@ -46,8 +61,16 @@ def extract_reg_sections(text: str) -> List[Dict[str, str]]:
         start = match.end()
         end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
         body = text[start:end].strip()
-        section_id = match.group("section").strip()
-        heading = match.group("heading").strip()
+        section_id = (
+            match.group("fda_section")
+            if match.group("fda_section") is not None
+            else match.group("food_section")
+        ).strip()
+        heading = (
+            match.group("fda_heading")
+            if match.group("fda_heading") is not None
+            else match.group("food_heading")
+        ).strip()
         sections.append({
             "section": section_id,
             "heading": heading,
