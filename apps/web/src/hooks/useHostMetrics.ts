@@ -1,51 +1,137 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
+export type UseHostMetricsResult<T> = {
+  /** Parsed payload returned from the analytics endpoint. */
+  data: T | null;
+  /** Indicates whether the request is still in-flight. */
+  isLoading: boolean;
+  /** Error message describing why metrics could not be loaded, if any. */
+  error: string | null;
+  /** Imperative refetch helper so consumers can manually refresh metrics. */
+  refetch: () => Promise<void>;
+};
+
+const GENERIC_FETCH_ERROR = 'Unable to load host metrics. Please try again later.';
+import useSWR, { type SWRConfiguration, type SWRResponse } from 'swr';
+
+type HostIdentifier = string | number | null | undefined;
+
+type UseHostMetricsReturn<T> = Pick<
+  SWRResponse<T, Error>,
+  'data' | 'error' | 'mutate' | 'isValidating'
+> & {
+  isLoading: boolean;
+};
+
+const fetchHostMetrics = async <T>(url: string): Promise<T> => {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch host metrics: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json() as Promise<T>;
+};
+
+const swrConfig: SWRConfiguration = {
+  refreshInterval: 30_000,
+};
 
 /**
  * React hook that retrieves analytics metrics for a specific host.
  *
  * @param hostId - Identifier for the host whose metrics should be fetched.
- * @returns The parsed JSON payload returned from the analytics endpoint or `null` while loading/when unavailable.
+ * @returns Loading state, potential error and parsed JSON payload returned from the analytics endpoint.
  */
-export function useHostMetrics<T = unknown>(hostId: string | number | null | undefined) {
-  const [metrics, setMetrics] = useState<T | null>(null);
+export function useHostMetrics<T = unknown>(hostId: string | number | null | undefined): UseHostMetricsResult<T> {
+  const [data, setData] = useState<T | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const normalizedHostId = useMemo(() => {
     if (hostId === null || hostId === undefined || hostId === '') {
-      setMetrics(null);
+      return null;
+    }
+
+    return String(hostId);
+  }, [hostId]);
+
+  const load = useCallback(async (signal?: AbortSignal) => {
+    if (!normalizedHostId) {
+      setData(null);
+      setIsLoading(false);
+      setError(null);
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/analytics/host/${normalizedHostId}`, {
+        signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch host metrics: ${response.status} ${response.statusText}`);
+      }
+
+      const payload: T = await response.json();
+      setData(payload);
+    } catch (err) {
+      if (signal?.aborted) {
+        return;
+      }
+
+      console.error('Error fetching host metrics', err);
+      setError(GENERIC_FETCH_ERROR);
+      setData(null);
+    } finally {
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
+    }
+  }, [normalizedHostId]);
+
+  useEffect(() => {
     const controller = new AbortController();
 
-    const fetchMetrics = async () => {
-      try {
-        const response = await fetch(`/analytics/host/${hostId}`, {
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch host metrics: ${response.status} ${response.statusText}`);
-        }
-
-        const payload: T = await response.json();
-        if (!controller.signal.aborted) {
-          setMetrics(payload);
-        }
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-        console.error('Error fetching host metrics', error);
-        setMetrics(null);
-      }
-    };
-
-    fetchMetrics();
+    void load(controller.signal);
 
     return () => {
       controller.abort();
     };
-  }, [hostId]);
+  }, [load]);
 
-  return metrics;
+  const refetch = useCallback(async () => {
+    const controller = new AbortController();
+    try {
+      await load(controller.signal);
+    } finally {
+      controller.abort();
+    }
+  }, [load]);
+
+  return { data, isLoading, error, refetch };
+ * @returns SWR response slice with loading state for the requested host metrics.
+ */
+export function useHostMetrics<T = unknown>(hostId: HostIdentifier): UseHostMetricsReturn<T> {
+  const shouldFetch = hostId !== null && hostId !== undefined && `${hostId}`.length > 0;
+
+  const swrResponse = useSWR<T, Error>(
+    shouldFetch ? `/analytics/host/${hostId}` : null,
+    (url) => fetchHostMetrics<T>(url),
+    {
+      ...swrConfig,
+      refreshInterval: shouldFetch ? swrConfig.refreshInterval : 0,
+    },
+  );
+
+  return {
+    data: swrResponse.data,
+    error: swrResponse.error,
+    mutate: swrResponse.mutate,
+    isValidating: swrResponse.isValidating,
+    isLoading: shouldFetch ? swrResponse.isLoading : false,
+  };
 }

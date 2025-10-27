@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from prep.models.orm import (
     Booking,
@@ -14,6 +15,7 @@ from prep.models.orm import (
     ComplianceDocumentStatus,
     Kitchen,
     Review,
+    SubleaseContractStatus,
     User,
     UserRole,
 )
@@ -178,11 +180,44 @@ class ComplianceDocumentResponse(_ORMBaseModel):
 
 class PaymentIntentCreateRequest(BaseModel):
     booking_id: UUID
-    amount_cents: int = Field(gt=0)
+    amount: int = Field(gt=0)
+    currency: str = Field(min_length=3, max_length=3)
+
+    @field_validator("currency")
+    @classmethod
+    def _validate_currency(cls, value: str) -> str:
+        normalized = value.strip()
+        if len(normalized) != 3 or not normalized.isalpha():
+            raise ValueError("currency must be a 3-letter ISO code")
+        return normalized.lower()
 
 
 class PaymentIntentResponse(BaseModel):
     client_secret: str = Field(min_length=1)
+
+
+class SubleaseContractSendRequest(BaseModel):
+    booking_id: UUID
+    signer_email: EmailStr
+    signer_name: str | None = Field(default=None, max_length=255)
+    return_url: AnyUrl | None = None
+
+
+class SubleaseContractSendResponse(BaseModel):
+    booking_id: UUID
+    envelope_id: str = Field(min_length=1)
+    sign_url: str = Field(min_length=1)
+
+
+class SubleaseContractStatusResponse(BaseModel):
+    booking_id: UUID
+    envelope_id: str = Field(min_length=1)
+    status: SubleaseContractStatus
+    sign_url: str | None
+    document_s3_bucket: str | None
+    document_s3_key: str | None
+    completed_at: datetime | None
+    last_checked_at: datetime | None
 
 
 def serialize_user(user: User) -> UserResponse:
