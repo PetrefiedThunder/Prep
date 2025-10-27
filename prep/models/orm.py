@@ -92,6 +92,11 @@ class ComplianceDocumentStatus(str, enum.Enum):
     REJECTED = "rejected"
 
 
+class VerificationTaskStatus(str, enum.Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
 class SubleaseContractStatus(str, enum.Enum):
     CREATED = "created"
     SENT = "sent"
@@ -498,6 +503,22 @@ class COIDocument(TimestampMixin, Base):
     insured_name: Mapped[str | None] = mapped_column(String(255))
     validation_errors: Mapped[str | None] = mapped_column(Text)
 
+
+class VerificationTask(TimestampMixin, Base):
+    __tablename__ = "verification_tasks"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    entity_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    entity_id: Mapped[UUID] = mapped_column(GUID(), nullable=False)
+    task_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[VerificationTaskStatus] = mapped_column(
+        Enum(VerificationTaskStatus), default=VerificationTaskStatus.PENDING, nullable=False
+    )
+    assigned_to: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("users.id"))
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    assignee: Mapped[User | None] = relationship("User")
+
 class OperationalExpense(TimestampMixin, Base):
     __tablename__ = "operational_expenses"
 
@@ -530,6 +551,8 @@ __all__ = [
     "Base",
     "Booking",
     "BookingStatus",
+    "VerificationTask",
+    "VerificationTaskStatus",
     "CertificationDocument",
     "CertificationReviewStatus",
     "ComplianceDocument",
