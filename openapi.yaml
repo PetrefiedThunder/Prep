@@ -1,0 +1,202 @@
+# OpenAPI Specification (J32)
+openapi: 3.0.3
+info:
+  title: PrepChef API
+  description: Commercial kitchen marketplace API
+  version: 1.0.0
+  contact:
+    email: api@prepchef.com
+  license:
+    name: MIT
+
+servers:
+  - url: https://api.prepchef.com/v1
+    description: Production
+  - url: https://staging-api.prepchef.com/v1
+    description: Staging
+  - url: http://localhost:3000/v1
+    description: Local development
+
+tags:
+  - name: Bookings
+    description: Kitchen booking operations
+  - name: Payments
+    description: Payment and refund operations
+  - name: Listings
+    description: Kitchen listings
+  - name: Health
+    description: Health check endpoints
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /api/bookings:
+    post:
+      tags: [Bookings]
+      summary: Create a booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+      responses:
+        '201':
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Invalid request
+        '409':
+          description: Kitchen not available
+
+  /api/bookings/{id}:
+    get:
+      tags: [Bookings]
+      summary: Get booking by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Booking found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          description: Booking not found
+
+  /api/bookings/{id}/refund:
+    post:
+      tags: [Payments]
+      summary: Refund a booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+      responses:
+        '200':
+          description: Refund processed
+        '400':
+          description: Invalid request
+        '404':
+          description: Booking not found
+
+  /webhooks/stripe:
+    post:
+      tags: [Payments]
+      summary: Stripe webhook handler
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook received
+
+components:
+  schemas:
+    CreateBookingRequest:
+      type: object
+      required:
+        - kitchen_id
+        - user_id
+        - start_time
+        - end_time
+      properties:
+        kitchen_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+
+    Booking:
+      type: object
+      properties:
+        booking_id:
+          type: string
+          format: uuid
+        kitchen_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled, rejected]
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    RefundRequest:
+      type: object
+      properties:
+        amount_cents:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+          enum: [requested_by_customer, duplicate, fraudulent]
+
+    HealthStatus:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        service:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        checks:
+          type: object
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []

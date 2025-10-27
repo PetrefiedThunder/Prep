@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.pythonCompliance.name }}
+  labels:
+    app: prepchef
+    component: {{ .Values.pythonCompliance.name }}
+    environment: {{ .Values.global.environment }}
+spec:
+  replicas: {{ .Values.pythonCompliance.replicaCount }}
+  selector:
+    matchLabels:
+      app: prepchef
+      component: {{ .Values.pythonCompliance.name }}
+  template:
+    metadata:
+      labels:
+        app: prepchef
+        component: {{ .Values.pythonCompliance.name }}
+        environment: {{ .Values.global.environment }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Values.pythonCompliance.name }}
+          image: "{{ .Values.pythonCompliance.image.repository }}:{{ .Values.pythonCompliance.image.tag }}"
+          imagePullPolicy: {{ .Values.pythonCompliance.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.pythonCompliance.service.targetPort }}
+              protocol: TCP
+          env:
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Release.Name }}-config
+                  key: nodeEnv
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Release.Name }}-config
+                  key: logLevel
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.databaseUrl }}
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.redisUrl }}
+            - name: MINIO_ENDPOINT
+              value: {{ .Values.minio.endpoint }}
+            - name: MINIO_ACCESS_KEY
+              value: {{ .Values.minio.accessKey }}
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.minioSecretKey }}
+          livenessProbe:
+            {{- toYaml .Values.pythonCompliance.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.pythonCompliance.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.pythonCompliance.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
