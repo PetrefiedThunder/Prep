@@ -421,6 +421,8 @@ class COIDocument(TimestampMixin, Base):
     checksum: Mapped[str] = mapped_column(String(128), nullable=False)
     valid: Mapped[bool] = mapped_column(Boolean, nullable=False)
     expiry_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    policy_number: Mapped[str | None] = mapped_column(String(128))
+    insured_name: Mapped[str | None] = mapped_column(String(255))
     validation_errors: Mapped[str | None] = mapped_column(Text)
 
 class OperationalExpense(TimestampMixin, Base):

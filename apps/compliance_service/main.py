@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timezone
 from enum import Enum
 import asyncio
 from typing import Any, Dict, List, Optional
@@ -19,7 +19,7 @@ from prep.compliance.food_safety_compliance_engine import (
     DataIntelligenceAPIClient,
     FoodSafetyComplianceEngine,
 )
-from prep.compliance.coi_validation import COIValidationResult, validate_coi
+from prep.compliance import COIExtractionError, validate_coi
 from prep.models.db import SessionLocal
 from prep.models.orm import COIDocument
 
@@ -273,7 +273,7 @@ async def upload_coi(
     file: UploadFile = File(...),
     session: Session = Depends(_get_session),
 ) -> Dict[str, Any]:
-    """Accept a COI PDF upload, validate it, and persist metadata."""
+    """Accept a COI PDF upload, run OCR extraction, and persist metadata."""
 
     if file.content_type and not file.content_type.lower().endswith("pdf"):
         raise HTTPException(
@@ -290,21 +290,47 @@ async def upload_coi(
             )
 
         try:
-            validation: COIValidationResult = validate_coi(payload)
-        except ValueError as exc:
+            metadata = validate_coi(payload)
+        except COIExtractionError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"error": str(exc) or "Invalid COI document."},
             ) from exc
+
+        try:
+            expiry_value = metadata["expiry_date"]
+        except KeyError as exc:  # pragma: no cover - defensive guard
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "Expiry date missing from COI document."},
+            ) from exc
+
+        try:
+            expiry_date_obj = date.fromisoformat(expiry_value)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "Invalid expiry date format extracted from COI."},
+            ) from exc
+
+        expiry_datetime = datetime.combine(
+            expiry_date_obj,
+            time.min,
+            tzinfo=timezone.utc,
+        )
+        is_valid = expiry_date_obj >= datetime.now(timezone.utc).date()
+        validation_errors = None if is_valid else "COI document has expired."
 
         document = COIDocument(
             filename=file.filename or "coi.pdf",
             content_type=file.content_type or "application/pdf",
             file_size=len(payload),
             checksum=hashlib.sha256(payload).hexdigest(),
-            valid=validation.valid,
-            expiry_date=validation.expiry_date,
-            validation_errors="; ".join(validation.errors) if validation.errors else None,
+            valid=is_valid,
+            expiry_date=expiry_datetime,
+            policy_number=metadata.get("policy_number"),
+            insured_name=metadata.get("insured_name"),
+            validation_errors=validation_errors,
         )
 
         try:
@@ -321,8 +347,8 @@ async def upload_coi(
             ) from exc
 
         return {
-            "valid": validation.valid,
-            "expiry_date": validation.expiry_date.isoformat(),
+            "valid": is_valid,
+            "expiry_date": expiry_datetime.isoformat(),
         }
     finally:
         await file.close()
