@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 from uuid import UUID
 
 import stripe
-from stripe.error import StripeError
+from stripe.error import SignatureVerificationError, StripeError
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prep.models.orm import User, UserRole
+from prep.models.orm import Booking, StripeWebhookEvent, User, UserRole
 from prep.settings import Settings
 
 logger = logging.getLogger("prep.payments.service")
@@ -94,3 +96,99 @@ class PaymentsService:
             raise PaymentsError("Stripe did not return an onboarding link", status_code=502)
 
         return account_id, onboarding_url
+
+    async def process_webhook(self, payload: bytes, signature: str | None) -> None:
+        """Validate and handle incoming Stripe webhook events."""
+
+        if not signature:
+            raise PaymentsError("Missing Stripe signature", status_code=400)
+
+        webhook_secret = self._settings.stripe_webhook_secret
+        if not webhook_secret:
+            raise PaymentsError("Stripe webhook secret is not configured", status_code=500)
+
+        try:
+            event = stripe.Webhook.construct_event(payload, signature, webhook_secret)
+        except ValueError as exc:
+            raise PaymentsError("Invalid webhook payload", status_code=400) from exc
+        except SignatureVerificationError as exc:
+            raise PaymentsError("Invalid Stripe signature", status_code=400) from exc
+
+        event_id = _get_attribute(event, "id")
+        if not event_id:
+            raise PaymentsError("Event is missing an id", status_code=400)
+
+        existing = await self._session.scalar(
+            select(StripeWebhookEvent).where(StripeWebhookEvent.event_id == event_id)
+        )
+        if existing:
+            return
+
+        self._session.add(StripeWebhookEvent(event_id=event_id))
+
+        event_type = _get_attribute(event, "type")
+        if event_type == "payment_intent.succeeded":
+            await self._handle_payment_intent_succeeded(event)
+
+        try:
+            await self._session.commit()
+        except SQLAlchemyError as exc:  # pragma: no cover - commit failures are exceptional
+            await self._session.rollback()
+            logger.exception(
+                "Database error while processing Stripe webhook", extra={"event_id": event_id}
+            )
+            raise PaymentsError("Failed to persist webhook event", status_code=500) from exc
+
+    async def _handle_payment_intent_succeeded(self, event: Any) -> None:
+        """Mark the associated booking as paid when a payment intent succeeds."""
+
+        data_object = _get_data_object(event)
+        if data_object is None:
+            logger.warning(
+                "Received payment_intent.succeeded without data object",
+                extra={"event_id": _get_attribute(event, "id")},
+            )
+            return
+
+        payment_intent_id = _get_attribute(data_object, "id") or _get_attribute(
+            data_object, "payment_intent"
+        )
+        if not payment_intent_id:
+            logger.warning(
+                "Payment intent event missing identifier",
+                extra={"event_id": _get_attribute(event, "id")},
+            )
+            return
+
+        booking = await self._session.scalar(
+            select(Booking).where(Booking.payment_intent_id == payment_intent_id)
+        )
+        if booking is None:
+            logger.warning(
+                "No booking found for payment intent", extra={"payment_intent_id": payment_intent_id}
+            )
+            return
+
+        if not booking.paid:
+            booking.paid = True
+
+
+def _get_attribute(obj: Any, attribute: str) -> Any:
+    """Fetch an attribute or dictionary key from Stripe payload objects."""
+
+    if hasattr(obj, attribute):
+        return getattr(obj, attribute)
+    if isinstance(obj, dict):
+        return obj.get(attribute)
+    return None
+
+
+def _get_data_object(event: Any) -> Any:
+    """Extract the nested data.object payload from a Stripe event."""
+
+    data = _get_attribute(event, "data")
+    if data is None:
+        return None
+    if isinstance(data, dict):
+        return data.get("object")
+    return getattr(data, "object", None)

@@ -5,10 +5,10 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional
+from typing import Any, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from prep.models.db import CertificationReviewStatus, ModerationStatus
 
@@ -175,3 +175,38 @@ class KitchenListResponse(BaseModel):
 
     items: List[KitchenSummary]
     pagination: PaginationMeta
+
+
+class ChecklistTemplateCreateRequest(BaseModel):
+    """Payload for creating a new checklist template version."""
+
+    name: str = Field(min_length=1, max_length=120)
+    schema: dict[str, Any] = Field(description="JSON schema describing the checklist fields")
+    description: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("name")
+    @classmethod
+    def _normalize_name(cls, value: str) -> str:
+        return value.strip()
+
+    @model_validator(mode="after")
+    def _validate_schema(self) -> "ChecklistTemplateCreateRequest":
+        if not self.schema:
+            raise ValueError("schema cannot be empty")
+        if "type" not in self.schema:
+            raise ValueError("schema must include a 'type' field")
+        return self
+
+
+class ChecklistTemplateResponse(BaseModel):
+    """Serialized representation of a stored checklist template version."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    version: int
+    schema: dict[str, Any]
+    description: Optional[str]
+    created_at: datetime
+    updated_at: datetime

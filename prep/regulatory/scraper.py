@@ -235,6 +235,8 @@ class RegulatoryScraper:
                             "requirements": {"notes": line},
                             "applicable_to": ["host"],
                             "jurisdiction": city or state,
+                            "country_code": "US",
+                            "state_province": state.upper(),
                             "effective_date": datetime.utcnow(),
                             "citation": f"Health Dept - {state}",
                             "source_url": source_url,
@@ -302,6 +304,8 @@ class RegulatoryScraper:
         requirements.setdefault("business_type", business_type)
         requirements.setdefault("special_requirements", None)
         requirements.setdefault("source_url", f"https://insurance.{state.lower()}.gov")
+        requirements.setdefault("country_code", "US")
+        requirements.setdefault("state_province", state.upper())
         return requirements
 
     async def scrape_zoning_regulations(self, city: Optional[str], state: str) -> List[Dict]:
@@ -331,6 +335,8 @@ class RegulatoryScraper:
                     "requirements": {"notes": f"Check local zoning laws for {issue.lower()}"},
                     "applicable_to": ["host"],
                     "jurisdiction": city_label,
+                    "country_code": "US",
+                    "state_province": state.upper(),
                     "citation": f"Zoning Code - {city_label}",
                     "source_url": source_url,
                     "source_type": "zoning",

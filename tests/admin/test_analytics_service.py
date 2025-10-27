@@ -6,11 +6,16 @@ from decimal import Decimal
 from typing import Iterable, Mapping
 from uuid import UUID
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from prep.admin.analytics_api import get_analytics_service, router as analytics_router
-from prep.admin.analytics_service import AnalyticsService, PostgresAnalyticsRepository
+from prep.admin.analytics_service import (
+    AnalyticsService,
+    PostgresAnalyticsRepository,
+    StaticAnalyticsRepository,
+)
 from prep.models.admin import (
     BookingStatistics,
     HostPerformanceMetrics,
@@ -19,6 +24,7 @@ from prep.models.admin import (
     RevenueAnalytics,
     TimeSeriesPoint,
 )
+from prep.settings import get_settings
 
 
 class FakeAnalyticsRepository:
@@ -127,6 +133,29 @@ class RecordingConnection:
         return list(next(self._fetch_iter, []))
 
 
+class DummyPool:
+    def __init__(self, connection: object) -> None:
+        self.connection = connection
+        self.acquire_count = 0
+        self.closed = False
+
+    def acquire(self):  # type: ignore[override]
+        pool = self
+
+        class _Context:
+            async def __aenter__(self_inner):
+                pool.acquire_count += 1
+                return pool.connection
+
+            async def __aexit__(self_inner, exc_type, exc, tb) -> bool:
+                return False
+
+        return _Context()
+
+    async def close(self) -> None:
+        self.closed = True
+
+
 def test_service_delegates_to_repository() -> None:
     repository = FakeAnalyticsRepository()
     service = AnalyticsService(repository=repository)
@@ -206,3 +235,139 @@ def test_fastapi_router_uses_service_dependency() -> None:
     overview_response = client.get("/api/v1/analytics/overview")
     assert overview_response.status_code == 200
     assert overview_response.json()["total_kitchens"] == 120
+
+
+def test_analytics_routes_use_database_backend_when_fixtures_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import prep.admin.analytics_api as analytics_api
+
+    get_settings.cache_clear()
+    monkeypatch.delenv("USE_FIXTURES", raising=False)
+
+    fake_repository = FakeAnalyticsRepository()
+    calls: list[str] = []
+
+    class StubPostgresRepository:
+        def __init__(self, connection: object) -> None:
+            self.connection = connection
+
+        async def fetch_host_metrics(self, host_id: UUID) -> HostPerformanceMetrics:
+            calls.append("fetch_host_metrics")
+            assert host_id == fake_repository.host_metrics.host_id
+            return fake_repository.host_metrics
+
+        async def fetch_booking_statistics(
+            self,
+            *,
+            start_date: datetime | None,
+            end_date: datetime | None,
+        ) -> BookingStatistics:
+            calls.append("fetch_booking_statistics")
+            return fake_repository.booking_stats
+
+        async def fetch_revenue_analytics(
+            self,
+            *,
+            start_date: datetime | None,
+            end_date: datetime | None,
+        ) -> RevenueAnalytics:
+            calls.append("fetch_revenue_analytics")
+            return fake_repository.revenue
+
+        async def fetch_platform_overview(self) -> PlatformOverview:
+            calls.append("fetch_platform_overview")
+            return fake_repository.overview
+
+    pool = DummyPool(connection=object())
+    create_pool_calls = 0
+
+    async def fake_create_pool(*args, **kwargs):
+        nonlocal create_pool_calls
+        create_pool_calls += 1
+        return pool
+
+    analytics_api._pool = None
+    analytics_api._postgres_service = None
+    monkeypatch.setattr(analytics_api.asyncpg, "create_pool", fake_create_pool)
+    monkeypatch.setattr(analytics_api, "PostgresAnalyticsRepository", StubPostgresRepository)
+
+    app = FastAPI()
+    app.include_router(analytics_api.router)
+
+    with TestClient(app) as client:
+        host_id = str(fake_repository.host_metrics.host_id)
+
+        host_response = client.get(f"/api/v1/analytics/hosts/{host_id}")
+        assert host_response.status_code == 200
+        assert host_response.json()["host_name"] == "Test Host"
+
+        bookings_response = client.get("/api/v1/analytics/bookings")
+        assert bookings_response.status_code == 200
+        assert bookings_response.json()["total_bookings"] == 400
+
+        revenue_response = client.get("/api/v1/analytics/revenue")
+        assert revenue_response.status_code == 200
+        assert revenue_response.json()["total_revenue"] == "250000.00"
+
+        overview_response = client.get("/api/v1/analytics/overview")
+        assert overview_response.status_code == 200
+        assert overview_response.json()["total_kitchens"] == 120
+
+    assert create_pool_calls == 1
+    assert pool.acquire_count == 4
+    assert pool.closed is True
+    assert analytics_api._pool is None
+    assert analytics_api._postgres_service is None
+    assert calls == [
+        "fetch_host_metrics",
+        "fetch_booking_statistics",
+        "fetch_revenue_analytics",
+        "fetch_platform_overview",
+    ]
+    get_settings.cache_clear()
+
+
+def test_get_analytics_service_respects_use_fixtures_toggle(monkeypatch: pytest.MonkeyPatch) -> None:
+    import prep.admin.analytics_api as analytics_api
+
+    analytics_api._pool = None
+    analytics_api._postgres_service = None
+    monkeypatch.setenv("USE_FIXTURES", "true")
+    get_settings.cache_clear()
+
+    pool_created = False
+
+    async def fake_create_pool(*args, **kwargs):
+        nonlocal pool_created
+        pool_created = True
+        return DummyPool(object())
+
+    monkeypatch.setattr(analytics_api.asyncpg, "create_pool", fake_create_pool)
+
+    service = asyncio.run(analytics_api.get_analytics_service())
+    assert isinstance(service.repository, StaticAnalyticsRepository)
+    assert pool_created is False
+
+    monkeypatch.delenv("USE_FIXTURES", raising=False)
+    get_settings.cache_clear()
+
+    pool = DummyPool(object())
+
+    async def fake_create_pool_db(*args, **kwargs):
+        return pool
+
+    analytics_api._pool = None
+    analytics_api._postgres_service = None
+    monkeypatch.setattr(analytics_api.asyncpg, "create_pool", fake_create_pool_db)
+
+    service_db = asyncio.run(analytics_api.get_analytics_service())
+
+    assert isinstance(service_db.repository, analytics_api._PoolBackedAnalyticsRepository)
+    assert analytics_api._pool is pool
+
+    asyncio.run(analytics_api._shutdown_analytics_resources())
+    assert pool.closed is True
+    assert analytics_api._pool is None
+    assert analytics_api._postgres_service is None
+    get_settings.cache_clear()

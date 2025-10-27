@@ -18,6 +18,8 @@ from prep.admin.schemas import (
     CertificationListResponse,
     CertificationStats,
     CertificationSummary,
+    ChecklistTemplateCreateRequest,
+    ChecklistTemplateResponse,
     KitchenDetail,
     KitchenListResponse,
     KitchenModerationStats,
@@ -36,6 +38,7 @@ from prep.models.admin import AdminUser
 from prep.models.db import (
     CertificationDocument,
     CertificationReviewStatus,
+    ChecklistTemplate,
     Kitchen,
     ModerationStatus,
     User,
@@ -43,6 +46,41 @@ from prep.models.db import (
 )
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
+
+
+@router.post(
+    "/checklist-template",
+    response_model=ChecklistTemplateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_checklist_template(
+    payload: ChecklistTemplateCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> ChecklistTemplateResponse:
+    """Persist a new checklist template version for the admin console."""
+
+    _ = current_admin
+
+    result = await db.execute(
+        select(func.max(ChecklistTemplate.version)).where(
+            ChecklistTemplate.name == payload.name
+        )
+    )
+    latest_version = result.scalar_one()
+    next_version = (latest_version or 0) + 1
+
+    template = ChecklistTemplate(
+        name=payload.name,
+        version=next_version,
+        schema=payload.schema,
+        description=payload.description,
+    )
+    db.add(template)
+    await db.commit()
+    await db.refresh(template)
+
+    return ChecklistTemplateResponse.model_validate(template)
 
 
 def _build_kitchen_summary(kitchen: Kitchen) -> KitchenSummary:

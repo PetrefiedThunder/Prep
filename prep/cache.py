@@ -7,6 +7,8 @@ import logging
 import time
 from typing import Any, Protocol
 
+import fnmatch
+
 try:  # pragma: no cover - optional dependency import guard
     from redis.asyncio import Redis  # type: ignore
 except ImportError:  # pragma: no cover - fallback when redis is unavailable
@@ -26,6 +28,12 @@ class RedisProtocol(Protocol):
         ...
 
     async def setex(self, key: str, ttl: int, value: Any) -> None:
+        ...
+
+    async def delete(self, *keys: str) -> int:
+        ...
+
+    async def keys(self, pattern: str) -> list[str]:
         ...
 
 
@@ -50,6 +58,27 @@ class _MemoryRedis:
     async def setex(self, key: str, ttl: int, value: Any) -> None:
         async with self._lock:
             self._store[key] = (time.time() + ttl, value)
+
+    async def delete(self, *keys: str) -> int:
+        async with self._lock:
+            removed = 0
+            for key in keys:
+                if key in self._store:
+                    self._store.pop(key, None)
+                    removed += 1
+            return removed
+
+    async def keys(self, pattern: str) -> list[str]:
+        async with self._lock:
+            now = time.time()
+            matches: list[str] = []
+            for key, (expires_at, _) in list(self._store.items()):
+                if expires_at < now:
+                    self._store.pop(key, None)
+                    continue
+                if fnmatch.fnmatch(key, pattern):
+                    matches.append(key)
+            return matches
 
 
 async def get_redis() -> RedisProtocol:

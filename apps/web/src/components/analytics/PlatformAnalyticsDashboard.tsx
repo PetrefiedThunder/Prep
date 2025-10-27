@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+import { HostRevenueSparkline } from './HostRevenueSparkline';
+
 type TimeSeriesData = {
   date: string;
   value: number | string;
@@ -36,6 +38,14 @@ type RevenueAnalytics = {
   average_booking_value: string | number;
   revenue_forecast: TimeSeriesData[];
   payment_methods_breakdown: PaymentMethodBreakdown[];
+  top_hosts?: HostTopPerformer[];
+};
+
+type HostTopPerformer = {
+  host_id: string;
+  host_name: string;
+  total_revenue: string | number;
+  bookings_last_30_days?: number;
 };
 
 type GrowthChannelBreakdown = {
@@ -159,6 +169,8 @@ export default function PlatformAnalyticsDashboard() {
     };
   }, []);
 
+  const topHost = revenue?.top_hosts?.[0] ?? null;
+
   if (loading) {
     return <div className="p-6 text-slate-600">Loading analytics…</div>;
   }
@@ -217,6 +229,9 @@ export default function PlatformAnalyticsDashboard() {
             <TrendCard title="Revenue trends" points={revenue.revenue_trends} formatter={formatCurrency} />
             <TrendCard title="Forecast" points={revenue.revenue_forecast} formatter={formatCurrency} />
           </div>
+          {topHost ? (
+            <HostRevenueSparkline hostId={topHost.host_id} title={`${topHost.host_name} revenue`} />
+          ) : null}
           {revenue.revenue_by_kitchen.length > 0 ? (
             <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
               <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
