@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from fnmatch import fnmatch
 
 from prep.cache import RedisProtocol
 from prep.models.orm import Base, Kitchen, Review, ReviewStatus, User
@@ -33,6 +34,17 @@ class InMemoryRedis(RedisProtocol):
             self.store.pop(key, None)
         else:
             self.store[key] = value
+
+    async def delete(self, *keys: str) -> int:
+        removed = 0
+        for key in keys:
+            if key in self.store:
+                self.store.pop(key, None)
+                removed += 1
+        return removed
+
+    async def keys(self, pattern: str) -> list[str]:
+        return [key for key in self.store if fnmatch(key, pattern)]
 
 
 @pytest.fixture()

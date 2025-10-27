@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import enum
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any, List
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Enum,
     Float,
@@ -96,6 +97,13 @@ class VerificationTaskStatus(str, enum.Enum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+class SubleaseContractStatus(str, enum.Enum):
+    CREATED = "created"
+    SENT = "sent"
+    COMPLETED = "completed"
+    DECLINED = "declined"
+    VOIDED = "voided"
+    ERROR = "error"
 
 
 class User(TimestampMixin, Base):
@@ -204,6 +212,9 @@ class Kitchen(TimestampMixin, Base):
     compliance_documents: Mapped[List["ComplianceDocument"]] = relationship(
         "ComplianceDocument", back_populates="kitchen", cascade="all, delete-orphan"
     )
+    recurring_templates: Mapped[List["RecurringBookingTemplate"]] = relationship(
+        "RecurringBookingTemplate", back_populates="kitchen", cascade="all, delete-orphan"
+    )
 
 
 class Booking(TimestampMixin, Base):
@@ -228,8 +239,11 @@ class Booking(TimestampMixin, Base):
     platform_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
     host_payout_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
     payment_method: Mapped[str] = mapped_column(String(50), default="card", nullable=False)
+    payment_intent_id: Mapped[str | None] = mapped_column(String(255))
+    paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     source: Mapped[str | None] = mapped_column(String(120))
     cancellation_reason: Mapped[str | None] = mapped_column(String(255))
+    stripe_payment_intent_id: Mapped[str | None] = mapped_column(String(255))
 
     kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="bookings")
     host: Mapped[User] = relationship(
@@ -241,6 +255,39 @@ class Booking(TimestampMixin, Base):
     reviews: Mapped[List["Review"]] = relationship(
         "Review", back_populates="booking", cascade="all, delete-orphan"
     )
+    sublease_contract: Mapped["SubleaseContract" | None] = relationship(
+        "SubleaseContract", back_populates="booking", uselist=False
+    )
+
+
+class StripeWebhookEvent(TimestampMixin, Base):
+    __tablename__ = "stripe_webhook_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+
+
+class RecurringBookingTemplate(TimestampMixin, Base):
+    __tablename__ = "recurring_booking_templates"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    kitchen_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="CASCADE"), nullable=False
+    )
+    host_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    customer_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    rrule: Mapped[str] = mapped_column(Text, nullable=False)
+    buffer_minutes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="recurring_templates")
+    host: Mapped[User] = relationship("User", foreign_keys=[host_id])
+    customer: Mapped[User] = relationship("User", foreign_keys=[customer_id])
 
 
 class Review(TimestampMixin, Base):
@@ -418,6 +465,30 @@ class ComplianceDocument(TimestampMixin, Base):
     reviewer: Mapped[User | None] = relationship("User", foreign_keys=[reviewer_id])
 
 
+class SubleaseContract(TimestampMixin, Base):
+    __tablename__ = "sublease_contracts"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    booking_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("bookings.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    envelope_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    status: Mapped[SubleaseContractStatus] = mapped_column(
+        Enum(SubleaseContractStatus), default=SubleaseContractStatus.CREATED, nullable=False
+    )
+    signer_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    signer_name: Mapped[str | None] = mapped_column(String(255))
+    sign_url: Mapped[str | None] = mapped_column(String(512))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    document_s3_bucket: Mapped[str | None] = mapped_column(String(255))
+    document_s3_key: Mapped[str | None] = mapped_column(String(512))
+
+    booking: Mapped[Booking] = relationship(
+        "Booking", back_populates="sublease_contract", passive_deletes=True
+    )
+
+
 class COIDocument(TimestampMixin, Base):
     __tablename__ = "coi_documents"
 
@@ -428,6 +499,8 @@ class COIDocument(TimestampMixin, Base):
     checksum: Mapped[str] = mapped_column(String(128), nullable=False)
     valid: Mapped[bool] = mapped_column(Boolean, nullable=False)
     expiry_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    policy_number: Mapped[str | None] = mapped_column(String(128))
+    insured_name: Mapped[str | None] = mapped_column(String(255))
     validation_errors: Mapped[str | None] = mapped_column(Text)
 
 
@@ -457,6 +530,23 @@ class OperationalExpense(TimestampMixin, Base):
     category: Mapped[str | None] = mapped_column(String(120))
     description: Mapped[str | None] = mapped_column(Text)
 
+
+class RegDoc(Base):
+    """Normalized regulatory documents stored for analytics."""
+
+    __tablename__ = "reg_docs"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    jurisdiction: Mapped[str] = mapped_column(String(255), nullable=False)
+    code_section: Mapped[str] = mapped_column(String(120), nullable=False)
+    requirement_text: Mapped[str] = mapped_column(Text, nullable=False)
+    effective_date: Mapped[date | None] = mapped_column(Date)
+    citation_url: Mapped[str | None] = mapped_column(Text)
+    sha256_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    inserted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+
 __all__ = [
     "Base",
     "Booking",
@@ -467,16 +557,19 @@ __all__ = [
     "CertificationReviewStatus",
     "ComplianceDocument",
     "ComplianceDocumentStatus",
+    "SubleaseContract",
+    "SubleaseContractStatus",
     "Kitchen",
     "KitchenModerationEvent",
     "ModerationStatus",
-    "Review",
-    "ReviewFlag",
-    "ReviewFlagStatus",
-    "ReviewPhoto",
-    "ReviewStatus",
-    "ReviewVote",
-    "User",
-    "UserRole",
-    "COIDocument",
+    "Review", 
+    "ReviewFlag", 
+    "ReviewFlagStatus", 
+    "ReviewPhoto", 
+    "ReviewStatus", 
+    "ReviewVote", 
+    "RegDoc",
+    "User", 
+    "UserRole", 
+    "COIDocument", 
 ]

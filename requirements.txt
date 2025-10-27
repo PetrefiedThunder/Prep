@@ -16,3 +16,4 @@ pytesseract==0.3.10
 boto3==1.35.81
 psycopg[binary]==3.2.1
 aiobotocore==2.13.0
+alembic==1.13.1
