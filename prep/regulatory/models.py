@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import uuid
+from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text, JSON
-from sqlalchemy.ext.mutable import MutableList
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.ext.mutable import MutableDict, MutableList
 
 from prep.models import Base
 from prep.models.guid import GUID
@@ -67,9 +77,15 @@ class RegDoc(Base):
     """Normalized regulatory documents with content hashing."""
 
     __tablename__ = "regdocs"
+    __table_args__ = (
+        UniqueConstraint("sha256_hash", name="uq_regdocs_sha256_hash"),
+        Index("ix_regdocs_sha256_hash", "sha256_hash"),
+        Index("ix_regdocs_jurisdiction", "jurisdiction"),
+        Index("ix_regdocs_state_doc_type", "state", "doc_type"),
+    )
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    sha256_hash = Column(String(64), nullable=False, unique=True, index=True)
+    sha256_hash = Column(String(64), nullable=False)
     jurisdiction = Column(String(120))
     state = Column(String(2))
     city = Column(String(120))
@@ -77,23 +93,9 @@ class RegDoc(Base):
     title = Column(String(255))
     summary = Column(Text)
     source_url = Column(Text)
-    raw_payload = Column(JSON, nullable=False, default=dict)
+    raw_payload = Column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-__all__ = ["RegulationSource", "Regulation", "InsuranceRequirement", "RegDoc"]
-    """Normalized regulatory document content."""
-
-    __tablename__ = "reg_docs"
-
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    jurisdiction = Column(String(100), nullable=False)
-    code_section = Column(String(100), nullable=False)
-    requirement_text = Column(Text, nullable=False)
-    effective_date = Column(DateTime)
-    citation_url = Column(Text)
-    sha256_hash = Column(String(64), nullable=False, unique=True)
 
 
 __all__ = [
