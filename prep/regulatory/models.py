@@ -18,7 +18,9 @@ class RegulationSource(Base):
     __tablename__ = "regulation_sources"
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    country_code = Column(String(2), nullable=False, default="US")
     state = Column(String(2), nullable=False)
+    state_province = Column(String(100))
     city = Column(String(100))
     source_url = Column(Text, nullable=False)
     source_type = Column(String(50))
@@ -42,6 +44,8 @@ class Regulation(Base):
     effective_date = Column(DateTime)
     expiration_date = Column(DateTime)
     jurisdiction = Column(String(100))
+    country_code = Column(String(2), nullable=False, default="US")
+    state_province = Column(String(100))
     citation = Column(String(200))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -53,7 +57,9 @@ class InsuranceRequirement(Base):
     __tablename__ = "insurance_requirements"
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    country_code = Column(String(2), nullable=False, default="US")
     state = Column(String(2), nullable=False)
+    state_province = Column(String(100))
     city = Column(String(100))
     minimum_coverage = Column(JSON)
     required_policies = Column(MutableList.as_mutable(JSON))
@@ -71,7 +77,9 @@ class RegDoc(Base):
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     sha256_hash = Column(String(64), nullable=False, unique=True, index=True)
     jurisdiction = Column(String(120))
+    country_code = Column(String(2), nullable=False, default="US")
     state = Column(String(2))
+    state_province = Column(String(120))
     city = Column(String(120))
     doc_type = Column(String(100))
     title = Column(String(255))

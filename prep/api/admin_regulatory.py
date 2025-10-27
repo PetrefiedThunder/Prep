@@ -24,6 +24,7 @@ class ScrapeRequest(BaseModel):
     """Request payload to trigger regulatory scraping."""
 
     states: List[str] = Field(default_factory=list)
+    country_code: str = Field(default="US", min_length=2, max_length=2)
 
 
 @router.get("/states")

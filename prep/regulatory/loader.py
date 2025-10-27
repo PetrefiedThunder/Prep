@@ -12,7 +12,9 @@ from prep.regulatory.models import RegDoc
 _REGDOC_FIELDS = {
     "sha256_hash",
     "jurisdiction",
+    "country_code",
     "state",
+    "state_province",
     "city",
     "doc_type",
     "title",
@@ -31,6 +33,9 @@ def _normalize_regdoc(payload: Mapping[str, Any]) -> dict[str, Any]:
         for key in _REGDOC_FIELDS
         if key in payload and payload[key] is not None
     }
+    normalized.setdefault("country_code", "US")
+    if "state_province" not in normalized and "state" in normalized:
+        normalized["state_province"] = payload.get("state")
     normalized.setdefault("raw_payload", dict(payload))
     return normalized
 
