@@ -5,6 +5,7 @@ import BookingCheckout from './pages/BookingCheckout';
 import Dashboard from './pages/Dashboard';
 import AdminPortal from './pages/AdminPortal';
 import AnalyticsPortal from './pages/AnalyticsPortal';
+import AdminModerationPage from './pages/admin/moderation';
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Link to="/checkout">Checkout</Link>
         <Link to="/dashboard">Dashboard</Link>
         <Link to="/admin">Admin</Link>
+        <Link to="/admin/moderation">Moderation</Link>
         <Link to="/analytics">Analytics</Link>
       </nav>
       <Routes>
@@ -23,6 +25,7 @@ export default function App() {
         <Route path="/checkout" element={<BookingCheckout />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin" element={<AdminPortal />} />
+        <Route path="/admin/moderation" element={<AdminModerationPage />} />
         <Route path="/analytics" element={<AnalyticsPortal />} />
       </Routes>
     </BrowserRouter>
