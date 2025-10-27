@@ -189,8 +189,8 @@ class PlatformService:
         try:
             intent = await asyncio.to_thread(
                 stripe.PaymentIntent.create,
-                amount=payload.amount_cents,
-                currency=self._settings.stripe_currency,
+                amount=payload.amount,
+                currency=payload.currency,
                 metadata={"booking_id": str(payload.booking_id)},
                 automatic_payment_methods={"enabled": True},
             )
@@ -208,11 +208,22 @@ class PlatformService:
         if not client_secret:
             raise PlatformError("Payment intent missing client secret", status_code=502)
 
+        intent_id = getattr(intent, "id", None)
+        if intent_id is None and isinstance(intent, dict):
+            intent_id = intent.get("id")
+
+        if not intent_id:
+            raise PlatformError("Payment intent missing identifier", status_code=502)
+
+        booking.stripe_payment_intent_id = intent_id
+        await self._session.commit()
+        await self._session.refresh(booking)
+
         logger.info(
             "Created payment intent",
             extra={
                 "booking_id": str(payload.booking_id),
-                "payment_intent_id": getattr(intent, "id", None),
+                "payment_intent_id": intent_id,
             },
         )
         return client_secret

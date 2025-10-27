@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from fnmatch import fnmatch
 from typing import Any, AsyncGenerator
 from uuid import uuid4
 
@@ -39,6 +40,25 @@ class DummyRedis(RedisProtocol):  # type: ignore[misc]
     async def setex(self, key: str, ttl: int, value: str) -> None:
         expires_at = datetime.now(tz=UTC).timestamp() + ttl if ttl else None
         self._store[key] = (expires_at, value)
+
+    async def delete(self, *keys: str) -> int:
+        removed = 0
+        for key in keys:
+            if key in self._store:
+                self._store.pop(key, None)
+                removed += 1
+        return removed
+
+    async def keys(self, pattern: str) -> list[str]:
+        now = datetime.now(tz=UTC).timestamp()
+        matches: list[str] = []
+        for key, (expires_at, _) in list(self._store.items()):
+            if expires_at is not None and expires_at < now:
+                self._store.pop(key, None)
+                continue
+            if fnmatch(key, pattern):
+                matches.append(key)
+        return matches
 
 
 @pytest.fixture()
