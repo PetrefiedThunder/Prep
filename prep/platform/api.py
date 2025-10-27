@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import boto3
+from botocore.client import BaseClient
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from docusign_client import DocuSignClient
 from prep.cache import RedisProtocol, get_redis
 from prep.database import get_db
 from prep.platform import schemas
+from prep.platform.contracts_service import SubleaseContractService
 from prep.platform.service import PlatformError, PlatformService
 from prep.settings import Settings, get_settings
 
@@ -22,6 +26,29 @@ async def get_platform_service(
     settings: Settings = Depends(get_settings),
 ) -> PlatformService:
     return PlatformService(session, cache, settings)
+
+
+def get_docusign_client(settings: Settings = Depends(get_settings)) -> DocuSignClient:
+    if not settings.docusign_account_id or not settings.docusign_access_token:
+        raise HTTPException(status_code=500, detail="DocuSign credentials are not configured")
+    return DocuSignClient(
+        base_url=str(settings.docusign_base_url),
+        account_id=settings.docusign_account_id,
+        access_token=settings.docusign_access_token,
+    )
+
+
+def get_s3_client() -> BaseClient:
+    return boto3.client("s3")
+
+
+async def get_sublease_contract_service(
+    session: AsyncSession = Depends(get_db),
+    docusign: DocuSignClient = Depends(get_docusign_client),
+    s3_client: BaseClient = Depends(get_s3_client),
+    settings: Settings = Depends(get_settings),
+) -> SubleaseContractService:
+    return SubleaseContractService(session, docusign, s3_client, settings)
 
 
 def _handle_service_error(exc: PlatformError) -> HTTPException:
@@ -140,6 +167,56 @@ async def create_payment_intent(
     except PlatformError as exc:
         raise _handle_service_error(exc)
     return schemas.PaymentIntentResponse(client_secret=client_secret)
+
+
+@router.post(
+    "/contracts/sublease/send",
+    response_model=schemas.SubleaseContractSendResponse,
+)
+async def send_sublease_contract(
+    payload: schemas.SubleaseContractSendRequest,
+    service: SubleaseContractService = Depends(get_sublease_contract_service),
+) -> schemas.SubleaseContractSendResponse:
+    try:
+        result = await service.send_contract(
+            booking_id=payload.booking_id,
+            signer_email=payload.signer_email,
+            signer_name=payload.signer_name,
+            return_url=payload.return_url,
+        )
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+
+    return schemas.SubleaseContractSendResponse(
+        booking_id=result.contract.booking_id,
+        envelope_id=result.contract.envelope_id,
+        sign_url=result.signing_url,
+    )
+
+
+@router.get(
+    "/contracts/sublease/status/{booking_id}",
+    response_model=schemas.SubleaseContractStatusResponse,
+)
+async def get_sublease_contract_status(
+    booking_id: UUID,
+    service: SubleaseContractService = Depends(get_sublease_contract_service),
+) -> schemas.SubleaseContractStatusResponse:
+    try:
+        contract = await service.get_contract_status(booking_id)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+
+    return schemas.SubleaseContractStatusResponse(
+        booking_id=contract.booking_id,
+        envelope_id=contract.envelope_id,
+        status=contract.status,
+        sign_url=contract.sign_url,
+        document_s3_bucket=contract.document_s3_bucket,
+        document_s3_key=contract.document_s3_key,
+        completed_at=contract.completed_at,
+        last_checked_at=contract.last_checked_at,
+    )
 
 
 @router.post(

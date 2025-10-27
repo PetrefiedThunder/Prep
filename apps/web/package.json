@@ -11,6 +11,9 @@
     "vercel-build": "npm run build"
   },
   "dependencies": {
+    "@fullcalendar/interaction": "^6.1.15",
+    "@fullcalendar/react": "^6.1.15",
+    "@fullcalendar/timegrid": "^6.1.15",
     "@stripe/react-stripe-js": "^2.4.0",
     "@stripe/stripe-js": "^2.2.0",
     "@supabase/supabase-js": "^2.43.1",
@@ -24,7 +27,8 @@
     "react-router-dom": "^6.22.0",
     "socket.io-client": "^4.6.0",
     "zod": "^3.22.0",
-    "zustand": "^4.4.7"
+    "zustand": "^4.4.7",
+    "swr": "^2.2.4"
   },
   "devDependencies": {
     "@types/react": "^18.2.28",
