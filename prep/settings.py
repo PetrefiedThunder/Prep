@@ -70,6 +70,9 @@ class Settings(BaseModel):
     )
     docusign_ping_url: AnyUrl | None = Field(default=None, alias="DOCUSIGN_PING_URL")
     contracts_s3_bucket: str | None = Field(default=None, alias="CONTRACTS_S3_BUCKET")
+    stripe_webhook_secret: str | None = Field(
+        default=None, alias="STRIPE_WEBHOOK_SECRET"
+    )
 
     model_config = {
         "populate_by_name": True,

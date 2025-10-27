@@ -6,6 +6,7 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from prep.models.orm import (
     Booking,
@@ -179,7 +180,16 @@ class ComplianceDocumentResponse(_ORMBaseModel):
 
 class PaymentIntentCreateRequest(BaseModel):
     booking_id: UUID
-    amount_cents: int = Field(gt=0)
+    amount: int = Field(gt=0)
+    currency: str = Field(min_length=3, max_length=3)
+
+    @field_validator("currency")
+    @classmethod
+    def _validate_currency(cls, value: str) -> str:
+        normalized = value.strip()
+        if len(normalized) != 3 or not normalized.isalpha():
+            raise ValueError("currency must be a 3-letter ISO code")
+        return normalized.lower()
 
 
 class PaymentIntentResponse(BaseModel):

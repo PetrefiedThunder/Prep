@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import enum
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any, List
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Enum,
     Float,
@@ -230,8 +231,11 @@ class Booking(TimestampMixin, Base):
     platform_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
     host_payout_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
     payment_method: Mapped[str] = mapped_column(String(50), default="card", nullable=False)
+    payment_intent_id: Mapped[str | None] = mapped_column(String(255))
+    paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     source: Mapped[str | None] = mapped_column(String(120))
     cancellation_reason: Mapped[str | None] = mapped_column(String(255))
+    stripe_payment_intent_id: Mapped[str | None] = mapped_column(String(255))
 
     kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="bookings")
     host: Mapped[User] = relationship(
@@ -246,6 +250,13 @@ class Booking(TimestampMixin, Base):
     sublease_contract: Mapped["SubleaseContract" | None] = relationship(
         "SubleaseContract", back_populates="booking", uselist=False
     )
+
+
+class StripeWebhookEvent(TimestampMixin, Base):
+    __tablename__ = "stripe_webhook_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
 
 
 class Review(TimestampMixin, Base):
@@ -470,6 +481,23 @@ class OperationalExpense(TimestampMixin, Base):
     category: Mapped[str | None] = mapped_column(String(120))
     description: Mapped[str | None] = mapped_column(Text)
 
+
+class RegDoc(Base):
+    """Normalized regulatory documents stored for analytics."""
+
+    __tablename__ = "reg_docs"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    jurisdiction: Mapped[str] = mapped_column(String(255), nullable=False)
+    code_section: Mapped[str] = mapped_column(String(120), nullable=False)
+    requirement_text: Mapped[str] = mapped_column(Text, nullable=False)
+    effective_date: Mapped[date | None] = mapped_column(Date)
+    citation_url: Mapped[str | None] = mapped_column(Text)
+    sha256_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    inserted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+
 __all__ = [
     "Base",
     "Booking",
@@ -483,13 +511,14 @@ __all__ = [
     "Kitchen",
     "KitchenModerationEvent",
     "ModerationStatus",
-    "Review",
-    "ReviewFlag",
-    "ReviewFlagStatus",
-    "ReviewPhoto",
-    "ReviewStatus",
-    "ReviewVote",
-    "User",
-    "UserRole",
-    "COIDocument",
+    "Review", 
+    "ReviewFlag", 
+    "ReviewFlagStatus", 
+    "ReviewPhoto", 
+    "ReviewStatus", 
+    "ReviewVote", 
+    "RegDoc",
+    "User", 
+    "UserRole", 
+    "COIDocument", 
 ]
