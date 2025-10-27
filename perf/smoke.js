@@ -1,5 +1,6 @@
 import http from 'k6/http';
 import { check } from 'k6';
+import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
 
 export const options = {
   scenarios: {
@@ -12,6 +13,9 @@ export const options = {
   thresholds: {
     http_req_duration: ['p(95)<500'],
     http_req_failed: ['rate<0.001'],
+    'checks{endpoint:compliance-query}': ['rate>0.99'],
+    'checks{endpoint:bookings}': ['rate>0.99'],
+    'checks{endpoint:analytics-host}': ['rate>0.99'],
   },
 };
 
@@ -29,8 +33,19 @@ export default function smokeTest() {
 
   responses.forEach((response, index) => {
     const { name } = REQUESTS[index];
-    check(response, {
-      [`${name} responded with status 2xx`]: (res) => res.status >= 200 && res.status < 300,
-    });
+    check(
+      response,
+      {
+        [`${name} responded with status 2xx`]: (res) => res.status >= 200 && res.status < 300,
+      },
+      { endpoint: name },
+    );
   });
+}
+
+export function handleSummary(data) {
+  return {
+    stdout: textSummary(data, { indent: ' ', enableColors: true }),
+    'k6-smoke-summary.json': JSON.stringify(data, null, 2),
+  };
 }
