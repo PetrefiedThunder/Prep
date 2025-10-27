@@ -1,7 +1,0 @@
-{
-  "name": "prep-monorepo",
-  "private": true,
-  "overrides": {
-    "@fastify/websocket": "8.3.1"
-  }
-}
