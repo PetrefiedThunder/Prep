@@ -207,6 +207,9 @@ class Kitchen(TimestampMixin, Base):
     compliance_documents: Mapped[List["ComplianceDocument"]] = relationship(
         "ComplianceDocument", back_populates="kitchen", cascade="all, delete-orphan"
     )
+    recurring_templates: Mapped[List["RecurringBookingTemplate"]] = relationship(
+        "RecurringBookingTemplate", back_populates="kitchen", cascade="all, delete-orphan"
+    )
 
 
 class Booking(TimestampMixin, Base):
@@ -257,6 +260,29 @@ class StripeWebhookEvent(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     event_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+
+
+class RecurringBookingTemplate(TimestampMixin, Base):
+    __tablename__ = "recurring_booking_templates"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    kitchen_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="CASCADE"), nullable=False
+    )
+    host_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    customer_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    rrule: Mapped[str] = mapped_column(Text, nullable=False)
+    buffer_minutes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="recurring_templates")
+    host: Mapped[User] = relationship("User", foreign_keys=[host_id])
+    customer: Mapped[User] = relationship("User", foreign_keys=[customer_id])
 
 
 class Review(TimestampMixin, Base):
