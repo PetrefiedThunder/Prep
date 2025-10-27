@@ -92,6 +92,15 @@ class ComplianceDocumentStatus(str, enum.Enum):
     REJECTED = "rejected"
 
 
+class SubleaseContractStatus(str, enum.Enum):
+    CREATED = "created"
+    SENT = "sent"
+    COMPLETED = "completed"
+    DECLINED = "declined"
+    VOIDED = "voided"
+    ERROR = "error"
+
+
 class User(TimestampMixin, Base):
     __tablename__ = "users"
 
@@ -237,6 +246,9 @@ class Booking(TimestampMixin, Base):
     )
     reviews: Mapped[List["Review"]] = relationship(
         "Review", back_populates="booking", cascade="all, delete-orphan"
+    )
+    sublease_contract: Mapped["SubleaseContract" | None] = relationship(
+        "SubleaseContract", back_populates="booking", uselist=False
     )
 
 
@@ -422,6 +434,30 @@ class ComplianceDocument(TimestampMixin, Base):
     reviewer: Mapped[User | None] = relationship("User", foreign_keys=[reviewer_id])
 
 
+class SubleaseContract(TimestampMixin, Base):
+    __tablename__ = "sublease_contracts"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    booking_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("bookings.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    envelope_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    status: Mapped[SubleaseContractStatus] = mapped_column(
+        Enum(SubleaseContractStatus), default=SubleaseContractStatus.CREATED, nullable=False
+    )
+    signer_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    signer_name: Mapped[str | None] = mapped_column(String(255))
+    sign_url: Mapped[str | None] = mapped_column(String(512))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    document_s3_bucket: Mapped[str | None] = mapped_column(String(255))
+    document_s3_key: Mapped[str | None] = mapped_column(String(512))
+
+    booking: Mapped[Booking] = relationship(
+        "Booking", back_populates="sublease_contract", passive_deletes=True
+    )
+
+
 class COIDocument(TimestampMixin, Base):
     __tablename__ = "coi_documents"
 
@@ -470,6 +506,8 @@ __all__ = [
     "CertificationReviewStatus",
     "ComplianceDocument",
     "ComplianceDocumentStatus",
+    "SubleaseContract",
+    "SubleaseContractStatus",
     "Kitchen",
     "KitchenModerationEvent",
     "ModerationStatus",
