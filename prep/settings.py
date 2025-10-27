@@ -57,6 +57,7 @@ class Settings(BaseModel):
     )
     stripe_api_key: str | None = Field(default=None, alias="STRIPE_API_KEY")
     stripe_currency: str = Field(default="usd", alias="STRIPE_CURRENCY")
+    use_fixtures: bool = Field(default=False, alias="USE_FIXTURES")
 
     model_config = {
         "populate_by_name": True,
