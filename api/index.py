@@ -27,6 +27,7 @@ from prep.test_data import router as test_data_router
 
 from api.space_optimizer import router as space_optimizer_router
 from prep.verification_tasks.api import router as verification_tasks_router
+from modules.observability import DEFAULT_TARGETED_ROUTES, configure_fastapi_tracing
 from api.webhooks.square_kds import router as square_kds_router
 from prep.logistics.api import router as logistics_router
 from prep.monitoring.api import router as monitoring_router
@@ -68,6 +69,8 @@ def create_app() -> FastAPI:
     """Instantiate the FastAPI application used by Vercel."""
 
     app = FastAPI(title="Prep API Gateway", version="1.0.0")
+
+    configure_fastapi_tracing(app, targeted_routes=DEFAULT_TARGETED_ROUTES)
 
     app.add_middleware(
         CORSMiddleware,
