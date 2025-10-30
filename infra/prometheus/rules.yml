@@ -1,0 +1,10 @@
+groups:
+  - name: guards
+    rules:
+      - alert: PricingConversionDrop
+        expr: (1 - sum(rate(pricing_conversion[5m]))) > 0.10
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Pricing conversion drop >10%"

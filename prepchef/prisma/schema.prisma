@@ -84,6 +84,7 @@ model User {
   verifiedDocuments        ComplianceDocument[] @relation("DocumentVerifier")
   canceledBookings         Booking[] @relation("BookingCanceler")
   accessGrantsRevoked      AccessGrant[] @relation("AccessGrantRevoker")
+  integrations             Integration[]
 
   @@map("users")
 }
@@ -184,6 +185,7 @@ model KitchenListing {
   bookings              Booking[]
   reviews               Review[]
   messages              Message[]
+  integrations          Integration[]
 
   @@map("kitchen_listings")
 }
@@ -391,6 +393,27 @@ model Notification {
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+model Integration {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  kitchenId     String?  @map("kitchen_id") @db.Uuid
+  serviceType   String   @map("service_type")
+  vendorName    String   @map("vendor_name")
+  authMethod    String   @map("auth_method")
+  syncFrequency String   @map("sync_frequency")
+  status        String
+  metadata      Json     @default("{}") @db.JsonB
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user    User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kitchen KitchenListing? @relation(fields: [kitchenId], references: [id])
+
+  @@index([userId], map: "integrations_user_id_idx")
+  @@index([kitchenId], map: "integrations_kitchen_id_idx")
+  @@map("integrations")
 }
 
 model AuditLog {
