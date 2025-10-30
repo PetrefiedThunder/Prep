@@ -14,6 +14,7 @@ _sqlalchemy_spec = importlib.util.find_spec("sqlalchemy")
 
 if _sqlalchemy_spec is None:
     sqlalchemy_stub = types.ModuleType("sqlalchemy")
+    sqlalchemy_stub.__prep_stub__ = True
 
     class _SQLType:
         def __init__(self, *args: object, **kwargs: object) -> None:  # noqa: D401
@@ -43,6 +44,7 @@ if _sqlalchemy_spec is None:
     ]:
         setattr(sqlalchemy_stub, name, _SQLType)
 
+    sqlalchemy_stub.UniqueConstraint = _unavailable
     sqlalchemy_stub.select = _unavailable
 
     def create_engine(*args: object, **kwargs: object) -> types.SimpleNamespace:
@@ -253,6 +255,10 @@ try:
 except (ModuleNotFoundError, SyntaxError):  # pragma: no cover - optional dependency for lightweight tests
     SessionLocal = None  # type: ignore[assignment]
     init_db = None  # type: ignore[assignment]
+else:
+    if getattr(sys.modules.get("sqlalchemy"), "__prep_stub__", False):
+        SessionLocal = None  # type: ignore[assignment]
+        init_db = None  # type: ignore[assignment]
 
 
 @pytest.fixture(scope="session")
