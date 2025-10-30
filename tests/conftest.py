@@ -11,6 +11,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 
 if importlib.util.find_spec("sqlalchemy") is None:
     sqlalchemy_stub = types.ModuleType("sqlalchemy")
+    sqlalchemy_stub.__prep_stub__ = True
 
     class _SQLType:
         def __init__(self, *args: object, **kwargs: object) -> None:  # noqa: D401
@@ -21,6 +22,7 @@ if importlib.util.find_spec("sqlalchemy") is None:
 
     for name in [
         "Boolean",
+        "Date",
         "DateTime",
         "Enum",
         "Float",
@@ -32,6 +34,9 @@ if importlib.util.find_spec("sqlalchemy") is None:
         "Text",
     ]:
         setattr(sqlalchemy_stub, name, _SQLType)
+
+    sqlalchemy_stub.UniqueConstraint = _unavailable
+    sqlalchemy_stub.select = _unavailable
 
     def create_engine(*args: object, **kwargs: object) -> types.SimpleNamespace:
         return types.SimpleNamespace()
@@ -65,6 +70,7 @@ if importlib.util.find_spec("sqlalchemy") is None:
     orm_module.mapped_column = mapped_column
     orm_module.relationship = relationship
     orm_module.sessionmaker = sessionmaker
+    orm_module.Session = Any
 
     pool_module = types.ModuleType("sqlalchemy.pool")
 
@@ -205,6 +211,10 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - optional dependency for lightweight tests
     SessionLocal = None  # type: ignore[assignment]
     init_db = None  # type: ignore[assignment]
+else:
+    if getattr(sys.modules.get("sqlalchemy"), "__prep_stub__", False):
+        SessionLocal = None  # type: ignore[assignment]
+        init_db = None  # type: ignore[assignment]
 
 
 @pytest.fixture(scope="session")
