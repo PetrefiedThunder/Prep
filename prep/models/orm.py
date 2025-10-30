@@ -93,6 +93,13 @@ class ComplianceDocumentStatus(str, enum.Enum):
     REJECTED = "rejected"
 
 
+class IntegrationStatus(str, enum.Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    ERROR = "error"
+    PENDING = "pending"
+
+
 class VerificationTaskStatus(str, enum.Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
@@ -158,6 +165,12 @@ class User(TimestampMixin, Base):
         cascade="all, delete-orphan",
         foreign_keys="KitchenModerationEvent.admin_id",
     )
+    integrations: Mapped[List["Integration"]] = relationship(
+        "Integration",
+        back_populates="owner",
+        cascade="all, delete-orphan",
+        foreign_keys="Integration.user_id",
+    )
 
 
 class Kitchen(TimestampMixin, Base):
@@ -198,6 +211,12 @@ class Kitchen(TimestampMixin, Base):
     zoning_type: Mapped[str | None] = mapped_column(String(120))
 
     host: Mapped[User] = relationship("User", back_populates="kitchens")
+    integrations: Mapped[List["Integration"]] = relationship(
+        "Integration",
+        back_populates="kitchen",
+        cascade="all, delete-orphan",
+        foreign_keys="Integration.kitchen_id",
+    )
     bookings: Mapped[List["Booking"]] = relationship(
         "Booking", back_populates="kitchen", cascade="all, delete-orphan"
     )
@@ -215,6 +234,37 @@ class Kitchen(TimestampMixin, Base):
     )
     recurring_templates: Mapped[List["RecurringBookingTemplate"]] = relationship(
         "RecurringBookingTemplate", back_populates="kitchen", cascade="all, delete-orphan"
+    )
+
+
+class Integration(TimestampMixin, Base):
+    __tablename__ = "integrations"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    kitchen_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="SET NULL"), nullable=True
+    )
+    service_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    vendor_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    auth_method: Mapped[str] = mapped_column(String(50), nullable=False)
+    sync_frequency: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[IntegrationStatus] = mapped_column(
+        Enum(IntegrationStatus), default=IntegrationStatus.ACTIVE, nullable=False
+    )
+    metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+
+    owner: Mapped[User] = relationship(
+        "User",
+        back_populates="integrations",
+        foreign_keys=[user_id],
+    )
+    kitchen: Mapped[Kitchen | None] = relationship(
+        "Kitchen",
+        back_populates="integrations",
+        foreign_keys=[kitchen_id],
     )
 
 
