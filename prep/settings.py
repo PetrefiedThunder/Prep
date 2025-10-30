@@ -80,6 +80,47 @@ class Settings(BaseModel):
     stripe_webhook_secret: str | None = Field(
         default=None, alias="STRIPE_WEBHOOK_SECRET"
     )
+    onfleet_api_key: str | None = Field(default=None, alias="ONFLEET_API_KEY")
+    onfleet_base_url: AnyUrl = Field(
+        default="https://onfleet.com/api/v2", alias="ONFLEET_BASE_URL"
+    )
+    shopify_store_domain: str | None = Field(default=None, alias="SHOPIFY_STORE_DOMAIN")
+    shopify_admin_api_token: str | None = Field(
+        default=None, alias="SHOPIFY_ADMIN_API_TOKEN"
+    )
+    shopify_api_version: str = Field(default="2024-01", alias="SHOPIFY_API_VERSION")
+    tiktok_shop_app_key: str | None = Field(default=None, alias="TIKTOK_SHOP_APP_KEY")
+    tiktok_shop_app_secret: str | None = Field(
+        default=None, alias="TIKTOK_SHOP_APP_SECRET"
+    )
+    tiktok_shop_access_token: str | None = Field(
+        default=None, alias="TIKTOK_SHOP_ACCESS_TOKEN"
+    )
+    oracle_simphony_host: AnyUrl | None = Field(
+        default=None, alias="ORACLE_SIMPHONY_HOST"
+    )
+    oracle_simphony_username: str | None = Field(
+        default=None, alias="ORACLE_SIMPHONY_USERNAME"
+    )
+    oracle_simphony_password: str | None = Field(
+        default=None, alias="ORACLE_SIMPHONY_PASSWORD"
+    )
+    oracle_simphony_enterprise_id: str | None = Field(
+        default=None, alias="ORACLE_SIMPHONY_ENTERPRISE_ID"
+    )
+    bigquery_project_id: str | None = Field(
+        default=None, alias="BIGQUERY_PROJECT_ID"
+    )
+    bigquery_dataset: str | None = Field(default=None, alias="BIGQUERY_DATASET")
+    snowflake_account: str | None = Field(default=None, alias="SNOWFLAKE_ACCOUNT")
+    snowflake_database: str | None = Field(default=None, alias="SNOWFLAKE_DATABASE")
+    snowflake_schema: str | None = Field(default=None, alias="SNOWFLAKE_SCHEMA")
+    snowflake_warehouse: str | None = Field(
+        default=None, alias="SNOWFLAKE_WAREHOUSE"
+    )
+    schema_registry_url: AnyUrl | None = Field(
+        default=None, alias="SCHEMA_REGISTRY_URL"
+    )
 
     model_config = {
         "populate_by_name": True,
