@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping
 
-from ..core.orchestration import ComplianceDomain
+if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
+    from ..core.orchestration import ComplianceDomain
 
 
 @dataclass
@@ -41,12 +42,19 @@ class MetricsCollector:
 
     def __init__(self) -> None:
         self._counters: Dict[str, int] = {}
+        self._gauges: Dict[str, float] = {}
 
     def increment(self, name: str, value: int = 1) -> None:
         self._counters[name] = self._counters.get(name, 0) + value
 
     def counters(self) -> Dict[str, int]:
         return dict(self._counters)
+
+    def set_gauge(self, name: str, value: float | int) -> None:
+        self._gauges[name] = float(value)
+
+    def gauges(self) -> Dict[str, float]:
+        return dict(self._gauges)
 
 
 class StructuredLogger:
@@ -71,8 +79,26 @@ class EnterpriseObservability:
         self.logging = StructuredLogger()
         self.tracing = DistributedTracer()
 
+    def record_job_result(
+        self,
+        job_name: str,
+        *,
+        success: bool,
+        duration_seconds: float,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> None:
+        """Capture success/failure metrics for background jobs."""
+
+        status = "success" if success else "failure"
+        self.metrics.increment(f"jobs.{job_name}.{status}")
+        self.metrics.set_gauge(f"jobs.{job_name}.last_duration_seconds", duration_seconds)
+        log_payload = {"job_name": job_name, "status": status, "duration_seconds": duration_seconds}
+        if metadata:
+            log_payload.update(metadata)
+        self.logging.info("Background job completed", **log_payload)
+
     async def track_compliance_workflow(
-        self, workflow_id: str, domains: Iterable[ComplianceDomain]
+        self, workflow_id: str, domains: Iterable["ComplianceDomain"]
     ) -> None:
         """End-to-end compliance workflow monitoring."""
 

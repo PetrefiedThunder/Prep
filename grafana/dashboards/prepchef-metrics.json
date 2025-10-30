@@ -1,7 +1,10 @@
 {
   "dashboard": {
     "title": "PrepChef Metrics",
-    "tags": ["prepchef", "production"],
+    "tags": [
+      "prepchef",
+      "production"
+    ],
     "timezone": "browser",
     "panels": [
       {
@@ -14,7 +17,12 @@
             "legendFormat": "{{method}} {{route}}"
           }
         ],
-        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        }
       },
       {
         "id": 2,
@@ -30,7 +38,12 @@
             "legendFormat": "p99 {{route}}"
           }
         ],
-        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        }
       },
       {
         "id": 3,
@@ -42,7 +55,12 @@
             "legendFormat": "Confirmed Bookings/sec"
           }
         ],
-        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 }
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 0,
+          "y": 8
+        }
       },
       {
         "id": 4,
@@ -54,7 +72,12 @@
             "legendFormat": "Validations/sec"
           }
         ],
-        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 }
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 6,
+          "y": 8
+        }
       },
       {
         "id": 5,
@@ -66,7 +89,12 @@
             "legendFormat": "{{status}}"
           }
         ],
-        "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 }
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 8
+        }
       },
       {
         "id": 6,
@@ -82,7 +110,12 @@
             "legendFormat": "Idle"
           }
         ],
-        "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 }
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 8
+        }
       },
       {
         "id": 7,
@@ -98,7 +131,12 @@
             "legendFormat": "4xx Errors"
           }
         ],
-        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        }
       },
       {
         "id": 8,
@@ -110,7 +148,12 @@
             "legendFormat": "CPU %"
           }
         ],
-        "gridPos": { "h": 8, "w": 6, "x": 12, "y": 16 }
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 16
+        }
       },
       {
         "id": 9,
@@ -122,7 +165,60 @@
             "legendFormat": "Memory (MB)"
           }
         ],
-        "gridPos": { "h": 8, "w": 6, "x": 18, "y": 16 }
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 16
+        }
+      },
+      {
+        "id": 10,
+        "title": "Pricing Refresh - Last Run",
+        "type": "stat",
+        "description": "Unix timestamp of the most recent pricing refresh execution.",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 18,
+          "y": 24
+        },
+        "targets": [
+          {
+            "expr": "max(prep_jobs_pricing_hourly_refresh_last_run_timestamp)",
+            "legendFormat": "Last Run"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "dateTimeFromNow",
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "orientation": "horizontal",
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "textMode": "auto"
+        }
       }
     ],
     "refresh": "10s",
