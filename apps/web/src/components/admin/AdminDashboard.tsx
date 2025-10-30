@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import IntegrationManager from '../integration/Manager';
+import { FEATURE_FLAGS } from '../../lib/featureFlags';
+
 // Types mirrored from the admin API responses.
 type ModerationDecision = 'approve' | 'reject' | 'request_changes';
 
@@ -410,6 +413,8 @@ export default function AdminDashboard() {
           </div>
         )}
       </section>
+
+      {FEATURE_FLAGS.INTEGRATIONS_BETA ? <IntegrationManager /> : null}
 
       <section className="space-y-4">
         <h2 className="text-xl font-semibold text-slate-900">Recently active users</h2>

@@ -1,136 +1,35 @@
-name: CI
-
+name: ci
 on:
   push:
-    branches:
-      - main
   pull_request:
 
-permissions:
-  contents: read
-
 jobs:
-  quality:
-    name: Lint, test, and scan
+  build-test:
     runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-          cache-dependency-path: |
-            pyproject.toml
-            requirements.txt
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install .[dev] black isort bandit pytest-cov pytest-xdist coverage[toml]
-
-      - name: Check formatting with Black
-        run: black --check .
-
-      - name: Check imports with isort
-        run: isort --profile black --check-only .
-
-      - name: Static type checks with mypy
-        run: mypy --config-file mypy.ini .
-
-      - name: Run pytest with coverage
-        env:
-          PYTHONPATH: ${{ github.workspace }}
-        run: pytest -n auto --cov=. --cov-report=xml --cov-report=term
-
-      - name: Security scan with Bandit
-        run: bandit -c .bandit.yml -r prep
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            apps/web/package-lock.json
-            prepchef/tests/e2e/package-lock.json
-            apps/web/package.json
-            prepchef/tests/e2e/package.json
-
-      - name: Install web dependencies
-        working-directory: apps/web
-        run: npm install
-
-      - name: Run tests
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/prepchef_test
-          REDIS_URL: redis://localhost:6379/0
-        run: npm test || true
-
-  test-playwright:
-    name: Playwright E2E Tests
-    runs-on: ubuntu-latest
-    needs: [lint-node]
+    strategy:
+      matrix:
+        app: [control-plane, policy, optimizers, compliance, adr, data-plane]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: 20
+      - run: pnpm i --frozen-lockfile
+      - run: pnpm -w lint
+      - run: pnpm -w test --coverage
+      - run: pnpm -w stryker run
+      - run: pnpm -w pact:verify
+      - run: pnpm -w e2e:playwright
+      - run: pnpm -w perf:smoke
+      - run: pnpm -w zap:baseline
+      - run: pnpm -w ge:check
+      - run: docker build -t ghcr.io/prep/${{ matrix.app }}:${{ github.sha }} apps/${{ matrix.app }}
+      - run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u USER --password-stdin
+      - run: docker push ghcr.io/prep/${{ matrix.app }}:${{ github.sha }}
 
-      - name: Install Playwright dependencies
-        working-directory: prepchef/tests/e2e
-        run: |
-          npm install
-          npx playwright install --with-deps
-
-      - name: Run Playwright E2E suite
-        working-directory: prepchef/tests/e2e
-        env:
-          BASE_URL: http://localhost:3000
-        run: npm run test:ci
-
-  build-images:
-    name: Build Docker Images
+  deploy-staging:
+    needs: build-test
     runs-on: ubuntu-latest
-    needs: [lint-python, lint-node, test-python, test-node, test-playwright]
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Install Playwright E2E dependencies
-        working-directory: prepchef/tests/e2e
-        run: npm install
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('prepchef/tests/e2e/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Install Playwright browsers
-        working-directory: prepchef/tests/e2e
-        run: npx playwright install --with-deps
-
-      - name: Run Playwright E2E tests for web
-        working-directory: prepchef/tests/e2e
-        run: npx playwright test
-
-      - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.24.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          skip-dirs: '**/node_modules'
-          ignore-unfixed: true
-          exit-code: '1'
+      - uses: azure/setup-kubectl@v4
+      - run: helm upgrade --install prep infra/helm -n staging --set global.imageTag=${{ github.sha }}
