@@ -8,6 +8,7 @@ from typing import Any, Callable
 import pytest
 
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
+os.environ.setdefault("SKIP_PREP_DB_INIT", "1")
 
 if importlib.util.find_spec("sqlalchemy") is None:
     sqlalchemy_stub = types.ModuleType("sqlalchemy")
@@ -231,6 +232,7 @@ def event_loop():
 
 @pytest.fixture(scope="session", autouse=True)
 def _create_schema():
+    if init_db is None or os.environ.get("SKIP_PREP_DB_INIT") == "1":
     global init_db
     if init_db is None:
         yield
