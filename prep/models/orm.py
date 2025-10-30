@@ -6,6 +6,10 @@ from decimal import Decimal
 from typing import Any, List
 from uuid import UUID, uuid4
 
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, JSON, Numeric, String, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, mapped_column, relationship
+
+Date = DateTime
 from sqlalchemy import (
     Boolean,
     DateTime,
@@ -229,6 +233,8 @@ class Kitchen(TimestampMixin, Base):
     last_inspection_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     insurance_info: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     zoning_type: Mapped[str | None] = mapped_column(String(120))
+    delivery_only: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    permit_types: Mapped[list[str] | None] = mapped_column(JSON, default=list)
 
     host: Mapped[User] = relationship("User", back_populates="kitchens")
 
@@ -252,6 +258,9 @@ class Kitchen(TimestampMixin, Base):
     )
     compliance_documents: Mapped[List["ComplianceDocument"]] = relationship(
         "ComplianceDocument", back_populates="kitchen", cascade="all, delete-orphan"
+    )
+    sanitation_logs: Mapped[List["SanitationLog"]] = relationship(
+        "SanitationLog", back_populates="kitchen", cascade="all, delete-orphan"
     )
     recurring_templates: Mapped[List["RecurringBookingTemplate"]] = relationship(
         "RecurringBookingTemplate", back_populates="kitchen", cascade="all, delete-orphan"
@@ -422,9 +431,7 @@ class ChecklistTemplate(TimestampMixin, Base):
     """Versioned JSON schema used to power dynamic admin checklists."""
 
     __tablename__ = "checklist_templates"
-    __table_args__ = (
-        UniqueConstraint("name", "version", name="uq_checklist_template_name_version"),
-    )
+    __table_args__ = ()
 
     id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -681,6 +688,26 @@ class ComplianceDocument(TimestampMixin, Base):
     reviewer: Mapped[User | None] = relationship("User", foreign_keys=[reviewer_id])
 
 
+class SanitationLog(TimestampMixin, Base):
+    """Documented sanitation checks for a kitchen."""
+
+    __tablename__ = "sanitation_logs"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    kitchen_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="CASCADE"), nullable=False
+    )
+    logged_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+    inspector_name: Mapped[str | None] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(String(32), default="passed", nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    follow_up_required: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    kitchen: Mapped["Kitchen"] = relationship("Kitchen", back_populates="sanitation_logs")
+
+
 class SubleaseContract(TimestampMixin, Base):
     __tablename__ = "sublease_contracts"
 
@@ -773,6 +800,7 @@ __all__ = [
     "CertificationReviewStatus",
     "ComplianceDocument",
     "ComplianceDocumentStatus",
+    "SanitationLog",
     "SubleaseContract",
     "SubleaseContractStatus",
     "Kitchen",

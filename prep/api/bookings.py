@@ -4,26 +4,27 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from datetime import datetime, timedelta
+"""Booking API endpoints with compliance validation."""
+
+from __future__ import annotations
+
+import uuid
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from pydantic import BaseModel
-from sqlalchemy import select, text
-from datetime import UTC, datetime, timedelta
-
+from dateutil.rrule import rrulestr
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from dateutil.rrule import rrulestr
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER
 from prep.database.connection import get_db
-from prep.models import Booking, BookingStatus, Kitchen
-from prep.settings import get_settings
+from prep.insurance.certificates import issue_certificate_for_booking_sync
 from prep.models import Booking, BookingStatus, Kitchen, RecurringBookingTemplate
+from prep.observability.metrics import DELIVERIES_COUNTER
+from prep.settings import get_settings
 
 from .kitchens import analyze_kitchen_compliance
 
@@ -215,6 +216,9 @@ async def create_booking(
     await db.commit()
     await db.refresh(new_booking)
 
+    background_tasks.add_task(issue_certificate_for_booking_sync, str(new_booking.id))
+    DELIVERIES_COUNTER.inc()
+
     return BookingResponse(
         id=str(new_booking.id),
         user_id=str(new_booking.customer_id),
@@ -340,6 +344,8 @@ async def create_recurring_booking(
     await db.refresh(template)
     for booking in created_bookings:
         await db.refresh(booking)
+        background_tasks.add_task(issue_certificate_for_booking_sync, str(booking.id))
+        DELIVERIES_COUNTER.inc()
 
     return RecurringBookingResponse(
         template_id=str(template.id),
