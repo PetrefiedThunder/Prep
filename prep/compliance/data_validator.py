@@ -174,6 +174,51 @@ class DataValidator:
                     "equipment", "nsf_certified", index, custom="Equipment"
                 )
 
+        recipes = _expect_sequence(data.get("recipes"), "recipes", label="Recipes")
+        for recipe_index, recipe in enumerate(recipes, start=1):
+            if not isinstance(recipe, Mapping):
+                _expected_entry_type("recipes", "an object", recipe_index, custom="Recipe")
+                continue
+            if not recipe.get("name"):
+                _field_required("recipes", "name", recipe_index, custom="Recipe")
+            allergens = recipe.get("allergens")
+            if allergens in (None, ""):
+                continue
+            if not isinstance(allergens, Sequence) or isinstance(
+                allergens, (str, bytes, bytearray)
+            ):
+                _expected_type("recipes", "an array", custom="Recipe Allergens")
+                continue
+            for allergen_index, allergen in enumerate(allergens, start=1):
+                label = f"Recipe {recipe_index} Allergen"
+                if not isinstance(allergen, Mapping):
+                    _expected_entry_type("recipes", "an object", allergen_index, custom=label)
+                    continue
+                if not allergen.get("name"):
+                    _field_required("recipes", "name", allergen_index, custom=label)
+                if "present" not in allergen:
+                    _field_required("recipes", "present", allergen_index, custom=label)
+                if "declared" not in allergen:
+                    _field_required("recipes", "declared", allergen_index, custom=label)
+
+        allergen_summary = data.get("allergens_summary")
+        if allergen_summary not in (None, {}):
+            if not isinstance(allergen_summary, Mapping):
+                _expected_type("allergens_summary", "an object")
+            else:
+                for name, entry in allergen_summary.items():
+                    if not isinstance(entry, Mapping):
+                        _expected_type("allergens_summary", "an object", custom=f"Allergen {name}")
+                        continue
+                    if "recipes" not in entry:
+                        _message("allergens_summary", "Recipes count is required", custom=f"Allergen {name}")
+                    if "undeclared" not in entry:
+                        _message(
+                            "allergens_summary",
+                            "Undeclared count is required",
+                            custom=f"Allergen {name}",
+                        )
+
         insurance = _expect_mapping(
             data.get("insurance"), "insurance", label="Insurance"
         )
@@ -248,6 +293,8 @@ class DataValidator:
             "photos",
             "pest_control_records",
             "cleaning_logs",
+            "recipes",
+            "allergens_summary",
             "license_number",
             "county_fips",
         }

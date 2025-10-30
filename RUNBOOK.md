@@ -25,6 +25,14 @@ This runbook provides step-by-step procedures for common incidents and emergency
 5. **Resolve** - Fix root cause
 6. **Document** - Write post-mortem (P0/P1 only)
 
+## Scheduled Jobs
+
+### Finance payout reconciliation
+
+- **Cadence**: Nightly at 02:00 UTC (`0 2 * * *`)
+- **Purpose**: Compares host payout records with GAAP ledger exports and emits a reconciliation summary for finance operations.
+- **Alerting**: Missed SLA events trigger the shared observability callback (`modules/observability/alerts.py`) which records a metric and structured log entry for investigation.
+
 ---
 
 ## Common Incidents
