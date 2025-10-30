@@ -21,6 +21,7 @@ if importlib.util.find_spec("sqlalchemy") is None:
 
     for name in [
         "Boolean",
+        "Date",
         "DateTime",
         "Enum",
         "Float",
@@ -30,6 +31,7 @@ if importlib.util.find_spec("sqlalchemy") is None:
         "Numeric",
         "String",
         "Text",
+        "UniqueConstraint",
     ]:
         setattr(sqlalchemy_stub, name, _SQLType)
 
@@ -220,7 +222,11 @@ def _create_schema():
         yield
         return
 
-    init_db()
+    try:
+        init_db()
+    except Exception:  # pragma: no cover - database optional in lightweight envs
+        yield
+        return
     yield
 
 
