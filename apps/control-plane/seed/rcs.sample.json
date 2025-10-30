@@ -1,0 +1,16 @@
+[
+  {
+    "key": "pricing.dynamic.v1",
+    "state": "on",
+    "rollout": { "strategy": "canary", "percent": 10 },
+    "metrics_guard": "pricing_conversion_drop<0.10 && api_p95_ms<350",
+    "updated_by": "system"
+  },
+  {
+    "key": "router.active.LA.90026",
+    "state": "on",
+    "targeting": { "zip": ["90026"] },
+    "rollout": { "strategy": "all", "percent": 100 },
+    "updated_by": "system"
+  }
+]

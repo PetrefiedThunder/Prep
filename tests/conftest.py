@@ -22,8 +22,10 @@ if importlib.util.find_spec("sqlalchemy") is None:
     for name in [
         "Date",
         "Boolean",
+        "Date",
         "DateTime",
         "Enum",
+        "Index",
         "Float",
         "ForeignKey",
         "Integer",
@@ -34,6 +36,8 @@ if importlib.util.find_spec("sqlalchemy") is None:
         "UniqueConstraint",
     ]:
         setattr(sqlalchemy_stub, name, _SQLType)
+
+    sqlalchemy_stub.select = _unavailable
 
     def create_engine(*args: object, **kwargs: object) -> types.SimpleNamespace:
         return types.SimpleNamespace()
@@ -67,6 +71,7 @@ if importlib.util.find_spec("sqlalchemy") is None:
     orm_module.mapped_column = mapped_column
     orm_module.relationship = relationship
     orm_module.sessionmaker = sessionmaker
+    orm_module.Session = Any
 
     pool_module = types.ModuleType("sqlalchemy.pool")
 
@@ -148,6 +153,14 @@ except ModuleNotFoundError as exc:  # pragma: no cover - allow tests without SQL
         raise
     SessionLocal = None  # type: ignore
     init_db = None  # type: ignore
+
+if os.getenv("SKIP_DB_SETUP") == "1":
+    SessionLocal = None  # type: ignore
+    init_db = None  # type: ignore
+    db_module = sys.modules.get("prep.models.db")
+    if db_module is not None:
+        setattr(db_module, "init_db", lambda: None)
+        setattr(db_module, "SessionLocal", None)
 if "aiohttp" not in sys.modules:
     try:
         import aiohttp as _aiohttp  # type: ignore  # pragma: no cover - prefer real installation when available
@@ -227,6 +240,7 @@ def _create_schema():
         init_db()
     except Exception:  # pragma: no cover - defensive for optional deps
         init_db = None
+    except Exception:  # pragma: no cover - database optional in lightweight envs
         yield
         return
     yield
