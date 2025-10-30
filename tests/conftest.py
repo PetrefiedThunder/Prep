@@ -21,8 +21,10 @@ if importlib.util.find_spec("sqlalchemy") is None:
 
     for name in [
         "Boolean",
+        "Date",
         "DateTime",
         "Enum",
+        "Index",
         "Float",
         "ForeignKey",
         "Integer",
@@ -30,6 +32,7 @@ if importlib.util.find_spec("sqlalchemy") is None:
         "Numeric",
         "String",
         "Text",
+        "UniqueConstraint",
     ]:
         setattr(sqlalchemy_stub, name, _SQLType)
 
