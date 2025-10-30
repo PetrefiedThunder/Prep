@@ -12,6 +12,7 @@ from prep.analytics.dashboard_api import router as analytics_router
 from prep.analytics.host_metrics_api import router as host_metrics_router
 from prep.cities.api import router as cities_router
 from prep.kitchen_cam.api import router as kitchen_cam_router
+from prep.integrations.api import router as integrations_router
 from prep.matching.api import router as matching_router
 from prep.mobile.api import router as mobile_router
 from prep.platform.api import router as platform_router
@@ -20,6 +21,8 @@ from prep.ratings.api import router as ratings_router
 from prep.reviews.api import router as reviews_router
 from prep.test_data import router as test_data_router
 from prep.verification_tasks.api import router as verification_tasks_router
+from prep.monitoring.api import router as monitoring_router
+from prep.integrations.runtime import configure_integration_event_consumers
 
 
 def _build_router() -> APIRouter:
@@ -39,6 +42,8 @@ def _build_router() -> APIRouter:
     router.include_router(kitchen_cam_router)
     router.include_router(payments_router)
     router.include_router(test_data_router)
+    router.include_router(integrations_router)
+    router.include_router(monitoring_router)
     router.include_router(verification_tasks_router)
     return router
 
@@ -57,6 +62,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(_build_router())
+    configure_integration_event_consumers(app)
 
     @app.get("/healthz", tags=["health"])
     async def healthcheck() -> dict[str, str]:

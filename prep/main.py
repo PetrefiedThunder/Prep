@@ -7,6 +7,9 @@ from prep.analytics.dashboard_api import router as analytics_router
 from prep.api import admin_regulatory, auth, bookings, kitchens, regulatory, search
 from prep.api import auth, kitchens, regulatory
 from prep.payments.api import router as payments_router
+from prep.integrations.api import router as integrations_router
+from prep.monitoring.api import router as monitoring_router
+from prep.integrations.runtime import configure_integration_event_consumers
 
 app = FastAPI(title="Prep Platform API", version="1.0.0")
 
@@ -20,6 +23,9 @@ app.include_router(regulatory.router)
 app.include_router(payments_router)
 app.include_router(admin_router)
 app.include_router(analytics_router)
+app.include_router(integrations_router)
+app.include_router(monitoring_router)
+configure_integration_event_consumers(app)
 
 @app.get("/")
 async def root() -> dict[str, str]:

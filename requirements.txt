@@ -20,3 +20,4 @@ WeasyPrint==62.0
 psycopg[binary]==3.2.1
 aiobotocore==2.13.0
 alembic==1.13.1
+aiokafka==0.10.0

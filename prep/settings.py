@@ -32,6 +32,20 @@ def _parse_env_file(path: Path) -> Dict[str, str]:
     return values
 
 
+class IntegrationEndpoint(BaseModel):
+    """Configuration for an external integration health check."""
+
+    id: str = Field(alias="id")
+    name: str = Field(alias="name")
+    url: AnyUrl = Field(alias="url")
+    description: str | None = Field(default=None, alias="description")
+
+    model_config = {
+        "populate_by_name": True,
+        "extra": "ignore",
+    }
+
+
 class Settings(BaseModel):
     """Strongly typed runtime configuration."""
 
@@ -60,6 +74,7 @@ class Settings(BaseModel):
     use_fixtures: bool = Field(default=False, alias="USE_FIXTURES")
     compliance_controls_enabled: bool = Field(
         default=False, alias="COMPLIANCE_CONTROLS_ENABLED"
+    )
     twilio_from_number: str | None = Field(default=None, alias="TWILIO_FROM_NUMBER")
     compliance_ops_phone: str | None = Field(default=None, alias="COMPLIANCE_OPS_PHONE")
     compliance_ops_email: str | None = Field(default=None, alias="COMPLIANCE_OPS_EMAIL")
@@ -79,6 +94,18 @@ class Settings(BaseModel):
     contracts_s3_bucket: str | None = Field(default=None, alias="CONTRACTS_S3_BUCKET")
     stripe_webhook_secret: str | None = Field(
         default=None, alias="STRIPE_WEBHOOK_SECRET"
+    )
+    kafka_bootstrap_servers: str | None = Field(
+        default=None, alias="KAFKA_BOOTSTRAP_SERVERS"
+    )
+    integration_endpoints: list[IntegrationEndpoint] = Field(
+        default_factory=list, alias="INTEGRATION_ENDPOINTS"
+    )
+    integrations_beta_enabled: bool = Field(
+        default=False, alias="INTEGRATIONS_BETA"
+    )
+    integration_health_timeout_seconds: int = Field(
+        default=10, ge=1, alias="INTEGRATION_HEALTH_TIMEOUT_SECONDS"
     )
 
     model_config = {
@@ -137,4 +164,4 @@ def get_settings() -> Settings:
     return load_settings(env_file=path)
 
 
-__all__ = ["Settings", "get_settings", "load_settings"]
+__all__ = ["Settings", "IntegrationEndpoint", "get_settings", "load_settings"]
