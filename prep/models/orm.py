@@ -13,6 +13,7 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     JSON,
     Numeric,
@@ -198,6 +199,15 @@ class Kitchen(TimestampMixin, Base):
     zoning_type: Mapped[str | None] = mapped_column(String(120))
 
     host: Mapped[User] = relationship("User", back_populates="kitchens")
+    pos_integrations: Mapped[List["POSIntegration"]] = relationship(
+        "POSIntegration", back_populates="kitchen", cascade="all, delete-orphan"
+    )
+    pos_transactions: Mapped[List["POSTransaction"]] = relationship(
+        "POSTransaction", back_populates="kitchen", cascade="all, delete-orphan"
+    )
+    pos_orders: Mapped[List["POSOrder"]] = relationship(
+        "POSOrder", back_populates="kitchen", cascade="all, delete-orphan"
+    )
     bookings: Mapped[List["Booking"]] = relationship(
         "Booking", back_populates="kitchen", cascade="all, delete-orphan"
     )
@@ -215,6 +225,110 @@ class Kitchen(TimestampMixin, Base):
     )
     recurring_templates: Mapped[List["RecurringBookingTemplate"]] = relationship(
         "RecurringBookingTemplate", back_populates="kitchen", cascade="all, delete-orphan"
+    )
+
+
+class POSIntegrationStatus(str, enum.Enum):
+    ACTIVE = "active"
+    DISABLED = "disabled"
+
+
+class POSIntegration(TimestampMixin, Base):
+    __tablename__ = "pos_integrations"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    kitchen_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="CASCADE"), nullable=False
+    )
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    merchant_id: Mapped[str | None] = mapped_column(String(128))
+    location_identifier: Mapped[str | None] = mapped_column(String(128))
+    access_token: Mapped[str | None] = mapped_column(String(255))
+    refresh_token: Mapped[str | None] = mapped_column(String(255))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[POSIntegrationStatus] = mapped_column(
+        Enum(POSIntegrationStatus), default=POSIntegrationStatus.ACTIVE, nullable=False
+    )
+    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+
+    kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="pos_integrations")
+    transactions: Mapped[List["POSTransaction"]] = relationship(
+        "POSTransaction", back_populates="integration", cascade="all, delete-orphan"
+    )
+    orders: Mapped[List["POSOrder"]] = relationship(
+        "POSOrder", back_populates="integration", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "kitchen_id", "provider", name="uq_pos_integration_kitchen_provider"
+        ),
+    )
+
+
+class POSTransaction(TimestampMixin, Base):
+    __tablename__ = "pos_transactions"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    integration_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("pos_integrations.id", ondelete="CASCADE"), nullable=False
+    )
+    kitchen_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="CASCADE"), nullable=False
+    )
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    location_id: Mapped[str | None] = mapped_column(String(120))
+    external_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="completed", nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    raw_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+
+    integration: Mapped[POSIntegration] = relationship(
+        "POSIntegration", back_populates="transactions"
+    )
+    kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="pos_transactions")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "provider", "external_id", name="uq_pos_transaction_provider_external"
+        ),
+        Index("ix_pos_transactions_kitchen_occurred_at", "kitchen_id", "occurred_at"),
+    )
+
+
+class POSOrder(TimestampMixin, Base):
+    __tablename__ = "pos_orders"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    integration_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("pos_integrations.id", ondelete="SET NULL"), nullable=True
+    )
+    kitchen_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="CASCADE"), nullable=False
+    )
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    external_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    order_number: Mapped[str | None] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(String(32), default="open", nullable=False)
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    total_amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), default=Decimal("0.00"), nullable=False
+    )
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
+    guest_count: Mapped[int | None] = mapped_column(Integer)
+    raw_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+
+    kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="pos_orders")
+    integration: Mapped[POSIntegration] = relationship(
+        "POSIntegration", back_populates="orders"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("provider", "external_id", name="uq_pos_order_provider_external"),
+        Index("ix_pos_orders_kitchen_closed_at", "kitchen_id", "closed_at"),
     )
 
 

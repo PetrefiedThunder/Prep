@@ -80,6 +80,14 @@ class Settings(BaseModel):
     stripe_webhook_secret: str | None = Field(
         default=None, alias="STRIPE_WEBHOOK_SECRET"
     )
+    square_client_id: str | None = Field(default=None, alias="SQUARE_CLIENT_ID")
+    square_client_secret: str | None = Field(default=None, alias="SQUARE_CLIENT_SECRET")
+    square_base_url: AnyUrl = Field(
+        default="https://connect.squareup.com", alias="SQUARE_BASE_URL"
+    )
+    toast_api_key: str | None = Field(default=None, alias="TOAST_API_KEY")
+    toast_base_url: AnyUrl = Field(default="https://toast-api.io", alias="TOAST_BASE_URL")
+    pos_ledger_bucket: str | None = Field(default=None, alias="POS_LEDGER_BUCKET")
 
     model_config = {
         "populate_by_name": True,
