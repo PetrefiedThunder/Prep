@@ -1,0 +1,38 @@
+openapi: 3.0.3
+info:
+  title: Pricing Service API
+  version: "1.0.0"
+paths:
+  /price/query:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kitchen_id:
+                  type: string
+                slot_start:
+                  type: string
+                  format: date-time
+                slot_end:
+                  type: string
+                  format: date-time
+      responses:
+        "200":
+          description: price decision
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  price_cents:
+                    type: integer
+                  arm:
+                    type: string
+                  canary_percent:
+                    type: integer
+                  guard_expr:
+                    type: string

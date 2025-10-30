@@ -1,0 +1,35 @@
+name: spark-pipelines
+
+on:
+  push:
+    paths:
+      - 'apps/data-plane/spark/**'
+      - '.github/workflows/spark-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r apps/data-plane/spark/requirements.txt
+      - name: Run unit tests
+        run: pytest apps/data-plane/spark/tests -q
+      - name: Build Spark recon image
+        run: docker build -t ghcr.io/prep/spark-recon:${{ github.sha }} -f apps/data-plane/spark/Dockerfile apps/data-plane/spark
+      - name: Push Spark recon image
+        run: echo "Skipping push in CI stub"
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/setup-kubectl@v4
+      - name: Deploy Spark recon chart
+        run: |
+          helm upgrade --install spark-recon infra/helm/spark-recon \
+            -n data \
+            --set image.tag=${{ github.sha }}

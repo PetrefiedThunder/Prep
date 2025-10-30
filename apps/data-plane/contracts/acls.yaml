@@ -1,0 +1,22 @@
+principals:
+  - principal: "User:CN=pricing-service"
+    allow:
+      - write: optimizer.decisions
+      - read: pos.transactions
+      - read: bookings.events
+
+  - principal: "User:CN=routing-service"
+    allow:
+      - write: optimizer.decisions
+      - write: delivery.status
+      - read: delivery.status
+
+  - principal: "User:CN=control-plane-rollback"
+    allow:
+      - read: system.alerts
+      - write: audit.events
+      - write: rcs.store
+
+  - principal: "User:CN=data-lake-sink"
+    allow:
+      - read: ".*"
