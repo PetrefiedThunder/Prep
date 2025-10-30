@@ -9,14 +9,16 @@ from typing import Any, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import Select, and_, case, func, select
+from sqlalchemy import Select, and_, case, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER
 from prep.database.connection import AsyncSessionLocal, get_db
-from prep.models import Kitchen
+from prep.models import Kitchen, SanitationLog
 from prep.notifications.regulatory import RegulatoryNotifier
 from prep.notifications.service import NotificationService
+from prep.observability.metrics import DELIVERY_KITCHENS_GAUGE
 from prep.regulatory.analyzer import RegulatoryAnalyzer
 from prep.regulatory.service import get_regulations_for_jurisdiction
 from prep.settings import get_settings
@@ -41,6 +43,8 @@ class KitchenCreate(BaseModel):
     last_inspection_date: Optional[datetime] = None
     insurance_info: Optional[dict[str, Any]] = None
     zoning_type: Optional[str] = None
+    delivery_only: bool = False
+    permit_types: List[str] = Field(default_factory=list)
 
 
 class KitchenResponse(KitchenCreate):
@@ -66,6 +70,27 @@ class KitchenComplianceResponse(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     booking_restrictions_banner: Optional[str] = None
+    delivery_only: bool = False
+    permit_types: List[str] = Field(default_factory=list)
+    last_sanitation_log: Optional[datetime] = None
+
+
+class SanitationLogCreate(BaseModel):
+    """Payload describing a sanitation inspection entry."""
+
+    logged_at: Optional[datetime] = None
+    status: str = Field(default="passed", pattern="^[a-zA-Z_]+$")
+    inspector_name: Optional[str] = None
+    notes: Optional[str] = None
+    follow_up_required: bool = False
+
+
+class SanitationLogResponse(SanitationLogCreate):
+    """Serialized sanitation log returned by the API."""
+
+    id: str
+    kitchen_id: str
+    logged_at: datetime
 
 
 def _serialize_kitchen(kitchen: Kitchen) -> KitchenResponse:
@@ -89,7 +114,30 @@ def _serialize_kitchen(kitchen: Kitchen) -> KitchenResponse:
         last_inspection_date=kitchen.last_inspection_date,
         insurance_info=kitchen.insurance_info,
         zoning_type=kitchen.zoning_type,
+        delivery_only=bool(kitchen.delivery_only),
+        permit_types=kitchen.permit_types or [],
     )
+
+
+def _serialize_sanitation_log(entry: SanitationLog) -> SanitationLogResponse:
+    """Normalize a sanitation log ORM row into API representation."""
+
+    return SanitationLogResponse(
+        id=str(entry.id),
+        kitchen_id=str(entry.kitchen_id),
+        logged_at=entry.logged_at,
+        status=entry.status,
+        inspector_name=entry.inspector_name,
+        notes=entry.notes,
+        follow_up_required=entry.follow_up_required,
+    )
+
+
+async def _refresh_delivery_gauge(db: AsyncSession) -> None:
+    """Update the Prometheus gauge tracking delivery-only kitchens."""
+
+    total = await db.scalar(select(func.count()).where(Kitchen.delivery_only.is_(True)))
+    DELIVERY_KITCHENS_GAUGE.set(total or 0)
 
 
 @router.post("/", response_model=KitchenResponse, status_code=status.HTTP_201_CREATED)
@@ -121,6 +169,8 @@ async def create_kitchen(
         last_inspection_date=kitchen_data.last_inspection_date,
         insurance_info=kitchen_data.insurance_info,
         zoning_type=kitchen_data.zoning_type,
+        delivery_only=kitchen_data.delivery_only,
+        permit_types=kitchen_data.permit_types,
     )
 
     db.add(new_kitchen)
@@ -128,6 +178,7 @@ async def create_kitchen(
     await db.refresh(new_kitchen)
 
     background_tasks.add_task(analyze_kitchen_compliance, str(new_kitchen.id))
+    await _refresh_delivery_gauge(db)
 
     return _serialize_kitchen(new_kitchen)
 
@@ -150,7 +201,53 @@ async def list_kitchens(
 
     result = await db.execute(select(Kitchen).offset(skip).limit(limit))
     kitchens = result.scalars().all()
+    await _refresh_delivery_gauge(db)
     return [_serialize_kitchen(kitchen) for kitchen in kitchens]
+
+
+@router.get("/{kitchen_id}/sanitation", response_model=List[SanitationLogResponse])
+async def list_sanitation_logs(
+    kitchen_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> List[SanitationLogResponse]:
+    """Return sanitation logs for a specific kitchen."""
+
+    kitchen = await _get_kitchen_or_404(db, kitchen_id)
+    result = await db.execute(
+        select(SanitationLog)
+        .where(SanitationLog.kitchen_id == kitchen.id)
+        .order_by(desc(SanitationLog.logged_at))
+    )
+    entries = result.scalars().all()
+    return [_serialize_sanitation_log(entry) for entry in entries]
+
+
+@router.post(
+    "/{kitchen_id}/sanitation",
+    response_model=SanitationLogResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_sanitation_log(
+    kitchen_id: str,
+    log_data: SanitationLogCreate,
+    db: AsyncSession = Depends(get_db),
+) -> SanitationLogResponse:
+    """Add a sanitation inspection record for a kitchen."""
+
+    kitchen = await _get_kitchen_or_404(db, kitchen_id)
+    entry = SanitationLog(
+        kitchen_id=kitchen.id,
+        logged_at=log_data.logged_at or datetime.utcnow(),
+        status=log_data.status,
+        inspector_name=log_data.inspector_name,
+        notes=log_data.notes,
+        follow_up_required=log_data.follow_up_required,
+    )
+
+    db.add(entry)
+    await db.commit()
+    await db.refresh(entry)
+    return _serialize_sanitation_log(entry)
 
 
 @router.get("/{kitchen_id}/compliance", response_model=KitchenComplianceResponse)
@@ -171,7 +268,24 @@ async def get_kitchen_compliance(
         "last_inspection_date": kitchen.last_inspection_date,
         "insurance": kitchen.insurance_info,
         "zoning_type": kitchen.zoning_type,
+        "delivery_only": kitchen.delivery_only,
+        "permit_types": kitchen.permit_types or [],
     }
+
+    sanitation_stmt = (
+        select(SanitationLog)
+        .where(SanitationLog.kitchen_id == kitchen.id)
+        .order_by(desc(SanitationLog.logged_at))
+    )
+    sanitation_rows = (await db.execute(sanitation_stmt)).scalars().all()
+    kitchen_payload["sanitation_logs"] = [
+        {
+            "logged_at": log.logged_at,
+            "status": log.status,
+            "follow_up_required": log.follow_up_required,
+        }
+        for log in sanitation_rows
+    ]
 
     regulations = await get_regulations_for_jurisdiction(db, kitchen.state, kitchen.city)
     analysis = await analyzer.analyze_kitchen_compliance(kitchen_payload, regulations)
@@ -191,6 +305,9 @@ async def get_kitchen_compliance(
         city=kitchen.city,
         state=kitchen.state,
         booking_restrictions_banner=banner,
+        delivery_only=kitchen.delivery_only,
+        permit_types=kitchen.permit_types or [],
+        last_sanitation_log=analysis.metadata.get("last_sanitation_log"),
     )
 
 
@@ -277,7 +394,23 @@ async def analyze_kitchen_compliance(kitchen_id: str) -> None:
             "last_inspection_date": kitchen.last_inspection_date,
             "insurance": kitchen.insurance_info,
             "zoning_type": kitchen.zoning_type,
+            "delivery_only": kitchen.delivery_only,
+            "permit_types": kitchen.permit_types or [],
         }
+        sanitation_stmt = (
+            select(SanitationLog)
+            .where(SanitationLog.kitchen_id == kitchen.id)
+            .order_by(desc(SanitationLog.logged_at))
+        )
+        sanitation_rows = (await session.execute(sanitation_stmt)).scalars().all()
+        kitchen_payload["sanitation_logs"] = [
+            {
+                "logged_at": log.logged_at,
+                "status": log.status,
+                "follow_up_required": log.follow_up_required,
+            }
+            for log in sanitation_rows
+        ]
         regulations = await get_regulations_for_jurisdiction(session, kitchen.state, kitchen.city)
 
         previous_status = kitchen.compliance_status or "unknown"

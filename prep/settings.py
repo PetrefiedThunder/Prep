@@ -80,6 +80,8 @@ class Settings(BaseModel):
     stripe_webhook_secret: str | None = Field(
         default=None, alias="STRIPE_WEBHOOK_SECRET"
     )
+    next_insurance_api_key: str | None = Field(default=None, alias="NEXT_INSURANCE_API_KEY")
+    thimble_api_key: str | None = Field(default=None, alias="THIMBLE_API_KEY")
 
     model_config = {
         "populate_by_name": True,

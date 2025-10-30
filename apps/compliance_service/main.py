@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import logging
 import os
 from dataclasses import asdict
 from datetime import date, datetime, time, timezone
@@ -30,6 +31,8 @@ from prep.compliance.food_safety_compliance_engine import (
     FoodSafetyComplianceEngine,
 )
 from prep.compliance import COIExtractionError, validate_coi
+from prep.inventory.connectors import ApicbaseConnector
+from prep.inventory.errors import ConnectorError
 from prep.models.db import SessionLocal
 from prep.models.orm import (
     Booking,
@@ -61,6 +64,10 @@ class KitchenPayload(BaseModel):
 
 ENGINE_VERSION = FoodSafetyComplianceEngine.ENGINE_VERSION
 
+LOGGER = logging.getLogger("prep.apps.compliance_service")
+if not LOGGER.handlers:
+    LOGGER.addHandler(logging.NullHandler())
+
 
 def _build_engine() -> FoodSafetyComplianceEngine:
     """Instantiate the compliance engine with optional external client."""
@@ -78,6 +85,43 @@ def _build_engine() -> FoodSafetyComplianceEngine:
 
 engine = _build_engine()
 app = FastAPI(title="Prep Compliance Service", version=ENGINE_VERSION)
+
+
+def _enrich_with_apicbase_data(kitchen_payload: dict[str, Any]) -> dict[str, Any]:
+    """Augment the payload with recipe allergen data from Apicbase when available."""
+
+    base_url = os.getenv("APICBASE_BASE_URL")
+    api_key = os.getenv("APICBASE_API_KEY")
+    if not (base_url and api_key):
+        return kitchen_payload
+
+    location_id = (
+        str(
+            kitchen_payload.get("apicbase_location_id")
+            or kitchen_payload.get("location_id")
+            or os.getenv("APICBASE_LOCATION_ID", "")
+        ).strip()
+        or None
+    )
+
+    try:
+        connector = ApicbaseConnector(base_url, api_key, location_id=location_id)
+    except RuntimeError:
+        LOGGER.debug("Apicbase connector unavailable; skipping menu enrichment")
+        return kitchen_payload
+
+    try:
+        snapshot = connector.build_compliance_snapshot()
+    except ConnectorError as exc:
+        LOGGER.warning("Apicbase sync failed: %s", exc)
+        return kitchen_payload
+
+    enriched = dict(kitchen_payload)
+    if snapshot.get("recipes"):
+        enriched["recipes"] = snapshot["recipes"]
+    if snapshot.get("allergens_summary"):
+        enriched["allergens_summary"] = snapshot["allergens_summary"]
+    return enriched
 
 
 def _get_session() -> Generator[Session, None, None]:
@@ -742,6 +786,7 @@ async def generate_compliance_report(payload: KitchenPayload) -> dict[str, Any]:
     """Validate input payload and return a serialized compliance report."""
 
     kitchen_data = payload.model_dump()
+    kitchen_data = _enrich_with_apicbase_data(kitchen_data)
     validation_errors = DataValidator.validate_kitchen_data(kitchen_data)
     if validation_errors:
         raise HTTPException(status_code=422, detail={"errors": validation_errors})
@@ -779,10 +824,11 @@ async def run_compliance_check(
     executed_at = datetime.now(UTC)
     report: dict[str, Any] | None = None
     if request.kitchen_payload:
-        validation_errors = DataValidator.validate_kitchen_data(request.kitchen_payload)
+        enriched_payload = _enrich_with_apicbase_data(request.kitchen_payload)
+        validation_errors = DataValidator.validate_kitchen_data(enriched_payload)
         if validation_errors:
             raise HTTPException(status_code=422, detail={"errors": validation_errors})
-        report = asdict(engine.generate_report(request.kitchen_payload))
+        report = asdict(engine.generate_report(enriched_payload))
         report["engine_version"] = engine.engine_version
         report["rule_versions"] = engine.rule_versions
     async with _state_lock:

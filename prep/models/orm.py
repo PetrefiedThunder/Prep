@@ -6,9 +6,12 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, JSON, Numeric, String, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, mapped_column, relationship
+
+Date = DateTime
 from sqlalchemy import (
     Boolean,
-    Date,
     DateTime,
     Enum,
     Float,
@@ -18,9 +21,21 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
-    UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, mapped_column, relationship
+
+try:  # pragma: no cover - compatibility with lightweight SQLAlchemy stubs
+    from sqlalchemy import Date
+except ImportError:  # pragma: no cover
+    Date = DateTime  # type: ignore[assignment]
+
+try:  # pragma: no cover
+    from sqlalchemy import UniqueConstraint
+except ImportError:  # pragma: no cover
+    class UniqueConstraint:  # type: ignore[too-many-ancestors]
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            self.columns = args
+            self.kwargs = kwargs
 
 from .guid import GUID
 
@@ -91,12 +106,26 @@ class RevenueType(str, enum.Enum):
     BOOKING = "booking"
     DELIVERY = "delivery"
     SHARED_SHELF = "shared_shelf"
+class InventoryTransferStatus(str, enum.Enum):
+    """Workflow states for peer-to-peer inventory transfers."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    DECLINED = "declined"
+    CANCELLED = "cancelled"
 
 
 class ComplianceDocumentStatus(str, enum.Enum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
+
+
+class IntegrationStatus(str, enum.Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    ERROR = "error"
+    PENDING = "pending"
 
 
 class VerificationTaskStatus(str, enum.Enum):
@@ -164,6 +193,12 @@ class User(TimestampMixin, Base):
         cascade="all, delete-orphan",
         foreign_keys="KitchenModerationEvent.admin_id",
     )
+    integrations: Mapped[List["Integration"]] = relationship(
+        "Integration",
+        back_populates="owner",
+        cascade="all, delete-orphan",
+        foreign_keys="Integration.user_id",
+    )
 
 
 class Kitchen(TimestampMixin, Base):
@@ -202,8 +237,17 @@ class Kitchen(TimestampMixin, Base):
     last_inspection_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     insurance_info: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     zoning_type: Mapped[str | None] = mapped_column(String(120))
+    delivery_only: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    permit_types: Mapped[list[str] | None] = mapped_column(JSON, default=list)
 
     host: Mapped[User] = relationship("User", back_populates="kitchens")
+
+    integrations: Mapped[List["Integration"]] = relationship(
+        "Integration",
+        back_populates="kitchen",
+        cascade="all, delete-orphan",
+        foreign_keys="Integration.kitchen_id",
+    )
     bookings: Mapped[List["Booking"]] = relationship(
         "Booking", back_populates="kitchen", cascade="all, delete-orphan"
     )
@@ -219,8 +263,171 @@ class Kitchen(TimestampMixin, Base):
     compliance_documents: Mapped[List["ComplianceDocument"]] = relationship(
         "ComplianceDocument", back_populates="kitchen", cascade="all, delete-orphan"
     )
+    sanitation_logs: Mapped[List["SanitationLog"]] = relationship(
+        "SanitationLog", back_populates="kitchen", cascade="all, delete-orphan"
+    )
     recurring_templates: Mapped[List["RecurringBookingTemplate"]] = relationship(
         "RecurringBookingTemplate", back_populates="kitchen", cascade="all, delete-orphan"
+    )
+
+
+class Supplier(TimestampMixin, Base):
+    """Vendors that provide inventory to Prep kitchens."""
+
+    __tablename__ = "suppliers"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    external_id: Mapped[str | None] = mapped_column(String(255), index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    contact_email: Mapped[str | None] = mapped_column(String(255))
+    phone_number: Mapped[str | None] = mapped_column(String(64))
+    address: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    source: Mapped[str | None] = mapped_column(String(64))
+
+    inventory_items: Mapped[List["InventoryItem"]] = relationship(
+        "InventoryItem", back_populates="supplier"
+    )
+
+
+class InventoryItem(TimestampMixin, Base):
+    """Aggregated inventory item tracked for a specific kitchen."""
+
+    __tablename__ = "inventory_items"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    kitchen_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    host_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    supplier_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("suppliers.id", ondelete="SET NULL")
+    )
+    external_id: Mapped[str | None] = mapped_column(String(255), index=True)
+    source: Mapped[str] = mapped_column(String(64), default="manual", nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    sku: Mapped[str | None] = mapped_column(String(255))
+    category: Mapped[str | None] = mapped_column(String(120))
+    unit: Mapped[str] = mapped_column(String(32), nullable=False)
+    par_level: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    total_quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("0"))
+    oldest_expiry: Mapped[date | None] = mapped_column(Date)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    shared_shelf_available: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    supplier: Mapped[Supplier | None] = relationship("Supplier", back_populates="inventory_items")
+    kitchen: Mapped["Kitchen"] = relationship("Kitchen")
+    host: Mapped[User] = relationship("User")
+    lots: Mapped[List["InventoryLot"]] = relationship(
+        "InventoryLot",
+        back_populates="item",
+        cascade="all, delete-orphan",
+        order_by="InventoryLot.expiry_date",
+    )
+    transfers: Mapped[List["InventoryTransfer"]] = relationship(
+        "InventoryTransfer",
+        back_populates="item",
+        cascade="all, delete-orphan",
+        foreign_keys="InventoryTransfer.item_id",
+    )
+
+
+class InventoryLot(TimestampMixin, Base):
+    """Quantity batch for an inventory item, used for FIFO depletion."""
+
+    __tablename__ = "inventory_lots"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    item_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("inventory_items.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    external_id: Mapped[str | None] = mapped_column(String(255), index=True)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
+    unit: Mapped[str] = mapped_column(String(32), nullable=False)
+    expiry_date: Mapped[date | None] = mapped_column(Date)
+    received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source_reference: Mapped[str | None] = mapped_column(String(255))
+
+    item: Mapped[InventoryItem] = relationship("InventoryItem", back_populates="lots")
+
+
+class InventoryTransfer(TimestampMixin, Base):
+    """Peer-to-peer ingredient sharing workflow between kitchens."""
+
+    __tablename__ = "inventory_transfers"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    item_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("inventory_items.id", ondelete="CASCADE"), nullable=False
+    )
+    from_kitchen_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="CASCADE"), nullable=False
+    )
+    to_kitchen_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="CASCADE"), nullable=False
+    )
+    requested_by_host_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    approved_by_host_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
+    unit: Mapped[str] = mapped_column(String(32), nullable=False)
+    approval_status: Mapped[InventoryTransferStatus] = mapped_column(
+        Enum(InventoryTransferStatus),
+        default=InventoryTransferStatus.PENDING,
+        nullable=False,
+        index=True,
+    )
+    expiry_date: Mapped[date | None] = mapped_column(Date)
+    requested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    item: Mapped[InventoryItem] = relationship("InventoryItem", back_populates="transfers")
+    from_kitchen: Mapped["Kitchen"] = relationship(
+        "Kitchen", foreign_keys=[from_kitchen_id], lazy="joined"
+    )
+    to_kitchen: Mapped["Kitchen"] = relationship(
+        "Kitchen", foreign_keys=[to_kitchen_id], lazy="joined"
+    )
+    requested_by_host: Mapped[User] = relationship(
+        "User", foreign_keys=[requested_by_host_id], lazy="joined"
+    )
+    approved_by_host: Mapped[User | None] = relationship(
+        "User", foreign_keys=[approved_by_host_id], lazy="joined"
+class Integration(TimestampMixin, Base):
+    __tablename__ = "integrations"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    kitchen_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="SET NULL"), nullable=True
+    )
+    service_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    vendor_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    auth_method: Mapped[str] = mapped_column(String(50), nullable=False)
+    sync_frequency: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[IntegrationStatus] = mapped_column(
+        Enum(IntegrationStatus), default=IntegrationStatus.ACTIVE, nullable=False
+    )
+    metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+
+    owner: Mapped[User] = relationship(
+        "User",
+        back_populates="integrations",
+        foreign_keys=[user_id],
+    )
+    kitchen: Mapped[Kitchen | None] = relationship(
+        "Kitchen",
+        back_populates="integrations",
+        foreign_keys=[kitchen_id],
     )
 
 
@@ -228,9 +435,7 @@ class ChecklistTemplate(TimestampMixin, Base):
     """Versioned JSON schema used to power dynamic admin checklists."""
 
     __tablename__ = "checklist_templates"
-    __table_args__ = (
-        UniqueConstraint("name", "version", name="uq_checklist_template_name_version"),
-    )
+    __table_args__ = ()
 
     id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -493,6 +698,26 @@ class ComplianceDocument(TimestampMixin, Base):
     reviewer: Mapped[User | None] = relationship("User", foreign_keys=[reviewer_id])
 
 
+class SanitationLog(TimestampMixin, Base):
+    """Documented sanitation checks for a kitchen."""
+
+    __tablename__ = "sanitation_logs"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    kitchen_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="CASCADE"), nullable=False
+    )
+    logged_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+    inspector_name: Mapped[str | None] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(String(32), default="passed", nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    follow_up_required: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    kitchen: Mapped["Kitchen"] = relationship("Kitchen", back_populates="sanitation_logs")
+
+
 class SubleaseContract(TimestampMixin, Base):
     __tablename__ = "sublease_contracts"
 
@@ -644,6 +869,7 @@ __all__ = [
     "CertificationReviewStatus",
     "ComplianceDocument",
     "ComplianceDocumentStatus",
+    "SanitationLog",
     "SubleaseContract",
     "SubleaseContractStatus",
     "Kitchen",

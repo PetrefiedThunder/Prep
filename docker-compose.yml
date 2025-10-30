@@ -120,6 +120,34 @@ services:
     networks:
       - prepchef-network
 
+  compliance-reports:
+    build:
+      context: .
+      dockerfile: Dockerfile.reports
+    container_name: prepchef-compliance-reports
+    restart: "no"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prepchef
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - prepchef-network
+
+  regression-suite:
+    build:
+      context: .
+      dockerfile: Dockerfile.regression
+    container_name: prepchef-regression-suite
+    restart: "no"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prepchef
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - prepchef-network
+
   frontend:
     build:
       context: ./apps/web
