@@ -8,6 +8,7 @@ from typing import Any, Callable
 import pytest
 
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
+os.environ.setdefault("SKIP_PREP_DB_INIT", "1")
 
 if importlib.util.find_spec("sqlalchemy") is None:
     sqlalchemy_stub = types.ModuleType("sqlalchemy")
@@ -21,6 +22,7 @@ if importlib.util.find_spec("sqlalchemy") is None:
 
     for name in [
         "Boolean",
+        "Date",
         "DateTime",
         "Enum",
         "Float",
@@ -30,6 +32,7 @@ if importlib.util.find_spec("sqlalchemy") is None:
         "Numeric",
         "String",
         "Text",
+        "UniqueConstraint",
     ]:
         setattr(sqlalchemy_stub, name, _SQLType)
 
@@ -216,7 +219,7 @@ def event_loop():
 
 @pytest.fixture(scope="session", autouse=True)
 def _create_schema():
-    if init_db is None:
+    if init_db is None or os.environ.get("SKIP_PREP_DB_INIT") == "1":
         yield
         return
 
