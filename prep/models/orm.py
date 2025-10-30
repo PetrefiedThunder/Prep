@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Any, List
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, JSON, Numeric, String, Text
@@ -102,6 +102,10 @@ class ReviewFlagStatus(str, enum.Enum):
     REJECTED = "rejected"
 
 
+class RevenueType(str, enum.Enum):
+    BOOKING = "booking"
+    DELIVERY = "delivery"
+    SHARED_SHELF = "shared_shelf"
 class InventoryTransferStatus(str, enum.Enum):
     """Workflow states for peer-to-peer inventory transfers."""
 
@@ -481,6 +485,12 @@ class Booking(TimestampMixin, Base):
     sublease_contract: Mapped["SubleaseContract" | None] = relationship(
         "SubleaseContract", back_populates="booking", uselist=False
     )
+    ledger_entries: Mapped[List["LedgerEntry"]] = relationship(
+        "LedgerEntry", back_populates="booking", cascade="all, delete-orphan"
+    )
+    tax_records: Mapped[List["TaxRecord"]] = relationship(
+        "TaxRecord", back_populates="booking", cascade="all, delete-orphan"
+    )
 
 
 class StripeWebhookEvent(TimestampMixin, Base):
@@ -774,6 +784,65 @@ class OperationalExpense(TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text)
 
 
+class LedgerEntry(TimestampMixin, Base):
+    __tablename__ = "ledger_entries"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    booking_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("bookings.id", ondelete="SET NULL"), index=True
+    )
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    entry_date: Mapped[date] = mapped_column(Date, default=date.today, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    debit_account: Mapped[str] = mapped_column(String(120), nullable=False)
+    credit_account: Mapped[str] = mapped_column(String(120), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
+    revenue_type: Mapped[RevenueType | None] = mapped_column(
+        Enum(RevenueType), nullable=True
+    )
+    expense_category: Mapped[str | None] = mapped_column(String(120))
+    external_reference: Mapped[str | None] = mapped_column(String(120))
+    details: Mapped[Dict[str, Any] | None] = mapped_column(JSON, default=dict)
+
+    booking: Mapped["Booking" | None] = relationship(
+        "Booking", back_populates="ledger_entries"
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "source",
+            "external_reference",
+            name="uq_ledger_entries_source_reference",
+        ),
+    )
+
+
+class TaxRecord(TimestampMixin, Base):
+    __tablename__ = "tax_records"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    booking_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False
+    )
+    jurisdiction: Mapped[str] = mapped_column(String(120), nullable=False)
+    tax_rate: Mapped[Decimal] = mapped_column(Numeric(7, 6), nullable=False)
+    taxable_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    tax_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
+    details: Mapped[Dict[str, Any] | None] = mapped_column(JSON, default=dict)
+
+    booking: Mapped["Booking"] = relationship("Booking", back_populates="tax_records")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "booking_id",
+            "jurisdiction",
+            name="uq_tax_records_booking_jurisdiction",
+        ),
+    )
+
+
 class RegDoc(Base):
     """Normalized regulatory documents stored for analytics."""
 
@@ -807,13 +876,16 @@ __all__ = [
     "KitchenModerationEvent",
     "ModerationStatus",
     "Review", 
-    "ReviewFlag", 
-    "ReviewFlagStatus", 
-    "ReviewPhoto", 
-    "ReviewStatus", 
-    "ReviewVote", 
+    "ReviewFlag",
+    "ReviewFlagStatus",
+    "ReviewPhoto",
+    "ReviewStatus",
+    "ReviewVote",
+    "RevenueType",
+    "LedgerEntry",
+    "TaxRecord",
     "RegDoc",
-    "User", 
-    "UserRole", 
-    "COIDocument", 
+    "User",
+    "UserRole",
+    "COIDocument",
 ]
