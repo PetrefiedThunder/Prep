@@ -9,7 +9,9 @@ import pytest
 
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 
-if importlib.util.find_spec("sqlalchemy") is None:
+_sqlalchemy_spec = importlib.util.find_spec("sqlalchemy")
+
+if _sqlalchemy_spec is None:
     sqlalchemy_stub = types.ModuleType("sqlalchemy")
 
     class _SQLType:
@@ -21,8 +23,12 @@ if importlib.util.find_spec("sqlalchemy") is None:
 
     for name in [
         "Boolean",
+        "Date",
         "DateTime",
         "Enum",
+        "UniqueConstraint",
+        "Column",
+        "Index",
         "Float",
         "ForeignKey",
         "Integer",
@@ -37,6 +43,15 @@ if importlib.util.find_spec("sqlalchemy") is None:
         return types.SimpleNamespace()
 
     sqlalchemy_stub.create_engine = create_engine
+
+    class _Select:
+        def where(self, *args: object, **kwargs: object) -> "_Select":
+            return self
+
+    def select(*args: object, **kwargs: object) -> _Select:
+        return _Select()
+
+    sqlalchemy_stub.select = select
 
     orm_module = types.ModuleType("sqlalchemy.orm")
 
@@ -65,6 +80,7 @@ if importlib.util.find_spec("sqlalchemy") is None:
     orm_module.mapped_column = mapped_column
     orm_module.relationship = relationship
     orm_module.sessionmaker = sessionmaker
+    orm_module.Session = Any
 
     pool_module = types.ModuleType("sqlalchemy.pool")
 
@@ -86,6 +102,8 @@ if importlib.util.find_spec("sqlalchemy") is None:
     dialects_module.postgresql = postgresql_module
 
     types_module = types.ModuleType("sqlalchemy.types")
+    ext_module = types.ModuleType("sqlalchemy.ext")
+    mutable_module = types.ModuleType("sqlalchemy.ext.mutable")
 
     class TypeDecorator:  # noqa: D401
         """Placeholder type decorator."""
@@ -103,6 +121,9 @@ if importlib.util.find_spec("sqlalchemy") is None:
 
     types_module.TypeDecorator = TypeDecorator
     types_module.CHAR = CHAR
+    mutable_module.MutableDict = dict
+    mutable_module.MutableList = list
+    ext_module.mutable = mutable_module
 
     sys.modules["sqlalchemy"] = sqlalchemy_stub
     sys.modules["sqlalchemy.orm"] = orm_module
@@ -110,6 +131,8 @@ if importlib.util.find_spec("sqlalchemy") is None:
     sys.modules["sqlalchemy.dialects"] = dialects_module
     sys.modules["sqlalchemy.dialects.postgresql"] = postgresql_module
     sys.modules["sqlalchemy.types"] = types_module
+    sys.modules["sqlalchemy.ext"] = ext_module
+    sys.modules["sqlalchemy.ext.mutable"] = mutable_module
 
 # Provide a lightweight Stripe stub for test environments without the SDK installed.
 if "stripe" not in sys.modules:
@@ -139,11 +162,15 @@ if "stripe" not in sys.modules:
     sys.modules["stripe"] = stripe_stub
     sys.modules["stripe.error"] = error_module
 
-try:  # pragma: no cover - dependency availability varies per environment
-    from prep.models.db import SessionLocal, init_db  # type: ignore
-except ModuleNotFoundError as exc:  # pragma: no cover - allow tests without SQLAlchemy
-    if exc.name != "sqlalchemy":
-        raise
+if _sqlalchemy_spec is not None:  # pragma: no branch - skip when SQLAlchemy is stubbed
+    try:  # pragma: no cover - dependency availability varies per environment
+        from prep.models.db import SessionLocal, init_db  # type: ignore
+    except ModuleNotFoundError as exc:  # pragma: no cover - allow tests without SQLAlchemy
+        if exc.name != "sqlalchemy":
+            raise
+        SessionLocal = None  # type: ignore
+        init_db = None  # type: ignore
+else:
     SessionLocal = None  # type: ignore
     init_db = None  # type: ignore
 if "aiohttp" not in sys.modules:
@@ -200,9 +227,13 @@ if "boto3" not in sys.modules:
         boto3_stub.client = _client
         sys.modules["boto3"] = boto3_stub
 
-try:
-    from prep.models.db import SessionLocal, init_db
-except ModuleNotFoundError:  # pragma: no cover - optional dependency for lightweight tests
+if _sqlalchemy_spec is not None:
+    try:
+        from prep.models.db import SessionLocal, init_db
+    except ModuleNotFoundError:  # pragma: no cover - optional dependency for lightweight tests
+        SessionLocal = None  # type: ignore[assignment]
+        init_db = None  # type: ignore[assignment]
+else:
     SessionLocal = None  # type: ignore[assignment]
     init_db = None  # type: ignore[assignment]
 

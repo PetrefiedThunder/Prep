@@ -60,6 +60,7 @@ class Settings(BaseModel):
     use_fixtures: bool = Field(default=False, alias="USE_FIXTURES")
     compliance_controls_enabled: bool = Field(
         default=False, alias="COMPLIANCE_CONTROLS_ENABLED"
+    )
     twilio_from_number: str | None = Field(default=None, alias="TWILIO_FROM_NUMBER")
     compliance_ops_phone: str | None = Field(default=None, alias="COMPLIANCE_OPS_PHONE")
     compliance_ops_email: str | None = Field(default=None, alias="COMPLIANCE_OPS_EMAIL")

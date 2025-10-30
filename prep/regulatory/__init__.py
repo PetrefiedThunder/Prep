@@ -77,6 +77,7 @@ _safe_import(
 _safe_import(
     ".nlp.analyzer",
     ["RegulationNLP", "Requirement"],
+)
 from .apis.esignature import DocuSignAPIError, DocuSignClient, EnvelopeSummary
 from .apis.insurance import (
     AllStateAPI,
