@@ -32,6 +32,20 @@ def _parse_env_file(path: Path) -> Dict[str, str]:
     return values
 
 
+class IntegrationEndpoint(BaseModel):
+    """Configuration for an external integration health check."""
+
+    id: str = Field(alias="id")
+    name: str = Field(alias="name")
+    url: AnyUrl = Field(alias="url")
+    description: str | None = Field(default=None, alias="description")
+
+    model_config = {
+        "populate_by_name": True,
+        "extra": "ignore",
+    }
+
+
 class Settings(BaseModel):
     """Strongly typed runtime configuration."""
 
@@ -109,6 +123,18 @@ class Settings(BaseModel):
     stripe_webhook_secret: str | None = Field(
         default=None, alias="STRIPE_WEBHOOK_SECRET"
     )
+    kafka_bootstrap_servers: str | None = Field(
+        default=None, alias="KAFKA_BOOTSTRAP_SERVERS"
+    )
+    integration_endpoints: list[IntegrationEndpoint] = Field(
+        default_factory=list, alias="INTEGRATION_ENDPOINTS"
+    )
+    integrations_beta_enabled: bool = Field(
+        default=False, alias="INTEGRATIONS_BETA"
+    )
+    integration_health_timeout_seconds: int = Field(
+        default=10, ge=1, alias="INTEGRATION_HEALTH_TIMEOUT_SECONDS"
+    )
     square_client_id: str | None = Field(default=None, alias="SQUARE_CLIENT_ID")
     square_client_secret: str | None = Field(default=None, alias="SQUARE_CLIENT_SECRET")
     square_base_url: AnyUrl = Field(
@@ -176,4 +202,4 @@ def get_settings() -> Settings:
     return load_settings(env_file=path)
 
 
-__all__ = ["Settings", "get_settings", "load_settings"]
+__all__ = ["Settings", "IntegrationEndpoint", "get_settings", "load_settings"]

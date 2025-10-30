@@ -30,6 +30,7 @@ dependencies = [
   "boto3>=1.35.81",
   "WeasyPrint>=62.0",
   "psycopg[binary]>=3.2.1",
+  "aiokafka>=0.10.0",
   "prometheus-client>=0.20.0",
   "fpdf2>=2.7.9",
   "wiremock>=2.6.1",
