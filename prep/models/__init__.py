@@ -12,11 +12,13 @@ from .orm import (
     RecurringBookingTemplate,
     Supplier,
 )
+from .orm import Base, Booking, BookingStatus, Integration, Kitchen, RecurringBookingTemplate
 
 __all__ = [
     "Base",
     "Booking",
     "Kitchen",
+    "Integration",
     "RecurringBookingTemplate",
     "BookingStatus",
     "InventoryItem",
