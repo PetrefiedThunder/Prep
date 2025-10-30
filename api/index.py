@@ -6,6 +6,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.compliance_service.main import app as compliance_app
+from prep.accounting import ledger_router
 from prep.admin.api import router as admin_router
 from prep.analytics.advanced_api import router as advanced_analytics_router
 from prep.analytics.dashboard_api import router as analytics_router
@@ -26,6 +27,7 @@ def _build_router() -> APIRouter:
     """Aggregate the project's routers into a single API surface."""
 
     router = APIRouter()
+    router.include_router(ledger_router)
     router.include_router(platform_router)
     router.include_router(mobile_router)
     router.include_router(admin_router)
