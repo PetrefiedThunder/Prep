@@ -79,6 +79,34 @@ class Settings(BaseModel):
     compliance_ops_phone: str | None = Field(default=None, alias="COMPLIANCE_OPS_PHONE")
     compliance_ops_email: str | None = Field(default=None, alias="COMPLIANCE_OPS_EMAIL")
     alert_email_sender: str = Field(default="alerts@prep.test", alias="ALERT_EMAIL_SENDER")
+    doordash_drive_client_id: str | None = Field(
+        default=None, alias="DOORDASH_DRIVE_CLIENT_ID"
+    )
+    doordash_drive_client_secret: str | None = Field(
+        default=None, alias="DOORDASH_DRIVE_CLIENT_SECRET"
+    )
+    doordash_drive_base_url: AnyUrl = Field(
+        default="https://api.doordash.com", alias="DOORDASH_DRIVE_BASE_URL"
+    )
+    doordash_drive_webhook_secret: str | None = Field(
+        default=None, alias="DOORDASH_DRIVE_WEBHOOK_SECRET"
+    )
+    uber_direct_client_id: str | None = Field(
+        default=None, alias="UBER_DIRECT_CLIENT_ID"
+    )
+    uber_direct_client_secret: str | None = Field(
+        default=None, alias="UBER_DIRECT_CLIENT_SECRET"
+    )
+    uber_direct_scope: str = Field(default="delivery", alias="UBER_DIRECT_SCOPE")
+    uber_direct_audience: str = Field(
+        default="https://api.uber.com", alias="UBER_DIRECT_AUDIENCE"
+    )
+    uber_direct_base_url: AnyUrl = Field(
+        default="https://api.uber.com", alias="UBER_DIRECT_BASE_URL"
+    )
+    uber_direct_token_url: AnyUrl = Field(
+        default="https://login.uber.com/oauth/v2/token", alias="UBER_DIRECT_TOKEN_URL"
+    )
     docusign_base_url: AnyUrl = Field(
         default="https://demo.docusign.net/restapi", alias="DOCUSIGN_BASE_URL"
     )
@@ -107,6 +135,16 @@ class Settings(BaseModel):
     integration_health_timeout_seconds: int = Field(
         default=10, ge=1, alias="INTEGRATION_HEALTH_TIMEOUT_SECONDS"
     )
+    square_client_id: str | None = Field(default=None, alias="SQUARE_CLIENT_ID")
+    square_client_secret: str | None = Field(default=None, alias="SQUARE_CLIENT_SECRET")
+    square_base_url: AnyUrl = Field(
+        default="https://connect.squareup.com", alias="SQUARE_BASE_URL"
+    )
+    toast_api_key: str | None = Field(default=None, alias="TOAST_API_KEY")
+    toast_base_url: AnyUrl = Field(default="https://toast-api.io", alias="TOAST_BASE_URL")
+    pos_ledger_bucket: str | None = Field(default=None, alias="POS_LEDGER_BUCKET")
+    next_insurance_api_key: str | None = Field(default=None, alias="NEXT_INSURANCE_API_KEY")
+    thimble_api_key: str | None = Field(default=None, alias="THIMBLE_API_KEY")
 
     model_config = {
         "populate_by_name": True,

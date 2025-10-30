@@ -352,6 +352,26 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
                 created_at=now,
                 updated_at=now,
             ),
+            ComplianceRule(
+                id="fs_allergen_1",
+                name="Menu allergens documented",
+                description="Each active recipe must list its allergen profile",
+                category="menu",
+                severity="high",
+                applicable_regulations=["FDA_Food_Code", "PrepChef_Standards"],
+                created_at=now,
+                updated_at=now,
+            ),
+            ComplianceRule(
+                id="fs_allergen_2",
+                name="Allergen declarations published",
+                description="Recipes containing allergens must disclose them to diners",
+                category="menu",
+                severity="medium",
+                applicable_regulations=["FDA_Food_Code", "PrepChef_Standards"],
+                created_at=now,
+                updated_at=now,
+            ),
         ]
         default_versions = {rule.id: "1.0.0" for rule in self.rules}
         default_versions.update(
@@ -373,6 +393,8 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
                 "fs_prep_3": "1.1.0",
                 "fs_ops_1": "1.4.0",
                 "fs_ops_2": "1.2.0",
+                "fs_allergen_1": "1.0.0",
+                "fs_allergen_2": "1.0.0",
             }
         )
         default_versions["data_validation"] = "1.0.0"
@@ -429,6 +451,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
             self._validate_inspections,
             self._validate_certifications,
             self._validate_equipment,
+            self._validate_allergen_controls,
             self._validate_marketplace_requirements,
             self._validate_operations,
         )
@@ -784,6 +807,63 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
                     context={"non_commercial_equipment": non_commercial},
                     evidence_path="equipment",
                     observed_value=non_commercial,
+                )
+            )
+
+        return violations
+
+    @_segment_guard("allergens")
+    def _validate_allergen_controls(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
+        violations: List[ComplianceViolation] = []
+        recipes = data.get("recipes") or []
+        if not isinstance(recipes, list) or not recipes:
+            return violations
+
+        recipes_without_allergens = [
+            recipe
+            for recipe in recipes
+            if not (recipe.get("allergens") or [])
+        ]
+        if recipes_without_allergens:
+            violations.append(
+                self._build_violation(
+                    "fs_allergen_1",
+                    message="Recipes missing allergen disclosures",
+                    severity="high",
+                    context={
+                        "recipes": [recipe.get("name") for recipe in recipes_without_allergens],
+                    },
+                    evidence_path="recipes",
+                    observed_value=recipes_without_allergens,
+                )
+            )
+
+        undeclared_allergens: List[Dict[str, Any]] = []
+        for recipe in recipes:
+            allergens = recipe.get("allergens") or []
+            for allergen in allergens:
+                if not isinstance(allergen, dict):
+                    continue
+                present = bool(allergen.get("present", True))
+                declared = bool(allergen.get("declared", present))
+                if present and not declared:
+                    undeclared_allergens.append(
+                        {
+                            "recipe": recipe.get("name"),
+                            "allergen": allergen.get("name"),
+                            "severity": allergen.get("severity"),
+                        }
+                    )
+
+        if undeclared_allergens:
+            violations.append(
+                self._build_violation(
+                    "fs_allergen_2",
+                    message="Detected allergens not disclosed to diners",
+                    severity="medium",
+                    context={"items": undeclared_allergens},
+                    evidence_path="recipes",
+                    observed_value=undeclared_allergens,
                 )
             )
 

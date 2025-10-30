@@ -24,6 +24,7 @@ if importlib.util.find_spec("sqlalchemy") is None:
         "Date",
         "DateTime",
         "Enum",
+        "Index",
         "Float",
         "ForeignKey",
         "Integer",
