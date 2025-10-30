@@ -35,6 +35,7 @@ if importlib.util.find_spec("sqlalchemy") is None:
         "String",
         "Text",
         "UniqueConstraint",
+        "select",
     ]:
         setattr(sqlalchemy_stub, name, _SQLType)
 
@@ -232,6 +233,7 @@ def event_loop():
 
 @pytest.fixture(scope="session", autouse=True)
 def _create_schema():
+    global init_db  # noqa: PLW0603 - test environment setup
     if init_db is None or os.environ.get("SKIP_PREP_DB_INIT") == "1":
     global init_db
     if init_db is None:
@@ -240,6 +242,8 @@ def _create_schema():
 
     try:
         init_db()
+    except Exception:  # pragma: no cover - defensive fallback for missing deps
+        init_db = None
     except Exception:  # pragma: no cover - defensive for optional deps
         init_db = None
     except Exception:  # pragma: no cover - database optional in lightweight envs
