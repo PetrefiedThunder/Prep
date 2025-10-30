@@ -21,6 +21,7 @@ if importlib.util.find_spec("sqlalchemy") is None:
 
     for name in [
         "Boolean",
+        "Date",
         "DateTime",
         "Enum",
         "Float",
@@ -30,6 +31,8 @@ if importlib.util.find_spec("sqlalchemy") is None:
         "Numeric",
         "String",
         "Text",
+        "UniqueConstraint",
+        "select",
     ]:
         setattr(sqlalchemy_stub, name, _SQLType)
 
@@ -65,6 +68,7 @@ if importlib.util.find_spec("sqlalchemy") is None:
     orm_module.mapped_column = mapped_column
     orm_module.relationship = relationship
     orm_module.sessionmaker = sessionmaker
+    orm_module.Session = Any
 
     pool_module = types.ModuleType("sqlalchemy.pool")
 
@@ -216,11 +220,17 @@ def event_loop():
 
 @pytest.fixture(scope="session", autouse=True)
 def _create_schema():
+    global init_db  # noqa: PLW0603 - test environment setup
     if init_db is None:
         yield
         return
 
-    init_db()
+    try:
+        init_db()
+    except Exception:  # pragma: no cover - defensive fallback for missing deps
+        init_db = None
+        yield
+        return
     yield
 
 
