@@ -25,6 +25,7 @@ from prep.ratings.api import router as ratings_router
 from prep.reviews.api import router as reviews_router
 from prep.test_data import router as test_data_router
 from prep.verification_tasks.api import router as verification_tasks_router
+from api.webhooks.square_kds import router as square_kds_router
 from prep.logistics.api import router as logistics_router
 from prep.monitoring.api import router as monitoring_router
 from prep.integrations.runtime import configure_integration_event_consumers
@@ -53,6 +54,7 @@ def _build_router() -> APIRouter:
     router.include_router(integrations_router)
     router.include_router(monitoring_router)
     router.include_router(verification_tasks_router)
+    router.include_router(square_kds_router)
     router.include_router(logistics_router)
     router.include_router(deliveries_router)
     router.include_router(orders_router)
