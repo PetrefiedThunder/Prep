@@ -54,6 +54,30 @@ class BaseAPIClient:
                     f"Expected JSON response from {url} but received content-type {response.content_type}."
                 )
 
+    async def _post_json(
+        self,
+        url: str,
+        *,
+        payload: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> Any:
+        """Perform a POST request returning parsed JSON."""
+
+        async with aiohttp.ClientSession(timeout=self._timeout, headers=headers) as session:
+            async with session.post(url, json=payload) as response:
+                if response.status not in {200, 201}:
+                    body = await response.text()
+                    raise RegulatoryAPIError(
+                        f"POST to {url} failed with status {response.status}: {body[:500]}"
+                    )
+
+                if response.content_type == "application/json":
+                    return await response.json()
+
+                raise RegulatoryAPIError(
+                    f"Expected JSON response from {url} but received content-type {response.content_type}."
+                )
+
 
 class CaliforniaHealthDepartmentAPI(BaseAPIClient):
     """Integration with the California Department of Public Health open data services."""

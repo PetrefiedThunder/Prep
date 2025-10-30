@@ -1,0 +1,39 @@
+{{- if .Values.regressionSuite.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "prepchef.fullname" . }}-regression
+  labels:
+    app.kubernetes.io/name: {{ include "prepchef.name" . }}
+    app.kubernetes.io/component: regression-suite
+    {{- include "prepchef.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.regressionSuite.schedule | quote }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ include "prepchef.name" . }}
+            app.kubernetes.io/component: regression-suite
+        spec:
+          serviceAccountName: {{ include "prepchef.serviceAccountName" . }}
+          restartPolicy: OnFailure
+          containers:
+            - name: regression-suite
+              image: "{{ .Values.regressionSuite.image.repository }}:{{ .Values.regressionSuite.image.tag }}"
+              imagePullPolicy: {{ .Values.regressionSuite.image.pullPolicy }}
+              env:
+{{- range .Values.regressionSuite.env }}
+                - name: {{ .name }}
+{{- if .value }}
+                  value: {{ .value | quote }}
+{{- end }}
+{{- if .valueFrom }}
+                  valueFrom:
+{{ toYaml .valueFrom | indent 20 }}
+{{- end }}
+{{- end }}
+              resources:
+{{ toYaml .Values.regressionSuite.resources | indent 16 }}
+{{- end }}
