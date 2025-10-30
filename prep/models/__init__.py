@@ -11,6 +11,25 @@ from .orm import (
     POSTransaction,
     RecurringBookingTemplate,
 )
+    LedgerEntry,
+    RecurringBookingTemplate,
+    RevenueType,
+    TaxRecord,
+)
+    COIDocument,
+    Kitchen,
+    RecurringBookingTemplate,
+    SanitationLog,
+)
+    InventoryItem,
+    InventoryLot,
+    InventoryTransfer,
+    InventoryTransferStatus,
+    Kitchen,
+    RecurringBookingTemplate,
+    Supplier,
+)
+from .orm import Base, Booking, BookingStatus, Integration, Kitchen, RecurringBookingTemplate
 
 __all__ = [
     "Base",
@@ -20,8 +39,19 @@ __all__ = [
     "POSIntegrationStatus",
     "POSOrder",
     "POSTransaction",
+    "Integration",
     "RecurringBookingTemplate",
     "BookingStatus",
+    "LedgerEntry",
+    "RevenueType",
+    "TaxRecord",
+    "SanitationLog",
+    "COIDocument",
+    "InventoryItem",
+    "InventoryLot",
+    "InventoryTransfer",
+    "InventoryTransferStatus",
+    "Supplier",
     "engine",
     "SessionLocal",
     "get_db_url",

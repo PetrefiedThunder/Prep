@@ -88,6 +88,8 @@ class Settings(BaseModel):
     toast_api_key: str | None = Field(default=None, alias="TOAST_API_KEY")
     toast_base_url: AnyUrl = Field(default="https://toast-api.io", alias="TOAST_BASE_URL")
     pos_ledger_bucket: str | None = Field(default=None, alias="POS_LEDGER_BUCKET")
+    next_insurance_api_key: str | None = Field(default=None, alias="NEXT_INSURANCE_API_KEY")
+    thimble_api_key: str | None = Field(default=None, alias="THIMBLE_API_KEY")
 
     model_config = {
         "populate_by_name": True,
