@@ -1,0 +1,9 @@
+end_to_end_lag_p99:
+  delivery.status: "<= 2s"
+  pos.transactions: "<= 30s"
+availability: "99.95%"
+max_record_size_bytes: 262144
+dlq_policy:
+  description: |
+    Each primary topic has a *.dlq counterpart. Deserialization or validation failures
+    should be routed to the corresponding dead letter topic with diagnostic headers.

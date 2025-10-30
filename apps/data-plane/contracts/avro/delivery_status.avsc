@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "DeliveryStatus",
+  "namespace": "prep.delivery",
+  "fields": [
+    {"name": "order_id", "type": "string"},
+    {"name": "provider", "type": {"type": "enum", "name": "Provider", "symbols": ["UBER_DIRECT", "DOORDASH_DRIVE", "POSTMATES"]}},
+    {"name": "status", "type": {"type": "enum", "name": "Status", "symbols": ["CREATED", "ASSIGNED", "PICKED_UP", "DELIVERED", "FAILED", "CANCELLED"]}},
+    {"name": "eta_sec", "type": ["null", "int"], "default": null},
+    {"name": "latency_ms", "type": ["null", "long"], "default": null},
+    {"name": "cost_cents", "type": ["null", "long"], "default": null},
+    {"name": "zip", "type": "string"},
+    {"name": "ts_event", "type": {"type": "long", "logicalType": "timestamp-millis"}}
+  ]
+}

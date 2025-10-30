@@ -1,0 +1,21 @@
+{
+  "type": "record",
+  "name": "PosTxn",
+  "namespace": "prep.pos",
+  "fields": [
+    {"name": "txn_id", "type": "string"},
+    {"name": "location_id", "type": "string"},
+    {"name": "kitchen_id", "type": "string"},
+    {"name": "partner", "type": {"type": "enum", "name": "PosPartner", "symbols": ["SQUARE", "TOAST", "LIGHTSPEED", "CLOVER"]}},
+    {"name": "gross_cents", "type": "long"},
+    {"name": "tax_cents", "type": "long"},
+    {"name": "tip_cents", "type": "long"},
+    {"name": "currency", "type": "string"},
+    {"name": "items", "type": {"type": "array", "items": {"type": "record", "name": "Line", "fields": [
+      {"name": "sku", "type": "string"},
+      {"name": "qty", "type": "int"},
+      {"name": "price_cents", "type": "long"}
+    ]}}},
+    {"name": "ts_event", "type": {"type": "long", "logicalType": "timestamp-millis"}}
+  ]
+}
