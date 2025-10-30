@@ -27,6 +27,20 @@ class PolicyVerificationResult:
     raw: Dict[str, Any]
 
 
+@dataclass(slots=True)
+class CertificateIssueResult:
+    """Standardized payload describing an issued insurance certificate."""
+
+    provider: str
+    policy_number: str
+    certificate_url: str
+    issued_at: datetime
+    expires_at: Optional[datetime]
+    insured_name: Optional[str]
+    reference_id: Optional[str]
+    raw: Dict[str, Any]
+
+
 class BaseInsuranceAPI(BaseAPIClient):
     """Common helpers shared by specific insurance provider API clients."""
 
@@ -70,6 +84,31 @@ class BaseInsuranceAPI(BaseAPIClient):
             coverage=coverage,
             effective_date=self._parse_datetime(response.get("effective_date")),
             expiration_date=self._parse_datetime(response.get("expiration_date")),
+            raw=response,
+        )
+
+    async def issue_certificate(
+        self, policy_number: str, *, insured_name: str, reference_id: Optional[str] = None
+    ) -> CertificateIssueResult:  # pragma: no cover - interface
+        raise NotImplementedError
+
+    def _build_certificate_result(
+        self,
+        policy_number: str,
+        response: Dict[str, Any],
+        *,
+        reference_id: Optional[str] = None,
+    ) -> CertificateIssueResult:
+        issued_at = self._parse_datetime(response.get("issued_at")) or datetime.utcnow()
+        url = response.get("certificate_url") or response.get("download_url") or ""
+        return CertificateIssueResult(
+            provider=self.provider,
+            policy_number=policy_number,
+            certificate_url=url,
+            issued_at=issued_at,
+            expires_at=self._parse_datetime(response.get("expires_at")),
+            insured_name=response.get("insured_name"),
+            reference_id=reference_id,
             raw=response,
         )
 
@@ -124,6 +163,58 @@ class LibertyMutualAPI(BaseInsuranceAPI):
         return self._build_result(policy_number, response)
 
 
+class NextInsuranceAPI(BaseInsuranceAPI):
+    provider = "next"
+    default_base_url = "https://api.nextinsurance.com/commercial"
+    api_key_env = "NEXT_INSURANCE_API_KEY"
+    base_url_env = "NEXT_INSURANCE_API_URL"
+
+    async def verify_policy(self, policy_number: str) -> PolicyVerificationResult:
+        self._require_configuration()
+        url = f"{self.base_url}/policies/{policy_number}"
+        response = await self._fetch_json(url, headers=self._auth_headers())
+        return self._build_result(policy_number, response)
+
+    async def issue_certificate(
+        self, policy_number: str, *, insured_name: str, reference_id: Optional[str] = None
+    ) -> CertificateIssueResult:
+        self._require_configuration()
+        url = f"{self.base_url}/policies/{policy_number}/certificates"
+        payload = {"insured_name": insured_name, "reference_id": reference_id}
+        response = await self._post_json(url, payload=payload, headers=self._auth_headers())
+        return self._build_certificate_result(
+            policy_number,
+            response,
+            reference_id=reference_id,
+        )
+
+
+class ThimbleAPI(BaseInsuranceAPI):
+    provider = "thimble"
+    default_base_url = "https://api.thimble.com/commercial"
+    api_key_env = "THIMBLE_API_KEY"
+    base_url_env = "THIMBLE_API_URL"
+
+    async def verify_policy(self, policy_number: str) -> PolicyVerificationResult:
+        self._require_configuration()
+        url = f"{self.base_url}/policies/{policy_number}"
+        response = await self._fetch_json(url, headers=self._auth_headers())
+        return self._build_result(policy_number, response)
+
+    async def issue_certificate(
+        self, policy_number: str, *, insured_name: str, reference_id: Optional[str] = None
+    ) -> CertificateIssueResult:
+        self._require_configuration()
+        url = f"{self.base_url}/policies/{policy_number}/certificates"
+        payload = {"insured_name": insured_name, "reference_id": reference_id}
+        response = await self._post_json(url, payload=payload, headers=self._auth_headers())
+        return self._build_certificate_result(
+            policy_number,
+            response,
+            reference_id=reference_id,
+        )
+
+
 class InsuranceVerificationAPI:
     """Facade for verifying commercial insurance policies across providers."""
 
@@ -132,6 +223,8 @@ class InsuranceVerificationAPI:
             "state_farm": StateFarmAPI(),
             "allstate": AllStateAPI(),
             "liberty_mutual": LibertyMutualAPI(),
+            "next": NextInsuranceAPI(),
+            "thimble": ThimbleAPI(),
         }
 
     async def verify_coverage(self, provider: str, policy_number: str) -> PolicyVerificationResult:
@@ -139,12 +232,31 @@ class InsuranceVerificationAPI:
             raise InsuranceAPIError(f"Unsupported insurance provider '{provider}'.")
         return await self.providers[provider].verify_policy(policy_number)
 
+    async def issue_certificate(
+        self,
+        provider: str,
+        policy_number: str,
+        *,
+        insured_name: str,
+        reference_id: Optional[str] = None,
+    ) -> CertificateIssueResult:
+        if provider not in self.providers:
+            raise InsuranceAPIError(f"Unsupported insurance provider '{provider}'.")
+        return await self.providers[provider].issue_certificate(
+            policy_number,
+            insured_name=insured_name,
+            reference_id=reference_id,
+        )
+
 
 __all__ = [
     "InsuranceAPIError",
     "PolicyVerificationResult",
+    "CertificateIssueResult",
     "StateFarmAPI",
     "AllStateAPI",
     "LibertyMutualAPI",
+    "NextInsuranceAPI",
+    "ThimbleAPI",
     "InsuranceVerificationAPI",
 ]

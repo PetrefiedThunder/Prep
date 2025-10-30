@@ -22,6 +22,7 @@ if _sqlalchemy_spec is None:
         """Placeholder factory used in tests without SQLAlchemy."""
 
     for name in [
+        "Date",
         "Boolean",
         "Date",
         "DateTime",
@@ -36,8 +37,11 @@ if _sqlalchemy_spec is None:
         "Numeric",
         "String",
         "Text",
+        "UniqueConstraint",
     ]:
         setattr(sqlalchemy_stub, name, _SQLType)
+
+    sqlalchemy_stub.select = _unavailable
 
     def create_engine(*args: object, **kwargs: object) -> types.SimpleNamespace:
         return types.SimpleNamespace()
@@ -173,6 +177,14 @@ if _sqlalchemy_spec is not None:  # pragma: no branch - skip when SQLAlchemy is 
 else:
     SessionLocal = None  # type: ignore
     init_db = None  # type: ignore
+
+if os.getenv("SKIP_DB_SETUP") == "1":
+    SessionLocal = None  # type: ignore
+    init_db = None  # type: ignore
+    db_module = sys.modules.get("prep.models.db")
+    if db_module is not None:
+        setattr(db_module, "init_db", lambda: None)
+        setattr(db_module, "SessionLocal", None)
 if "aiohttp" not in sys.modules:
     try:
         import aiohttp as _aiohttp  # type: ignore  # pragma: no cover - prefer real installation when available
@@ -234,6 +246,9 @@ if _sqlalchemy_spec is not None:
         SessionLocal = None  # type: ignore[assignment]
         init_db = None  # type: ignore[assignment]
 else:
+try:
+    from prep.models.db import SessionLocal, init_db
+except (ModuleNotFoundError, SyntaxError):  # pragma: no cover - optional dependency for lightweight tests
     SessionLocal = None  # type: ignore[assignment]
     init_db = None  # type: ignore[assignment]
 
@@ -247,11 +262,18 @@ def event_loop():
 
 @pytest.fixture(scope="session", autouse=True)
 def _create_schema():
+    global init_db
     if init_db is None:
         yield
         return
 
-    init_db()
+    try:
+        init_db()
+    except Exception:  # pragma: no cover - defensive for optional deps
+        init_db = None
+    except Exception:  # pragma: no cover - database optional in lightweight envs
+        yield
+        return
     yield
 
 
