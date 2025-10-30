@@ -1,8 +1,9 @@
-"""Booking API endpoints with compliance validation."""
+"""Booking API endpoints with compliance validation and dynamic pricing."""
 
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta, timezone
 """Booking API endpoints with compliance validation."""
 
@@ -19,8 +20,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.pricing import UtilizationMetrics, build_default_engine
 from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER
 from prep.database.connection import get_db
+from prep.models import Booking, BookingStatus, Kitchen, RecurringBookingTemplate
 from prep.insurance.certificates import issue_certificate_for_booking_sync
 from prep.models import Booking, BookingStatus, Kitchen, RecurringBookingTemplate
 from prep.observability.metrics import DELIVERIES_COUNTER
@@ -32,6 +35,55 @@ router = APIRouter(prefix="/bookings", tags=["bookings"])
 
 
 BOOKING_BUFFER = timedelta(minutes=30)
+
+
+def _build_utilization_metrics(kitchen: Kitchen) -> UtilizationMetrics:
+    """Construct utilization metrics from a kitchen's pricing metadata."""
+
+    pricing_payload = kitchen.pricing or {}
+    try:
+        utilization = float(pricing_payload.get("utilization_rate", 1.0))
+    except (TypeError, ValueError):
+        utilization = 1.0
+    try:
+        active = int(pricing_payload.get("active_bookings", 0))
+    except (TypeError, ValueError):
+        active = 0
+    try:
+        cancellation_rate = float(pricing_payload.get("cancellation_rate", 0.0))
+    except (TypeError, ValueError):
+        cancellation_rate = 0.0
+
+    return UtilizationMetrics(
+        utilization_rate=utilization,
+        active_bookings=active,
+        cancellation_rate=cancellation_rate,
+    )
+
+
+def _calculate_dynamic_price(
+    kitchen: Kitchen, start_time: datetime, end_time: datetime
+) -> tuple[Decimal, float, list[str]]:
+    """Return the total amount, discount percent, and applied rules."""
+
+    engine = build_default_engine()
+    metrics = _build_utilization_metrics(kitchen)
+    decision = engine.evaluate(metrics)
+
+    if kitchen.hourly_rate is None:
+        return Decimal("0.00"), decision.discount, decision.applied_rules
+
+    base_rate = Decimal(kitchen.hourly_rate)
+    duration_seconds = Decimal(str((end_time - start_time).total_seconds()))
+    hours = duration_seconds / Decimal("3600")
+    subtotal = (base_rate * hours).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    discount_multiplier = Decimal("1") - Decimal(str(decision.discount))
+    discount_multiplier = max(discount_multiplier, Decimal("0"))
+    total = (subtotal * discount_multiplier).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+    return total, decision.discount, decision.applied_rules
 
 
 class BookingCreate(BaseModel):
@@ -54,6 +106,9 @@ class BookingResponse(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+    total_amount: float | None = None
+    discount_percent: float | None = None
+    pricing_adjustments: list[str] = Field(default_factory=list)
 
 def _advisory_lock_key(kitchen_id: UUID) -> int:
     """Derive a signed 64-bit advisory lock key from a UUID."""
@@ -212,6 +267,11 @@ async def create_booking(
         status=BookingStatus.PENDING,
     )
 
+    total_amount, discount_percent, adjustments = _calculate_dynamic_price(
+        kitchen, booking_data.start_time, booking_data.end_time
+    )
+    new_booking.total_amount = total_amount
+
     db.add(new_booking)
     await db.commit()
     await db.refresh(new_booking)
@@ -228,6 +288,9 @@ async def create_booking(
         status=new_booking.status.value,
         created_at=new_booking.created_at,
         updated_at=new_booking.updated_at,
+        total_amount=float(total_amount),
+        discount_percent=discount_percent if discount_percent else None,
+        pricing_adjustments=adjustments,
     )
 
 
@@ -310,6 +373,7 @@ async def create_recurring_booking(
     ]
 
     created_bookings: list[Booking] = []
+    pricing_snapshots: list[tuple[Booking, float, list[str]]] = []
     skipped_occurrences = 0
     for occurrence_start in rule.between(window_start, window_end, inc=True):
         occurrence_start = _ensure_timezone(occurrence_start)
@@ -335,8 +399,14 @@ async def create_recurring_booking(
             end_time=occurrence_end,
             status=BookingStatus.PENDING,
         )
+        total_amount, discount_percent, adjustments = _calculate_dynamic_price(
+            kitchen, occurrence_start, occurrence_end
+        )
+        booking.total_amount = total_amount
+
         db.add(booking)
         created_bookings.append(booking)
+        pricing_snapshots.append((booking, discount_percent, adjustments))
         blocked_windows.append((buffered_start, buffered_end))
 
     await db.commit()
@@ -359,8 +429,11 @@ async def create_recurring_booking(
                 status=booking.status.value,
                 created_at=booking.created_at,
                 updated_at=booking.updated_at,
+                total_amount=float(booking.total_amount),
+                discount_percent=discount if discount else None,
+                pricing_adjustments=adjustments,
             )
-            for booking in created_bookings
+            for booking, discount, adjustments in pricing_snapshots
         ],
         skipped_occurrences=skipped_occurrences,
     )
