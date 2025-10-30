@@ -5,18 +5,19 @@ from fastapi import FastAPI
 from prep.admin.api import router as admin_router
 from prep.analytics.dashboard_api import router as analytics_router
 from prep.api import admin_regulatory, auth, bookings, kitchens, regulatory, search
-from prep.api import auth, kitchens, regulatory
+from prep.observability.metrics import MetricsMiddleware, create_metrics_router
 from prep.payments.api import router as payments_router
 
 app = FastAPI(title="Prep Platform API", version="1.0.0")
+app.add_middleware(MetricsMiddleware, app_name="prep-api")
 
+app.include_router(create_metrics_router())
 app.include_router(auth.router)
 app.include_router(kitchens.router)
 app.include_router(bookings.router)
 app.include_router(search.router)
 app.include_router(regulatory.router)
 app.include_router(admin_regulatory.router)
-app.include_router(regulatory.router)
 app.include_router(payments_router)
 app.include_router(admin_router)
 app.include_router(analytics_router)

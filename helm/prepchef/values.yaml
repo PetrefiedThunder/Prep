@@ -87,6 +87,50 @@ pythonCompliance:
     timeoutSeconds: 3
     failureThreshold: 3
 
+# Compliance manifest worker
+complianceReports:
+  enabled: true
+  schedule: "0 4 * * *"
+  image:
+    repository: prepchef/compliance-reports
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: prepchef-secrets
+          key: DATABASE_URL
+
+# Nightly regression suite
+regressionSuite:
+  enabled: true
+  schedule: "30 4 * * *"
+  image:
+    repository: prepchef/regression-suite
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 750m
+      memory: 512Mi
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: prepchef-secrets
+          key: DATABASE_URL
+
 # Frontend service
 frontend:
   name: frontend
