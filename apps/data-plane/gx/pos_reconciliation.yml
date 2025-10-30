@@ -1,0 +1,9 @@
+validations:
+  - batch_request:
+      datasource_name: warehouse
+      data_asset_name: pos_transactions
+    expectation_suite_name: pos_transactions_suite
+action_list:
+  - name: store_validation_result
+  - name: update_data_docs
+  - name: quarantine_on_failure
