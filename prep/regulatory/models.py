@@ -12,6 +12,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -106,10 +107,149 @@ class RegDoc(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class CityJurisdiction(Base):
+    """City jurisdiction registry with metadata."""
+
+    __tablename__ = "city_jurisdictions"
+    __table_args__ = (
+        UniqueConstraint("city", "state", name="uq_city_state"),
+        Index("ix_city_jurisdictions_state", "state"),
+        Index("ix_city_jurisdictions_fips", "fips_code"),
+    )
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    city = Column(String(100), nullable=False)
+    state = Column(String(2), nullable=False)
+    county = Column(String(100))
+    fips_code = Column(String(10))
+    population = Column(Integer)
+    food_code_adoption_year = Column(Integer)
+    food_code_version = Column(String(50))
+    portal_url = Column(Text)
+    business_license_url = Column(Text)
+    health_department_url = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CityAgency(Base):
+    """Government agencies that enforce city regulations."""
+
+    __tablename__ = "city_agencies"
+    __table_args__ = (Index("ix_city_agencies_jurisdiction", "jurisdiction_id"),)
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    jurisdiction_id = Column(GUID(), ForeignKey("city_jurisdictions.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    agency_type = Column(String(100))
+    contact_email = Column(String(255))
+    contact_phone = Column(String(50))
+    portal_link = Column(Text)
+    application_portal = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CityRequirement(Base):
+    """Normalized city-level regulatory requirements."""
+
+    __tablename__ = "city_requirements"
+    __table_args__ = (
+        Index("ix_city_requirements_jurisdiction", "jurisdiction_id"),
+        Index("ix_city_requirements_type", "requirement_type"),
+        Index("ix_city_requirements_applies_to", "applies_to"),
+    )
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    jurisdiction_id = Column(GUID(), ForeignKey("city_jurisdictions.id"), nullable=False)
+    agency_id = Column(GUID(), ForeignKey("city_agencies.id"))
+    requirement_id = Column(String(255), nullable=False)
+    requirement_label = Column(String(255), nullable=False)
+    requirement_type = Column(String(100), nullable=False)
+    applies_to = Column(MutableList.as_mutable(JSON))
+    required_documents = Column(MutableList.as_mutable(JSON))
+    submission_channel = Column(String(100))
+    application_url = Column(Text)
+    inspection_required = Column(Boolean, default=False)
+    renewal_frequency = Column(String(50))
+    renewal_cycle = Column(String(100))
+    fee_amount = Column(String(50))
+    fee_schedule = Column(String(255))
+    fee_details = Column(MutableDict.as_mutable(JSON))
+    enforcement_mechanism = Column(Text)
+    penalties = Column(MutableDict.as_mutable(JSON))
+    rules = Column(MutableDict.as_mutable(JSON))
+    source_url = Column(Text, nullable=False)
+    official_code_section = Column(String(255))
+    is_active = Column(Boolean, default=True)
+    last_updated = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CityRequirementLink(Base):
+    """Links city requirements to federal requirements."""
+
+    __tablename__ = "city_requirement_links"
+    __table_args__ = (
+        Index("ix_city_requirement_links_city", "city_requirement_id"),
+        Index("ix_city_requirement_links_federal", "federal_scope_name"),
+    )
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    city_requirement_id = Column(GUID(), ForeignKey("city_requirements.id"), nullable=False)
+    federal_scope_name = Column(String(255))
+    relationship_type = Column(String(50))
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CityComplianceTemplate(Base):
+    """Pre-built compliance checklists for city onboarding."""
+
+    __tablename__ = "city_compliance_templates"
+    __table_args__ = (Index("ix_city_compliance_templates_jurisdiction", "jurisdiction_id"),)
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    jurisdiction_id = Column(GUID(), ForeignKey("city_jurisdictions.id"), nullable=False)
+    business_type = Column(String(100), nullable=False)
+    template_name = Column(String(255), nullable=False)
+    checklist_items = Column(MutableList.as_mutable(JSON))
+    estimated_timeline_days = Column(Integer)
+    estimated_total_cost = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CityETLRun(Base):
+    """Tracks city regulatory data ingestion runs."""
+
+    __tablename__ = "city_etl_runs"
+    __table_args__ = (
+        Index("ix_city_etl_runs_jurisdiction", "jurisdiction_id"),
+        Index("ix_city_etl_runs_status", "status"),
+    )
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    jurisdiction_id = Column(GUID(), ForeignKey("city_jurisdictions.id"), nullable=False)
+    run_started_at = Column(DateTime, nullable=False)
+    run_completed_at = Column(DateTime)
+    status = Column(String(50), nullable=False)
+    requirements_processed = Column(Integer, default=0)
+    requirements_inserted = Column(Integer, default=0)
+    requirements_updated = Column(Integer, default=0)
+    errors = Column(MutableList.as_mutable(JSON))
+    metadata = Column(MutableDict.as_mutable(JSON))
+
+
 __all__ = [
     "RegulationSource",
     "Regulation",
     "InsuranceRequirement",
     "RegDoc",
+    "CityJurisdiction",
+    "CityAgency",
+    "CityRequirement",
+    "CityRequirementLink",
+    "CityComplianceTemplate",
+    "CityETLRun",
 ]
-__all__ = ["RegulationSource", "Regulation", "InsuranceRequirement", "RegDoc"]
