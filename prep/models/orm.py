@@ -24,6 +24,18 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, mapped_column, relationship
+from sqlalchemy.sql.sqltypes import Date
+
+try:  # pragma: no cover - import locations vary across SQLAlchemy versions
+    from sqlalchemy import UniqueConstraint
+except ImportError:  # pragma: no cover - fallback for stripped-down builds
+    try:
+        from sqlalchemy.sql.schema import UniqueConstraint  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover - final fallback for tests without SQLAlchemy
+        class UniqueConstraint:  # type: ignore[override]
+            def __init__(self, *args, **kwargs) -> None:
+                self.args = args
+                self.kwargs = kwargs
 
 try:  # pragma: no cover - compatibility with lightweight SQLAlchemy stubs
     from sqlalchemy import Date
@@ -141,6 +153,21 @@ class SubleaseContractStatus(str, enum.Enum):
     DECLINED = "declined"
     VOIDED = "voided"
     ERROR = "error"
+
+
+class DeliveryProvider(str, enum.Enum):
+    DOORDASH = "doordash"
+    UBER = "uber"
+
+
+class DeliveryStatus(str, enum.Enum):
+    CREATED = "created"
+    DISPATCHED = "dispatched"
+    IN_TRANSIT = "in_transit"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    RETURNED = "returned"
 
 
 class User(TimestampMixin, Base):
@@ -969,6 +996,79 @@ class RegDoc(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
 
+
+class DeliveryOrder(TimestampMixin, Base):
+    __tablename__ = "delivery_orders"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    booking_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("bookings.id", ondelete="SET NULL")
+    )
+    external_order_id: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    provider: Mapped[DeliveryProvider] = mapped_column(
+        Enum(DeliveryProvider), nullable=False
+    )
+    provider_delivery_id: Mapped[str | None] = mapped_column(String(128))
+    status: Mapped[DeliveryStatus] = mapped_column(
+        Enum(DeliveryStatus), default=DeliveryStatus.CREATED, nullable=False
+    )
+    pickup_address: Mapped[str] = mapped_column(String(512), nullable=False)
+    dropoff_address: Mapped[str] = mapped_column(String(512), nullable=False)
+    dropoff_contact: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    eta: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    tracking_url: Mapped[str | None] = mapped_column(String(512))
+    courier_name: Mapped[str | None] = mapped_column(String(255))
+    courier_phone: Mapped[str | None] = mapped_column(String(64))
+    proof_photo_url: Mapped[str | None] = mapped_column(String(512))
+    proof_signature: Mapped[str | None] = mapped_column(Text)
+    last_status_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    booking: Mapped["Booking" | None] = relationship("Booking")
+    status_events: Mapped[List["DeliveryStatusEvent"]] = relationship(
+        "DeliveryStatusEvent",
+        back_populates="delivery",
+        cascade="all, delete-orphan",
+        order_by="DeliveryStatusEvent.occurred_at",
+    )
+    compliance_events: Mapped[List["DeliveryComplianceEvent"]] = relationship(
+        "DeliveryComplianceEvent",
+        back_populates="delivery",
+        cascade="all, delete-orphan",
+        order_by="DeliveryComplianceEvent.occurred_at",
+    )
+
+
+class DeliveryStatusEvent(TimestampMixin, Base):
+    __tablename__ = "delivery_status_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    delivery_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("delivery_orders.id", ondelete="CASCADE"), nullable=False
+    )
+    status: Mapped[DeliveryStatus] = mapped_column(Enum(DeliveryStatus), nullable=False)
+    provider_status: Mapped[str] = mapped_column(String(128), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    raw_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+
+    delivery: Mapped[DeliveryOrder] = relationship("DeliveryOrder", back_populates="status_events")
+
+
+class DeliveryComplianceEvent(TimestampMixin, Base):
+    __tablename__ = "delivery_compliance_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    delivery_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("delivery_orders.id", ondelete="CASCADE"), nullable=False
+    )
+    courier_identity: Mapped[str] = mapped_column(String(255), nullable=False)
+    verification_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    verification_reference: Mapped[str | None] = mapped_column(String(255))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+
+    delivery: Mapped[DeliveryOrder] = relationship("DeliveryOrder", back_populates="compliance_events")
+
+
 __all__ = [
     "Base",
     "Booking",
@@ -998,4 +1098,9 @@ __all__ = [
     "User",
     "UserRole",
     "COIDocument",
+    "DeliveryOrder",
+    "DeliveryStatusEvent",
+    "DeliveryComplianceEvent",
+    "DeliveryStatus",
+    "DeliveryProvider",
 ]

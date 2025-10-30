@@ -4,8 +4,10 @@ from . import (
     admin_regulatory,
     auth,
     bookings,
+    deliveries,
     integrations,
     kitchens,
+    orders,
     regulatory,
     search,
 )
@@ -14,8 +16,10 @@ __all__ = [
     "admin_regulatory",
     "auth",
     "bookings",
+    "deliveries",
     "integrations",
     "kitchens",
+    "orders",
     "regulatory",
     "search",
 ]
