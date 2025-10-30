@@ -37,9 +37,12 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+import httpx
+import os
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,6 +57,39 @@ from prep.settings import get_settings
 router = APIRouter(prefix="/regulatory")
 
 logger = logging.getLogger(__name__)
+
+GRAPH_SERVICE_URL = os.getenv("GRAPH_SERVICE_URL")
+POLICY_ENGINE_URL = os.getenv("POLICY_ENGINE_URL")
+PROVENANCE_LEDGER_URL = os.getenv("PROVENANCE_LEDGER_URL")
+ZK_PROOFS_URL = os.getenv("ZK_PROOFS_URL")
+
+
+async def _service_request(
+    method: str,
+    base_url: str | None,
+    path: str,
+    *,
+    json_body: Any | None = None,
+    params: Dict[str, Any] | None = None,
+    error_detail: str,
+) -> Any | None:
+    """Best-effort helper to talk to auxiliary services."""
+
+    if not base_url:
+        return None
+
+    url = base_url.rstrip("/") + path
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.request(method, url, json=json_body, params=params)
+            response.raise_for_status()
+    except httpx.HTTPError as exc:  # pragma: no cover - network issues
+        logger.exception("auxiliary service request failed", extra={"url": url})
+        raise HTTPException(status_code=502, detail=error_detail) from exc
+
+    if not response.content:
+        return None
+    return response.json()
 
 
 class ScrapeRequest(BaseModel):
@@ -397,10 +433,106 @@ async def save_insurance_requirements(
     await db.commit()
 
 
+@router.get("/reg/obligations")
+async def list_obligations(
+    jurisdiction: str,
+    subject: Optional[str] = None,
+    type: Optional[str] = None,
+) -> Dict[str, Any]:
+    params = {"jurisdiction": jurisdiction}
+    if subject:
+        params["subject"] = subject
+    if type:
+        params["type"] = type
+
+    response = await _service_request(
+        "GET",
+        GRAPH_SERVICE_URL,
+        "/graph/obligations",
+        params=params,
+        error_detail="graph service unavailable",
+    )
+
+    if isinstance(response, list):
+        obligations = response
+    elif isinstance(response, dict) and "obligations" in response:
+        obligations = response["obligations"]
+    else:
+        obligations = []
+
+    return {"jurisdiction": jurisdiction, "obligations": obligations}
+
+
+@router.post("/reg/evaluate")
+async def evaluate_booking(payload: Dict[str, Any]) -> Dict[str, Any]:
+    evaluation = await _service_request(
+        "POST",
+        POLICY_ENGINE_URL,
+        "/evaluate",
+        json_body=payload,
+        error_detail="policy engine unavailable",
+    )
+
+    if not isinstance(evaluation, dict):
+        evaluation = {
+            "allowed": True,
+            "violations": [],
+            "proofs": [],
+            "provenance_hash": "",
+        }
+
+    record_payload = {
+        "type": "evaluation",
+        "parent_hash": evaluation.get("provenance_hash"),
+        "payload": evaluation,
+    }
+    await _service_request(
+        "POST",
+        PROVENANCE_LEDGER_URL,
+        "/prov/record",
+        json_body=record_payload,
+        error_detail="provenance ledger unavailable",
+    )
+
+    return evaluation
+
+
+@router.get("/reg/proof/{proof_id}")
+async def get_proof(proof_id: str) -> Dict[str, Any]:
+    record = await _service_request(
+        "GET",
+        PROVENANCE_LEDGER_URL,
+        f"/prov/{proof_id}",
+        error_detail="provenance ledger unavailable",
+    )
+
+    if not isinstance(record, dict):
+        return {"proof_id": proof_id, "status": "unavailable"}
+    return record
+
+
+@router.get("/reg/provenance/{hash_value}")
+async def get_provenance(hash_value: str) -> Dict[str, Any]:
+    record = await _service_request(
+        "GET",
+        PROVENANCE_LEDGER_URL,
+        f"/prov/{hash_value}",
+        error_detail="provenance ledger unavailable",
+    )
+
+    if not isinstance(record, dict):
+        return {"hash": hash_value, "status": "unknown"}
+    return record
+
+
 __all__ = [
     "router",
     "scrape_regulations",
     "check_compliance",
     "get_regulations",
     "get_insurance_requirements",
+    "list_obligations",
+    "evaluate_booking",
+    "get_proof",
+    "get_provenance",
 ]
