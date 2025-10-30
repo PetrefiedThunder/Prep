@@ -1,0 +1,49 @@
+name: Prep Connect CI
+
+on:
+  push:
+    paths:
+      - 'services/prep-connect/**'
+      - '.github/workflows/prep-connect.yml'
+  pull_request:
+    paths:
+      - 'services/prep-connect/**'
+      - '.github/workflows/prep-connect.yml'
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: services/prep-connect/package-lock.json
+
+      - name: Install dependencies
+        working-directory: services/prep-connect
+        run: npm ci || npm install
+
+      - name: Lint
+        working-directory: services/prep-connect
+        run: npm run lint
+
+      - name: Test
+        working-directory: services/prep-connect
+        run: npm test -- --runInBand
+
+      - name: Build
+        working-directory: services/prep-connect
+        run: npm run build
+
+      - name: Deploy
+        if: github.ref == 'refs/heads/main'
+        working-directory: services/prep-connect
+        env:
+          DEPLOY_ENVIRONMENT: production
+        run: npm run deploy
