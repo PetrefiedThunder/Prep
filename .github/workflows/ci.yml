@@ -1,35 +1,39 @@
-name: ci
+name: CI
+
 on:
   push:
+    branches: [ main ]
   pull_request:
 
 jobs:
-  build-test:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        app: [control-plane, policy, optimizers, compliance, adr, data-plane]
+        service:
+          - apps/ingestion_service
+          - apps/graph_service
+          - apps/obligation_extractor
+          - apps/formalizer
+          - apps/policy_engine
+          - apps/provenance_ledger
+          - apps/zk_proofs
+          - apps/monitor
+          - apps/predictor
+          - apps/twin
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: 20
-      - run: pnpm i --frozen-lockfile
-      - run: pnpm -w lint
-      - run: pnpm -w test --coverage
-      - run: pnpm -w stryker run
-      - run: pnpm -w pact:verify
-      - run: pnpm -w e2e:playwright
-      - run: pnpm -w perf:smoke
-      - run: pnpm -w zap:baseline
-      - run: pnpm -w ge:check
-      - run: docker build -t ghcr.io/prep/${{ matrix.app }}:${{ github.sha }} apps/${{ matrix.app }}
-      - run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u USER --password-stdin
-      - run: docker push ghcr.io/prep/${{ matrix.app }}:${{ github.sha }}
-
-  deploy-staging:
-    needs: build-test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: azure/setup-kubectl@v4
-      - run: helm upgrade --install prep infra/helm -n staging --set global.imageTag=${{ github.sha }}
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -e .
+      - name: Run pytest
+        run: |
+          pytest ${matrix.service}/tests --maxfail=1 -q
+      - name: Run ruff
+        run: ruff check ${matrix.service}
+      - name: Run mypy
+        run: mypy ${matrix.service}

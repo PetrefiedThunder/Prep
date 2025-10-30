@@ -1,0 +1,24 @@
+name: Bundle Policies
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'apps/formalizer/**'
+      - 'apps/policy_engine/**'
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -e .
+      - name: Build bundle
+        run: |
+          python -c "from apps.policy_engine.build import bundle_rego; print(bundle_rego(['package policies']).decode())"
