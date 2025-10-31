@@ -11,6 +11,7 @@ from sqlalchemy.pool import StaticPool
 
 from .orm import (
     Base,
+    APIUsageEvent,
     Booking,
     BookingStatus,
     InventoryItem,
@@ -43,6 +44,8 @@ from .orm import (
     ReviewStatus,
     ReviewVote,
     RecurringBookingTemplate,
+    StripeWebhookEvent,
+    SubscriptionStatus,
     User,
     UserRole,
 )
@@ -127,9 +130,12 @@ __all__ = [
     "ReviewStatus",
     "ReviewVote",
     "RecurringBookingTemplate",
+    "StripeWebhookEvent",
+    "SubscriptionStatus",
     "SessionLocal",
     "User",
     "UserRole",
+    "APIUsageEvent",
     "engine",
     "get_db_url",
     "init_db",

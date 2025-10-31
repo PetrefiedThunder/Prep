@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER, BOOKING_PILOT_BANNER
 from prep.database.connection import AsyncSessionLocal, get_db
-from prep.models import Kitchen, SanitationLog
+from prep.models import Kitchen, SanitationLog, SubscriptionStatus
 from prep.notifications.regulatory import RegulatoryNotifier
 from prep.notifications.service import NotificationService
 from prep.observability.metrics import DELIVERY_KITCHENS_GAUGE
@@ -108,6 +108,9 @@ class KitchenComplianceResponse(BaseModel):
     delivery_only: bool = False
     permit_types: List[str] = Field(default_factory=list)
     last_sanitation_log: Optional[datetime] = None
+    subscription_status: Optional[str] = None
+    trial_ends_at: Optional[str] = None
+    is_pilot_user: bool = False
     pilot_mode: bool = False
     override_allowed: bool = False
 
@@ -392,6 +395,16 @@ async def get_kitchen_compliance(
 
     override_allowed = pilot_mode
 
+    host_user = kitchen.host
+    subscription_status = SubscriptionStatus.INACTIVE.value
+    trial_ends_at = None
+    is_pilot_user = False
+    if host_user is not None:
+        subscription_status = host_user.subscription_status.value
+        if host_user.trial_ends_at:
+            trial_ends_at = host_user.trial_ends_at.isoformat()
+        is_pilot_user = bool(host_user.is_pilot_user)
+
     return KitchenComplianceResponse(
         kitchen_id=str(kitchen.id),
         compliance_level=analysis.overall_compliance.value,
@@ -407,6 +420,9 @@ async def get_kitchen_compliance(
         delivery_only=kitchen.delivery_only,
         permit_types=kitchen.permit_types or [],
         last_sanitation_log=analysis.metadata.get("last_sanitation_log"),
+        subscription_status=subscription_status,
+        trial_ends_at=trial_ends_at,
+        is_pilot_user=is_pilot_user,
         pilot_mode=pilot_mode,
         override_allowed=override_allowed,
     )
@@ -470,7 +486,9 @@ async def _get_kitchen_or_404(db: AsyncSession, kitchen_id: str) -> Kitchen:
     except ValueError as exc:  # pragma: no cover - validation guard
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid kitchen ID") from exc
 
-    result = await db.execute(select(Kitchen).where(Kitchen.id == kitchen_uuid))
+    result = await db.execute(
+        select(Kitchen).options(selectinload(Kitchen.host)).where(Kitchen.id == kitchen_uuid)
+    )
     kitchen = result.scalar_one_or_none()
     if kitchen is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kitchen not found")

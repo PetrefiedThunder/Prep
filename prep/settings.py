@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Any, Dict, Iterable
 from typing import Any, Dict, List
 
 from pydantic import (
@@ -193,6 +194,8 @@ class Settings(BaseModel):
     pos_ledger_bucket: str | None = Field(default=None, alias="POS_LEDGER_BUCKET")
     next_insurance_api_key: str | None = Field(default=None, alias="NEXT_INSURANCE_API_KEY")
     thimble_api_key: str | None = Field(default=None, alias="THIMBLE_API_KEY")
+    pilot_zip_codes: list[str] = Field(default_factory=list, alias="PILOT_ZIP_CODES")
+    pilot_counties: list[str] = Field(default_factory=list, alias="PILOT_COUNTIES")
     pilot_zip_codes: List[str] = Field(default_factory=list, alias="PILOT_ZIP_CODES")
     pilot_counties: List[str] = Field(default_factory=list, alias="PILOT_COUNTIES")
 
@@ -209,6 +212,17 @@ class Settings(BaseModel):
         if normalized not in allowed:
             raise ValueError(f"ENVIRONMENT must be one of {sorted(allowed)}")
         return normalized
+
+    @field_validator("pilot_zip_codes", "pilot_counties", mode="before")
+    @classmethod
+    def _parse_pilot_config(cls, value: Any) -> list[str]:
+        if value in (None, ""):
+            return []
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        if isinstance(value, Iterable):
+            return [str(item).strip() for item in value if str(item).strip()]
+        raise TypeError("Pilot configuration must be provided as a string or iterable")
 
     @property
     def is_development(self) -> bool:
