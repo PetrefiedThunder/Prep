@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import re
-from typing import Dict
+from typing import Dict, Iterable
 
 try:  # pragma: no cover - import guarded for optional dependency environments
     from pdf2image import convert_from_bytes
@@ -47,7 +47,12 @@ def _parse_expiry(raw_value: str) -> str:
     raise COIExtractionError("Unable to parse expiry date from COI document.")
 
 
-def validate_coi(pdf_bytes: bytes) -> Dict[str, str]:
+def validate_coi(
+    pdf_bytes: bytes,
+    *,
+    pilot_mode: bool = False,
+    lenient_fields: Iterable[str] | None = None,
+) -> Dict[str, str | None | list[str]]:
     """Extract key fields from a Certificate of Insurance PDF.
 
     Args:
@@ -62,6 +67,11 @@ def validate_coi(pdf_bytes: bytes) -> Dict[str, str]:
 
     if not pdf_bytes:
         raise COIExtractionError("No PDF data supplied for COI validation.")
+
+    lenient_set = {
+        field.lower()
+        for field in (lenient_fields if lenient_fields is not None else ("policy_number", "insured_name"))
+    }
 
     missing_dependencies = []
     if convert_from_bytes is None:
@@ -114,13 +124,23 @@ def validate_coi(pdf_bytes: bytes) -> Dict[str, str]:
                 return _normalise_whitespace(value)
         return None
 
+    warnings: list[str] = []
+
     policy_number = _extract(policy_patterns)
     if not policy_number:
-        raise COIExtractionError("Policy number not found in COI document.")
+        message = "Policy number not found in COI document."
+        if pilot_mode and "policy_number" in lenient_set:
+            warnings.append(message)
+        else:
+            raise COIExtractionError(message)
 
     insured_name = _extract(insured_patterns)
     if not insured_name:
-        raise COIExtractionError("Insured name not found in COI document.")
+        message = "Insured name not found in COI document."
+        if pilot_mode and "insured_name" in lenient_set:
+            warnings.append(message)
+        else:
+            raise COIExtractionError(message)
 
     expiry_raw = _extract(expiry_patterns)
     if not expiry_raw:
@@ -128,11 +148,15 @@ def validate_coi(pdf_bytes: bytes) -> Dict[str, str]:
 
     expiry_date = _parse_expiry(expiry_raw)
 
-    return {
+    result: Dict[str, str | None | list[str]] = {
         "policy_number": policy_number,
         "insured_name": insured_name,
         "expiry_date": expiry_date,
     }
+    if pilot_mode:
+        result["warnings"] = warnings
+
+    return result
 
 
 __all__ = ["validate_coi", "COIExtractionError"]

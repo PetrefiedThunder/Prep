@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import List
 
@@ -12,11 +12,12 @@ class COIValidationResult:
     """Result of a COI validation attempt."""
 
     valid: bool
-    expiry_date: datetime
+    expiry_date: datetime | None
     errors: List[str]
+    warnings: List[str] = field(default_factory=list)
 
 
-def validate_coi(payload: bytes) -> COIValidationResult:
+def validate_coi(payload: bytes, *, pilot_mode: bool = False) -> COIValidationResult:
     """Validate the uploaded COI PDF payload.
 
     The current implementation performs lightweight sanity checks to ensure the
@@ -25,13 +26,32 @@ def validate_coi(payload: bytes) -> COIValidationResult:
     purposes and rely on the computed expiry date for follow-up reminders.
     """
 
-    if not payload:
-        raise ValueError("Uploaded document is empty.")
-    if not payload.startswith(b"%PDF"):
-        raise ValueError("Uploaded document is not a valid PDF.")
+    errors: List[str] = []
+    warnings: List[str] = []
 
-    expiry = datetime.now(UTC) + timedelta(days=365)
-    return COIValidationResult(valid=True, expiry_date=expiry, errors=[])
+    if not payload:
+        message = "Uploaded document is empty."
+        if pilot_mode:
+            warnings.append(message)
+        else:
+            raise ValueError(message)
+
+    if payload and not payload.startswith(b"%PDF"):
+        message = "Uploaded document is not a valid PDF."
+        if pilot_mode:
+            warnings.append(message)
+        else:
+            raise ValueError(message)
+
+    is_valid = not warnings and not errors
+    expiry = datetime.now(UTC) + timedelta(days=365) if is_valid else None
+
+    return COIValidationResult(
+        valid=is_valid,
+        expiry_date=expiry,
+        errors=errors,
+        warnings=warnings,
+    )
 
 
 __all__ = ["COIValidationResult", "validate_coi"]
