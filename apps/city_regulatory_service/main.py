@@ -51,20 +51,31 @@ from __future__ import annotations
 import logging
 from contextlib import contextmanager
 from datetime import datetime
+import os
+from time import perf_counter_ns
 from typing import Any, Generator, Optional
 
+import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from prep.models.db import SessionLocal
+from apps.city_regulatory_service.otel import get_tracer
 from apps.city_regulatory_service.src.etl import CITY_ADAPTERS, CityETLOrchestrator
 from apps.city_regulatory_service.src.models import (
     CityAgency,
     CityJurisdiction,
     CityRequirement,
 )
+from prep.models.db import SessionLocal
+from prep.regulatory.policy_logging import write_policy_decision
+
+try:  # pragma: no cover - optional dependency
+    from opentelemetry.trace import Status, StatusCode
+except Exception:  # pragma: no cover - fallback when otel missing
+    Status = None  # type: ignore[assignment]
+    StatusCode = None  # type: ignore[assignment]
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -76,6 +87,10 @@ app = FastAPI(
     description="City-level compliance regulations for food preparation facilities",
     version="1.0.0",
 )
+
+OPA_URL = os.getenv("OPA_URL")
+OPA_PACKAGE_PATH = os.getenv("OPA_PACKAGE_PATH", "prep/policy")
+TRACER = get_tracer()
 
 # CORS middleware
 app.add_middleware(
@@ -403,6 +418,109 @@ async def get_insurance_requirements(
 # COMPLIANCE CHECK ENDPOINTS
 # ============================================================================
 
+
+def _build_policy_payload(
+    city_name: str,
+    state: str,
+    request: ComplianceCheckRequest,
+    compliance_snapshot: dict[str, Any],
+) -> dict[str, Any]:
+    payload = request.model_dump()
+    payload.update(
+        {
+            "city": city_name,
+            "state": state,
+            "compliance_snapshot": compliance_snapshot,
+        }
+    )
+    return payload
+
+
+def _extract_decision(result_payload: Any, fallback: str) -> tuple[str, str | None]:
+    decision = fallback
+    rationale: str | None = None
+    if isinstance(result_payload, dict):
+        for key in ("decision", "result", "allow"):
+            if key in result_payload:
+                value = result_payload[key]
+                if isinstance(value, bool):
+                    decision = "allow" if value else "deny"
+                else:
+                    decision = str(value)
+                break
+        rationale_value = result_payload.get("rationale")
+        if isinstance(rationale_value, str):
+            rationale = rationale_value
+    elif isinstance(result_payload, bool):
+        decision = "allow" if result_payload else "deny"
+    elif result_payload is not None:
+        decision = str(result_payload)
+    return decision, rationale
+
+
+async def _log_policy_decision(
+    *,
+    city_name: str,
+    state: str,
+    request: ComplianceCheckRequest,
+    compliance_snapshot: dict[str, Any],
+    fallback_decision: str,
+    session: Session,
+) -> None:
+    payload = _build_policy_payload(city_name, state, request, compliance_snapshot)
+    result_payload: Any = {"decision": fallback_decision, "source": "local"}
+    rationale: str | None = None
+    error_message: str | None = None
+    start_ns = perf_counter_ns()
+
+    span_context = TRACER.start_as_current_span("policy.evaluate")
+    with span_context as span:
+        if hasattr(span, "set_attribute"):
+            span.set_attribute("prep.policy.region", state.upper())
+            span.set_attribute("prep.policy.jurisdiction", city_name)
+            span.set_attribute("prep.policy.package_path", OPA_PACKAGE_PATH)
+
+        if OPA_URL:
+            base_url = OPA_URL.rstrip("/")
+            policy_path = OPA_PACKAGE_PATH.replace(".", "/").strip("/")
+            url = f"{base_url}/v1/data/{policy_path}" if policy_path else f"{base_url}/v1/data"
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.post(url, json=payload)
+                    response.raise_for_status()
+                    parsed = response.json()
+                result_payload = parsed.get("result", parsed)
+                fallback_decision, rationale = _extract_decision(result_payload, fallback_decision)
+                if hasattr(span, "set_attribute"):
+                    span.set_attribute("prep.policy.decision", fallback_decision)
+            except Exception as exc:  # pragma: no cover - network errors hard to simulate
+                error_message = str(exc)
+                result_payload = {"error": error_message}
+                if hasattr(span, "record_exception"):
+                    span.record_exception(exc)
+                if Status and StatusCode and hasattr(span, "set_status"):
+                    span.set_status(Status(StatusCode.ERROR, error_message))
+
+        duration_ns = perf_counter_ns() - start_ns
+        try:
+            write_policy_decision(
+                region=state.upper(),
+                jurisdiction=city_name,
+                package_path=OPA_PACKAGE_PATH,
+                decision=fallback_decision,
+                rationale=rationale,
+                error=error_message,
+                input_payload=payload,
+                result_payload=result_payload,
+                duration_ns=duration_ns,
+                session=session,
+                triggered_by="city_regulatory_service",
+                request_id=request.facility_id,
+            )
+        except Exception:  # pragma: no cover - telemetry must not break handler
+            logger.exception("Failed to persist policy decision telemetry")
+
+
 @app.post("/city/{city_name}/{state}/compliance-check", response_model=ComplianceCheckResponse)
 async def check_facility_compliance(
     city_name: str,
@@ -544,7 +662,7 @@ async def check_facility_compliance(
         if expiration_dates:
             next_review = min(expiration_dates)
 
-    return ComplianceCheckResponse(
+    response = ComplianceCheckResponse(
         facility_id=request.facility_id,
         city_name=city.city_name,
         state=city.state,
@@ -562,6 +680,24 @@ async def check_facility_compliance(
         check_timestamp=datetime.utcnow(),
         next_review_date=next_review,
     )
+
+    compliance_snapshot = {
+        "overall_compliant": overall_compliant,
+        "missing_requirements": missing_requirements,
+        "insurance_gaps": insurance_gaps,
+        "compliance_score": compliance_score,
+    }
+
+    await _log_policy_decision(
+        city_name=city.city_name,
+        state=city.state,
+        request=request,
+        compliance_snapshot=compliance_snapshot,
+        fallback_decision="allow" if overall_compliant else "deny",
+        session=db,
+    )
+
+    return response
 
 
 # ============================================================================

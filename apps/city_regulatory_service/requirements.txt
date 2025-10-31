@@ -17,6 +17,7 @@ psycopg2-binary>=2.9.0  # PostgreSQL adapter
 
 # Utilities
 python-dateutil>=2.8.0
+opentelemetry-sdk>=1.25.0
 
 # Testing
 pytest>=7.4.0

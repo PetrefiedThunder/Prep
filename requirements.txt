@@ -22,3 +22,4 @@ aiokafka==0.10.0
 prometheus-client==0.20.0
 fpdf2==2.7.9
 wiremock==2.6.1
+opentelemetry-sdk==1.26.0
