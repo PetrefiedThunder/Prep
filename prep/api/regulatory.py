@@ -17,6 +17,7 @@ router = APIRouter(prefix="/regulatory", tags=["regulatory"])
 async def list_regulations(
     state: str,
     city: Optional[str] = Query(default=None),
+    county: Optional[str] = Query(default=None),
     country_code: str = Query(default="US", min_length=2, max_length=2),
     state_province: Optional[str] = Query(default=None),
     db: AsyncSession = Depends(get_db),
@@ -27,6 +28,7 @@ async def list_regulations(
         db,
         state,
         city,
+        county=county,
         country_code=country_code.upper(),
         state_province=state_province,
     )
@@ -111,6 +113,7 @@ class ComplianceCheckRequest(BaseModel):
     kitchen_id: str
     state: str
     city: str
+    county: Optional[str] = None
     country_code: str = "US"
     state_province: Optional[str] = None
     kitchen_data: Dict
@@ -143,6 +146,7 @@ async def check_compliance(
         db,
         request.state,
         request.city,
+        county=request.county,
         country_code=request.country_code.upper(),
         state_province=request.state_province,
     )
@@ -214,6 +218,7 @@ async def check_compliance(
 async def get_regulations(
     state: str,
     city: Optional[str] = None,
+    county: Optional[str] = None,
     country_code: str = Query(default="US", min_length=2, max_length=2),
     state_province: Optional[str] = Query(default=None),
     db: AsyncSession = Depends(get_db),
@@ -224,12 +229,14 @@ async def get_regulations(
         db,
         state,
         city,
+        county=county,
         country_code=country_code.upper(),
         state_province=state_province,
     )
     return {
         "state": state,
         "city": city,
+        "county": county,
         "state_province": state_province or state,
         "country_code": country_code.upper(),
         "regulations": regulations,
