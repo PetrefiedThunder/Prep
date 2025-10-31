@@ -1,0 +1,22 @@
+name: activate_joshua_tree
+goal: "Ensure Joshua Tree jurisdiction is fully operational end-to-end."
+inputs:
+  env:
+    OPA_URL: "http://localhost:8181"
+    REGION: "joshua_tree"
+steps:
+  - ensure_files:
+      - apps/city_regulatory_service/jurisdictions/joshua_tree/ingest.py
+      - apps/city_regulatory_service/jurisdictions/joshua_tree/validate.py
+      - apps/city_regulatory_service/jurisdictions/joshua_tree/policy.rego
+  - run: make policy.build
+  - run: make opa.up
+  - run: make db.migrate
+  - run: make test
+  - run: make codex-verify
+success_criteria:
+  - "pytest exit code is 0"
+  - "verify_readiness returns exit code 0"
+artifacts:
+  - "apps/policy/bundles/joshua_tree/*.tar.gz"
+  - "grafana/dashboards/sf_bay_area_policy_observability.json"

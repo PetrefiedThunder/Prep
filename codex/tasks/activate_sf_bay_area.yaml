@@ -1,0 +1,25 @@
+name: activate_sf_bay_area
+goal: "Ensure San Francisco and Oakland jurisdictions are fully operational end-to-end."
+inputs:
+  env:
+    OPA_URL: "http://localhost:8181"
+    REGION: "sf_bay_area"
+steps:
+  - ensure_files:
+      - apps/city_regulatory_service/jurisdictions/san_francisco/ingest.py
+      - apps/city_regulatory_service/jurisdictions/san_francisco/validate.py
+      - apps/city_regulatory_service/jurisdictions/san_francisco/policy.rego
+      - apps/city_regulatory_service/jurisdictions/oakland/ingest.py
+      - apps/city_regulatory_service/jurisdictions/oakland/validate.py
+      - apps/city_regulatory_service/jurisdictions/oakland/policy.rego
+  - run: make policy.build
+  - run: make opa.up
+  - run: make db.migrate
+  - run: make test
+  - run: make codex-verify
+success_criteria:
+  - "pytest exit code is 0"
+  - "verify_readiness returns exit code 0"
+artifacts:
+  - "apps/policy/bundles/sf_bay_area/*.tar.gz"
+  - "grafana/dashboards/sf_bay_area_policy_observability.json"
