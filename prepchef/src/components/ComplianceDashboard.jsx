@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, AlertTriangle, Info, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import { Shield, AlertTriangle, CheckCircle, Clock, MapPin } from 'lucide-react';
+import ComplianceScoreCard from './ComplianceScoreCard';
 
 const ComplianceDashboard = ({ kitchenId }) => {
   const { token } = useAuth();
@@ -9,6 +10,8 @@ const ComplianceDashboard = ({ kitchenId }) => {
   const [loading, setLoading] = useState(true);
   const [regulations, setRegulations] = useState([]);
   const [regulationsLoading, setRegulationsLoading] = useState(false);
+  const [overrideLoading, setOverrideLoading] = useState(false);
+  const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
     if (!kitchenId) {
@@ -51,18 +54,111 @@ const ComplianceDashboard = ({ kitchenId }) => {
     fetchRegulations();
   }, [complianceData?.state, complianceData?.city, token]);
 
-  const getComplianceStatusIcon = (level) => {
-    switch (level) {
-      case 'compliant':
-        return <CheckCircle className="text-green-500" size={24} />;
-      case 'partial_compliance':
-        return <Clock className="text-yellow-500" size={24} />;
-      case 'non_compliant':
-        return <AlertTriangle className="text-red-500" size={24} />;
-      default:
-        return <Shield className="text-gray-500" size={24} />;
+  const enqueueToast = useCallback((toast) => {
+    setToasts((current) => [
+      ...current,
+      {
+        id: toast.id || `${Date.now()}-${Math.random()}`,
+        tone: toast.tone || 'info',
+        duration: toast.duration || 6000,
+        persist: toast.persist || false,
+        ...toast,
+      },
+    ]);
+  }, []);
+
+  useEffect(() => {
+    if (!complianceData) {
+      setToasts((current) => current.filter((toast) => toast.meta !== 'pilot-deadline'));
+      return;
     }
-  };
+
+    const pilotDeadline = complianceData.pilot_deadline ? new Date(complianceData.pilot_deadline) : null;
+
+    setToasts((current) => {
+      const withoutPilotToasts = current.filter((toast) => toast.meta !== 'pilot-deadline');
+
+      if (!complianceData.pilot_mode || !pilotDeadline || Number.isNaN(pilotDeadline.getTime())) {
+        return withoutPilotToasts;
+      }
+
+      const now = new Date();
+      const timeRemaining = pilotDeadline.getTime() - now.getTime();
+
+      if (timeRemaining <= 0) {
+        return withoutPilotToasts;
+      }
+
+      const daysRemaining = Math.ceil(timeRemaining / (1000 * 60 * 60 * 24));
+
+      if (daysRemaining > 14) {
+        return withoutPilotToasts;
+      }
+
+      const tone = daysRemaining <= 3 ? 'danger' : 'warning';
+      const title = daysRemaining <= 3 ? 'Pilot access ending' : 'Pilot access expiring soon';
+      const message = `Pilot access ends in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'} (${pilotDeadline.toLocaleDateString()}).`;
+
+      return [
+        ...withoutPilotToasts,
+        {
+          id: 'pilot-deadline',
+          meta: 'pilot-deadline',
+          tone,
+          title,
+          message,
+          persist: true,
+        },
+      ];
+    });
+  }, [complianceData]);
+
+  useEffect(() => {
+    if (toasts.length === 0) {
+      return undefined;
+    }
+
+    const timers = toasts
+      .filter((toast) => !toast.persist)
+      .map((toast) =>
+        setTimeout(() => {
+          setToasts((current) => current.filter((item) => item.id !== toast.id));
+        }, toast.duration)
+      );
+
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+    };
+  }, [toasts]);
+
+  const dismissToast = useCallback((id) => {
+    setToasts((current) => current.filter((toast) => toast.id !== id));
+  }, []);
+
+  const handlePilotOverride = useCallback(async () => {
+    if (!kitchenId) {
+      return;
+    }
+
+    setOverrideLoading(true);
+    try {
+      await api.post(`/admin/pilots/${kitchenId}/override`, {}, token);
+      enqueueToast({
+        tone: 'success',
+        title: 'Override submitted',
+        message: 'Pilot override request sent to the admin endpoint.',
+      });
+    } catch (error) {
+      console.error('Failed to submit pilot override:', error);
+      enqueueToast({
+        tone: 'danger',
+        title: 'Override failed',
+        message: 'Unable to submit pilot override. Please try again later.',
+      });
+    } finally {
+      setOverrideLoading(false);
+    }
+  }, [enqueueToast, kitchenId, token]);
 
   if (loading) {
     return <div className="animate-pulse">Loading compliance data...</div>;
@@ -74,25 +170,70 @@ const ComplianceDashboard = ({ kitchenId }) => {
 
   return (
     <div className="compliance-dashboard space-y-6">
-      {/* Compliance Status Header */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            {getComplianceStatusIcon(complianceData?.compliance_level)}
-            <div>
-              <h2 className="text-xl font-semibold">Compliance Status</h2>
-              <p className="text-gray-600 flex items-center">
-                <MapPin size={16} className="mr-1" />
-                {complianceData?.city}, {complianceData?.state}
-              </p>
+      <div className="fixed top-4 right-4 z-50 space-y-3">
+        {toasts.map((toast) => {
+          const toneClasses = {
+            info: 'border-blue-400',
+            success: 'border-green-400',
+            warning: 'border-amber-400',
+            danger: 'border-red-500',
+          };
+          const iconMap = {
+            info: <Info size={18} className="text-blue-300" />,
+            success: <CheckCircle size={18} className="text-green-300" />,
+            warning: <AlertTriangle size={18} className="text-amber-300" />,
+            danger: <AlertTriangle size={18} className="text-red-300" />,
+          };
+
+          return (
+            <div
+              key={toast.id}
+              className={`flex w-80 items-start space-x-3 rounded-lg border-l-4 ${
+                toneClasses[toast.tone] || toneClasses.info
+              } bg-gray-900/95 p-4 text-white shadow-xl`}
+            >
+              <div className="mt-0.5">{iconMap[toast.tone] || iconMap.info}</div>
+              <div className="flex-1">
+                <div className="text-sm font-semibold">{toast.title}</div>
+                <div className="text-sm text-gray-200">{toast.message}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => dismissToast(toast.id)}
+                className="text-gray-400 transition hover:text-white"
+                aria-label="Dismiss notification"
+              >
+                <X size={16} />
+              </button>
             </div>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold">{complianceData?.risk_score}/100</div>
-            <div className="text-sm text-gray-500">Risk Score</div>
+          );
+        })}
+      </div>
+
+      {/* Compliance Status Header */}
+      <ComplianceScoreCard
+        complianceLevel={complianceData?.compliance_level}
+        location={complianceData?.city && complianceData?.state ? `${complianceData.city}, ${complianceData.state}` : undefined}
+        riskScore={complianceData?.risk_score}
+        planState={complianceData?.plan_state}
+        pilotMode={Boolean(complianceData?.pilot_mode)}
+        pilotDeadline={complianceData?.pilot_deadline}
+        onOverride={complianceData?.pilot_mode ? handlePilotOverride : undefined}
+        overrideLoading={overrideLoading}
+      />
+
+      {complianceData?.pilot_mode && (
+        <div className="flex items-start space-x-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <AlertTriangle className="text-amber-500" size={20} />
+          <div>
+            <h3 className="text-sm font-semibold text-amber-900">Pilot mode limitations</h3>
+            <p className="text-sm text-amber-800">
+              Your account is currently running in pilot mode. Access may be limited until the pilot ends or is overridden by an
+              administrator.
+            </p>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Missing Requirements */}
       {complianceData?.missing_requirements?.length > 0 && (
