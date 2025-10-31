@@ -14,11 +14,44 @@ from prep.models import Kitchen
 REGULATORY_ALERT_WINDOW_DAYS = 30
 
 
+async def _fetch_regulation_rows(
+    db: AsyncSession,
+    state: str,
+    *,
+    city: Optional[str] = None,
+    county: Optional[str] = None,
+) -> List[RowMapping]:
+    """Fetch regulatory updates filtered by the provided jurisdiction metadata."""
+
+    query_lines = [
+        "SELECT state, city, county, regulation_type, change_description, effective_date, created_at",
+        "FROM regulatory_updates",
+        "WHERE state = :state",
+    ]
+    params: Dict[str, object] = {"state": state}
+
+    if city is not None:
+        query_lines.append("  AND (city IS NULL OR city = :city)")
+        params["city"] = city
+    elif county is not None:
+        query_lines.append("  AND (county IS NULL OR county = :county)")
+        params["county"] = county
+
+    query_lines.append(
+        "ORDER BY effective_date DESC NULLS LAST, created_at DESC\nLIMIT 25",
+    )
+
+    stmt = text("\n".join(query_lines))
+    result = await db.execute(stmt, params)
+    return result.mappings().all()
+
+
 async def get_regulations_for_jurisdiction(
     db: AsyncSession,
     state: Optional[str],
     city: Optional[str] = None,
     *,
+    county: Optional[str] = None,
     country_code: str = "US",
     state_province: Optional[str] = None,
 ) -> List[Dict[str, str]]:
@@ -27,20 +60,19 @@ async def get_regulations_for_jurisdiction(
     if not state:
         return []
 
-    stmt = text(
-        """
-        SELECT state, city, regulation_type, change_description, effective_date, created_at
-        FROM regulatory_updates
-        WHERE state = :state
-          AND (:city IS NULL OR city IS NULL OR city = :city)
-        ORDER BY effective_date DESC NULLS LAST, created_at DESC
-        LIMIT 25
-        """
-    )
     normalized_country = (country_code or "US").upper()
     province = state_province or (state.upper() if state else None)
-    result = await db.execute(stmt, {"state": state.upper(), "city": city})
-    rows = result.mappings().all()
+    state_upper = state.upper()
+
+    rows: List[RowMapping] = []
+    if city:
+        rows = await _fetch_regulation_rows(db, state_upper, city=city)
+
+    if not rows and county:
+        rows = await _fetch_regulation_rows(db, state_upper, county=county)
+
+    if not rows:
+        rows = await _fetch_regulation_rows(db, state_upper)
 
     regulations: List[Dict[str, str]] = []
     for row in rows:
@@ -55,6 +87,7 @@ async def get_regulations_for_jurisdiction(
                 "country_code": normalized_country,
                 "state_province": province,
                 "city": row.get("city"),
+                "county": row.get("county"),
             }
         )
 
@@ -63,13 +96,14 @@ async def get_regulations_for_jurisdiction(
             {
                 "title": "Food safety compliance checklist",
                 "description": "Maintain active permits, document recent inspections, and upload insurance certificates.",
-                "jurisdiction": _format_fallback_jurisdiction(state, city),
+                "jurisdiction": _format_fallback_jurisdiction(state, city, county),
                 "regulation_type": "general",
                 "effective_date": None,
                 "guidance": "Schedule a compliance review and ensure all documents are uploaded.",
                 "country_code": normalized_country,
                 "state_province": province,
                 "city": city,
+                "county": county,
             }
         )
 
@@ -198,16 +232,23 @@ async def get_scraping_status_snapshot(db: AsyncSession) -> Dict[str, str]:
 def _format_jurisdiction(row: RowMapping) -> str:
     state = row.get("state")
     city = row.get("city")
-    if city:
+    county = row.get("county")
+    if city and state:
         return f"{city}, {state}"
+    if county and state:
+        return f"{county}, {state}"
     if state:
         return state
     return "United States"
 
 
-def _format_fallback_jurisdiction(state: Optional[str], city: Optional[str]) -> str:
+def _format_fallback_jurisdiction(
+    state: Optional[str], city: Optional[str], county: Optional[str]
+) -> str:
     if city and state:
         return f"{city}, {state.upper()}"
+    if county and state:
+        return f"{county}, {state.upper()}"
     if state:
         return state.upper()
     return "United States"
