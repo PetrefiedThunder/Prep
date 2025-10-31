@@ -5,10 +5,17 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-from pydantic import AnyUrl, BaseModel, Field, ValidationError, field_validator
-from pydantic import PostgresDsn
+from pydantic import (
+    AnyUrl,
+    BaseModel,
+    Field,
+    PostgresDsn,
+    ValidationError,
+    ValidationInfo,
+    field_validator,
+)
 
 _ENV_FILE_ENV = "PREP_ENV_FILE"
 _DEFAULT_ENV_FILE = Path(".env")
@@ -186,6 +193,8 @@ class Settings(BaseModel):
     pos_ledger_bucket: str | None = Field(default=None, alias="POS_LEDGER_BUCKET")
     next_insurance_api_key: str | None = Field(default=None, alias="NEXT_INSURANCE_API_KEY")
     thimble_api_key: str | None = Field(default=None, alias="THIMBLE_API_KEY")
+    pilot_zip_codes: List[str] = Field(default_factory=list, alias="PILOT_ZIP_CODES")
+    pilot_counties: List[str] = Field(default_factory=list, alias="PILOT_COUNTIES")
 
     model_config = {
         "populate_by_name": True,
@@ -212,6 +221,36 @@ class Settings(BaseModel):
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @field_validator("pilot_zip_codes", "pilot_counties", mode="before")
+    @classmethod
+    def _normalize_pilot_collections(
+        cls, value: Any, info: ValidationInfo
+    ) -> List[str]:
+        if value is None or value == "":
+            return []
+        if isinstance(value, str):
+            normalized_source: List[str] = [
+                item.strip() for item in value.replace(";", ",").split(",")
+            ]
+        elif isinstance(value, (list, tuple, set)):
+            normalized_source = [str(item).strip() for item in value]
+        else:  # pragma: no cover - defensive branch
+            raise TypeError(
+                f"Unsupported type for {info.field_name}: {type(value)!r}"
+            )
+
+        cleaned: List[str] = []
+        for item in normalized_source:
+            if not item:
+                continue
+            if info.field_name == "pilot_zip_codes":
+                normalized = item.replace(" ", "").upper()
+            else:
+                normalized = item.upper()
+            if normalized not in cleaned:
+                cleaned.append(normalized)
+        return cleaned
 
 
 def _collect_environment(env_file: Path | None) -> Dict[str, Any]:

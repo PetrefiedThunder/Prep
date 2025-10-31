@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from __future__ import annotations
 
 import uuid
+import re
 from datetime import UTC, datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
@@ -21,12 +22,12 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.pricing import UtilizationMetrics, build_default_engine
-from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER
+from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER, BOOKING_PILOT_BANNER
 from prep.database.connection import get_db
-from prep.models import Booking, BookingStatus, Kitchen, RecurringBookingTemplate
 from prep.insurance.certificates import issue_certificate_for_booking_sync
 from prep.models import Booking, BookingStatus, Kitchen, RecurringBookingTemplate
 from prep.observability.metrics import DELIVERIES_COUNTER
+from prep.pilot.utils import is_pilot_location
 from prep.settings import get_settings
 
 from .kitchens import analyze_kitchen_compliance
@@ -35,6 +36,32 @@ router = APIRouter(prefix="/bookings", tags=["bookings"])
 
 
 BOOKING_BUFFER = timedelta(minutes=30)
+
+
+_ZIP_PATTERN = re.compile(r"\b\d{5}(?:-\d{4})?\b")
+
+
+def _determine_pilot_mode(kitchen: Kitchen) -> tuple[bool, str]:
+    """Return whether the kitchen is in pilot mode and the applicable banner."""
+
+    zip_code = None
+    if kitchen.address:
+        match = _ZIP_PATTERN.search(kitchen.address)
+        if match:
+            zip_code = match.group(0)
+
+    county = None
+    if isinstance(kitchen.insurance_info, dict):
+        county = kitchen.insurance_info.get("county") or kitchen.insurance_info.get("county_name")
+
+    pilot_mode = is_pilot_location(
+        state=kitchen.state,
+        city=kitchen.city,
+        county=county,
+        zip_code=zip_code,
+    )
+    banner = BOOKING_PILOT_BANNER if pilot_mode else BOOKING_COMPLIANCE_BANNER
+    return pilot_mode, banner
 
 
 def _build_utilization_metrics(kitchen: Kitchen) -> UtilizationMetrics:
@@ -194,6 +221,18 @@ async def create_booking(
 
     settings = get_settings()
 
+    try:
+        kitchen_uuid = uuid.UUID(booking_data.kitchen_id)
+        user_uuid = uuid.UUID(booking_data.user_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid identifier") from exc
+
+    kitchen = await db.get(Kitchen, kitchen_uuid)
+    if kitchen is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kitchen not found")
+
+    pilot_mode, compliance_banner = _determine_pilot_mode(kitchen)
+
     if settings.compliance_controls_enabled:
         def _normalize(dt: datetime) -> datetime:
             return dt.astimezone(timezone.utc) if dt.tzinfo else dt
@@ -204,7 +243,7 @@ async def create_booking(
         if start_dt.weekday() >= 5 or end_dt.weekday() >= 5:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=BOOKING_COMPLIANCE_BANNER,
+                detail=compliance_banner,
             )
 
         start_minutes = start_dt.hour * 60 + start_dt.minute
@@ -215,18 +254,8 @@ async def create_booking(
         if start_minutes < earliest_minutes or end_minutes > latest_minutes:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=BOOKING_COMPLIANCE_BANNER,
+                detail=compliance_banner,
             )
-
-    try:
-        kitchen_uuid = uuid.UUID(booking_data.kitchen_id)
-        user_uuid = uuid.UUID(booking_data.user_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid identifier") from exc
-
-    kitchen = await db.get(Kitchen, kitchen_uuid)
-    if kitchen is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kitchen not found")
 
     compliance_status = kitchen.compliance_status or "unknown"
     if compliance_status == "non_compliant":
