@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Iterable, List
 
@@ -12,10 +13,24 @@ import httpx
 import pandas as pd
 from supabase import create_client, Client
 
+from etl.scrapers import load_san_bernardino_requirements
+
 LOGGER = logging.getLogger("prepchef.nightly_sync")
 LOG_DIR = Path(__file__).resolve().parent / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = LOG_DIR / "nightly_sync.log"
+
+_SAN_BERNARDINO_COUNTY_ID = os.getenv("SAN_BERNARDINO_COUNTY_ID")
+
+
+def _normalize_slug(value: str) -> str:
+    return value.strip().lower().replace(" ", "_").replace("-", "_")
+
+
+def _parse_slugs(raw: str) -> list[str]:
+    if not raw:
+        return []
+    return [_normalize_slug(part) for part in raw.split(",") if part.strip()]
 
 def configure_logging(verbose: bool = False) -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -41,6 +56,11 @@ def parse_args() -> argparse.Namespace:
         "--pilot-county-ids",
         required=True,
         help="Comma-separated list of county UUIDs matching the order of the workflow configuration",
+    )
+    parser.add_argument(
+        "--pilot-county-slugs",
+        default="",
+        help="Optional comma-separated list of county slugs aligned with --pilot-county-ids",
     )
     parser.add_argument("--limit", type=int, default=5000, help="Max rows per dataset fetch")
     parser.add_argument("--verbose", action="store_true")
@@ -165,9 +185,18 @@ def main() -> None:
 
     supabase = get_supabase_client(args.supabase_url, args.supabase_service_key)
     pilot_county_ids = [cid.strip() for cid in args.pilot_county_ids.split(",") if cid.strip()]
+    county_slugs = _parse_slugs(args.pilot_county_slugs)
+    if county_slugs and len(county_slugs) != len(pilot_county_ids):
+        LOGGER.warning(
+            "Mismatch between pilot county IDs (%d) and slugs (%d); trailing counties will not have slugs.",
+            len(pilot_county_ids),
+            len(county_slugs),
+        )
 
     for county_index, county_id in enumerate(pilot_county_ids):
         LOGGER.info("Starting sync for county_id=%s", county_id)
+        county_slug = county_slugs[county_index] if county_index < len(county_slugs) else ""
+        normalized_slug = _normalize_slug(county_slug) if county_slug else ""
         data_sources = fetch_data_sources(supabase, county_id)
         if not data_sources:
             LOGGER.warning("No enabled data sources for county_id=%s", county_id)
@@ -210,6 +239,25 @@ def main() -> None:
                     record_count=normalized or inserted,
                     error_message=error_message,
                     ingestion_run_id=ingestion_run_id,
+                )
+
+        should_run_sb_loader = False
+        if normalized_slug in {"san_bernardino", "san_bernardino_county"}:
+            should_run_sb_loader = True
+        elif _SAN_BERNARDINO_COUNTY_ID and county_id == _SAN_BERNARDINO_COUNTY_ID:
+            should_run_sb_loader = True
+
+        if should_run_sb_loader:
+            try:
+                summary = load_san_bernardino_requirements()
+                LOGGER.info(
+                    "San Bernardino County regulatory load summary: processed=%s inserted=%s",
+                    summary.get("processed", 0),
+                    summary.get("inserted", 0),
+                )
+            except Exception as exc:  # noqa: BLE001 - nightly sync safety net
+                LOGGER.exception(
+                    "Failed to load San Bernardino County requirements: %s", exc
                 )
 
 
