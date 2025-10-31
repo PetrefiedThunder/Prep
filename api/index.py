@@ -71,6 +71,35 @@ except Exception:  # pragma: no cover
 
 from api.routes.city_fees import router as city_fees_router
 from api.routes.diff import router as city_diff_router
+from apps.compliance_service.main import app as compliance_app
+from prep.accounting import ledger_router
+from apps.inventory_service.main import app as inventory_app
+from prep.admin.api import router as admin_router
+from prep.analytics.advanced_api import router as advanced_analytics_router
+from prep.analytics.dashboard_api import router as analytics_router
+from prep.analytics.host_metrics_api import router as host_metrics_router
+from apps.api_gateway.routes.city import router as city_fees_router
+from prep.cities.api import router as cities_router
+from prep.api.deliveries import router as deliveries_router
+from prep.api.orders import router as orders_router
+from prep.kitchen_cam.api import router as kitchen_cam_router
+from prep.integrations.api import router as integrations_router
+from prep.matching.api import router as matching_router
+from prep.mobile.api import router as mobile_router
+from prep.platform.api import router as platform_router
+from prep.payments.api import router as payments_router
+from prep.ratings.api import router as ratings_router
+from prep.reviews.api import router as reviews_router
+from prep.test_data import router as test_data_router
+
+from api.space_optimizer import router as space_optimizer_router
+from prep.verification_tasks.api import router as verification_tasks_router
+from modules.observability import DEFAULT_TARGETED_ROUTES, configure_fastapi_tracing
+from api.webhooks.square_kds import router as square_kds_router
+from prep.logistics.api import router as logistics_router
+from prep.monitoring.api import router as monitoring_router
+from prep.integrations.runtime import configure_integration_event_consumers
+from prep.pos.api import router as pos_router
 
 
 def _build_router() -> APIRouter:
@@ -102,6 +131,7 @@ def _build_router() -> APIRouter:
     router.include_router(orders_router)
     router.include_router(city_fees_router, prefix="/city", tags=["city"])
     router.include_router(city_diff_router)
+    router.include_router(city_fees_router)
     return router
 
 
