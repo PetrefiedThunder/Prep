@@ -242,6 +242,8 @@ class Kitchen(TimestampMixin, Base):
     location: Mapped[str | None] = mapped_column(String(255))
     city: Mapped[str | None] = mapped_column(String(120))
     state: Mapped[str | None] = mapped_column(String(60))
+    postal_code: Mapped[str | None] = mapped_column(String(20))
+    county: Mapped[str | None] = mapped_column(String(120))
     hourly_rate: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     trust_score: Mapped[float | None] = mapped_column(Float)
     pricing: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
