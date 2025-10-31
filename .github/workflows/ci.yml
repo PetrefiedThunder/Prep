@@ -37,3 +37,39 @@ jobs:
         run: ruff check ${matrix.service}
       - name: Run mypy
         run: mypy ${matrix.service}
+
+  codex-contract:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'codex') ||
+      contains(join(github.event.head_commit.modified, ' '), 'codex/') ||
+      contains(join(github.event.head_commit.modified, ' '), 'apps/city_regulatory_service/') ||
+      contains(join(github.event.head_commit.modified, ' '), 'apps/policy/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Setup
+        run: make setup
+      - name: Build policies
+        run: make policy.build
+      - name: Launch OPA
+        run: make opa.up
+      - name: DB migrate
+        env: { DATABASE_URL: postgresql://prep:prep@localhost:5432/prep }
+        run: |
+          sudo service postgresql start
+          psql -U postgres -c "CREATE DATABASE prep;" || true
+          psql -U postgres -c "CREATE USER prep WITH PASSWORD 'prep';" || true
+          psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE prep TO prep;" || true
+          make db.migrate
+      - name: Run tests
+        env:
+          OPA_URL: http://localhost:8181
+          DATABASE_URL: postgresql://prep:prep@localhost:5432/prep
+        run: make test
+      - name: Verify readiness
+        env:
+          OPA_URL: http://localhost:8181
+          DATABASE_URL: postgresql://prep:prep@localhost:5432/prep
+        run: make codex-verify

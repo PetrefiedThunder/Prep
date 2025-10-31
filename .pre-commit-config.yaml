@@ -8,3 +8,8 @@ repos:
     rev: 24.3.0
     hooks:
       - id: black
+  - repo: https://github.com/zricethezav/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
+        args: ["detect", "--redact"]
