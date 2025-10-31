@@ -1,4 +1,4 @@
-.PHONY: run-% test format lint setup policy.build opa.up db.migrate codex-verify
+.PHONY: run-% test format lint setup policy.build opa.up db.migrate codex-verify etl.validate
 
 run-%:
 	uvicorn apps.$*/main:app --reload
@@ -28,3 +28,6 @@ db.migrate:
 
 codex-verify:
 	python codex/eval/verify_readiness.py
+
+etl.validate:
+	python tools/fee_validate.py
