@@ -411,6 +411,7 @@ class Kitchen(TimestampMixin, Base):
     pos_orders: Mapped[List["POSOrder"]] = relationship(
         "POSOrder", back_populates="kitchen", cascade="all, delete-orphan"
     )
+
     integrations: Mapped[List["Integration"]] = relationship(
         "Integration",
         back_populates="kitchen",
@@ -461,7 +462,7 @@ class POSIntegration(TimestampMixin, Base):
     status: Mapped[POSIntegrationStatus] = mapped_column(
         Enum(POSIntegrationStatus), default=POSIntegrationStatus.ACTIVE, nullable=False
     )
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON)
 
     kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="pos_integrations")
     transactions: Mapped[List["POSTransaction"]] = relationship(
@@ -693,7 +694,9 @@ class Integration(TimestampMixin, Base):
     status: Mapped[IntegrationStatus] = mapped_column(
         Enum(IntegrationStatus), default=IntegrationStatus.ACTIVE, nullable=False
     )
-    metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSON, default=dict, nullable=False
+    )
 
     owner: Mapped[User] = relationship(
         "User",
@@ -758,7 +761,7 @@ class Booking(TimestampMixin, Base):
     reviews: Mapped[List["Review"]] = relationship(
         "Review", back_populates="booking", cascade="all, delete-orphan"
     )
-    sublease_contract: Mapped["SubleaseContract" | None] = relationship(
+    sublease_contract: Mapped[SubleaseContract | None] = relationship(
         "SubleaseContract", back_populates="booking", uselist=False
     )
     ledger_entries: Mapped[List["LedgerEntry"]] = relationship(
@@ -784,7 +787,9 @@ class APIUsageEvent(TimestampMixin, Base):
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(
+        "metadata", JSON, default=dict
+    )
 
     user: Mapped["User"] = relationship("User", back_populates="api_usage_events")
 
@@ -1216,7 +1221,9 @@ class DeliveryComplianceEvent(TimestampMixin, Base):
     verification_type: Mapped[str] = mapped_column(String(64), nullable=False)
     verification_reference: Mapped[str | None] = mapped_column(String(255))
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(
+        "metadata", JSON, default=dict
+    )
 
     delivery: Mapped[DeliveryOrder] = relationship("DeliveryOrder", back_populates="compliance_events")
 
