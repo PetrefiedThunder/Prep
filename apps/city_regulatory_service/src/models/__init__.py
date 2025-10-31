@@ -1,6 +1,6 @@
-"""Database models for city regulatory service."""
+"""Database and domain models for the city regulatory service."""
 
-# Import from the main prep.regulatory.models module
+# Import ORM entities from the shared regulatory module
 from prep.regulatory.models import (
     CityAgency,
     CityComplianceTemplate,
@@ -10,6 +10,9 @@ from prep.regulatory.models import (
     CityRequirementLink,
 )
 
+# Domain-level models that power estimators and API responses
+from .requirements import FeeItem, FeeSchedule, RequirementsBundle
+
 __all__ = [
     "CityJurisdiction",
     "CityAgency",
@@ -17,4 +20,7 @@ __all__ = [
     "CityRequirementLink",
     "CityComplianceTemplate",
     "CityETLRun",
+    "FeeItem",
+    "FeeSchedule",
+    "RequirementsBundle",
 ]
