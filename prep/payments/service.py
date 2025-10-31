@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -13,7 +14,14 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prep.models.orm import Booking, StripeWebhookEvent, User, UserRole
+from prep.models.orm import (
+    APIUsageEvent,
+    Booking,
+    StripeWebhookEvent,
+    SubscriptionStatus,
+    User,
+    UserRole,
+)
 from prep.settings import Settings
 
 logger = logging.getLogger("prep.payments.service")
@@ -42,6 +50,8 @@ class PaymentsService:
             raise PaymentsError("User not found", status_code=404)
         if user.role not in {UserRole.HOST, UserRole.ADMIN}:
             raise PaymentsError("Only host accounts can connect payouts", status_code=403)
+
+        self._ensure_trial_for_pilot(user)
 
         secret_key = self._settings.stripe_secret_key
         if not secret_key:
@@ -129,6 +139,12 @@ class PaymentsService:
         event_type = _get_attribute(event, "type")
         if event_type == "payment_intent.succeeded":
             await self._handle_payment_intent_succeeded(event)
+        elif event_type in {
+            "checkout.session.completed",
+            "customer.subscription.created",
+            "customer.subscription.updated",
+        }:
+            await self._handle_subscription_event(event)
 
         try:
             await self._session.commit()
@@ -172,6 +188,60 @@ class PaymentsService:
         if not booking.paid:
             booking.paid = True
 
+    def _ensure_trial_for_pilot(self, user: User) -> None:
+        """Assign or extend the pilot trial period for eligible users."""
+
+        if not user.is_pilot_user:
+            return
+
+        if user.subscription_status == SubscriptionStatus.INACTIVE:
+            user.subscription_status = SubscriptionStatus.TRIAL
+
+        trial_start = user.trial_started_at or datetime.now(UTC)
+        desired_end = trial_start + timedelta(days=60)
+
+        user.trial_started_at = trial_start
+        if user.trial_ends_at is None or user.trial_ends_at < desired_end:
+            user.trial_ends_at = desired_end
+
+    async def _handle_subscription_event(self, event: Any) -> None:
+        """Mark pilot subscriptions as active and log conversion analytics."""
+
+        user_id = _extract_user_id(event)
+        if user_id is None:
+            logger.debug(
+                "Received subscription event without user metadata", extra={"event_id": _get_attribute(event, "id")}
+            )
+            return
+
+        user = await self._session.get(User, user_id)
+        if user is None:
+            logger.warning(
+                "Subscription event referenced unknown user", extra={"user_id": str(user_id)}
+            )
+            return
+
+        event_type = _get_attribute(event, "type") or "subscription.unknown"
+        stripe_event_id = _get_attribute(event, "id")
+
+        if user.subscription_status != SubscriptionStatus.ACTIVE:
+            user.subscription_status = SubscriptionStatus.ACTIVE
+            if user.trial_ends_at is None or user.trial_ends_at < datetime.now(UTC):
+                user.trial_ends_at = datetime.now(UTC)
+
+            metadata = {
+                "stripe_event_id": stripe_event_id,
+                "stripe_event_type": event_type,
+                "pilot_user": bool(user.is_pilot_user),
+            }
+            self._session.add(
+                APIUsageEvent(
+                    user_id=user.id,
+                    event_type="pilot_conversion" if user.is_pilot_user else "subscription_update",
+                    metadata=metadata,
+                )
+            )
+
 
 def _get_attribute(obj: Any, attribute: str) -> Any:
     """Fetch an attribute or dictionary key from Stripe payload objects."""
@@ -192,3 +262,31 @@ def _get_data_object(event: Any) -> Any:
     if isinstance(data, dict):
         return data.get("object")
     return getattr(data, "object", None)
+
+
+def _extract_user_id(event: Any) -> UUID | None:
+    data_object = _get_data_object(event)
+    if data_object is None:
+        return None
+
+    metadata = _get_attribute(data_object, "metadata")
+    if metadata:
+        if isinstance(metadata, dict):
+            candidate = metadata.get("user_id") or metadata.get("userId")
+        else:
+            candidate = getattr(metadata, "user_id", None) or getattr(metadata, "userId", None)
+        user_id = _coerce_uuid(candidate)
+        if user_id:
+            return user_id
+
+    client_reference = _get_attribute(data_object, "client_reference_id")
+    return _coerce_uuid(client_reference)
+
+
+def _coerce_uuid(value: Any) -> UUID | None:
+    if not value:
+        return None
+    try:
+        return UUID(str(value))
+    except (ValueError, TypeError):
+        return None
