@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -49,6 +49,9 @@ from .orm import (
     User,
     UserRole,
 )
+
+if TYPE_CHECKING:  # pragma: no cover - import only for typing
+    from prep.regulatory.models import PolicyDecision as _PolicyDecision
 
 
 def get_db_url() -> str:
@@ -140,4 +143,14 @@ __all__ = [
     "get_db_url",
     "init_db",
     "session_scope",
+    "PolicyDecision",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    if name == "PolicyDecision":
+        from importlib import import_module
+
+        module = import_module("prep.regulatory.models")
+        return getattr(module, "PolicyDecision")
+    raise AttributeError(name)
