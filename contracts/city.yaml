@@ -1,0 +1,32 @@
+openapi: 3.1.0
+info:
+  title: Prep City Compliance API
+  version: 0.1.0
+paths:
+  /city/{city}/regulations:
+    get:
+      parameters:
+        - name: city
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jurisdiction: { type: string }
+                  regulations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        category: { type: string }
+                        code: { type: string }
+                        title: { type: string }
+                        summary: { type: string }
+                        source: { type: string }
+                        url: { type: string, format: uri }
