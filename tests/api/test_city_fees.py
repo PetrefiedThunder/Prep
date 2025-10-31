@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from apps.api_gateway.app import create_app
+from api.index import create_app
 
 client = TestClient(create_app())
 
