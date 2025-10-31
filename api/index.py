@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.compliance_service.main import app as compliance_app
@@ -19,7 +19,9 @@ from prep.kitchen_cam.api import router as kitchen_cam_router
 from prep.integrations.api import router as integrations_router
 from prep.matching.api import router as matching_router
 from prep.mobile.api import router as mobile_router
-from prep.platform.api import router as platform_router
+from prep.auth.dependencies import enforce_allowlists, require_active_session
+from prep.auth.rbac import RBACMiddleware
+from prep.platform.api import auth_router, router as platform_router
 from prep.payments.api import router as payments_router
 from prep.ratings.api import router as ratings_router
 from prep.reviews.api import router as reviews_router
@@ -33,13 +35,15 @@ from prep.logistics.api import router as logistics_router
 from prep.monitoring.api import router as monitoring_router
 from prep.integrations.runtime import configure_integration_event_consumers
 from prep.pos.api import router as pos_router
+from prep.settings import get_settings
 
 
 def _build_router() -> APIRouter:
     """Aggregate the project's routers into a single API surface."""
 
-    router = APIRouter()
+    router = APIRouter(dependencies=[Depends(enforce_allowlists), Depends(require_active_session)])
     router.include_router(ledger_router)
+    router.include_router(auth_router)
     router.include_router(platform_router)
     router.include_router(mobile_router)
     router.include_router(admin_router)
@@ -68,9 +72,12 @@ def _build_router() -> APIRouter:
 def create_app() -> FastAPI:
     """Instantiate the FastAPI application used by Vercel."""
 
+    settings = get_settings()
     app = FastAPI(title="Prep API Gateway", version="1.0.0")
 
     configure_fastapi_tracing(app, targeted_routes=DEFAULT_TARGETED_ROUTES)
+
+    app.add_middleware(RBACMiddleware, settings=settings)
 
     app.add_middleware(
         CORSMiddleware,

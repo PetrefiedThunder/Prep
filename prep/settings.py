@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -54,6 +55,18 @@ class IntegrationEndpoint(BaseModel):
     }
 
 
+class RBACPolicy(BaseModel):
+    """Declarative RBAC rule describing required roles for a path prefix."""
+
+    path_prefix: str = Field(alias="path_prefix", min_length=1)
+    roles: list[str] = Field(default_factory=list, alias="roles")
+
+    model_config = {
+        "populate_by_name": True,
+        "extra": "ignore",
+    }
+
+
 class Settings(BaseModel):
     """Strongly typed runtime configuration."""
 
@@ -68,8 +81,23 @@ class Settings(BaseModel):
     database_pool_recycle: int = Field(default=1800, ge=1, alias="DATABASE_POOL_RECYCLE")
     session_ttl_seconds: int = Field(default=3600, ge=300, alias="SESSION_TTL_SECONDS")
     secret_key: str = Field(default="change-me", alias="SECRET_KEY")
+    auth_signing_key: str | None = Field(default=None, alias="AUTH_SIGNING_KEY")
     access_token_expire_minutes: int = Field(default=60, ge=5, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+    refresh_token_ttl_seconds: int = Field(
+        default=60 * 60 * 24 * 14,
+        ge=3600,
+        alias="REFRESH_TOKEN_TTL_SECONDS",
+    )
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+    oidc_issuer: str | None = Field(default=None, alias="OIDC_ISSUER")
+    oidc_audience: str | None = Field(default=None, alias="OIDC_AUDIENCE")
+    oidc_client_id: str | None = Field(default=None, alias="OIDC_CLIENT_ID")
+    oidc_client_secret: str | None = Field(default=None, alias="OIDC_CLIENT_SECRET")
+    oidc_jwks_url: AnyUrl | None = Field(default=None, alias="OIDC_JWKS_URL")
+    saml_sp_entity_id: str | None = Field(default=None, alias="SAML_SP_ENTITY_ID")
+    saml_entity_id: str | None = Field(default=None, alias="SAML_ENTITY_ID")
+    saml_idp_metadata_url: AnyUrl | None = Field(default=None, alias="SAML_IDP_METADATA_URL")
+    saml_idp_entity_id: str | None = Field(default=None, alias="SAML_IDP_ENTITY_ID")
     stripe_secret_key: str | None = Field(default=None, alias="STRIPE_SECRET_KEY")
     stripe_connect_refresh_url: AnyUrl = Field(
         default="https://example.com/stripe/refresh", alias="STRIPE_CONNECT_REFRESH_URL"
@@ -184,6 +212,34 @@ class Settings(BaseModel):
     integration_health_timeout_seconds: int = Field(
         default=10, ge=1, alias="INTEGRATION_HEALTH_TIMEOUT_SECONDS"
     )
+    ip_allowlist: list[str] = Field(default_factory=list, alias="IP_ALLOWLIST")
+    device_allowlist: list[str] = Field(default_factory=list, alias="DEVICE_ALLOWLIST")
+    session_optional_paths: list[str] = Field(
+        default_factory=lambda: [
+            "/api/v1/auth/token",
+            "/api/v1/platform/auth/login",
+            "/api/v1/platform/users/register",
+            "/healthz",
+        ],
+        alias="SESSION_OPTIONAL_PATHS",
+    )
+    rbac_policies: list[RBACPolicy] = Field(
+        default_factory=lambda: [
+            RBACPolicy(path_prefix="/api/v1/platform/admin", roles=["operator_admin", "support_analyst"]),
+            RBACPolicy(
+                path_prefix="/api/v1/platform/kitchens",
+                roles=["operator_admin", "kitchen_manager"],
+            ),
+            RBACPolicy(
+                path_prefix="/api/v1/platform/reviews",
+                roles=["food_business_admin", "city_reviewer", "support_analyst"],
+            ),
+        ],
+        alias="RBAC_POLICIES",
+    )
+    rbac_excluded_paths: list[str] = Field(
+        default_factory=lambda: ["/healthz"], alias="RBAC_EXCLUDED_PATHS"
+    )
     square_client_id: str | None = Field(default=None, alias="SQUARE_CLIENT_ID")
     square_client_secret: str | None = Field(default=None, alias="SQUARE_CLIENT_SECRET")
     square_base_url: AnyUrl = Field(
@@ -212,6 +268,47 @@ class Settings(BaseModel):
         if normalized not in allowed:
             raise ValueError(f"ENVIRONMENT must be one of {sorted(allowed)}")
         return normalized
+
+    @field_validator(
+        "ip_allowlist",
+        "device_allowlist",
+        "session_optional_paths",
+        "rbac_excluded_paths",
+        mode="before",
+    )
+    @classmethod
+    def _parse_csv_list(cls, value: Any) -> list[str]:
+        if value in (None, ""):
+            return []
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return []
+            try:
+                parsed = json.loads(stripped)
+            except json.JSONDecodeError:
+                return [item.strip() for item in stripped.split(",") if item.strip()]
+            if isinstance(parsed, Iterable):
+                return [str(item).strip() for item in parsed if str(item).strip()]
+            raise TypeError("Expected list-compatible value for allowlist configuration")
+        if isinstance(value, Iterable):
+            return [str(item).strip() for item in value if str(item).strip()]
+        raise TypeError("Allowlist configuration must be a list or comma-delimited string")
+
+    @field_validator("rbac_policies", mode="before")
+    @classmethod
+    def _parse_rbac_policies(cls, value: Any) -> list[dict[str, Any]]:
+        if value in (None, ""):
+            return []
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+            except json.JSONDecodeError as exc:
+                raise ValueError("RBAC_POLICIES must be valid JSON") from exc
+            if isinstance(parsed, list):
+                return parsed
+            raise ValueError("RBAC_POLICIES must decode to a list of policies")
+        return value
 
     @field_validator("pilot_zip_codes", "pilot_counties", mode="before")
     @classmethod
