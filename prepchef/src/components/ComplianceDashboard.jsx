@@ -3,6 +3,7 @@ import { X, AlertTriangle, Info, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import ComplianceScoreCard from './ComplianceScoreCard';
+import { Shield, AlertTriangle, CheckCircle, Clock, MapPin, Star } from 'lucide-react';
 
 const ComplianceDashboard = ({ kitchenId }) => {
   const { token } = useAuth();
@@ -116,6 +117,40 @@ const ComplianceDashboard = ({ kitchenId }) => {
   useEffect(() => {
     if (toasts.length === 0) {
       return undefined;
+  const renderPlanStatus = () => {
+    const status = complianceData?.subscription_status;
+    if (!status) {
+      return null;
+    }
+
+    const normalizedStatus = status.replace(/_/g, ' ');
+    let detail = normalizedStatus;
+    if (status === 'trial' && complianceData?.trial_ends_at) {
+      const endDate = new Date(complianceData.trial_ends_at);
+      const now = new Date();
+      const msRemaining = endDate.getTime() - now.getTime();
+      const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
+      detail = `Trial – ${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left`;
+    }
+
+    return (
+      <div className="flex items-center space-x-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm">
+        <Star size={16} />
+        <span>{detail}</span>
+      </div>
+    );
+  };
+
+  const getComplianceStatusIcon = (level) => {
+    switch (level) {
+      case 'compliant':
+        return <CheckCircle className="text-green-500" size={24} />;
+      case 'partial_compliance':
+        return <Clock className="text-yellow-500" size={24} />;
+      case 'non_compliant':
+        return <AlertTriangle className="text-red-500" size={24} />;
+      default:
+        return <Shield className="text-gray-500" size={24} />;
     }
 
     const timers = toasts
@@ -231,6 +266,13 @@ const ComplianceDashboard = ({ kitchenId }) => {
               Your account is currently running in pilot mode. Access may be limited until the pilot ends or is overridden by an
               administrator.
             </p>
+          </div>
+          <div className="flex flex-col items-end space-y-2">
+            {renderPlanStatus()}
+            <div className="text-right">
+              <div className="text-2xl font-bold">{complianceData?.risk_score}/100</div>
+              <div className="text-sm text-gray-500">Risk Score</div>
+            </div>
           </div>
         </div>
       )}

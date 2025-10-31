@@ -25,9 +25,9 @@ export function AuthProvider({ children }) {
 
   const login = async (credentials) => {
     const response = await api.login(credentials);
-    const { access_token: accessToken } = response;
+    const { access_token: accessToken, user: userPayload } = response;
 
-    const userData = { email: credentials.email };
+    const userData = userPayload || { email: credentials.email };
 
     setToken(accessToken);
     setUser(userData);
@@ -40,9 +40,10 @@ export function AuthProvider({ children }) {
 
   const register = async (userData) => {
     const response = await api.register(userData);
-    const { access_token: accessToken } = response;
+    const { access_token: accessToken, user: userPayload } = response;
 
-    const storedUser = { email: userData.email, name: userData.name };
+    const storedUser =
+      userPayload || { email: userData.email, name: userData.name };
 
     setToken(accessToken);
     setUser(storedUser);

@@ -80,6 +80,15 @@ class UserRole(str, enum.Enum):
     CUSTOMER = "customer"
 
 
+class SubscriptionStatus(str, enum.Enum):
+    """Lifecycle states for platform subscriptions."""
+
+    INACTIVE = "inactive"
+    TRIAL = "trial"
+    ACTIVE = "active"
+    CANCELED = "canceled"
+
+
 class ModerationStatus(str, enum.Enum):
     PENDING = "pending"
     APPROVED = "approved"
@@ -187,6 +196,14 @@ class User(TimestampMixin, Base):
     suspension_reason: Mapped[str | None] = mapped_column(Text)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    is_pilot_user: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    pilot_county: Mapped[str | None] = mapped_column(String(255))
+    pilot_zip_code: Mapped[str | None] = mapped_column(String(20))
+    subscription_status: Mapped[SubscriptionStatus] = mapped_column(
+        Enum(SubscriptionStatus), default=SubscriptionStatus.INACTIVE, nullable=False
+    )
+    trial_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     kitchens: Mapped[List["Kitchen"]] = relationship(
         "Kitchen", back_populates="host", cascade="all, delete-orphan"
@@ -227,6 +244,9 @@ class User(TimestampMixin, Base):
         cascade="all, delete-orphan",
         foreign_keys="Integration.user_id",
     )
+    api_usage_events: Mapped[List["APIUsageEvent"]] = relationship(
+        "APIUsageEvent", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Kitchen(TimestampMixin, Base):
@@ -242,6 +262,8 @@ class Kitchen(TimestampMixin, Base):
     location: Mapped[str | None] = mapped_column(String(255))
     city: Mapped[str | None] = mapped_column(String(120))
     state: Mapped[str | None] = mapped_column(String(60))
+    postal_code: Mapped[str | None] = mapped_column(String(20))
+    county: Mapped[str | None] = mapped_column(String(120))
     hourly_rate: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     trust_score: Mapped[float | None] = mapped_column(Float)
     pricing: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
@@ -635,6 +657,19 @@ class StripeWebhookEvent(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     event_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+
+
+class APIUsageEvent(TimestampMixin, Base):
+    __tablename__ = "api_usage"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+
+    user: Mapped["User"] = relationship("User", back_populates="api_usage_events")
 
 
 class RecurringBookingTemplate(TimestampMixin, Base):

@@ -4,6 +4,7 @@ from .db import SessionLocal, engine, get_db_url
 from .guid import GUID
 from .orm import (
     Base,
+    APIUsageEvent,
     Booking,
     BookingStatus,
     COIDocument,
@@ -21,8 +22,12 @@ from .orm import (
     RecurringBookingTemplate,
     RevenueType,
     SanitationLog,
+    StripeWebhookEvent,
+    SubscriptionStatus,
     Supplier,
     TaxRecord,
+    User,
+    UserRole,
 )
 
 __all__ = [
@@ -31,6 +36,7 @@ __all__ = [
     "BookingStatus",
     "COIDocument",
     "Integration",
+    "APIUsageEvent",
     "InventoryItem",
     "InventoryLot",
     "InventoryTransfer",
@@ -44,8 +50,12 @@ __all__ = [
     "RecurringBookingTemplate",
     "RevenueType",
     "SanitationLog",
+    "StripeWebhookEvent",
+    "SubscriptionStatus",
     "Supplier",
     "TaxRecord",
+    "User",
+    "UserRole",
     "engine",
     "SessionLocal",
     "get_db_url",

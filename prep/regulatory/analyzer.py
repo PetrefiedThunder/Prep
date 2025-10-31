@@ -47,6 +47,8 @@ class RegulatoryAnalyzer:
         self,
         kitchen_data: Dict[str, Any],
         regulations: Sequence[Dict[str, Any]] | None = None,
+        *,
+        pilot_mode: bool = False,
     ) -> ComplianceAnalysis:
         """Compute a compliance snapshot for a kitchen."""
 
@@ -54,12 +56,31 @@ class RegulatoryAnalyzer:
         missing_requirements: List[str] = []
         recommendations: List[str] = []
         metadata: Dict[str, Any] = {}
+        warnings: List[str] = []
+
+        def _record_issue(
+            message: str,
+            recommendation: str | None = None,
+            *,
+            document_gap: bool,
+        ) -> None:
+            if recommendation and recommendation not in recommendations:
+                recommendations.append(recommendation)
+            if pilot_mode and document_gap:
+                if message not in warnings:
+                    warnings.append(message)
+            else:
+                if message not in missing_requirements:
+                    missing_requirements.append(message)
 
         for field, description in self.REQUIRED_FIELDS.items():
             value = kitchen_data.get(field)
             if not value:
-                missing_requirements.append(description)
-                recommendations.append(f"Provide documentation for: {description}.")
+                _record_issue(
+                    description,
+                    f"Provide documentation for: {description}.",
+                    document_gap=True,
+                )
 
         for item in regulations:
             guidance = item.get("guidance") or item.get("description")
@@ -68,16 +89,20 @@ class RegulatoryAnalyzer:
 
         permit_types = [str(item).lower() for item in kitchen_data.get("permit_types", [])]
         if not permit_types:
-            missing_requirements.append("Permit types not documented")
-            recommendations.append("Upload the current set of operating permits.")
+            _record_issue(
+                "Permit types not documented",
+                "Upload the current set of operating permits.",
+                document_gap=True,
+            )
         elif kitchen_data.get("delivery_only"):
             has_delivery_permit = any(
                 slug in self.DELIVERY_PERMIT_SLUGS for slug in permit_types
             )
             if not has_delivery_permit:
-                missing_requirements.append("Delivery-only kitchens must provide ghost kitchen permit")
-                recommendations.append(
-                    "Add the delivery/ghost kitchen permit to the permit_types metadata."
+                _record_issue(
+                    "Delivery-only kitchens must provide ghost kitchen permit",
+                    "Add the delivery/ghost kitchen permit to the permit_types metadata.",
+                    document_gap=True,
                 )
 
         sanitation_logs = kitchen_data.get("sanitation_logs") or []
@@ -93,22 +118,35 @@ class RegulatoryAnalyzer:
             if isinstance(last_logged_at, datetime):
                 metadata["last_sanitation_log"] = last_logged_at.isoformat()
                 if datetime.utcnow() - last_logged_at > timedelta(days=7):
-                    missing_requirements.append("Sanitation log older than 7 days")
-                    recommendations.append("Upload the latest sanitation walkthrough results.")
+                    _record_issue(
+                        "Sanitation log older than 7 days",
+                        "Upload the latest sanitation walkthrough results.",
+                        document_gap=True,
+                    )
             status = str(latest_log.get("status", "")).lower()
             if status not in {"passed", "satisfactory", "clean"}:
-                missing_requirements.append("Most recent sanitation check did not pass")
-                recommendations.append("Schedule a follow-up sanitation inspection and upload the results.")
+                _record_issue(
+                    "Most recent sanitation check did not pass",
+                    "Schedule a follow-up sanitation inspection and upload the results.",
+                    document_gap=False,
+                )
             if latest_log.get("follow_up_required"):
                 recommendations.append("Resolve outstanding sanitation follow-up items and document completion.")
         else:
-            missing_requirements.append("Sanitation logs missing")
-            recommendations.append("Record a sanitation checklist entry for this kitchen.")
+            _record_issue(
+                "Sanitation logs missing",
+                "Record a sanitation checklist entry for this kitchen.",
+                document_gap=True,
+            )
 
         risk_score = max(0, 100 - 15 * len(missing_requirements))
 
         if not kitchen_data.get("state"):
-            missing_requirements.append("Kitchen location missing state metadata")
+            _record_issue(
+                "Kitchen location missing state metadata",
+                None,
+                document_gap=True,
+            )
             risk_score = min(risk_score, 60)
 
         if not kitchen_data.get("city"):
@@ -136,7 +174,11 @@ class RegulatoryAnalyzer:
             kitchen_id=str(kitchen_data.get("id", "unknown")),
             state=kitchen_data.get("state"),
             city=kitchen_data.get("city"),
-            metadata=metadata,
+            metadata={
+                **metadata,
+                "pilot_mode": pilot_mode,
+                "pilot_warnings": warnings,
+            },
         )
 
 
