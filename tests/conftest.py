@@ -170,21 +170,30 @@ if "stripe" not in sys.modules:
     sys.modules["stripe"] = stripe_stub
     sys.modules["stripe.error"] = error_module
 
+SessionLocal = None  # type: ignore[assignment]
+init_db = None  # type: ignore[assignment]
+
 if _sqlalchemy_spec is not None:  # pragma: no branch - skip when SQLAlchemy is stubbed
     try:  # pragma: no cover - dependency availability varies per environment
-        from prep.models.db import SessionLocal, init_db  # type: ignore
+        from prep.models.db import SessionLocal as _SessionLocal, init_db as _init_db  # type: ignore
     except ModuleNotFoundError as exc:  # pragma: no cover - allow tests without SQLAlchemy
         if exc.name != "sqlalchemy":
             raise
-        SessionLocal = None  # type: ignore
-        init_db = None  # type: ignore
-else:
-    SessionLocal = None  # type: ignore
-    init_db = None  # type: ignore
+    except SyntaxError:  # pragma: no cover - legacy ORM definitions may not parse
+        pass
+    except Exception:  # pragma: no cover - defensive fallback for optional dependency
+        pass
+    else:
+        SessionLocal = _SessionLocal  # type: ignore[assignment]
+        init_db = _init_db  # type: ignore[assignment]
+
+if getattr(sys.modules.get("sqlalchemy"), "__prep_stub__", False):
+    SessionLocal = None  # type: ignore[assignment]
+    init_db = None  # type: ignore[assignment]
 
 if os.getenv("SKIP_DB_SETUP") == "1":
-    SessionLocal = None  # type: ignore
-    init_db = None  # type: ignore
+    SessionLocal = None  # type: ignore[assignment]
+    init_db = None  # type: ignore[assignment]
     db_module = sys.modules.get("prep.models.db")
     if db_module is not None:
         setattr(db_module, "init_db", lambda: None)
@@ -243,24 +252,6 @@ if "boto3" not in sys.modules:
         boto3_stub.client = _client
         sys.modules["boto3"] = boto3_stub
 
-if _sqlalchemy_spec is not None:
-    try:
-        from prep.models.db import SessionLocal, init_db
-    except ModuleNotFoundError:  # pragma: no cover - optional dependency for lightweight tests
-        SessionLocal = None  # type: ignore[assignment]
-        init_db = None  # type: ignore[assignment]
-else:
-try:
-    from prep.models.db import SessionLocal, init_db
-except (ModuleNotFoundError, SyntaxError):  # pragma: no cover - optional dependency for lightweight tests
-    SessionLocal = None  # type: ignore[assignment]
-    init_db = None  # type: ignore[assignment]
-else:
-    if getattr(sys.modules.get("sqlalchemy"), "__prep_stub__", False):
-        SessionLocal = None  # type: ignore[assignment]
-        init_db = None  # type: ignore[assignment]
-
-
 @pytest.fixture(scope="session")
 def event_loop():
     loop = asyncio.new_event_loop()
@@ -272,27 +263,22 @@ def event_loop():
 def _create_schema():
     global init_db  # noqa: PLW0603 - test environment setup
     if init_db is None or os.environ.get("SKIP_PREP_DB_INIT") == "1":
-    global init_db
-    if init_db is None:
         yield
         return
 
     try:
         init_db()
-    except Exception:  # pragma: no cover - defensive fallback for missing deps
+    except Exception:  # pragma: no cover - database is optional in lightweight envs
         init_db = None
-    except Exception:  # pragma: no cover - defensive for optional deps
-        init_db = None
-    except Exception:  # pragma: no cover - database optional in lightweight envs
         yield
         return
+
     yield
 
 
 @pytest.fixture
 def db_session():
     if SessionLocal is None:
-        pytest.skip("SQLAlchemy is not available in the test environment")
         pytest.skip("Database layer is not available in this environment")
 
     session = SessionLocal()

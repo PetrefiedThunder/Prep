@@ -30,3 +30,46 @@ paths:
                         summary: { type: string }
                         source: { type: string }
                         url: { type: string, format: uri }
+  /city/{city}/fees/summary:
+    get:
+      summary: Get fee totals and validation summary for a city (ETag-enabled)
+      parameters:
+        - name: city
+          in: path
+          required: true
+          schema: { type: string }
+        - name: If-None-Match
+          in: header
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              schema: { type: string }
+              description: Strong ETag for cache validation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jurisdiction, totals, validation]
+                properties:
+                  jurisdiction: { type: string }
+                  totals:
+                    type: object
+                    properties:
+                      one_time_cents: { type: integer }
+                      recurring_annualized_cents: { type: integer }
+                      incremental_fee_count: { type: integer }
+                  validation:
+                    type: object
+                    properties:
+                      is_valid: { type: boolean }
+                      issues:
+                        type: array
+                        items: { type: string }
+        "304":
+          description: Not Modified (ETag matched)
+        "404":
+          description: Unsupported city

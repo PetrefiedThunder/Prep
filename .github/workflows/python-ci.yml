@@ -52,3 +52,5 @@ jobs:
         run: mypy prep
       - name: Pytest
         run: pytest -q
+      - name: API fee summary endpoint tests
+        run: make api.summary.test
