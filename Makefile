@@ -28,3 +28,9 @@ db.migrate:
 
 codex-verify:
 	python codex/eval/verify_readiness.py
+
+api.test:
+	pytest -q tests/api/test_city_fees.py
+
+api.run:
+	uvicorn run_api:app --host 0.0.0.0 --port 8080 --reload

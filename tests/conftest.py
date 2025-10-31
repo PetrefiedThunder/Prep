@@ -1,298 +1,172 @@
+from __future__ import annotations
+
 import asyncio
 import importlib.util
 import os
 import sys
 import types
-from typing import Any, Callable
+from typing import Generator, Iterator
 
 import pytest
 
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("SKIP_PREP_DB_INIT", "1")
 
-_sqlalchemy_spec = importlib.util.find_spec("sqlalchemy")
+# Optional dependencies -----------------------------------------------------
 
-if _sqlalchemy_spec is None:
+def _ensure_sqlalchemy_stub() -> None:
+    if importlib.util.find_spec("sqlalchemy") is not None:
+        return
+
     sqlalchemy_stub = types.ModuleType("sqlalchemy")
     sqlalchemy_stub.__prep_stub__ = True
 
-    class _SQLType:
+    class _Placeholder:
         def __init__(self, *args: object, **kwargs: object) -> None:  # noqa: D401
-            """Placeholder SQLAlchemy column type."""
+            """Placeholder SQLAlchemy construct used in tests."""
 
-    def _unavailable(*args: object, **kwargs: object) -> None:  # noqa: D401
-        """Placeholder factory used in tests without SQLAlchemy."""
-
-    for name in [
-        "Date",
+    names = [
+        "Column",
+        "Integer",
+        "String",
         "Boolean",
         "Date",
         "DateTime",
-        "Enum",
-        "UniqueConstraint",
-        "Column",
-        "Index",
         "Float",
-        "ForeignKey",
-        "Integer",
-        "JSON",
         "Numeric",
-        "String",
-        "Text",
+        "Enum",
+        "JSON",
+        "ForeignKey",
         "UniqueConstraint",
-        "select",
-    ]:
-        setattr(sqlalchemy_stub, name, _SQLType)
+        "Index",
+    ]
+    for name in names:
+        setattr(sqlalchemy_stub, name, _Placeholder)
 
-    sqlalchemy_stub.UniqueConstraint = _unavailable
-    sqlalchemy_stub.select = _unavailable
-
-    def create_engine(*args: object, **kwargs: object) -> types.SimpleNamespace:
-        return types.SimpleNamespace()
-
-    sqlalchemy_stub.create_engine = create_engine
-
-    class _Select:
-        def where(self, *args: object, **kwargs: object) -> "_Select":
-            return self
-
-    def select(*args: object, **kwargs: object) -> _Select:
-        return _Select()
-
-    sqlalchemy_stub.select = select
-
-    orm_module = types.ModuleType("sqlalchemy.orm")
-
-    class DeclarativeBase:
-        metadata = types.SimpleNamespace(create_all=lambda bind: None)
-
-    def declared_attr(func: Callable[..., Any]) -> Callable[..., Any]:
-        return func
-
-    def mapped_column(*args: object, **kwargs: object) -> None:
-        return None
-
-    def relationship(*args: object, **kwargs: object) -> None:
-        return None
-
-    class sessionmaker:
-        def __init__(self, **_: object) -> None:
-            pass
-
-        def __call__(self) -> types.SimpleNamespace:
-            return types.SimpleNamespace(commit=lambda: None, rollback=lambda: None, close=lambda: None)
-
-    orm_module.DeclarativeBase = DeclarativeBase
-    orm_module.Mapped = Any
-    orm_module.declared_attr = types.SimpleNamespace(directive=staticmethod(lambda func: func))
-    orm_module.mapped_column = mapped_column
-    orm_module.relationship = relationship
-    orm_module.sessionmaker = sessionmaker
-    orm_module.Session = Any
-
-    pool_module = types.ModuleType("sqlalchemy.pool")
-
-    class StaticPool:  # noqa: D401
-        """Placeholder static pool implementation."""
-
-    pool_module.StaticPool = StaticPool
-
-    dialects_module = types.ModuleType("sqlalchemy.dialects")
-    postgresql_module = types.ModuleType("sqlalchemy.dialects.postgresql")
-
-    class UUID:  # noqa: D401
-        """Placeholder UUID column type."""
-
-        def __init__(self, *args: object, **kwargs: object) -> None:
-            pass
-
-    postgresql_module.UUID = UUID
-    dialects_module.postgresql = postgresql_module
-
-    types_module = types.ModuleType("sqlalchemy.types")
-    ext_module = types.ModuleType("sqlalchemy.ext")
-    mutable_module = types.ModuleType("sqlalchemy.ext.mutable")
-
-    class TypeDecorator:  # noqa: D401
-        """Placeholder type decorator."""
-
-        impl = None
-
-        def __init__(self, *args: object, **kwargs: object) -> None:
-            pass
-
-        def __class_getitem__(cls, _: object) -> "TypeDecorator":
-            return cls
-
-    class CHAR(_SQLType):
-        pass
-
-    types_module.TypeDecorator = TypeDecorator
-    types_module.CHAR = CHAR
-    mutable_module.MutableDict = dict
-    mutable_module.MutableList = list
-    ext_module.mutable = mutable_module
-
+    sqlalchemy_stub.exc = types.SimpleNamespace(OperationalError=Exception)
     sys.modules["sqlalchemy"] = sqlalchemy_stub
-    sys.modules["sqlalchemy.orm"] = orm_module
-    sys.modules["sqlalchemy.pool"] = pool_module
-    sys.modules["sqlalchemy.dialects"] = dialects_module
-    sys.modules["sqlalchemy.dialects.postgresql"] = postgresql_module
-    sys.modules["sqlalchemy.types"] = types_module
-    sys.modules["sqlalchemy.ext"] = ext_module
-    sys.modules["sqlalchemy.ext.mutable"] = mutable_module
 
-# Provide a lightweight Stripe stub for test environments without the SDK installed.
-if "stripe" not in sys.modules:
-    stripe_stub = types.ModuleType("stripe")
-    stripe_stub.api_key = ""
 
-    class _StripeError(Exception):
-        """Fallback Stripe error type used in tests."""
+def _ensure_aiohttp_stub() -> None:
+    if "aiohttp" in sys.modules:
+        return
 
-        pass
-
-    class _AccountAPI:
-        def create(self, **_: object) -> None:
-            raise NotImplementedError("Stripe SDK is not installed in the test environment")
-
-    class _AccountLinkAPI:
-        def create(self, **_: object) -> None:
-            raise NotImplementedError("Stripe SDK is not installed in the test environment")
-
-    stripe_stub.Account = _AccountAPI()
-    stripe_stub.AccountLink = _AccountLinkAPI()
-
-    error_module = types.ModuleType("stripe.error")
-    error_module.StripeError = _StripeError
-    stripe_stub.error = error_module
-
-    sys.modules["stripe"] = stripe_stub
-    sys.modules["stripe.error"] = error_module
-
-if _sqlalchemy_spec is not None:  # pragma: no branch - skip when SQLAlchemy is stubbed
-    try:  # pragma: no cover - dependency availability varies per environment
-        from prep.models.db import SessionLocal, init_db  # type: ignore
-    except ModuleNotFoundError as exc:  # pragma: no cover - allow tests without SQLAlchemy
-        if exc.name != "sqlalchemy":
-            raise
-        SessionLocal = None  # type: ignore
-        init_db = None  # type: ignore
-else:
-    SessionLocal = None  # type: ignore
-    init_db = None  # type: ignore
-
-if os.getenv("SKIP_DB_SETUP") == "1":
-    SessionLocal = None  # type: ignore
-    init_db = None  # type: ignore
-    db_module = sys.modules.get("prep.models.db")
-    if db_module is not None:
-        setattr(db_module, "init_db", lambda: None)
-        setattr(db_module, "SessionLocal", None)
-if "aiohttp" not in sys.modules:
     try:
-        import aiohttp as _aiohttp  # type: ignore  # pragma: no cover - prefer real installation when available
-    except ModuleNotFoundError:  # pragma: no cover - fallback for lightweight environments
+        import aiohttp as _aiohttp  # noqa: F401  # pragma: no cover - prefer real module
+    except ModuleNotFoundError:  # pragma: no cover - lightweight environments
         aiohttp_stub = types.ModuleType("aiohttp")
 
-        class _ClientError(Exception):
-            """Fallback aiohttp client error."""
-
+        class ClientError(Exception):
             pass
 
-        class _ClientSession:
-            """Placeholder aiohttp session."""
+        class ClientSession:  # noqa: D401 - simple stub
+            """Placeholder aiohttp.ClientSession."""
 
-            pass
+            async def __aenter__(self) -> "ClientSession":
+                return self
 
-        class _ClientTimeout:
-            def __init__(self, *args, **kwargs) -> None:  # noqa: D401 - simple stub
-                """Placeholder for aiohttp.ClientTimeout."""
+            async def __aexit__(self, *exc_info: object) -> None:
+                return None
 
-        class _TCPConnector:
-            def __init__(self, *args, **kwargs) -> None:  # noqa: D401 - simple stub
-                """Placeholder for aiohttp.TCPConnector."""
+        class ClientTimeout:  # noqa: D401 - simple stub
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                pass
 
-        aiohttp_stub.ClientError = _ClientError
-        aiohttp_stub.ClientSession = _ClientSession
-        aiohttp_stub.ClientTimeout = _ClientTimeout
-        aiohttp_stub.TCPConnector = _TCPConnector
+        class TCPConnector:  # noqa: D401 - simple stub
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                pass
 
+        aiohttp_stub.ClientError = ClientError
+        aiohttp_stub.ClientSession = ClientSession
+        aiohttp_stub.ClientTimeout = ClientTimeout
+        aiohttp_stub.TCPConnector = TCPConnector
         sys.modules["aiohttp"] = aiohttp_stub
 
-if "boto3" not in sys.modules:
+
+def _ensure_boto3_stub() -> None:
+    if "boto3" in sys.modules:
+        return
+
     try:
-        import boto3 as _boto3  # type: ignore  # pragma: no cover - prefer real installation when available
-    except ModuleNotFoundError:  # pragma: no cover - fallback for lightweight environments
+        import boto3 as _boto3  # noqa: F401  # pragma: no cover - prefer real module
+    except ModuleNotFoundError:  # pragma: no cover - fallback stub
         boto3_stub = types.ModuleType("boto3")
 
         class _Client:
             def __init__(self, service_name: str) -> None:
-                self._service_name = service_name
+                self.service_name = service_name
 
-            def put_object(self, **kwargs) -> None:  # noqa: D401 - simple stub
-                """Placeholder for boto3 client put_object."""
-                raise NotImplementedError("boto3 is not installed")
+            def close(self) -> None:  # noqa: D401 - simple stub
+                """No-op close method for the boto3 stub."""
 
-            def close(self) -> None:
-                pass
+            def __getattr__(self, name: str) -> types.FunctionType:
+                def _missing(*args: object, **kwargs: object) -> None:
+                    raise NotImplementedError(
+                        "boto3 is unavailable in this lightweight test environment"
+                    )
 
-        def _client(service_name: str, *args, **kwargs):
+                return _missing
+
+        def client(service_name: str, *args: object, **kwargs: object) -> _Client:
             return _Client(service_name)
 
-        boto3_stub.client = _client
+        boto3_stub.client = client
         sys.modules["boto3"] = boto3_stub
 
-if _sqlalchemy_spec is not None:
-    try:
-        from prep.models.db import SessionLocal, init_db
-    except ModuleNotFoundError:  # pragma: no cover - optional dependency for lightweight tests
-        SessionLocal = None  # type: ignore[assignment]
-        init_db = None  # type: ignore[assignment]
-else:
+
+_ensure_sqlalchemy_stub()
+_ensure_aiohttp_stub()
+_ensure_boto3_stub()
+
+SessionLocal = None
+init_db = None
+
 try:
-    from prep.models.db import SessionLocal, init_db
-except (ModuleNotFoundError, SyntaxError):  # pragma: no cover - optional dependency for lightweight tests
-    SessionLocal = None  # type: ignore[assignment]
-    init_db = None  # type: ignore[assignment]
+    from prep.models.db import SessionLocal as _SessionLocal, init_db as _init_db
+except (ModuleNotFoundError, SyntaxError):  # pragma: no cover - optional dependency
+    pass
 else:
     if getattr(sys.modules.get("sqlalchemy"), "__prep_stub__", False):
-        SessionLocal = None  # type: ignore[assignment]
-        init_db = None  # type: ignore[assignment]
+        SessionLocal = None
+        init_db = None
+    else:
+        SessionLocal = _SessionLocal
+        init_db = _init_db
+
+
+# Fixtures ------------------------------------------------------------------
 
 
 @pytest.fixture(scope="session")
-def event_loop():
+def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
     loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+    try:
+        yield loop
+    finally:
+        loop.close()
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _create_schema():
+def _create_schema() -> Generator[None, None, None]:
     global init_db  # noqa: PLW0603 - test environment setup
+
     if init_db is None or os.environ.get("SKIP_PREP_DB_INIT") == "1":
-    global init_db
-    if init_db is None:
         yield
         return
 
     try:
         init_db()
-    except Exception:  # pragma: no cover - defensive fallback for missing deps
-        init_db = None
-    except Exception:  # pragma: no cover - defensive for optional deps
-        init_db = None
     except Exception:  # pragma: no cover - database optional in lightweight envs
+        init_db = None
         yield
         return
+
     yield
 
 
 @pytest.fixture
-def db_session():
+def db_session() -> Iterator[object]:
     if SessionLocal is None:
-        pytest.skip("SQLAlchemy is not available in the test environment")
         pytest.skip("Database layer is not available in this environment")
 
     session = SessionLocal()
