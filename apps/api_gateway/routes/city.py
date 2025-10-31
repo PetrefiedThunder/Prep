@@ -9,6 +9,13 @@ from importlib import import_module
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Response
+from __future__ import annotations
+
+from functools import lru_cache
+from importlib import import_module
+from typing import Any, Dict
+
+from fastapi import APIRouter, HTTPException
 
 from apps.city_regulatory_service.jurisdictions.common.fees import (
     FeeSchedule,
@@ -17,6 +24,7 @@ from apps.city_regulatory_service.jurisdictions.common.fees import (
 )
 
 router = APIRouter(prefix="/city", tags=["city-fees"])
+router = APIRouter()
 
 _CANON = {
     "san francisco": "san_francisco",
@@ -129,6 +137,28 @@ def get_city_fees_summary(
     validation: FeeValidationResult = validate_fee_schedule(schedule)
     payload = {
         "jurisdiction": schedule.jurisdiction,
+@router.get("/{city}/fees")
+def get_city_fees(city: str) -> Dict[str, Any]:
+    """Return the normalized fee schedule for the provided city."""
+
+    city_norm = _normalize(city)
+    try:
+        module = _ingestor_module_for(city_norm)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unsupported city '{city}'") from exc
+
+    if not hasattr(module, "make_fee_schedule"):
+        raise HTTPException(
+            status_code=500, detail=f"Ingestor missing make_fee_schedule() for '{city_norm}'"
+        )
+
+    schedule: FeeSchedule = module.make_fee_schedule()
+    validation: FeeValidationResult = validate_fee_schedule(schedule)
+
+    return {
+        "jurisdiction": schedule.jurisdiction,
+        "paperwork": schedule.paperwork,
+        "fees": [fee.dict() for fee in schedule.fees],
         "totals": {
             "one_time_cents": schedule.total_one_time_cents,
             "recurring_annualized_cents": schedule.total_recurring_annualized_cents,

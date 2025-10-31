@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prep.example/schemas/requirements.updated.json",
+  "type": "object",
+  "required": ["type", "id", "created_at", "data"],
+  "properties": {
+    "type": { "const": "requirements.updated" },
+    "id": { "type": "string", "format": "uuid" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "data": {
+      "type": "object",
+      "required": ["jurisdiction", "etag", "version", "counts_by_party", "blocking_count"],
+      "properties": {
+        "jurisdiction": { "type": "string" },
+        "etag": { "type": "string" },
+        "version": { "type": "string" },
+        "counts_by_party": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "blocking_count": { "type": "integer" }
+      }
+    }
+  }
+}

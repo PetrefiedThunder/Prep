@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prep.example/schemas/policy.decision.json",
+  "type": "object",
+  "required": ["type", "id", "created_at", "data"],
+  "properties": {
+    "type": { "const": "policy.decision" },
+    "id": { "type": "string", "format": "uuid" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "data": {
+      "type": "object",
+      "required": ["decision_id", "jurisdiction", "package_path", "allow", "latency_ms", "rationale"],
+      "properties": {
+        "decision_id": { "type": "string" },
+        "jurisdiction": { "type": "string" },
+        "package_path": { "type": "string" },
+        "allow": { "type": "boolean" },
+        "latency_ms": { "type": "integer" },
+        "rationale": { "type": "string" }
+      }
+    }
+  }
+}
