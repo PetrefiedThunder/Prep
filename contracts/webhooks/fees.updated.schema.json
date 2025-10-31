@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prep.example/schemas/fees.updated.json",
+  "type": "object",
+  "required": ["type", "id", "created_at", "data"],
+  "properties": {
+    "type": { "const": "fees.updated" },
+    "id": { "type": "string", "format": "uuid" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "data": {
+      "type": "object",
+      "required": ["jurisdiction", "etag", "version", "totals"],
+      "properties": {
+        "jurisdiction": { "type": "string" },
+        "etag": { "type": "string" },
+        "version": { "type": "string" },
+        "totals": {
+          "type": "object",
+          "required": ["one_time_cents", "recurring_annualized_cents", "incremental_fee_count"],
+          "properties": {
+            "one_time_cents": { "type": "integer" },
+            "recurring_annualized_cents": { "type": "integer" },
+            "incremental_fee_count": { "type": "integer" }
+          }
+        }
+      }
+    }
+  }
+}
