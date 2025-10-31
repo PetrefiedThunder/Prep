@@ -12,6 +12,7 @@ from prep.admin.api import router as admin_router
 from prep.analytics.advanced_api import router as advanced_analytics_router
 from prep.analytics.dashboard_api import router as analytics_router
 from prep.analytics.host_metrics_api import router as host_metrics_router
+from apps.api_gateway.routes.city import router as city_fees_router
 from prep.cities.api import router as cities_router
 from prep.api.deliveries import router as deliveries_router
 from prep.api.orders import router as orders_router
@@ -62,6 +63,7 @@ def _build_router() -> APIRouter:
     router.include_router(logistics_router)
     router.include_router(deliveries_router)
     router.include_router(orders_router)
+    router.include_router(city_fees_router)
     return router
 
 

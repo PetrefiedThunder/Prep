@@ -52,6 +52,9 @@ paths:
                         summary: { type: string }
                         source: { type: string }
                         url: { type: string, format: uri }
+  /city/{city}/fees/summary:
+    get:
+      summary: Get fee totals and validation summary for a city (ETag-enabled)
   /city/{city}/fees:
     get:
       summary: Get normalized fee schedule for a city
@@ -59,6 +62,10 @@ paths:
         - name: city
           in: path
           required: true
+          schema: { type: string }
+        - name: If-None-Match
+          in: header
+          required: false
           schema:
             type: string
         - $ref: '#/components/parameters/PageCursor'
@@ -67,10 +74,17 @@ paths:
       responses:
         "200":
           description: OK
+          headers:
+            ETag:
+              schema: { type: string }
+              description: Strong ETag for cache validation
           content:
             application/json:
               schema:
                 type: object
+                required: [jurisdiction, totals, validation]
+                properties:
+                  jurisdiction: { type: string }
                 required:
                   - jurisdiction
                   - paperwork
@@ -487,4 +501,8 @@ components:
                       issues:
                         type: array
                         items: { type: string }
+        "304":
+          description: Not Modified (ETag matched)
+        "404":
+          description: Unsupported city
         "404": { description: Unsupported city }
