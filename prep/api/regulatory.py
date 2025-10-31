@@ -36,6 +36,7 @@ async def list_regulations(
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -47,8 +48,9 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER
+from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER, BOOKING_PILOT_BANNER
 from prep.database.connection import AsyncSessionLocal, get_db
+from prep.pilot.utils import is_pilot_location
 from prep.regulatory.analyzer import RegulatoryAnalyzer
 from prep.regulatory.models import InsuranceRequirement, Regulation, RegulationSource
 from prep.regulatory.scraper import RegulatoryScraper
@@ -57,6 +59,8 @@ from prep.settings import get_settings
 router = APIRouter(prefix="/regulatory")
 
 logger = logging.getLogger(__name__)
+
+_ZIP_PATTERN = re.compile(r"\b\d{5}(?:-\d{4})?\b")
 
 GRAPH_SERVICE_URL = os.getenv("GRAPH_SERVICE_URL")
 POLICY_ENGINE_URL = os.getenv("POLICY_ENGINE_URL")
@@ -142,12 +146,44 @@ async def check_compliance(
         country_code=request.country_code.upper(),
         state_province=request.state_province,
     )
-    analysis = await analyzer.analyze_kitchen_compliance(request.kitchen_data, regulations)
+    kitchen_zip = request.kitchen_data.get("postal_code") or request.kitchen_data.get(
+        "zip_code"
+    )
+    if not kitchen_zip:
+        address = request.kitchen_data.get("address")
+        if isinstance(address, str):
+            match = _ZIP_PATTERN.search(address)
+            if match:
+                kitchen_zip = match.group(0)
+
+    county = request.kitchen_data.get("county") or request.kitchen_data.get("county_name")
+    pilot_mode = is_pilot_location(
+        state=request.state,
+        city=request.city,
+        county=county,
+        zip_code=kitchen_zip,
+    )
+    if pilot_mode:
+        logger.debug(
+            "Pilot mode enabled for regulatory compliance check",
+            extra={
+                "kitchen_id": request.kitchen_id,
+                "zip_code": kitchen_zip,
+                "county": county,
+            },
+        )
+
+    analysis = await analyzer.analyze_kitchen_compliance(
+        request.kitchen_data, regulations, pilot_mode=pilot_mode
+    )
 
     settings = get_settings()
     banner: str | None = None
-    if settings.compliance_controls_enabled:
+    if pilot_mode:
+        banner = BOOKING_PILOT_BANNER
+    elif settings.compliance_controls_enabled:
         banner = BOOKING_COMPLIANCE_BANNER
+    if settings.compliance_controls_enabled:
         logger.info(
             "Compliance decision issued",
             extra={
@@ -164,6 +200,8 @@ async def check_compliance(
         "missing_requirements": analysis.missing_requirements,
         "recommendations": analysis.recommendations,
         "last_analyzed": analysis.last_analyzed.isoformat(),
+        "pilot_mode": pilot_mode,
+        "override_allowed": pilot_mode,
     }
 
     if banner:
