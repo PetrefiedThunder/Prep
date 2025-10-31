@@ -44,6 +44,7 @@ def test_validate_coi_extracts_expected_fields(_mock_ocr: None) -> None:
     assert result["policy_number"] == "ABC-12345"
     assert result["insured_name"] == "Prep Kitchens LLC"
     assert result["expiry_date"] == "2035-12-31"
+    assert "warnings" not in result
 
 
 def test_validate_coi_raises_when_field_missing(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -66,3 +67,54 @@ def test_validate_coi_raises_when_field_missing(monkeypatch: pytest.MonkeyPatch)
 
     with pytest.raises(COIExtractionError):
         validate_coi(b"%PDF-missing-fields")
+
+
+def test_validate_coi_returns_warnings_in_pilot_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Image:
+        pass
+
+    def _convert(_: bytes) -> list[_Image]:
+        return [_Image()]
+
+    def _image_to_string(_: _Image) -> str:
+        return "Named Insured: Prep Kitchens LLC\nExpiration Date: December 31, 2035\n"
+
+    monkeypatch.setattr(
+        "prep.compliance.coi_validator.convert_from_bytes", _convert
+    )
+    monkeypatch.setattr(
+        "prep.compliance.coi_validator.pytesseract",
+        SimpleNamespace(image_to_string=_image_to_string),
+    )
+
+    result = validate_coi(b"%PDF-lenient", pilot_mode=True)
+    assert result["policy_number"] is None
+    assert result["insured_name"] == "Prep Kitchens LLC"
+    assert result["expiry_date"] == "2035-12-31"
+    assert "Policy number not found" in " ".join(result.get("warnings", []))
+
+
+def test_validate_coi_allows_configurable_leniency(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Image:
+        pass
+
+    def _convert(_: bytes) -> list[_Image]:
+        return [_Image()]
+
+    def _image_to_string(_: _Image) -> str:
+        return "Policy Number: ABC-9876\nExpiration Date: December 31, 2035\n"
+
+    monkeypatch.setattr(
+        "prep.compliance.coi_validator.convert_from_bytes", _convert
+    )
+    monkeypatch.setattr(
+        "prep.compliance.coi_validator.pytesseract",
+        SimpleNamespace(image_to_string=_image_to_string),
+    )
+
+    with pytest.raises(COIExtractionError):
+        validate_coi(b"%PDF-no-insured", pilot_mode=True, lenient_fields=("policy_number",))
+
+    result = validate_coi(b"%PDF-no-insured", pilot_mode=True)
+    assert result["insured_name"] is None
+    assert any("Insured name" in warning for warning in result.get("warnings", []))

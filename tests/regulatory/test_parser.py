@@ -73,6 +73,7 @@ def test_extract_reg_sections_returns_empty_for_text_without_identifiers() -> No
 from __future__ import annotations
 
 import importlib.util
+import logging
 import re
 import sys
 from pathlib import Path
@@ -136,6 +137,8 @@ def test_pdf_to_text_returns_pdfminer_output(long_pdf: Path) -> None:
 def test_pdf_to_text_falls_back_to_ocr(monkeypatch: pytest.MonkeyPatch, short_pdf: Path) -> None:
     original_find_spec = importlib.util.find_spec
 
+    Image = pytest.importorskip("PIL.Image")
+
     def fake_find_spec(name: str):
         if name in {"pdf2image", "pytesseract"}:
             return object()
@@ -147,21 +150,76 @@ def test_pdf_to_text_falls_back_to_ocr(monkeypatch: pytest.MonkeyPatch, short_pd
 
     def fake_convert(path: str):
         assert path == str(short_pdf)
-        return ["page-1", "page-2"]
+        return [
+            Image.new("RGB", (32, 32), color="white"),
+            Image.new("RGB", (32, 32), color="black"),
+        ]
 
     pdf2image_module.convert_from_path = fake_convert  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "pdf2image", pdf2image_module)
 
     pytesseract_module = ModuleType("pytesseract")
-    calls: list[str] = []
+    modes: list[str] = []
 
-    def fake_image_to_string(image: str) -> str:
-        calls.append(image)
-        return f"OCR-{image}"
+    def fake_image_to_string(image) -> str:
+        modes.append(image.mode)
+        return "OCR-text"
 
     pytesseract_module.image_to_string = fake_image_to_string  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "pytesseract", pytesseract_module)
 
-    result = parser.pdf_to_text(short_pdf)
-    assert result == "OCR-page-1\n\nOCR-page-2"
-    assert calls == ["page-1", "page-2"]
+    result = parser.pdf_to_text(short_pdf, min_characters=999)
+    assert result == "OCR-text\n\nOCR-text"
+    assert modes == ["L", "L"]
+
+
+def test_pdf_to_text_preprocesses_low_resolution_images(
+    monkeypatch: pytest.MonkeyPatch,
+    short_pdf: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    original_find_spec = importlib.util.find_spec
+
+    Image = pytest.importorskip("PIL.Image")
+    ImageFilter = pytest.importorskip("PIL.ImageFilter")
+
+    def fake_find_spec(name: str):
+        if name in {"pdf2image", "pytesseract"}:
+            return object()
+        return original_find_spec(name)
+
+    monkeypatch.setattr(importlib.util, "find_spec", fake_find_spec)
+
+    pdf2image_module = ModuleType("pdf2image")
+
+    def fake_convert(path: str):
+        assert path == str(short_pdf)
+        noisy = Image.effect_noise((40, 40), 120).filter(ImageFilter.GaussianBlur(1.2))
+        return [noisy.convert("RGB")]
+
+    pdf2image_module.convert_from_path = fake_convert  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "pdf2image", pdf2image_module)
+
+    pytesseract_module = ModuleType("pytesseract")
+    processed_sizes: list[tuple[str, tuple[int, int]]] = []
+
+    def fake_image_to_string(image) -> str:
+        processed_sizes.append((image.mode, image.size))
+        return "Pilot OCR text"
+
+    pytesseract_module.image_to_string = fake_image_to_string  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "pytesseract", pytesseract_module)
+
+    caplog.set_level(logging.WARNING)
+
+    result = parser.pdf_to_text(short_pdf, min_characters=999, pilot_mode=True)
+    assert result == "Pilot OCR text"
+    assert processed_sizes == [("L", (40, 40))]
+
+    metrics_records = [
+        record for record in caplog.records if getattr(record, "event", "") == "regulatory_pdf_ocr_metrics"
+    ]
+    assert metrics_records, "Expected structured OCR metrics when pilot_mode is enabled"
+    metrics_record = metrics_records[0]
+    assert metrics_record.total_characters == len(result)
+    assert metrics_record.page_metrics
