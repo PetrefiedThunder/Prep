@@ -16,6 +16,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
 )
 from sqlalchemy.ext.mutable import MutableDict, MutableList
 
@@ -198,6 +199,39 @@ class CityRequirementLink(Base):
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     city_requirement_id = Column(GUID(), ForeignKey("city_requirements.id"), nullable=False)
     federal_scope_name = Column(String(255))
+
+
+class PolicyDecision(Base):
+    """Persisted evaluation results from policy engine executions."""
+
+    __tablename__ = "policy_decisions"
+    __table_args__ = (
+        Index("ix_policy_decisions_request_hash", "request_hash"),
+        Index("ix_policy_decisions_region_jurisdiction", "region", "jurisdiction"),
+        Index("ix_policy_decisions_decision_created", "decision", "created_at"),
+    )
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    request_hash = Column(String(64), nullable=False)
+    region = Column(String(64), nullable=False)
+    jurisdiction = Column(String(120), nullable=False)
+    package_path = Column(String(255), nullable=False)
+    decision = Column(String(32), nullable=False)
+    rationale = Column(String(1024))
+    error = Column(String(1024))
+    duration_ms = Column(Integer, nullable=False, default=0)
+    input_payload = Column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
+    result_payload = Column(MutableDict.as_mutable(JSON))
+    trace_id = Column(String(64))
+    request_id = Column(String(64))
+    triggered_by = Column(String(64))
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
     relationship_type = Column(String(50))
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
