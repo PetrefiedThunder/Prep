@@ -11,12 +11,11 @@ from typing import Any
 from fastapi import APIRouter, Header, HTTPException, Response
 from __future__ import annotations
 
-from functools import lru_cache
-from importlib import import_module
 from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException
 
+from api.routes._city_utils import ingestor_module_for, normalize_city
 from apps.city_regulatory_service.jurisdictions.common.fees import (
     FeeSchedule,
     FeeValidationResult,
@@ -25,40 +24,6 @@ from apps.city_regulatory_service.jurisdictions.common.fees import (
 
 router = APIRouter(prefix="/city", tags=["city-fees"])
 router = APIRouter()
-
-_CANON = {
-    "san francisco": "san_francisco",
-    "sf": "san_francisco",
-    "oakland": "oakland",
-    "berkeley": "berkeley",
-    "san jose": "san_jose",
-    "sj": "san_jose",
-    "palo alto": "palo_alto",
-    "palo_alto": "palo_alto",
-    "joshua tree": "joshua_tree",
-    "joshua_tree": "joshua_tree",
-}
-
-
-def _normalize(city: str) -> str:
-    key = city.strip().lower()
-    return _CANON.get(key, key.replace("-", "_").replace(" ", "_"))
-
-
-@lru_cache(maxsize=64)
-def _ingestor_module_for(city_norm: str):
-    mod_map = {
-        "san_francisco": "data.ingestors.sf_dph",
-        "oakland": "data.ingestors.oakland_dph",
-        "berkeley": "data.ingestors.berkeley_dph",
-        "san_jose": "data.ingestors.san_jose_dph",
-        "palo_alto": "data.ingestors.palo_alto_dph",
-        "joshua_tree": "data.ingestors.joshua_tree_dph",
-    }
-    path = mod_map.get(city_norm)
-    if not path:
-        raise KeyError(city_norm)
-    return import_module(path)
 
 
 def _load_schedule(city_norm: str) -> FeeSchedule:
@@ -141,9 +106,12 @@ def get_city_fees_summary(
 def get_city_fees(city: str) -> Dict[str, Any]:
     """Return the normalized fee schedule for the provided city."""
 
-    city_norm = _normalize(city)
     try:
-        module = _ingestor_module_for(city_norm)
+        city_norm = normalize_city(city)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unsupported city '{city}'") from exc
+    try:
+        module = ingestor_module_for(city_norm)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"Unsupported city '{city}'") from exc
 
