@@ -65,6 +65,8 @@ jobs:
       - name: Run pytest
         run: |
           pytest ${matrix.service}/tests --maxfail=1 -q
+      - name: API fee endpoint tests
+        run: make api.test
       - name: Run ruff
         run: ruff check ${matrix.service}
       - name: Run mypy

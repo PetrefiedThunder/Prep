@@ -46,6 +46,15 @@ paths:
                           format: uri
   /city/{city}/fees:
     get:
+                        category: { type: string }
+                        code: { type: string }
+                        title: { type: string }
+                        summary: { type: string }
+                        source: { type: string }
+                        url: { type: string, format: uri }
+  /city/{city}/fees:
+    get:
+      summary: Get normalized fee schedule for a city
       parameters:
         - name: city
           in: path
@@ -54,6 +63,7 @@ paths:
             type: string
         - $ref: '#/components/parameters/PageCursor'
         - $ref: '#/components/parameters/PageLimit'
+          schema: { type: string }
       responses:
         "200":
           description: OK
@@ -74,6 +84,12 @@ paths:
                     type: array
                     items:
                       type: string
+                required: [jurisdiction, paperwork, fees, totals, validation]
+                properties:
+                  jurisdiction: { type: string }
+                  paperwork:
+                    type: array
+                    items: { type: string }
                   fees:
                     type: array
                     items:
@@ -446,3 +462,29 @@ components:
                     type: string
                   message:
                     type: string
+                      required: [name, amount_cents, kind]
+                      properties:
+                        name: { type: string }
+                        amount_cents: { type: integer, minimum: 0 }
+                        kind: { type: string, enum: [one_time, recurring, incremental] }
+                        cadence:
+                          type: string
+                          enum: [annual, semi_annual, quarterly, monthly, per_permit, per_inspection, per_application, per_reinspection]
+                          nullable: true
+                        unit: { type: string, nullable: true }
+                        tier_min_inclusive: { type: integer, nullable: true }
+                        tier_max_inclusive: { type: integer, nullable: true }
+                  totals:
+                    type: object
+                    properties:
+                      one_time_cents: { type: integer }
+                      recurring_annualized_cents: { type: integer }
+                      incremental_fee_count: { type: integer }
+                  validation:
+                    type: object
+                    properties:
+                      is_valid: { type: boolean }
+                      issues:
+                        type: array
+                        items: { type: string }
+        "404": { description: Unsupported city }
