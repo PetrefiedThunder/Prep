@@ -16,6 +16,8 @@ from importlib import import_module
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from middleware import audit_logger
+
 try:  # pragma: no cover - fallback for stubbed services with syntax issues
     from apps.compliance_service.main import app as compliance_app
 except (SyntaxError, ImportError):  # pragma: no cover
@@ -61,6 +63,7 @@ square_kds_router = _load_router("api.webhooks.square_kds")
 logistics_router = _load_router("prep.logistics.api")
 deliveries_router = _load_router("prep.api.deliveries")
 orders_router = _load_router("prep.api.orders")
+debug_router = _load_router("api.routes.debug")
 
 try:  # pragma: no cover - observability hooks are optional in tests
     from modules.observability import DEFAULT_TARGETED_ROUTES, configure_fastapi_tracing
@@ -257,6 +260,7 @@ def _build_router(*, include_full: bool) -> APIRouter:
         router.include_router(logistics_router)
         router.include_router(deliveries_router)
         router.include_router(orders_router)
+        router.include_router(debug_router)
 
     from api.routes.city_fees import router as city_fees_router
     from api.routes.diff import router as city_diff_router
@@ -286,6 +290,7 @@ def _build_router(*, include_full: bool) -> APIRouter:
     router.include_router(logistics_router)
     router.include_router(deliveries_router)
     router.include_router(orders_router)
+    router.include_router(debug_router)
     router.include_router(city_fees_router, prefix="/city", tags=["city"])
     router.include_router(city_diff_router)
     router.include_router(city_requirements_router)
@@ -297,6 +302,12 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
 
     settings = get_settings()
     app = FastAPI(title="Prep API Gateway", version="1.0.0")
+
+    if settings.environment.lower() == "staging":
+        from prep.database import get_session_factory
+
+        app.state.db = get_session_factory()
+        app.middleware("http")(audit_logger)
 
     settings = get_settings()
     app.add_middleware(
