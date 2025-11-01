@@ -1,0 +1,107 @@
+id: san_francisco
+display: "San Francisco"
+state: CA
+health_code: "§6.15 Shared Kitchen Facilities"
+health_dept_url: "https://www.sfdph.org/dph/EH/Food/"
+business_portal_url: "https://aca.accela.com/sfmea/"
+
+# Permit requirements
+permit_kinds:
+  - shared_kitchen
+  - fire
+  - ventilation
+  - health_permit
+
+# Insurance requirements
+insurance:
+  liability_min_cents: 100000000      # $1,000,000
+  aggregate_min_cents: 200000000      # $2,000,000
+  additional_insured_legal: "City and County of San Francisco"
+  workers_comp_required: true
+  workers_comp_employee_threshold: 1
+
+# Zoning
+zoning:
+  require_neighborhood_notice: true
+  notice_radius_feet: 300
+  notice_period_days: 30
+  allowed_districts:
+    - NC-3
+    - NC-2
+    - NCT
+    - PDR
+    - CMUO
+
+# Fees and taxes
+fees:
+  - code: TOT
+    display_name: "Transient Occupancy Tax"
+    kind: percent
+    value: 0.1400                     # 14%
+    applies_to:
+      - base
+      - cleaning
+      - platform_fee
+    citation: "SF Business and Tax Regulations Code Article 7"
+    remittance_url: "https://treasurer.sfgov.org/transient-occupancy-tax"
+
+# Security deposits
+deposits:
+  min_cents: 10000                    # $100 minimum
+  hold_window_hours: 72
+  refund_window_hours: 168            # 7 days
+
+# Rental limits
+rental_limits:
+  max_hours_per_day_per_facility: 12
+  min_booking_hours: 2
+  max_advance_booking_days: 180
+
+# Sound ordinance
+sound_ordinance:
+  quiet_hours:
+    start: "22:00"
+    end: "06:00"
+  max_decibels_day: 70
+  max_decibels_night: 55
+  citation: "SF Police Code Article 29"
+
+# Seasonal restrictions
+seasonal_restrictions: []             # None currently for SF
+
+# Waste management
+waste:
+  requires_food_waste_recycling: true
+  requires_composting: true
+  citation: "SF Environment Code Chapter 19"
+
+# Inspection schedules
+inspections:
+  health:
+    frequency_months: 12
+    buffer_before_hours: 4
+    buffer_after_hours: 2
+  fire:
+    frequency_months: 12
+    buffer_before_hours: 2
+    buffer_after_hours: 1
+
+# Grease management
+grease:
+  interceptor_required: true
+  max_service_interval_days: 90
+  manifest_required: true
+
+# Outbreak notification
+outbreak:
+  auto_notify_threshold: 3            # Auto-notify health dept if >= 3 illnesses
+  notification_email: "ehs.complaints@sfdph.org"
+  hotline: "415-554-2500"
+
+# Complaint thresholds
+complaints:
+  noise:
+    warning_threshold: 3              # 3 complaints in 30 days = warning
+    window_days: 30
+    soft_block_threshold: 5           # 5 complaints in 60 days = soft block
+    soft_block_window_days: 60
