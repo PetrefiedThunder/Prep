@@ -105,3 +105,37 @@ complaints:
     window_days: 30
     soft_block_threshold: 5           # 5 complaints in 60 days = soft block
     soft_block_window_days: 60
+
+# SF compliance rule configuration
+compliance:
+  business_registration:
+    expiration_grace_days: 0
+  health_permit:
+    valid_statuses:
+      - valid
+    expiration_warning_days: 30
+    facility_type_mapping:
+      cooking_kitchen: cooking_permit
+      commissary_non_cooking: commissary_permit
+      mobile_food_commissary: mobile_commissary_permit
+  zoning:
+    allowed_districts:
+      - NC-3
+      - NC-2
+      - NCT
+      - PDR
+      - CMUO
+    manual_review_when_unknown: true
+  fire:
+    required_for:
+      - cooking_kitchen
+    inspection_max_age_days: 365
+  grease:
+    required_for:
+      - cooking_kitchen
+      - commissary_non_cooking
+    service_interval_days: 365
+  tax:
+    crt_rate: 0.035
+    grt_threshold: 500000
+    default_tax_classification: service_provider
