@@ -5,6 +5,7 @@ General
 - Strict typing: add type hints and pydantic validation for all new public functions
 - No secrets in code, config, or tests; use env vars only
 - Idempotent migrations: never edit historic Alembic revisions
+- CI runs ``make etl.validate``; keep fee schedule validators passing locally
 
 Compliance/OPA
 - All new jurisdictions implement: ingest.py, validate.py, policy.rego

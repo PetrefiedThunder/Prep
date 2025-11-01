@@ -51,6 +51,24 @@ class SanFranciscoAdapter:
                     "frequency": "annual",
                     "schedule": "variable by revenue",
                     "notes": "$91.25 minimum + additional fees based on gross receipts",
+                    "tiers": [
+                        {
+                            "threshold": "up to $50k gross receipts",
+                            "fee": 91.25,
+                        },
+                        {
+                            "threshold": "$50k-$250k gross receipts",
+                            "fee": 180.50,
+                        },
+                        {
+                            "threshold": "$250k-$500k gross receipts",
+                            "fee": 306.00,
+                        },
+                        {
+                            "threshold": "over $500k gross receipts",
+                            "fee": 500.00,
+                        },
+                    ],
                 },
                 "submission_channel": "online",
                 "application_url": "https://sftreasurer.org/registration",
