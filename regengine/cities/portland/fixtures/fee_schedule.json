@@ -1,0 +1,15 @@
+{
+  "fees": [
+    {
+      "code": "Lodging",
+      "name": "Lodging Tax",
+      "kind": "percent",
+      "value": 0.115,
+      "applies_to": ["base", "cleaning", "platform_fee"]
+    }
+  ],
+  "deposits": {
+    "min_cents": 8000,
+    "hold_window_hours": 72
+  }
+}
