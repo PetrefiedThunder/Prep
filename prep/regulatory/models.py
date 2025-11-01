@@ -356,6 +356,72 @@ class CityETLRun(Base):
     metadata_json = Column("metadata", MutableDict.as_mutable(JSON))
 
 
+class FeeSchedule(Base):
+    """Normalized fee schedules keyed by jurisdiction."""
+
+    __tablename__ = "fee_schedules"
+    __table_args__ = (
+        UniqueConstraint("jurisdiction", name="uq_fee_schedules_jurisdiction"),
+        Index("ix_fee_schedules_jurisdiction", "jurisdiction"),
+    )
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    jurisdiction = Column(String(120), nullable=False)
+    checksum = Column(String(64), nullable=False)
+    paperwork = Column(MutableList.as_mutable(JSON), nullable=False, default=list)
+    fees = Column(MutableList.as_mutable(JSON), nullable=False, default=list)
+    notes = Column(Text)
+    source_url = Column(Text)
+    metadata = Column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
+    effective_date = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    requirements = relationship(
+        "RegRequirement",
+        back_populates="fee_schedule",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class RegRequirement(Base):
+    """City-level regulatory requirements captured from ingestion pipelines."""
+
+    __tablename__ = "reg_requirements"
+    __table_args__ = (
+        UniqueConstraint(
+            "jurisdiction",
+            "external_id",
+            name="uq_reg_requirements_jurisdiction_external",
+        ),
+        Index("ix_reg_requirements_jurisdiction", "jurisdiction"),
+        Index("ix_reg_requirements_requirement_type", "requirement_type"),
+    )
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    jurisdiction = Column(String(120), nullable=False)
+    external_id = Column(String(255), nullable=False)
+    label = Column(String(255), nullable=False)
+    requirement_type = Column(String(100), nullable=False, default="general")
+    summary = Column(Text)
+    documents = Column(MutableList.as_mutable(JSON), nullable=False, default=list)
+    applies_to = Column(MutableList.as_mutable(JSON), nullable=False, default=list)
+    tags = Column(MutableList.as_mutable(JSON), nullable=False, default=list)
+    metadata = Column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
+    source_url = Column(Text)
+    status = Column(String(50), nullable=False, default="active")
+    last_seen_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    fee_schedule_id = Column(
+        GUID(),
+        ForeignKey("fee_schedules.id", ondelete="SET NULL"),
+    )
+
+    fee_schedule = relationship("FeeSchedule", back_populates="requirements")
+
+
 __all__ = [
     "RegulationSource",
     "Regulation",

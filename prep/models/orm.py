@@ -572,7 +572,9 @@ class POSOrder(TimestampMixin, Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("provider", "external_id", name="uq_pos_order_provider_external"),
+        UniqueConstraint(
+            "provider", "external_id", name="uq_pos_order_provider_external"
+        ),
         Index("ix_pos_orders_kitchen_closed_at", "kitchen_id", "closed_at"),
     )
 
