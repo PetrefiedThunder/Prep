@@ -106,6 +106,7 @@ class Settings(BaseModel):
     )
     auth_device_allowlist: List[str] = Field(
         default_factory=list, alias="AUTH_DEVICE_ALLOWLIST"
+    )
     refresh_token_ttl_seconds: int = Field(
         default=60 * 60 * 24 * 14,
         ge=3600,

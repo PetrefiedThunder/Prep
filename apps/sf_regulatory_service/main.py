@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+import re
 import time
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import PlainTextResponse
+
+from prep.auth.rbac import RBACMiddleware, require_roles
+from prep.settings import get_settings
 
 from . import metrics
 from .config import load_config
@@ -27,10 +32,30 @@ from .schemas import (
 )
 from .services import SFRegulatoryService
 
+logger = logging.getLogger(__name__)
+_SENSITIVE_PATTERN = re.compile(r"(HP-|BRC-|FIRE-|GREASE-)[A-Z0-9]+", re.IGNORECASE)
+
+
+def _sanitize_payload(data: dict[str, object]) -> dict[str, object]:
+    sanitized: dict[str, object] = {}
+    for key, value in data.items():
+        if isinstance(value, str):
+            sanitized[key] = _SENSITIVE_PATTERN.sub("[REDACTED]", value)
+        else:
+            sanitized[key] = value
+    return sanitized
+
 
 def create_app() -> FastAPI:
     init_db()
+    settings = get_settings()
     app = FastAPI(title="San Francisco Regulatory Service", version="1.0.0")
+    app.add_middleware(
+        RBACMiddleware,
+        settings=settings,
+        route_roles={"/sf/host/onboard": ["regulatory_admin"]},
+        exempt_paths=("/health", "/metrics"),
+    )
 
     @app.middleware("http")
     async def metrics_middleware(request, call_next):  # type: ignore[override]
@@ -53,11 +78,20 @@ def create_app() -> FastAPI:
         return load_config()
 
     @app.post("/sf/host/onboard", response_model=ComplianceResponse, tags=["hosts"])
+    @require_roles("regulatory_admin")
     def onboard_host(
         payload: SFHostProfilePayload,
         service: SFRegulatoryService = Depends(lambda session=Depends(get_session): SFRegulatoryService(session)),
     ) -> ComplianceResponse:
-        return service.onboard_host(payload)
+        response = service.onboard_host(payload)
+        logger.info(
+            "Processed SF onboarding",
+            extra={
+                "payload": _sanitize_payload(payload.model_dump(mode="json")),
+                "status": response.status,
+            },
+        )
+        return response
 
     @app.get(
         "/sf/host/{host_kitchen_id}/status",

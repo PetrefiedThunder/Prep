@@ -83,6 +83,7 @@ class UserRole(str, enum.Enum):
     FOOD_BUSINESS_ADMIN = "food_business_admin"
     CITY_REVIEWER = "city_reviewer"
     SUPPORT_ANALYST = "support_analyst"
+    REGULATORY_ADMIN = "regulatory_admin"
 
 
 class SubscriptionStatus(str, enum.Enum):
@@ -434,7 +435,7 @@ class BusinessProfile(TimestampMixin, Base):
     state: Mapped[str | None] = mapped_column(String(60))
     readiness_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     requirements: Mapped[dict | None] = mapped_column(JSON, default=dict)
-    metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
+    profile_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
     owner: Mapped["User"] = relationship("User", backref="business_profiles")
     permits: Mapped[list["BusinessPermit"]] = relationship(
@@ -459,7 +460,7 @@ class BusinessPermit(TimestampMixin, Base):
     issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[PermitStatus] = mapped_column(Enum(PermitStatus), default=PermitStatus.PENDING)
-    metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
+    permit_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
     business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="permits")
     documents: Mapped[list["DocumentUpload"]] = relationship(
@@ -505,7 +506,7 @@ class PaymentRecord(TimestampMixin, Base):
     line_items: Mapped[list[dict] | None] = mapped_column(JSON, default=list)
     receipt_url: Mapped[str | None] = mapped_column(String(512))
     refunded_amount_cents: Mapped[int | None] = mapped_column(Integer)
-    metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
+    payment_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
     business: Mapped[BusinessProfile | None] = relationship("BusinessProfile", back_populates="payments")
     booking: Mapped["Booking" | None] = relationship("Booking")
@@ -1472,7 +1473,7 @@ class Permit(TimestampMixin, Base):
     document_id: Mapped[UUID | None] = mapped_column(
         GUID(), ForeignKey("document_uploads.id", ondelete="SET NULL"), nullable=True
     )
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    permit_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
 
     business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="permits")
     document: Mapped[DocumentUpload | None] = relationship("DocumentUpload")
@@ -1522,7 +1523,7 @@ class CheckoutPayment(TimestampMixin, Base):
     payment_provider: Mapped[str] = mapped_column(String(64), default="stripe", nullable=False)
     provider_reference: Mapped[str | None] = mapped_column(String(255))
     receipt_url: Mapped[str | None] = mapped_column(String(255))
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    payment_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
     refund_reason: Mapped[str | None] = mapped_column(String(255))
     refund_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -1546,7 +1547,7 @@ class IdentityProvider(TimestampMixin, Base):
         Enum(IdentityProviderType), nullable=False
     )
     issuer: Mapped[str | None] = mapped_column(String(255))
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    provider_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
     settings: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
