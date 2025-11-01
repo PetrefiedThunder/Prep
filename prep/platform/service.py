@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import stripe
 from sqlalchemy import Select, func, select
@@ -13,7 +13,21 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prep.cache import RedisProtocol
-from prep.models.orm import Booking, Kitchen, Review, User, UserRole, ComplianceDocument
+from prep.models.orm import (
+    Booking,
+    BusinessPermit,
+    BusinessProfile,
+    ComplianceDocument,
+    DocumentProcessingStatus,
+    DocumentUpload,
+    Kitchen,
+    PaymentRecord,
+    PaymentStatus,
+    PermitStatus,
+    Review,
+    User,
+    UserRole,
+)
 from prep.platform import schemas
 from prep.platform.security import create_access_token, hash_password, serialize_session, verify_password
 from prep.settings import Settings
@@ -227,6 +241,232 @@ class PlatformService:
             },
         )
         return client_secret
+
+    async def create_document_upload(
+        self, payload: schemas.DocumentUploadRequest
+    ) -> DocumentUpload:
+        business = await self._session.get(BusinessProfile, payload.business_id)
+        if business is None:
+            raise PlatformError("Business not found", status_code=404)
+
+        if payload.permit_id is not None:
+            permit = await self._session.get(BusinessPermit, payload.permit_id)
+            if permit is None or permit.business_id != business.id:
+                raise PlatformError("Permit not found", status_code=404)
+
+        upload = DocumentUpload(
+            business_id=payload.business_id,
+            uploader_id=payload.uploader_id,
+            permit_id=payload.permit_id,
+            file_name=payload.file_name,
+            file_url=str(payload.file_url),
+            content_type=payload.content_type,
+            storage_bucket=payload.storage_bucket,
+            requirement_key=payload.requirement_key,
+            ocr_status=(
+                DocumentProcessingStatus.PROCESSING
+                if payload.trigger_ocr
+                else DocumentProcessingStatus.RECEIVED
+            ),
+        )
+
+        self._session.add(upload)
+
+        if payload.requirement_key:
+            requirements = business.requirements or {}
+            if not isinstance(requirements, dict):
+                requirements = {"items": []}
+            items = requirements.get("items")
+            if not isinstance(items, list):
+                items = []
+
+            now_iso = datetime.now(UTC).isoformat()
+            updated = False
+            for item in items:
+                if isinstance(item, dict) and item.get("key") == payload.requirement_key:
+                    item["status"] = "submitted"
+                    item["completed_at"] = now_iso
+                    updated = True
+                    break
+
+            if not updated:
+                items.append(
+                    {
+                        "key": payload.requirement_key,
+                        "name": payload.requirement_key.replace("_", " ").title(),
+                        "status": "submitted",
+                        "completed_at": now_iso,
+                    }
+                )
+
+            requirements["items"] = items
+            business.requirements = requirements
+
+        await self._session.commit()
+        await self._session.refresh(upload)
+        return upload
+
+    async def get_document_upload(self, document_id: UUID) -> DocumentUpload:
+        document = await self._session.get(DocumentUpload, document_id)
+        if document is None:
+            raise PlatformError("Document not found", status_code=404)
+        return document
+
+    async def get_permit(self, permit_id: UUID) -> BusinessPermit:
+        permit = await self._session.get(BusinessPermit, permit_id)
+        if permit is None:
+            raise PlatformError("Permit not found", status_code=404)
+        return permit
+
+    async def get_business_readiness(
+        self, business_id: UUID
+    ) -> schemas.BusinessReadinessResponse:
+        business = await self._session.get(BusinessProfile, business_id)
+        if business is None:
+            raise PlatformError("Business not found", status_code=404)
+
+        requirements_payload = business.requirements or {}
+        if isinstance(requirements_payload, list):
+            raw_items = requirements_payload
+        elif isinstance(requirements_payload, dict):
+            raw_items = requirements_payload.get("items", []) or []
+        else:
+            raw_items = []
+
+        requirements: list[schemas.ReadinessRequirement] = []
+        completed = 0
+        for item in raw_items:
+            if not isinstance(item, dict):
+                continue
+            status = str(item.get("status", "pending"))
+            completed_at_raw = item.get("completed_at")
+            completed_at: datetime | None = None
+            if completed_at_raw:
+                try:
+                    completed_at = datetime.fromisoformat(str(completed_at_raw))
+                except ValueError:
+                    completed_at = None
+            requirement = schemas.ReadinessRequirement(
+                name=str(item.get("name") or item.get("key") or "Requirement"),
+                description=item.get("description"),
+                status=status,
+                completed_at=completed_at,
+            )
+            requirements.append(requirement)
+            if status.lower() in {"complete", "completed", "approved", "submitted"}:
+                completed += 1
+
+        total_requirements = len(requirements) or 1
+        readiness_score = round(completed / total_requirements, 2)
+        permit_ids = [permit.id for permit in business.permits]
+        next_actions = [
+            str(item.get("next_action"))
+            for item in raw_items
+            if isinstance(item, dict) and item.get("next_action")
+        ]
+
+        return schemas.BusinessReadinessResponse(
+            business_id=business.id,
+            readiness_score=readiness_score,
+            requirements=requirements,
+            next_actions=next_actions,
+            permit_ids=permit_ids,
+            last_updated=business.updated_at or datetime.now(UTC),
+        )
+
+    async def create_checkout(
+        self, payload: schemas.CheckoutRequest
+    ) -> tuple[PaymentRecord, str | None]:
+        if payload.initiate_refund and payload.payment_id is None:
+            raise PlatformError("payment_id is required to initiate a refund")
+
+        business = await self._session.get(BusinessProfile, payload.business_id)
+        if business is None:
+            raise PlatformError("Business not found", status_code=404)
+
+        if payload.booking_id is not None:
+            booking = await self._session.get(Booking, payload.booking_id)
+            if booking is None:
+                raise PlatformError("Booking not found", status_code=404)
+
+        if payload.initiate_refund:
+            record = await self._session.get(PaymentRecord, payload.payment_id)
+            if record is None:
+                raise PlatformError("Payment record not found", status_code=404)
+            record.status = PaymentStatus.REFUND_PENDING
+            refund_amount = (
+                sum(item.amount_cents for item in payload.line_items)
+                if payload.line_items
+                else record.amount_cents
+            )
+            record.refunded_amount_cents = refund_amount
+            await self._session.commit()
+            await self._session.refresh(record)
+            return record, None
+
+        if not payload.line_items:
+            raise PlatformError("At least one line item is required")
+
+        total_amount = sum(item.amount_cents for item in payload.line_items)
+        if total_amount <= 0:
+            raise PlatformError("Checkout amount must be greater than zero")
+
+        currency = payload.currency.lower()
+
+        provider_payment_id: str | None = None
+        client_secret: str | None = None
+        status = PaymentStatus.SUCCEEDED
+        provider = "internal"
+
+        if self._settings.stripe_api_key:
+            stripe.api_key = self._settings.stripe_api_key
+            try:
+                intent = await asyncio.to_thread(
+                    stripe.PaymentIntent.create,
+                    amount=total_amount,
+                    currency=currency,
+                    metadata={
+                        "business_id": str(payload.business_id),
+                        "booking_id": str(payload.booking_id)
+                        if payload.booking_id
+                        else None,
+                    },
+                    automatic_payment_methods={"enabled": True},
+                )
+            except stripe.error.StripeError as exc:  # type: ignore[attr-defined]
+                logger.exception(
+                    "Failed to create checkout payment intent",
+                    extra={"business_id": str(payload.business_id)},
+                )
+                raise PlatformError("Unable to initiate checkout", status_code=502) from exc
+
+            provider_payment_id = getattr(intent, "id", None)
+            if provider_payment_id is None and isinstance(intent, dict):
+                provider_payment_id = intent.get("id")
+            client_secret = getattr(intent, "client_secret", None)
+            if client_secret is None and isinstance(intent, dict):
+                client_secret = intent.get("client_secret")
+            status = PaymentStatus.PENDING
+            provider = "stripe"
+        else:
+            provider_payment_id = f"simulated_{uuid4()}"
+
+        record = PaymentRecord(
+            business_id=payload.business_id,
+            booking_id=payload.booking_id,
+            provider_payment_id=provider_payment_id,
+            provider=provider,
+            status=status,
+            amount_cents=total_amount,
+            currency=currency,
+            line_items=[item.model_dump() for item in payload.line_items],
+            receipt_url=f"https://receipts.prep.local/{provider_payment_id or 'preview'}",
+        )
+
+        self._session.add(record)
+        await self._session.commit()
+        await self._session.refresh(record)
+        return record, client_secret
 
     async def create_review(self, payload: schemas.ReviewCreateRequest) -> Review:
         booking = await self._session.get(Booking, payload.booking_id)
