@@ -1,0 +1,21 @@
+{
+  "fees": [
+    {
+      "code": "TOT",
+      "name": "Transient Occupancy Tax",
+      "kind": "percent",
+      "value": 0.14,
+      "applies_to": ["base", "cleaning", "platform_fee"]
+    }
+  ],
+  "deposits": {
+    "min_cents": 10000,
+    "hold_window_hours": 72
+  },
+  "late_penalties": [
+    {
+      "rule": "PT01H after booking.start",
+      "percent": 0.05
+    }
+  ]
+}

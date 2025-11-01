@@ -196,6 +196,9 @@ try:
     from prep.models.db import SessionLocal as _SessionLocal, init_db as _init_db
 except (ModuleNotFoundError, SyntaxError):  # pragma: no cover - optional dependency
     pass
+except Exception:  # pragma: no cover - defensive fallback when ORM cannot be imported
+    SessionLocal = None
+    init_db = None
 else:
     if getattr(sys.modules.get("sqlalchemy"), "__prep_stub__", False):
         SessionLocal = None

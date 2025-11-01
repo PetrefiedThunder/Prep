@@ -1,0 +1,9 @@
+id: portland
+display: Portland (Multnomah County)
+permit_kinds: [commissary, fire, ventilation]
+community_notification_required: true
+insurance:
+  liability_min: 1000000
+  aggregate_min: 2000000
+  additional_insured_legal: "City of Portland and Multnomah County"
+sound_ordinance: { quiet_hours: { start: "22:00", end: "06:00" } }
