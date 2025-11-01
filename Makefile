@@ -31,3 +31,11 @@ codex-verify:
 
 etl.validate:
 	python tools/fee_validate.py
+.PHONY: api.summary.test
+api.summary.test:
+	pytest -q tests/api/test_city_fees_summary.py
+api.test:
+	pytest -q tests/api/test_city_fees.py
+
+api.run:
+	uvicorn run_api:app --host 0.0.0.0 --port 8080 --reload

@@ -54,3 +54,5 @@ jobs:
         run: pytest -q
       - name: Fee schedule validation
         run: make etl.validate
+      - name: API fee summary endpoint tests
+        run: make api.summary.test
