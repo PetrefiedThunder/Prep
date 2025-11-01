@@ -145,15 +145,15 @@ COMMENT ON TABLE applied_late_penalties IS 'Late penalties applied to bookings/p
 
 -- Insert initial fee schedules
 INSERT INTO municipal_fee_schedules (jurisdiction_id, code, display_name, kind, value, applies_to, citation) VALUES
-  -- San Francisco TOT
+  -- San Francisco Commercial Rents Tax
   (
     'san_francisco',
-    'TOT',
-    'Transient Occupancy Tax',
+    'CRT',
+    'Commercial Rents Tax',
     'percent',
-    0.1400,
-    ARRAY['base','cleaning','platform_fee'],
-    'SF Business and Tax Regulations Code Article 7'
+    0.0350,
+    ARRAY['base'],
+    'SF Business and Tax Regulations Code Article 21'
   ),
   -- Portland Lodging Tax
   (
