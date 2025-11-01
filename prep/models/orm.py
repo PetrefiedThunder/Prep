@@ -299,7 +299,7 @@ class Kitchen(TimestampMixin, Base):
     )
     pos_orders: Mapped[List["POSOrder"]] = relationship(
         "POSOrder", back_populates="kitchen", cascade="all, delete-orphan"
-
+    )
     integrations: Mapped[List["Integration"]] = relationship(
         "Integration",
         back_populates="kitchen",
