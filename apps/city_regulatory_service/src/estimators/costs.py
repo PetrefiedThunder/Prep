@@ -17,6 +17,7 @@ from apps.city_regulatory_service.src.models import (
     FeeSchedule,
     RequirementsBundle,
 )
+from etl.validators import validate_requirements
 
 _AMOUNT_PATTERN = re.compile(r"-?\d+(?:\.\d+)?")
 _RECURRING_KEYWORDS = {
@@ -53,6 +54,48 @@ _INCREMENTAL_MARKERS = (
     "per event",
 )
 _COMPONENT_KEYS = ("components", "items", "fees")
+
+_PRIORITY_TO_SEVERITY = {
+    "critical": "blocking",
+    "high": "blocking",
+    "medium": "conditional",
+    "low": "advisory",
+}
+
+_PARTY_ALIASES = {
+    "restaurant": "food_business",
+    "caterer": "food_business",
+    "food truck": "food_business",
+    "mobile vendor": "food_business",
+    "shared kitchen": "kitchen_operator",
+    "ghost kitchen": "kitchen_operator",
+    "commissary": "kitchen_operator",
+    "kitchen operator": "kitchen_operator",
+    "marketplace": "marketplace_operator",
+    "marketplace operator": "marketplace_operator",
+    "platform": "platform_developer",
+    "platform developer": "platform_developer",
+}
+
+
+def _map_priority_to_severity(priority: Any) -> str | None:
+    if priority in (None, ""):
+        return None
+    text = str(priority).strip().lower()
+    return _PRIORITY_TO_SEVERITY.get(text, text if text in {"blocking", "conditional", "advisory"} else None)
+
+
+def _normalize_applies_to(raw: Any) -> list[str]:
+    if raw in (None, ""):
+        return []
+    values = raw if isinstance(raw, list) else [raw]
+    normalized: list[str] = []
+    for value in values:
+        if not value:
+            continue
+        key = str(value).strip().lower()
+        normalized.append(_PARTY_ALIASES.get(key, key))
+    return normalized
 
 
 def _to_cents(value: Any) -> int | None:
@@ -221,6 +264,7 @@ def load_bundle(
     results = session.execute(requirements_stmt).all()
 
     bundle_requirements: list[RequirementsBundle.Requirement] = []
+    validation_payload: list[dict[str, Any]] = []
     for requirement, agency in results:
         items = _build_fee_items(requirement)
         schedule = FeeSchedule(
@@ -228,6 +272,15 @@ def load_bundle(
             jurisdiction_name=jurisdiction_row.city,
             state=jurisdiction_row.state,
             items=items,
+        )
+        applies_to = _normalize_applies_to(requirement.applies_to or [])
+        severity = _map_priority_to_severity(requirement.priority)
+        validation_payload.append(
+            {
+                "id": requirement.requirement_id,
+                "applies_to": applies_to,
+                "severity": severity,
+            }
         )
         bundle_requirements.append(
             RequirementsBundle.Requirement(
@@ -238,9 +291,14 @@ def load_bundle(
                 metadata={
                     "requirement_type": requirement.requirement_type,
                     "source_url": requirement.source_url,
+                    "applies_to": applies_to,
+                    "severity": severity,
                 },
             )
         )
+
+    # Ensure raw data meets validation guardrails before exposing it downstream.
+    validate_requirements(validation_payload)
 
     return RequirementsBundle(
         jurisdiction_id=str(jurisdiction_row.id),
@@ -287,6 +345,18 @@ def estimate_costs(bundle: RequirementsBundle) -> dict[str, Any]:
         summary["average_one_time_cents"] = 0
         summary["average_recurring_annualized_cents"] = 0
 
+    validation = validate_requirements(
+        [
+            {
+                "id": requirement.requirement_id,
+                "applies_to": requirement.metadata.get("applies_to"),
+                "severity": requirement.metadata.get("severity"),
+            }
+            for requirement in bundle.requirements
+        ],
+        raise_on_error=False,
+    )
+
     return {
         "jurisdiction": {
             "id": bundle.jurisdiction_id,
@@ -295,6 +365,11 @@ def estimate_costs(bundle: RequirementsBundle) -> dict[str, Any]:
         },
         "summary": summary,
         "requirements": requirement_breakdown,
+        "validation": {
+            "issues": validation.issues,
+            "counts_by_party": validation.counts_by_party,
+            "blocking_count": validation.blocking_count,
+        },
     }
 
 
