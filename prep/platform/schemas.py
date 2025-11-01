@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID, uuid4
+
+from fastapi import Request
 from typing import Any, Sequence
 from uuid import UUID
 
@@ -76,6 +79,41 @@ class CursorPageMeta(BaseModel):
 
 class _ORMBaseModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
+
+class ErrorDetail(BaseModel):
+    """Standardized description of an API error."""
+
+    code: str = Field(description="Machine-readable error identifier")
+    message: str = Field(description="Human readable explanation of the failure")
+    field: str | None = Field(
+        default=None, description="Optional field name that triggered the error"
+    )
+
+
+class ErrorResponseEnvelope(BaseModel):
+    """Canonical envelope for API error responses."""
+
+    request_id: str = Field(description="Correlated identifier for this request")
+    error: ErrorDetail
+    meta: dict[str, Any] | None = Field(
+        default=None, description="Optional metadata describing the error context"
+    )
+
+
+def resolve_request_id(request: Request) -> str:
+    """Derive or create a stable request identifier for downstream logging."""
+
+    existing = getattr(request.state, "request_id", None)
+    if isinstance(existing, str) and existing:
+        return existing
+
+    header_id = request.headers.get("x-request-id") or request.headers.get(
+        "x-correlation-id"
+    )
+    request_id = header_id or str(uuid4())
+    request.state.request_id = request_id
+    return request_id
 
 
 class UserRegistrationRequest(BaseModel):
@@ -264,6 +302,26 @@ class ReviewResponse(_ORMBaseModel):
     created_at: datetime
 
 
+class CursorPagination(BaseModel):
+    """Cursor-based pagination metadata."""
+
+    limit: int = Field(ge=1, le=100, description="Maximum number of records returned")
+    cursor: datetime | None = Field(
+        default=None,
+        description="Cursor supplied by the client for this page",
+    )
+    next_cursor: datetime | None = Field(
+        default=None,
+        description="Cursor to request the next page of results",
+    )
+    total: int = Field(ge=0, description="Total records available for the query")
+
+
+class ReviewCollectionResponse(BaseModel):
+    """Paginated container for kitchen reviews."""
+
+    items: list[ReviewResponse]
+    pagination: CursorPagination
 class ReviewListResponse(BaseModel):
     """Cursor paginated list of kitchen reviews."""
 

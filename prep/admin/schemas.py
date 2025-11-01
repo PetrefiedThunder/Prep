@@ -11,6 +11,21 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from prep.models.db import CertificationReviewStatus, ModerationStatus
+
+
+class PaginationMeta(BaseModel):
+    """Metadata describing a paginated response."""
+
+    limit: int = Field(default=20, ge=1, le=100)
+    cursor: datetime | None = Field(
+        default=None,
+        description="Cursor supplied by the client for this page",
+    )
+    next_cursor: datetime | None = Field(
+        default=None,
+        description="Cursor to fetch the next page of data",
+    )
+    total: int = Field(ge=0)
 from prep.platform.schemas import CursorPageMeta
 
 

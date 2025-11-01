@@ -65,8 +65,16 @@ paths:
                 $ref: '#/components/schemas/Booking'
         '400':
           description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseEnvelope'
         '409':
           description: Kitchen not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseEnvelope'
 
   /api/bookings/{id}:
     get:
@@ -111,8 +119,16 @@ paths:
           description: Refund processed
         '400':
           description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseEnvelope'
         '404':
           description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseEnvelope'
 
   /webhooks/stripe:
     post:
@@ -130,6 +146,8 @@ paths:
 
   /api/v1/platform/reviews/kitchens/{kitchen_id}:
     get:
+      tags: [Listings]
+      summary: List reviews for a kitchen
       tags: [Reviews]
       summary: List reviews for a kitchen
       description: Cursor-paginated list of customer reviews for the specified kitchen.
@@ -145,6 +163,8 @@ paths:
           required: false
           schema:
             type: string
+            format: date-time
+          description: Cursor returned by a previous request
           description: Cursor from a previous response's pagination metadata.
         - name: limit
           in: query
@@ -153,6 +173,20 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
+          description: Maximum number of reviews to return
+      responses:
+        '200':
+          description: Paginated reviews
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewCollection'
+        '404':
+          description: Kitchen not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseEnvelope'
           description: Maximum number of reviews to return.
       responses:
         '200':
@@ -308,6 +342,14 @@ paths:
   /v1:
     get:
       tags: [Health]
+      summary: API versioning guidance
+      responses:
+        '200':
+          description: Version metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionMetadata'
       summary: API version guidance
       responses:
         '200':
@@ -403,6 +445,16 @@ components:
       properties:
         code:
           type: string
+          description: Machine readable error identifier
+        message:
+          type: string
+          description: Human readable error description
+        field:
+          type: string
+          nullable: true
+          description: Optional field associated with the error
+
+    ErrorResponseEnvelope:
         message:
           type: string
         target:
@@ -419,6 +471,33 @@ components:
       properties:
         request_id:
           type: string
+          description: Correlated identifier for the request
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+        meta:
+          type: object
+          nullable: true
+          additionalProperties: true
+
+    CursorPagination:
+      type: object
+      required: [limit, total]
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        cursor:
+          type: string
+          format: date-time
+          nullable: true
+        next_cursor:
+          type: string
+          format: date-time
+          nullable: true
+        total:
+          type: integer
+          minimum: 0
         error:
           $ref: '#/components/schemas/ErrorDetail'
 
@@ -445,6 +524,31 @@ components:
         id:
           type: string
           format: uuid
+        booking_id:
+          type: string
+          format: uuid
+        kitchen_id:
+          type: string
+          format: uuid
+        host_id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        rating:
+          type: number
+          format: float
+        comment:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    ReviewCollection:
+      type: object
+      required: [items, pagination]
         rating:
           type: number
           format: float
@@ -528,6 +632,33 @@ components:
         items:
           type: array
           items:
+            $ref: '#/components/schemas/Review'
+        pagination:
+          $ref: '#/components/schemas/CursorPagination'
+
+    VersionMetadata:
+      type: object
+      required: [current_version, recommended_base_path, sunset, deprecation_policy]
+      properties:
+        current_version:
+          type: string
+        recommended_base_path:
+          type: string
+        sunset:
+          type: string
+          description: ISO8601 sunset timestamp
+        deprecation_policy:
+          type: string
+          description: Narrative explaining version deprecation expectations
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Unique key guaranteeing idempotent POST and PUT requests
             $ref: '#/components/schemas/AdminCertificationSummary'
         pagination:
           $ref: '#/components/schemas/CursorPageMeta'

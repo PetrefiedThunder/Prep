@@ -1,13 +1,10 @@
-"""City fee endpoints exposed via the API gateway."""
+"""Backward-compatible shim importing the city fee router."""
 
 from __future__ import annotations
 
-import hashlib
-import json
-from functools import lru_cache
-from importlib import import_module
-from typing import Any
+from api.routes.city_fees import router
 
+__all__ = ["router"]
 from fastapi import APIRouter, Header, HTTPException, Response
 from __future__ import annotations
 
@@ -123,23 +120,3 @@ def get_city_fees(city: str) -> Dict[str, Any]:
     schedule: FeeSchedule = module.make_fee_schedule()
     validation: FeeValidationResult = validate_fee_schedule(schedule)
 
-    return {
-        "jurisdiction": schedule.jurisdiction,
-        "paperwork": schedule.paperwork,
-        "fees": [fee.dict() for fee in schedule.fees],
-        "totals": {
-            "one_time_cents": schedule.total_one_time_cents,
-            "recurring_annualized_cents": schedule.total_recurring_annualized_cents,
-            "incremental_fee_count": validation.incremental_fee_count,
-        },
-        "validation": {
-            "is_valid": validation.is_valid,
-            "issues": validation.issues,
-        },
-    }
-    body = json.dumps(payload)
-    return Response(
-        content=body,
-        media_type="application/json",
-        headers={"ETag": f'"{etag}"'},
-    )
