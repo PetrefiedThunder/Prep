@@ -1,5 +1,88 @@
 openapi: 3.1.0
 info:
+  title: Prep Public API
+  version: 0.1.0
+servers: [{ url: https://api.prep.example }]
+security:
+  - ApiKeyAuth: []
+  - OAuth2: [read]
+components:
+  securitySchemes:
+    ApiKeyAuth: { type: apiKey, in: header, name: X-API-Key }
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.prep.example/oauth/authorize
+          tokenUrl: https://auth.prep.example/oauth/token
+          scopes: { read: Read access, write: Write access }
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code: { type: string, example: VALIDATION_ERROR }
+            message: { type: string }
+            request_id: { type: string }
+            field_errors:
+              type: array
+              items: { type: object, properties: { field: { type: string }, message: { type: string } } }
+paths:
+  /city/{city}/fees:
+    get:
+      parameters: [{ name: city, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              examples:
+                sample:
+                  value:
+                    jurisdiction: san_francisco
+                    paperwork: ["Application Form A-FOOD","Plan Review Checklist PRC-12"]
+                    fees:
+                      - { name: "Food Facility Plan Review", amount_cents: 45000, kind: one_time }
+                      - { name: "Annual Health Permit", amount_cents: 98000, kind: recurring, cadence: annual }
+                      - { name: "Reinspection Fee", amount_cents: 30000, kind: incremental, unit: per_reinspection }
+                    totals:
+                      one_time_cents: 45000
+                      recurring_annualized_cents: 98000
+                      incremental_fee_count: 1
+                    validation: { is_valid: true, issues: [] }
+        "404": { description: Not found }
+  /city/{city}/requirements:
+    get:
+      parameters: [{ name: city, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              examples:
+                sample:
+                  value:
+                    jurisdiction: san_francisco
+                    version: v1
+                    requirements:
+                      - { id: SFDPH-FOOD-PERMIT, title: Food Facility Permit, applies_to: food_business, req_type: permit, authority: "SF Department of Public Health", severity: blocking }
+                      - { id: SF-SHARED-KITCHEN-OP, title: Shared Kitchen Operational Requirements, applies_to: kitchen_operator, req_type: inspection, authority: "SF Department of Public Health", severity: conditional }
+                    change_candidates:
+                      - { id: SF-LOW-RISK-FEE-REDUCTION, title: Reduce annual permit fee for low-risk shared kitchens, action: lobby_exemption, impact: high }
+                    validation:
+                      is_valid: true
+                      issues: []
+                      counts_by_party: { kitchen_operator: 1, food_business: 1, marketplace_operator: 0, platform_developer: 0 }
+                      blocking_count: 1
+                      has_fee_links: false
+        "404": { description: Not found }
+  /city/{city}/requirements/estimate:
+    post:
+      parameters: [{ name: city, in: path, required: true, schema: { type: string } }]
   title: Prep Compliance API
   version: 1.0.0
   description: |
@@ -105,6 +188,38 @@ paths:
         content:
           application/json:
             schema:
+              type: object
+              properties:
+                seats: { type: integer, minimum: 0 }
+                sqft: { type: integer, minimum: 0 }
+                inspections_per_year: { type: integer, minimum: 0 }
+                reinspections_per_year: { type: integer, minimum: 0 }
+                events_per_year: { type: integer, minimum: 0 }
+                employees: { type: integer, minimum: 0 }
+                party: { type: string, enum: [food_business, kitchen_operator, marketplace_operator, platform_developer] }
+      responses:
+        "200": { description: OK }
+        "404": { description: Not found }
+  /city/{city}/fees/summary:
+    get:
+      parameters:
+        - { name: city, in: path, required: true, schema: { type: string } }
+        - { name: If-None-Match, in: header, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          headers: { ETag: { schema: { type: string } } }
+        "304": { description: Not Modified }
+  /city/{city}/requirements/summary:
+    get:
+      parameters:
+        - { name: city, in: path, required: true, schema: { type: string } }
+        - { name: If-None-Match, in: header, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          headers: { ETag: { schema: { type: string } } }
+        "304": { description: Not Modified }
               $ref: '#/components/schemas/RequirementEstimateRequest'
       responses:
         '200':

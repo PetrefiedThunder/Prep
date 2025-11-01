@@ -1,3 +1,4 @@
+Read-only console for partners/regulators to view requirements, fees, and policy signals per city.
 # City Console
 
 City Console is a lightweight Next.js dashboard for operations and policy teams. It surfaces the latest policy decisions, fee updates, and required compliance documents for supported Prep jurisdictions.
