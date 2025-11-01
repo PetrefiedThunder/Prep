@@ -1,6 +1,0 @@
-id: fixture_city
-compliance:
-  business_registration:
-    expiration_grace_days: 0
-  health_permit: {}
-  noise: {}
