@@ -31,6 +31,8 @@ from .orm import (
     SubscriptionStatus,
     Supplier,
     TaxRecord,
+    FeeSchedule,
+    RegRequirement,
     User,
     UserRole,
 )
@@ -62,6 +64,8 @@ __all__ = [
     "SubscriptionStatus",
     "Supplier",
     "TaxRecord",
+    "FeeSchedule",
+    "RegRequirement",
     "User",
     "UserRole",
     "engine",

@@ -78,6 +78,11 @@ class UserRole(str, enum.Enum):
     ADMIN = "admin"
     HOST = "host"
     CUSTOMER = "customer"
+    OPERATOR_ADMIN = "operator_admin"
+    KITCHEN_MANAGER = "kitchen_manager"
+    FOOD_BUSINESS_ADMIN = "food_business_admin"
+    CITY_REVIEWER = "city_reviewer"
+    SUPPORT_ANALYST = "support_analyst"
 
 
 class SubscriptionStatus(str, enum.Enum):
@@ -207,6 +212,39 @@ class DeliveryStatus(str, enum.Enum):
     RETURNED = "returned"
 
 
+class DocumentUploadStatus(str, enum.Enum):
+    STORED = "stored"
+    PROCESSING = "processing"
+    VERIFIED = "verified"
+    REJECTED = "rejected"
+
+
+class DocumentOCRStatus(str, enum.Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class PermitStatus(str, enum.Enum):
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    PENDING = "pending"
+    REVOKED = "revoked"
+
+
+class CheckoutPaymentStatus(str, enum.Enum):
+    PENDING = "pending"
+    SUCCEEDED = "succeeded"
+    REQUIRES_ACTION = "requires_action"
+    REFUND_REQUESTED = "refund_requested"
+    REFUNDED = "refunded"
+    FAILED = "failed"
+class IdentityProviderType(str, enum.Enum):
+    OIDC = "oidc"
+    SAML = "saml"
+
+
 class User(TimestampMixin, Base):
     __tablename__ = "users"
 
@@ -229,6 +267,7 @@ class User(TimestampMixin, Base):
 
 
     pilot_zip_code: Mapped[str | None] = mapped_column(String(20))
+    rbac_roles: Mapped[list[str]] = mapped_column(JSON, default=list)
     subscription_status: Mapped[SubscriptionStatus] = mapped_column(
         Enum(SubscriptionStatus), default=SubscriptionStatus.INACTIVE, nullable=False
     )
@@ -277,6 +316,110 @@ class User(TimestampMixin, Base):
     api_usage_events: Mapped[List["APIUsageEvent"]] = relationship(
         "APIUsageEvent", back_populates="user", cascade="all, delete-orphan"
     )
+    identities: Mapped[List["UserIdentity"]] = relationship(
+        "UserIdentity", back_populates="user", cascade="all, delete-orphan"
+    )
+    api_keys: Mapped[List["APIKey"]] = relationship(
+        "APIKey", back_populates="user", cascade="all, delete-orphan"
+    )
+    refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
+        "RefreshToken", back_populates="user", cascade="all, delete-orphan"
+    )
+    identities: Mapped[List["UserIdentity"]] = relationship(
+        "UserIdentity", back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class IdentityProvider(TimestampMixin, Base):
+    __tablename__ = "identity_providers"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    slug: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    provider_type: Mapped[IdentityProviderType] = mapped_column(
+        Enum(IdentityProviderType), nullable=False
+    )
+    issuer: Mapped[str] = mapped_column(String(512), nullable=False)
+    metadata_url: Mapped[str | None] = mapped_column(String(1024))
+    client_id: Mapped[str | None] = mapped_column(String(255))
+    client_secret: Mapped[str | None] = mapped_column(String(255))
+    jwks_url: Mapped[str | None] = mapped_column(String(1024))
+    sso_url: Mapped[str | None] = mapped_column(String(1024))
+    acs_url: Mapped[str | None] = mapped_column(String(1024))
+    certificate: Mapped[str | None] = mapped_column(Text)
+    settings: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    identities: Mapped[List["UserIdentity"]] = relationship(
+        "UserIdentity", back_populates="provider", cascade="all, delete-orphan"
+    )
+
+
+class UserIdentity(TimestampMixin, Base):
+    __tablename__ = "user_identities"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    provider_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("identity_providers.id", ondelete="CASCADE"), nullable=False
+    )
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255))
+    full_name: Mapped[str | None] = mapped_column(String(255))
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attributes: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
+
+    user: Mapped[User] = relationship("User", back_populates="identities")
+    provider: Mapped[IdentityProvider] = relationship(
+        "IdentityProvider", back_populates="identities"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("provider_id", "subject", name="uq_user_identity_subject"),
+    )
+
+
+class APIKey(TimestampMixin, Base):
+    __tablename__ = "api_keys"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    prefix: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    hashed_secret: Mapped[str] = mapped_column(String(128), nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    user: Mapped[User] = relationship("User", back_populates="api_keys")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_api_key_user_name"),
+    )
+
+
+class RefreshToken(TimestampMixin, Base):
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    device_fingerprint: Mapped[str | None] = mapped_column(String(255))
+    ip_address: Mapped[str | None] = mapped_column(String(64))
+    user_agent: Mapped[str | None] = mapped_column(String(255))
+
+    user: Mapped[User] = relationship("User", back_populates="refresh_tokens")
 
 
 class BusinessProfile(TimestampMixin, Base):
@@ -418,6 +561,7 @@ class Kitchen(TimestampMixin, Base):
     )
     pos_orders: Mapped[List["POSOrder"]] = relationship(
         "POSOrder", back_populates="kitchen", cascade="all, delete-orphan"
+    )
 
     integrations: Mapped[List["Integration"]] = relationship(
         "Integration",
@@ -469,7 +613,7 @@ class POSIntegration(TimestampMixin, Base):
     status: Mapped[POSIntegrationStatus] = mapped_column(
         Enum(POSIntegrationStatus), default=POSIntegrationStatus.ACTIVE, nullable=False
     )
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON)
 
     kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="pos_integrations")
     transactions: Mapped[List["POSTransaction"]] = relationship(
@@ -547,8 +691,13 @@ class POSOrder(TimestampMixin, Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("provider", "external_id", name="uq_pos_order_provider_external"),
+        UniqueConstraint(
+            "provider", "external_id", name="uq_pos_order_provider_external"
+        ),
         Index("ix_pos_orders_kitchen_closed_at", "kitchen_id", "closed_at"),
+    )
+
+
 class Supplier(TimestampMixin, Base):
     """Vendors that provide inventory to Prep kitchens."""
 
@@ -678,6 +827,9 @@ class InventoryTransfer(TimestampMixin, Base):
     )
     approved_by_host: Mapped[User | None] = relationship(
         "User", foreign_keys=[approved_by_host_id], lazy="joined"
+    )
+
+
 class Integration(TimestampMixin, Base):
     __tablename__ = "integrations"
 
@@ -695,7 +847,9 @@ class Integration(TimestampMixin, Base):
     status: Mapped[IntegrationStatus] = mapped_column(
         Enum(IntegrationStatus), default=IntegrationStatus.ACTIVE, nullable=False
     )
-    metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSON, default=dict, nullable=False
+    )
 
     owner: Mapped[User] = relationship(
         "User",
@@ -760,7 +914,7 @@ class Booking(TimestampMixin, Base):
     reviews: Mapped[List["Review"]] = relationship(
         "Review", back_populates="booking", cascade="all, delete-orphan"
     )
-    sublease_contract: Mapped["SubleaseContract" | None] = relationship(
+    sublease_contract: Mapped[SubleaseContract | None] = relationship(
         "SubleaseContract", back_populates="booking", uselist=False
     )
     ledger_entries: Mapped[List["LedgerEntry"]] = relationship(
@@ -786,7 +940,9 @@ class APIUsageEvent(TimestampMixin, Base):
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(
+        "metadata", JSON, default=dict
+    )
 
     user: Mapped["User"] = relationship("User", back_populates="api_usage_events")
 
@@ -1218,9 +1374,243 @@ class DeliveryComplianceEvent(TimestampMixin, Base):
     verification_type: Mapped[str] = mapped_column(String(64), nullable=False)
     verification_reference: Mapped[str | None] = mapped_column(String(255))
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(
+        "metadata", JSON, default=dict
+    )
 
     delivery: Mapped[DeliveryOrder] = relationship("DeliveryOrder", back_populates="compliance_events")
+
+
+class BusinessProfile(TimestampMixin, Base):
+    """Represents a food business progressing through Prep onboarding."""
+
+    __tablename__ = "business_profiles"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    owner_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    kitchen_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="SET NULL"), nullable=True
+    )
+    legal_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    doing_business_as: Mapped[str | None] = mapped_column(String(255))
+    country: Mapped[str] = mapped_column(String(2), default="US", nullable=False)
+    region: Mapped[str | None] = mapped_column(String(64))
+    readiness_stage: Mapped[str] = mapped_column(String(64), default="not_ready", nullable=False)
+    readiness_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    readiness_summary: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+
+    owner: Mapped[User] = relationship("User")
+    kitchen: Mapped["Kitchen" | None] = relationship("Kitchen")
+    documents: Mapped[List["DocumentUpload"]] = relationship(
+        "DocumentUpload", back_populates="business", cascade="all, delete-orphan"
+    )
+    permits: Mapped[List["Permit"]] = relationship(
+        "Permit", back_populates="business", cascade="all, delete-orphan"
+    )
+    readiness_snapshots: Mapped[List["BusinessReadinessSnapshot"]] = relationship(
+        "BusinessReadinessSnapshot", back_populates="business", cascade="all, delete-orphan"
+    )
+    payments: Mapped[List["CheckoutPayment"]] = relationship(
+        "CheckoutPayment", back_populates="business"
+    )
+
+
+class DocumentUpload(TimestampMixin, Base):
+    """Stores uploads used for compliance verification and OCR extraction."""
+
+    __tablename__ = "document_uploads"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    business_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("business_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    uploader_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    document_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str | None] = mapped_column(String(120))
+    storage_bucket: Mapped[str] = mapped_column(String(120), nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[DocumentUploadStatus] = mapped_column(
+        Enum(DocumentUploadStatus), default=DocumentUploadStatus.STORED, nullable=False
+    )
+    ocr_status: Mapped[DocumentOCRStatus] = mapped_column(
+        Enum(DocumentOCRStatus), default=DocumentOCRStatus.PENDING, nullable=False
+    )
+    ocr_text: Mapped[str | None] = mapped_column(Text)
+    ocr_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="documents")
+    uploader: Mapped[User | None] = relationship("User")
+
+
+class Permit(TimestampMixin, Base):
+    """Permit or license tracked within the permit wallet."""
+
+    __tablename__ = "permits"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    business_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("business_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    permit_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    permit_number: Mapped[str | None] = mapped_column(String(120), index=True)
+    issuing_authority: Mapped[str | None] = mapped_column(String(255))
+    jurisdiction: Mapped[str | None] = mapped_column(String(120))
+    status: Mapped[PermitStatus] = mapped_column(
+        Enum(PermitStatus), default=PermitStatus.PENDING, nullable=False
+    )
+    issued_on: Mapped[date | None] = mapped_column(Date)
+    expires_on: Mapped[date | None] = mapped_column(Date)
+    webhook_url: Mapped[str | None] = mapped_column(String(255))
+    last_webhook_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    document_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("document_uploads.id", ondelete="SET NULL"), nullable=True
+    )
+    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+
+    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="permits")
+    document: Mapped[DocumentUpload | None] = relationship("DocumentUpload")
+
+
+class BusinessReadinessSnapshot(TimestampMixin, Base):
+    """Historical readiness snapshot for auditing gating decisions."""
+
+    __tablename__ = "business_readiness_snapshots"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    business_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("business_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    overall_score: Mapped[float] = mapped_column(Float, nullable=False)
+    stage: Mapped[str] = mapped_column(String(64), nullable=False)
+    checklist: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    gating_requirements: Mapped[list[str]] = mapped_column(JSON, default=list)
+    outstanding_actions: Mapped[list[str]] = mapped_column(JSON, default=list)
+    computed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+
+    business: Mapped[BusinessProfile] = relationship(
+        "BusinessProfile", back_populates="readiness_snapshots"
+    )
+
+
+class CheckoutPayment(TimestampMixin, Base):
+    """Checkout session persisted for bookings and regulatory fees."""
+
+    __tablename__ = "checkout_payments"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    business_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("business_profiles.id", ondelete="SET NULL"), nullable=True
+    )
+    booking_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("bookings.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[CheckoutPaymentStatus] = mapped_column(
+        Enum(CheckoutPaymentStatus), default=CheckoutPaymentStatus.PENDING, nullable=False
+    )
+    currency: Mapped[str] = mapped_column(String(3), default="usd", nullable=False)
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    line_items: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    payment_provider: Mapped[str] = mapped_column(String(64), default="stripe", nullable=False)
+    provider_reference: Mapped[str | None] = mapped_column(String(255))
+    receipt_url: Mapped[str | None] = mapped_column(String(255))
+    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    refund_reason: Mapped[str | None] = mapped_column(String(255))
+    refund_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    business: Mapped[BusinessProfile | None] = relationship(
+        "BusinessProfile", back_populates="payments"
+    )
+    booking: Mapped[Booking | None] = relationship("Booking")
+class IdentityProviderType(str, enum.Enum):
+    OIDC = "oidc"
+    SAML = "saml"
+
+
+class IdentityProvider(TimestampMixin, Base):
+    __tablename__ = "identity_providers"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    slug: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    provider_type: Mapped[IdentityProviderType] = mapped_column(
+        Enum(IdentityProviderType), nullable=False
+    )
+    issuer: Mapped[str | None] = mapped_column(String(255))
+    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    settings: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    last_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user_links: Mapped[List["UserIdentity"]] = relationship(
+        "UserIdentity", back_populates="provider", cascade="all, delete-orphan"
+    )
+
+
+class UserIdentity(TimestampMixin, Base):
+    __tablename__ = "user_identities"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    provider_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("identity_providers.id", ondelete="CASCADE"), nullable=False
+    )
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255))
+    raw_attributes: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    last_sign_in_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[User] = relationship("User", back_populates="identities")
+    provider: Mapped[IdentityProvider] = relationship(
+        "IdentityProvider", back_populates="user_links"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("provider_id", "subject", name="uq_user_identity_provider_subject"),
+    )
+
+
+class APIKey(TimestampMixin, Base):
+    __tablename__ = "api_keys"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    key_prefix: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
+    hashed_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[User] = relationship("User", back_populates="api_keys")
+
+
+class RefreshToken(TimestampMixin, Base):
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[User] = relationship("User", back_populates="refresh_tokens")
 
 
 __all__ = [
@@ -1251,10 +1641,24 @@ __all__ = [
     "RegDoc",
     "User",
     "UserRole",
+    "UserIdentity",
+    "IdentityProvider",
+    "IdentityProviderType",
+    "APIKey",
+    "RefreshToken",
     "COIDocument",
     "DeliveryOrder",
     "DeliveryStatusEvent",
     "DeliveryComplianceEvent",
     "DeliveryStatus",
     "DeliveryProvider",
+    "BusinessProfile",
+    "DocumentUpload",
+    "DocumentUploadStatus",
+    "DocumentOCRStatus",
+    "Permit",
+    "PermitStatus",
+    "BusinessReadinessSnapshot",
+    "CheckoutPayment",
+    "CheckoutPaymentStatus",
 ]

@@ -68,7 +68,14 @@ _safe_import(
 )
 _safe_import(
     ".models",
-    ["InsuranceRequirement", "RegDoc", "Regulation", "RegulationSource"],
+    [
+        "InsuranceRequirement",
+        "RegDoc",
+        "RegRequirement",
+        "FeeSchedule",
+        "Regulation",
+        "RegulationSource",
+    ],
 )
 _safe_import(
     ".monitoring.changes",
@@ -94,6 +101,10 @@ _safe_import(
 _safe_import(".scheduler", ["RegulatoryScheduler"])
 _safe_import(".scraper", ["RegulatoryScraper"])
 _safe_import(".loader", ["load_regdoc"])
+_safe_import(
+    ".writer",
+    ["write_fee_schedule", "write_reg_requirements"],
+)
 
 __all__ = [
     "ComplianceAnalysis",
@@ -133,4 +144,8 @@ __all__ = [
     "Requirement",
     "CompliancePredictor",
     "PredictionResult",
+    "RegRequirement",
+    "FeeSchedule",
+    "write_fee_schedule",
+    "write_reg_requirements",
 ]
