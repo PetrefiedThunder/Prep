@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from prep.admin.dependencies import get_current_admin
+from prep.api.errors import http_exception
 from prep.admin.schemas import (
     CertificationDecisionRequest,
     CertificationDecisionResponse,
@@ -27,13 +28,13 @@ from prep.admin.schemas import (
     ModerationDecision,
     ModerationRequest,
     ModerationResponse,
-    PaginationMeta,
     SuspendUserRequest,
     UserListResponse,
     UserStats,
     UserSummary,
 )
 from prep.api.errors import http_error
+from prep.platform.schemas import CursorPageMeta
 from prep.database import get_db
 from prep.models.admin import AdminUser
 from prep.models.db import (
@@ -125,6 +126,30 @@ def _build_certification_summary(document: CertificationDocument) -> Certificati
 async def _get_kitchen_or_404(
     request: Request, db: AsyncSession, kitchen_id: UUID
 ) -> Kitchen:
+def _parse_entity_cursor(
+    request: Request,
+    cursor: str | None,
+    *,
+    code: str,
+    message: str,
+) -> tuple[datetime, UUID] | None:
+    if cursor is None:
+        return None
+    try:
+        timestamp_raw, identifier_raw = cursor.split("::", 1)
+        timestamp = datetime.fromisoformat(timestamp_raw)
+        identifier = UUID(identifier_raw)
+    except (ValueError, AttributeError):
+        raise http_exception(
+            request,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code=code,
+            message=message,
+        )
+    return timestamp, identifier
+
+
+async def _get_kitchen_or_404(request: Request, db: AsyncSession, kitchen_id: UUID) -> Kitchen:
     """Fetch a kitchen with related host and certifications or raise 404."""
 
     result = await db.execute(
@@ -141,6 +166,10 @@ async def _get_kitchen_or_404(
             request,
             status_code=status.HTTP_404_NOT_FOUND,
             code="admin.kitchen_not_found",
+        raise http_exception(
+            request,
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="admin.kitchens.not_found",
             message="Kitchen not found",
         )
     return kitchen
@@ -150,6 +179,11 @@ async def _get_kitchen_or_404(
 async def get_pending_kitchens(
     *,
     cursor: datetime | None = Query(default=None, description="Cursor from the previous page"),
+    request: Request,
+    cursor: str | None = Query(
+        default=None,
+        description="Cursor returned from a previous page",
+    ),
     limit: int = Query(20, ge=1, le=100),
     search: str | None = Query(default=None, description="Search by kitchen or host name"),
     owner_email: str | None = Query(default=None),
@@ -175,15 +209,6 @@ async def get_pending_kitchens(
             )
         )
 
-    total_stmt = (
-        select(func.count())
-        .select_from(Kitchen)
-        .join(User)
-        .where(and_(*filters))
-    )
-    result = await db.execute(total_stmt)
-    total = result.scalar_one()
-
     query = (
         select(Kitchen)
         .options(joinedload(Kitchen.host))
@@ -193,11 +218,33 @@ async def get_pending_kitchens(
     )
     if cursor is not None:
         query = query.where(Kitchen.submitted_at < cursor)
+        .order_by(Kitchen.submitted_at.desc(), Kitchen.id.desc())
+    )
+
+    parsed_cursor = _parse_entity_cursor(
+        request,
+        cursor,
+        code="admin.kitchens.invalid_cursor",
+        message="Cursor must be formatted as <ISO timestamp>::<kitchen id>",
+    )
+    if parsed_cursor:
+        submitted_cursor, kitchen_cursor_id = parsed_cursor
+        query = query.where(
+            or_(
+                Kitchen.submitted_at < submitted_cursor,
+                and_(Kitchen.submitted_at == submitted_cursor, Kitchen.id < kitchen_cursor_id),
+            )
+        )
+
     query = query.limit(limit + 1)
     result = await db.execute(query)
     fetched: Sequence[Kitchen] = result.scalars().unique().all()
     kitchens = list(fetched[:limit])
     next_cursor = kitchens[-1].submitted_at if len(fetched) > limit and kitchens else None
+
+    has_more = len(kitchens) > limit
+    if has_more:
+        kitchens = kitchens[:limit]
 
     items = [_build_kitchen_summary(kitchen) for kitchen in kitchens]
     pagination = PaginationMeta(
@@ -205,6 +252,16 @@ async def get_pending_kitchens(
         cursor=cursor,
         next_cursor=next_cursor,
         total=total,
+    next_cursor = None
+    if items:
+        tail = kitchens[-1]
+        next_cursor = f"{tail.submitted_at.isoformat()}::{tail.id}"
+
+    pagination = CursorPageMeta(
+        cursor=cursor,
+        next_cursor=next_cursor,
+        limit=limit,
+        has_more=has_more,
     )
     return KitchenListResponse(items=items, pagination=pagination)
 
@@ -243,6 +300,10 @@ async def moderate_kitchen(
             request,
             status_code=status.HTTP_400_BAD_REQUEST,
             code="admin.kitchen_already_moderated",
+        raise http_exception(
+            request,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="admin.kitchens.already_moderated",
             message="Kitchen already moderated",
         )
 
@@ -330,6 +391,11 @@ async def get_kitchen_moderation_stats(
 async def get_pending_certifications(
     *,
     cursor: datetime | None = Query(default=None, description="Cursor from the previous page"),
+    request: Request,
+    cursor: str | None = Query(
+        default=None,
+        description="Cursor returned from a previous certification page",
+    ),
     limit: int = Query(20, ge=1, le=100),
     document_type: str | None = Query(default=None),
     search: str | None = Query(default=None, description="Search by kitchen name"),
@@ -347,14 +413,6 @@ async def get_pending_certifications(
         pattern = f"%{search.lower()}%"
         filters.append(func.lower(Kitchen.name).like(pattern))
 
-    total_stmt = (
-        select(func.count())
-        .select_from(CertificationDocument)
-        .join(Kitchen)
-        .where(and_(*filters))
-    )
-    total = (await db.execute(total_stmt)).scalar_one()
-
     query = (
         select(CertificationDocument)
         .options(joinedload(CertificationDocument.kitchen))
@@ -364,11 +422,36 @@ async def get_pending_certifications(
     )
     if cursor is not None:
         query = query.where(CertificationDocument.submitted_at > cursor)
+        .order_by(CertificationDocument.submitted_at.asc(), CertificationDocument.id.asc())
+    )
+
+    parsed_cursor = _parse_entity_cursor(
+        request,
+        cursor,
+        code="admin.certifications.invalid_cursor",
+        message="Cursor must be formatted as <ISO timestamp>::<certification id>",
+    )
+    if parsed_cursor:
+        submitted_cursor, certification_cursor_id = parsed_cursor
+        query = query.where(
+            or_(
+                CertificationDocument.submitted_at > submitted_cursor,
+                and_(
+                    CertificationDocument.submitted_at == submitted_cursor,
+                    CertificationDocument.id > certification_cursor_id,
+                ),
+            )
+        )
+
     query = query.limit(limit + 1)
     result = await db.execute(query)
     fetched: Sequence[CertificationDocument] = result.scalars().unique().all()
     documents = list(fetched[:limit])
     next_cursor = documents[-1].submitted_at if len(fetched) > limit and documents else None
+
+    has_more = len(documents) > limit
+    if has_more:
+        documents = documents[:limit]
 
     items = [_build_certification_summary(doc) for doc in documents]
     pagination = PaginationMeta(
@@ -376,6 +459,16 @@ async def get_pending_certifications(
         cursor=cursor,
         next_cursor=next_cursor,
         total=total,
+    next_cursor = None
+    if items:
+        tail = documents[-1]
+        next_cursor = f"{tail.submitted_at.isoformat()}::{tail.id}"
+
+    pagination = CursorPageMeta(
+        cursor=cursor,
+        next_cursor=next_cursor,
+        limit=limit,
+        has_more=has_more,
     )
     return CertificationListResponse(items=items, pagination=pagination)
 
@@ -403,6 +496,10 @@ async def verify_certification(
             request,
             status_code=status.HTTP_404_NOT_FOUND,
             code="admin.certification_not_found",
+        raise http_exception(
+            request,
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="admin.certifications.not_found",
             message="Certification not found",
         )
 
@@ -411,6 +508,10 @@ async def verify_certification(
             request,
             status_code=status.HTTP_400_BAD_REQUEST,
             code="admin.certification_already_reviewed",
+        raise http_exception(
+            request,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="admin.certifications.already_reviewed",
             message="Certification already reviewed",
         )
 
@@ -427,6 +528,12 @@ async def verify_certification(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 code="admin.certification_rejection_reason_missing",
                 message="Rejection reason is required when rejecting a certification",
+            raise http_exception(
+                request,
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                code="admin.certifications.rejection_reason_required",
+                message="Rejection reason is required when rejecting a certification",
+                target="rejection_reason",
             )
         document.status = CertificationReviewStatus.REJECTED
         document.rejection_reason = payload.rejection_reason
@@ -492,6 +599,11 @@ async def get_certification_stats(
 async def list_users(
     *,
     cursor: datetime | None = Query(default=None, description="Cursor from the previous page"),
+    request: Request,
+    cursor: str | None = Query(
+        default=None,
+        description="Cursor returned from a previous user listing request",
+    ),
     limit: int = Query(20, ge=1, le=100),
     role: UserRole | None = Query(default=None),
     include_suspended: bool = Query(False),
@@ -514,23 +626,39 @@ async def list_users(
             or_(func.lower(User.email).like(pattern), func.lower(User.full_name).like(pattern))
         )
 
-    stmt = select(func.count()).select_from(User)
-    if filters:
-        stmt = stmt.where(and_(*filters))
-    total = (await db.execute(stmt)).scalar_one()
-
     query = select(User)
     if filters:
         query = query.where(and_(*filters))
     query = query.order_by(User.created_at.desc())
     if cursor is not None:
         query = query.where(User.created_at < cursor)
+    query = query.order_by(User.created_at.desc(), User.id.desc())
+
+    parsed_cursor = _parse_entity_cursor(
+        request,
+        cursor,
+        code="admin.users.invalid_cursor",
+        message="Cursor must be formatted as <ISO timestamp>::<user id>",
+    )
+    if parsed_cursor:
+        created_cursor, user_cursor_id = parsed_cursor
+        query = query.where(
+            or_(
+                User.created_at < created_cursor,
+                and_(User.created_at == created_cursor, User.id < user_cursor_id),
+            )
+        )
+
     query = query.limit(limit + 1)
 
     result = await db.execute(query)
     fetched: Sequence[User] = result.scalars().all()
     users = list(fetched[:limit])
     next_cursor = users[-1].created_at if len(fetched) > limit and users else None
+
+    has_more = len(users) > limit
+    if has_more:
+        users = users[:limit]
 
     items = [
         UserSummary(
@@ -551,6 +679,16 @@ async def list_users(
         cursor=cursor,
         next_cursor=next_cursor,
         total=total,
+    next_cursor = None
+    if users:
+        tail = users[-1]
+        next_cursor = f"{tail.created_at.isoformat()}::{tail.id}"
+
+    pagination = CursorPageMeta(
+        cursor=cursor,
+        next_cursor=next_cursor,
+        limit=limit,
+        has_more=has_more,
     )
     return UserListResponse(items=items, pagination=pagination)
 
@@ -574,6 +712,10 @@ async def suspend_user(
             request,
             status_code=status.HTTP_404_NOT_FOUND,
             code="admin.user_not_found",
+        raise http_exception(
+            request,
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="admin.users.not_found",
             message="User not found",
         )
 
@@ -582,6 +724,10 @@ async def suspend_user(
             request,
             status_code=status.HTTP_400_BAD_REQUEST,
             code="admin.self_suspension_forbidden",
+        raise http_exception(
+            request,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="admin.users.cannot_self_suspend",
             message="Administrators cannot suspend themselves",
         )
 

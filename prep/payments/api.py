@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prep.api.errors import http_error
+from prep.api.errors import http_exception
 from prep.database import get_db
 from prep.settings import Settings, get_settings
 
@@ -22,6 +23,16 @@ async def get_payments_service(
     """Dependency that provisions the payments service."""
 
     return PaymentsService(session, settings)
+
+
+def _handle_payments_error(request: Request, exc: PaymentsError) -> None:
+    raise http_exception(
+        request,
+        status_code=exc.status_code,
+        code=getattr(exc, "code", "payments_error"),
+        message=str(exc),
+        metadata=getattr(exc, "metadata", None),
+    )
 
 
 @router.post("/connect", response_model=PaymentsConnectResponse, status_code=status.HTTP_201_CREATED)
@@ -41,6 +52,7 @@ async def connect_stripe_account(
             code="payments.error",
             message=str(exc),
         ) from exc
+        _handle_payments_error(request, exc)
     return PaymentsConnectResponse(account_id=account_id, onboarding_url=onboarding_url)
 
 
@@ -63,5 +75,6 @@ async def handle_webhook(
             code="payments.webhook_error",
             message=str(exc),
         ) from exc
+        _handle_payments_error(request, exc)
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
