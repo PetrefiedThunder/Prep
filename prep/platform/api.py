@@ -468,6 +468,82 @@ async def create_payment_intent(
 
 
 @router.post(
+    "/documents",
+    response_model=schemas.DocumentUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_document_upload(
+    payload: schemas.DocumentUploadRequest,
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.DocumentUploadResponse:
+    try:
+        document = await service.create_document_upload(payload)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    return schemas.serialize_document_upload(document)
+
+
+@router.get("/documents/{document_id}", response_model=schemas.DocumentUploadResponse)
+async def get_document_upload(
+    document_id: UUID,
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.DocumentUploadResponse:
+    try:
+        document = await service.get_document_upload(document_id)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    return schemas.serialize_document_upload(document)
+
+
+@router.get("/permits/{permit_id}", response_model=schemas.PermitResponse)
+async def get_permit(
+    permit_id: UUID,
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.PermitResponse:
+    try:
+        permit = await service.get_permit(permit_id)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    return schemas.serialize_permit(permit)
+
+
+@router.get(
+    "/business/{business_id}/readiness",
+    response_model=schemas.BusinessReadinessResponse,
+)
+async def get_business_readiness(
+    business_id: UUID,
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.BusinessReadinessResponse:
+    try:
+        readiness = await service.get_business_readiness(business_id)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    return readiness
+
+
+@router.post(
+    "/payments/checkout",
+    response_model=schemas.CheckoutResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_checkout(
+    payload: schemas.CheckoutRequest,
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.CheckoutResponse:
+    try:
+        record, client_secret = await service.create_checkout(payload)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    return schemas.CheckoutResponse(
+        payment_id=record.id,
+        status=record.status,
+        total_amount_cents=record.amount_cents,
+        currency=record.currency,
+        client_secret=client_secret,
+        receipt_url=record.receipt_url,
+        refunded_amount_cents=record.refunded_amount_cents,
+    )
     "/payments/checkout",
     response_model=schemas.CheckoutPaymentResponse,
     status_code=status.HTTP_201_CREATED,

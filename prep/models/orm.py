@@ -148,6 +148,34 @@ class ComplianceDocumentStatus(str, enum.Enum):
     REJECTED = "rejected"
 
 
+class DocumentProcessingStatus(str, enum.Enum):
+    """Lifecycle for uploaded compliance and onboarding documents."""
+
+    RECEIVED = "received"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class PermitStatus(str, enum.Enum):
+    """States tracked for a business permit."""
+
+    ACTIVE = "active"
+    PENDING = "pending"
+    SUSPENDED = "suspended"
+    EXPIRED = "expired"
+
+
+class PaymentStatus(str, enum.Enum):
+    """Possible payment lifecycle states for checkout flows."""
+
+    PENDING = "pending"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    REFUND_PENDING = "refund_pending"
+    REFUNDED = "refunded"
+
+
 class IntegrationStatus(str, enum.Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
@@ -236,6 +264,8 @@ class User(TimestampMixin, Base):
     suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_pilot_user: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     pilot_county: Mapped[str | None] = mapped_column(String(255))
+
+
     pilot_zip_code: Mapped[str | None] = mapped_column(String(20))
     rbac_roles: Mapped[list[str]] = mapped_column(JSON, default=list)
     subscription_status: Mapped[SubscriptionStatus] = mapped_column(
@@ -390,6 +420,95 @@ class RefreshToken(TimestampMixin, Base):
     user_agent: Mapped[str | None] = mapped_column(String(255))
 
     user: Mapped[User] = relationship("User", back_populates="refresh_tokens")
+
+
+class BusinessProfile(TimestampMixin, Base):
+    __tablename__ = "business_profiles"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    owner_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("users.id"), nullable=False)
+    legal_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    doing_business_as: Mapped[str | None] = mapped_column(String(255))
+    industry: Mapped[str | None] = mapped_column(String(120))
+    city: Mapped[str | None] = mapped_column(String(120))
+    state: Mapped[str | None] = mapped_column(String(60))
+    readiness_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    requirements: Mapped[dict | None] = mapped_column(JSON, default=dict)
+    metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
+
+    owner: Mapped["User"] = relationship("User", backref="business_profiles")
+    permits: Mapped[list["BusinessPermit"]] = relationship(
+        "BusinessPermit", back_populates="business", cascade="all, delete-orphan"
+    )
+    documents: Mapped[list["DocumentUpload"]] = relationship(
+        "DocumentUpload", back_populates="business", cascade="all, delete-orphan"
+    )
+    payments: Mapped[list["PaymentRecord"]] = relationship(
+        "PaymentRecord", back_populates="business", cascade="all, delete-orphan"
+    )
+
+
+class BusinessPermit(TimestampMixin, Base):
+    __tablename__ = "business_permits"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    business_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("business_profiles.id"), nullable=False)
+    permit_number: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    permit_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    jurisdiction: Mapped[str | None] = mapped_column(String(120))
+    issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[PermitStatus] = mapped_column(Enum(PermitStatus), default=PermitStatus.PENDING)
+    metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
+
+    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="permits")
+    documents: Mapped[list["DocumentUpload"]] = relationship(
+        "DocumentUpload", back_populates="permit", cascade="all, delete-orphan"
+    )
+
+
+class DocumentUpload(TimestampMixin, Base):
+    __tablename__ = "document_uploads"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    business_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("business_profiles.id"), nullable=False)
+    uploader_id: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("users.id"))
+    permit_id: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("business_permits.id"))
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_url: Mapped[str] = mapped_column(String(512), nullable=False)
+    content_type: Mapped[str | None] = mapped_column(String(120))
+    storage_bucket: Mapped[str | None] = mapped_column(String(255))
+    ocr_status: Mapped[DocumentProcessingStatus] = mapped_column(
+        Enum(DocumentProcessingStatus), default=DocumentProcessingStatus.PROCESSING, nullable=False
+    )
+    requirement_key: Mapped[str | None] = mapped_column(String(120))
+    ocr_text: Mapped[str | None] = mapped_column(Text)
+    ocr_confidence: Mapped[float | None] = mapped_column(Float)
+    external_reference: Mapped[str | None] = mapped_column(String(255))
+
+    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="documents")
+    permit: Mapped[BusinessPermit | None] = relationship("BusinessPermit", back_populates="documents")
+    uploader: Mapped[User | None] = relationship("User")
+
+
+class PaymentRecord(TimestampMixin, Base):
+    __tablename__ = "payment_records"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    business_id: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("business_profiles.id"))
+    booking_id: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("bookings.id"))
+    provider_payment_id: Mapped[str | None] = mapped_column(String(255))
+    provider: Mapped[str | None] = mapped_column(String(120))
+    status: Mapped[PaymentStatus] = mapped_column(Enum(PaymentStatus), default=PaymentStatus.PENDING)
+    amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    line_items: Mapped[list[dict] | None] = mapped_column(JSON, default=list)
+    receipt_url: Mapped[str | None] = mapped_column(String(512))
+    refunded_amount_cents: Mapped[int | None] = mapped_column(Integer)
+    metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
+
+    business: Mapped[BusinessProfile | None] = relationship("BusinessProfile", back_populates="payments")
+    booking: Mapped["Booking" | None] = relationship("Booking")
 
 
 class Kitchen(TimestampMixin, Base):

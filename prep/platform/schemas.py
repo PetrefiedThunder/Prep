@@ -13,6 +13,13 @@ from prep.models.orm import (
     APIKey,
     Booking,
     BookingStatus,
+    BusinessPermit,
+    ComplianceDocument,
+    ComplianceDocumentStatus,
+    DocumentProcessingStatus,
+    DocumentUpload,
+    Kitchen,
+    PaymentStatus,
     BusinessProfile,
     CheckoutPayment,
     CheckoutPaymentStatus,
@@ -286,6 +293,16 @@ class ComplianceDocumentResponse(_ORMBaseModel):
     notes: str | None
 
 
+class DocumentUploadRequest(BaseModel):
+    business_id: UUID
+    uploader_id: UUID | None = None
+    permit_id: UUID | None = None
+    file_name: str = Field(min_length=1, max_length=255)
+    file_url: AnyUrl
+    content_type: str | None = Field(default=None, max_length=120)
+    storage_bucket: str | None = Field(default=None, max_length=255)
+    trigger_ocr: bool = True
+    requirement_key: str | None = Field(default=None, max_length=120)
 class DocumentUploadCreateRequest(BaseModel):
     business_id: UUID
     uploader_id: UUID | None = None
@@ -304,6 +321,16 @@ class DocumentUploadResponse(_ORMBaseModel):
     id: UUID
     business_id: UUID
     uploader_id: UUID | None
+    permit_id: UUID | None
+    file_name: str
+    file_url: AnyUrl
+    content_type: str | None
+    storage_bucket: str | None
+    ocr_status: DocumentProcessingStatus
+    requirement_key: str | None
+    ocr_confidence: float | None
+    ocr_text: str | None
+    external_reference: str | None
     document_type: str
     filename: str
     content_type: str | None
@@ -321,6 +348,20 @@ class DocumentUploadResponse(_ORMBaseModel):
 class PermitResponse(_ORMBaseModel):
     id: UUID
     business_id: UUID
+    permit_number: str
+    permit_type: str
+    jurisdiction: str | None
+    issued_at: datetime | None
+    expires_at: datetime | None
+    status: PermitStatus
+    metadata: dict | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ReadinessRequirement(BaseModel):
+    name: str
+    description: str | None = None
     name: str
     permit_type: str
     permit_number: str | None
@@ -345,6 +386,11 @@ class BusinessReadinessChecklistItem(BaseModel):
 
 class BusinessReadinessResponse(BaseModel):
     business_id: UUID
+    readiness_score: float
+    requirements: list[ReadinessRequirement]
+    next_actions: list[str]
+    permit_ids: list[UUID]
+    last_updated: datetime
     business_name: str
     readiness_score: float = Field(ge=0.0, le=1.0)
     readiness_stage: str
@@ -356,6 +402,35 @@ class BusinessReadinessResponse(BaseModel):
 
 class CheckoutLineItem(BaseModel):
     name: str = Field(min_length=1, max_length=255)
+    amount_cents: int = Field(gt=0)
+    category: str | None = Field(default=None, max_length=120)
+
+
+class CheckoutRequest(BaseModel):
+    business_id: UUID
+    booking_id: UUID | None = None
+    currency: str = Field(min_length=3, max_length=3)
+    line_items: list[CheckoutLineItem]
+    initiate_refund: bool = False
+    payment_id: UUID | None = None
+
+    @field_validator("currency")
+    @classmethod
+    def _validate_currency(cls, value: str) -> str:
+        normalized = value.strip()
+        if len(normalized) != 3 or not normalized.isalpha():
+            raise ValueError("currency must be a 3-letter ISO code")
+        return normalized.lower()
+
+
+class CheckoutResponse(BaseModel):
+    payment_id: UUID
+    status: PaymentStatus
+    total_amount_cents: int
+    currency: str
+    client_secret: str | None = None
+    receipt_url: AnyUrl | None = None
+    refunded_amount_cents: int | None = None
     amount: int = Field(ge=0, description="Amount in the smallest currency unit")
     quantity: int = Field(default=1, ge=1)
     taxable: bool = False
@@ -488,6 +563,12 @@ def serialize_compliance_document(document: ComplianceDocument) -> ComplianceDoc
     return ComplianceDocumentResponse.model_validate(document)
 
 
+def serialize_document_upload(document: DocumentUpload) -> DocumentUploadResponse:
+    return DocumentUploadResponse.model_validate(document)
+
+
+def serialize_permit(permit: BusinessPermit) -> PermitResponse:
+    return PermitResponse.model_validate(permit)
 def serialize_document_upload(upload: DocumentUpload) -> DocumentUploadResponse:
     return DocumentUploadResponse.model_validate(upload)
 
