@@ -22,6 +22,8 @@ from data.ingestors.berkeley_dph import validate_fee_schedule_berkeley
 from data.ingestors.joshua_tree_dph import validate_fee_schedule_joshua_tree
 from data.ingestors.oakland_dph import validate_fee_schedule_oakland
 from data.ingestors.palo_alto_dph import validate_fee_schedule_palo_alto
+
+from etl.validators import FeeValidationError, validate_fee_schedule as ensure_fee_schedule
 from data.ingestors.san_jose_dph import validate_fee_schedule_san_jose
 from data.ingestors.sf_dph import validate_fee_schedule_sf
 
@@ -254,6 +256,11 @@ def _collect_fee_schedule_metadata() -> list[dict[str, Any]]:
     schedules: list[dict[str, Any]] = []
     for validator in FEE_SCHEDULE_VALIDATORS:
         schedule = validator()
+        try:
+            summary = ensure_fee_schedule(schedule)
+        except FeeValidationError:
+            # Re-raise with additional context so Airflow surfaces the offending validator.
+            raise
         schedules.append(
             {
                 "jurisdiction": schedule.jurisdiction,
@@ -261,6 +268,10 @@ def _collect_fee_schedule_metadata() -> list[dict[str, Any]]:
                 "agency": schedule.agency,
                 "renewal_frequency": schedule.renewal_frequency,
                 "component_count": schedule.component_count(),
+                "validation": {
+                    "issues": summary.issues,
+                    "totals": summary.totals,
+                },
             }
         )
     return schedules

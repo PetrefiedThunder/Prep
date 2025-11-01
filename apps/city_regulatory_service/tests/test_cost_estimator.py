@@ -197,6 +197,14 @@ def test_load_bundle_and_estimate_costs(db_session: Session) -> None:
     assert summary["summary"]["recurring_annualized_cents"] == 20000
     assert summary["summary"]["has_incremental_fees"] is True
     assert summary["summary"]["requirement_count"] == 3
+    validation = summary["validation"]
+    assert validation["blocking_count"] >= 0
+    assert set(validation["counts_by_party"]) == {
+        "kitchen_operator",
+        "food_business",
+        "marketplace_operator",
+        "platform_developer",
+    }
 
     items = summary["requirements"]
     labels = {entry["requirement_id"] for entry in items}
