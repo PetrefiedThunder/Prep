@@ -45,6 +45,84 @@ def create_app() -> FastAPI:
     """Construct the FastAPI application used by the API gateway."""
 
     app = FastAPI(title="Prep API", version="1.0.0")
+def _build_router(*, include_full: bool = True) -> APIRouter:
+    """Aggregate the project's routers into a single API surface."""
+
+    router = APIRouter(
+        dependencies=[Depends(enforce_allowlists), Depends(require_active_session)]
+    )
+
+    if include_full:
+        router.include_router(ledger_router)
+        router.include_router(auth_router)
+        router.include_router(platform_router)
+        router.include_router(mobile_router)
+        router.include_router(admin_router)
+        router.include_router(analytics_router)
+        router.include_router(host_metrics_router)
+        router.include_router(advanced_analytics_router)
+        router.include_router(matching_router)
+        router.include_router(reviews_router)
+        router.include_router(ratings_router)
+        router.include_router(cities_router)
+        router.include_router(kitchen_cam_router)
+        router.include_router(payments_router)
+        router.include_router(pos_router)
+        router.include_router(test_data_router)
+        router.include_router(space_optimizer_router)
+        router.include_router(integrations_router)
+        router.include_router(monitoring_router)
+        router.include_router(verification_tasks_router)
+        router.include_router(square_kds_router)
+        router.include_router(logistics_router)
+        router.include_router(deliveries_router)
+        router.include_router(orders_router)
+
+    router.include_router(debug_router)
+    router.include_router(city_fees_router, prefix="/city", tags=["city"])
+    router.include_router(city_diff_router)
+    router.include_router(city_requirements_router)
+
+    return router
+
+
+def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool = True) -> FastAPI:
+    """Instantiate the FastAPI application used by Vercel."""
+
+    settings = get_settings()
+    app = FastAPI(title="Prep API Gateway", version="1.0.0")
+
+    if settings.environment.lower() == "staging":
+        from prep.database import get_session_factory
+
+        app.state.db = get_session_factory()
+        app.middleware("http")(audit_logger)
+
+    settings = get_settings()
+    app.add_middleware(
+        RBACMiddleware,
+        settings=settings,
+        route_roles={
+            "/api/v1/admin": {"operator_admin"},
+            "/api/v1/analytics": {"operator_admin", "support_analyst"},
+            "/api/v1/matching": {"operator_admin", "support_analyst"},
+            "/api/v1/cities": {"operator_admin", "city_reviewer"},
+            "/api/v1/platform": set(RBAC_ROLES),
+        },
+        exempt_paths=(
+            "/healthz",
+            "/docs",
+            "/openapi.json",
+            "/api/v1/platform/users/register",
+            "/api/v1/platform/auth/login",
+            "/api/v1/platform/auth/token",
+            "/api/v1/platform/auth/refresh",
+        ),
+    )
+
+    configure_fastapi_tracing(app, targeted_routes=DEFAULT_TARGETED_ROUTES)
+
+    app.add_middleware(RBACMiddleware, settings=settings)
 
     app.add_middleware(
         CORSMiddleware,
@@ -58,6 +136,14 @@ def create_app() -> FastAPI:
         router = _load_router(module_path)
         if router.routes:
             app.include_router(router)
+    security_dependencies = [Depends(enforce_client_allowlist), Depends(enforce_active_session)]
+    api_router = _build_router(include_full=include_full_router)
+    app.include_router(api_router, dependencies=security_dependencies)
+
+    try:  # pragma: no cover - integrations may require external services
+        configure_integration_event_consumers(app)
+    except RuntimeError:
+        pass
 
     @app.get("/healthz", include_in_schema=False)
     async def healthcheck() -> dict[str, str]:
