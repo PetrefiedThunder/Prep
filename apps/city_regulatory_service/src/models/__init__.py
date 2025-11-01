@@ -27,7 +27,18 @@ from .requirements import (
     total_one_time_cents,
     total_recurring_annualized_cents,
     validate_fee_schedule,
+# Import ORM entities from the shared regulatory module
+from prep.regulatory.models import (
+    CityAgency,
+    CityComplianceTemplate,
+    CityETLRun,
+    CityJurisdiction,
+    CityRequirement,
+    CityRequirementLink,
 )
+
+# Domain-level models that power estimators and API responses
+from .requirements import FeeItem, FeeSchedule, RequirementsBundle
 
 __all__ = [
     "CityJurisdiction",
@@ -47,4 +58,5 @@ __all__ = [
     "total_one_time_cents",
     "total_recurring_annualized_cents",
     "has_incremental",
+    "RequirementsBundle",
 ]
