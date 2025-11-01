@@ -4,6 +4,7 @@
 from prep.regulatory.models import (
     CityAgency,
     CityComplianceTemplate,
+    CityFeeSchedule,
     CityETLRun,
     CityJurisdiction,
     CityRequirement,
@@ -14,6 +15,7 @@ __all__ = [
     "CityJurisdiction",
     "CityAgency",
     "CityRequirement",
+    "CityFeeSchedule",
     "CityRequirementLink",
     "CityComplianceTemplate",
     "CityETLRun",

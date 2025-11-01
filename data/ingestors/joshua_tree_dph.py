@@ -1,37 +1,31 @@
-"""Joshua Tree fee schedule for desert community operations."""
-
-from __future__ import annotations
-
-from apps.city_regulatory_service.jurisdictions.common.fees import FeeItem, FeeSchedule
-
-
-def make_fee_schedule() -> FeeSchedule:
-    paperwork = [
-        "San Bernardino County Health Permit",
-    ]
-    fees = [
-        FeeItem(name="County Health Permit", amount_cents=24800, kind="recurring", cadence="annual"),
-        FeeItem(name="Well Water Testing", amount_cents=9500, kind="recurring", cadence="semiannual"),
-        FeeItem(name="Site Inspection", amount_cents=7800),
-    ]
-    return FeeSchedule(jurisdiction="joshua_tree", paperwork=paperwork, fees=fees)
-from __future__ import annotations
+"""Joshua Tree Department of Public Health fee schedule."""
 
 from apps.city_regulatory_service.jurisdictions.common.fees import (
     FeeItem,
+    FeeSchedule,
     make_fee_schedule as build_schedule,
 )
 
 
-def make_fee_schedule():
+def make_fee_schedule() -> FeeSchedule:
+    paperwork = [
+        "San Bernardino County Health Permit Application",
+        "Environmental Health Plan Check",
+    ]
     fees = [
-        FeeItem(name="Environmental Health Review", amount_cents=25000, kind="one_time"),
+        FeeItem(name="Initial Health Permit", amount_cents=31200, kind="one_time"),
         FeeItem(
-            name="San Bernardino County Permit",
-            amount_cents=64000,
+            name="Annual Health Permit Renewal",
+            amount_cents=21800,
             kind="recurring",
             cadence="annual",
         ),
+        FeeItem(
+            name="Reinspection Fee",
+            amount_cents=9400,
+            kind="incremental",
+            unit="per_reinspection",
+            incremental=True,
+        ),
     ]
-    paperwork = ["San Bernardino Application", "Water System Disclosure"]
     return build_schedule("joshua_tree", paperwork=paperwork, fees=fees)

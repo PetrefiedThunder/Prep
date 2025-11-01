@@ -187,6 +187,25 @@ class CityRequirement(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class CityFeeSchedule(Base):
+    """Persisted fee schedules by city jurisdiction."""
+
+    __tablename__ = "city_fee_schedules"
+    __table_args__ = (
+        UniqueConstraint("jurisdiction_id", name="uq_city_fee_schedule_jurisdiction"),
+        Index("ix_city_fee_schedules_jurisdiction", "jurisdiction_id"),
+    )
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    jurisdiction_id = Column(GUID(), ForeignKey("city_jurisdictions.id"), nullable=False)
+    jurisdiction_slug = Column(String(120), nullable=False)
+    paperwork = Column(MutableList.as_mutable(JSON), default=list)
+    fees = Column(MutableList.as_mutable(JSON), default=list)
+    data_source = Column(String(255))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class CityRequirementLink(Base):
     """Links city requirements to federal requirements."""
 
@@ -283,6 +302,7 @@ __all__ = [
     "CityJurisdiction",
     "CityAgency",
     "CityRequirement",
+    "CityFeeSchedule",
     "CityRequirementLink",
     "CityComplianceTemplate",
     "CityETLRun",
