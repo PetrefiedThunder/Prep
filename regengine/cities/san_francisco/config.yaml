@@ -89,7 +89,7 @@ inspections:
 # Grease management
 grease:
   interceptor_required: true
-  max_service_interval_days: 90
+  max_service_interval_days: 180
   manifest_required: true
 
 # Outbreak notification
@@ -134,7 +134,7 @@ compliance:
     required_for:
       - cooking_kitchen
       - commissary_non_cooking
-    service_interval_days: 365
+    service_interval_days: 180
   tax:
     crt_rate: 0.035
     grt_threshold: 500000

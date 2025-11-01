@@ -70,7 +70,7 @@ _SAN_FRANCISCO_CONFIG: Dict[str, Any] = {
     },
     "grease": {
         "interceptor_required": True,
-        "max_service_interval_days": 90,
+        "max_service_interval_days": 180,
         "manifest_required": True,
     },
     "outbreak": {
@@ -107,7 +107,7 @@ _SAN_FRANCISCO_CONFIG: Dict[str, Any] = {
         },
         "grease": {
             "required_for": ["cooking_kitchen", "commissary_non_cooking"],
-            "service_interval_days": 365,
+            "service_interval_days": 180,
         },
         "tax": {
             "crt_rate": 0.035,

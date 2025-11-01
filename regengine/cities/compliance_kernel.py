@@ -382,6 +382,19 @@ class MunicipalComplianceKernel:
                     message=f"Grease trap overdue for service ({days_since} days since last service)",
                     remedy=f"Schedule grease trap service (required every {max_interval_days} days)"
                 ))
+            elif days_since >= max(max_interval_days - 30, 0):
+                remaining_days = max_interval_days - days_since
+                remedy_text = (
+                    f"Plan grease trap service within {remaining_days} days"
+                    if remaining_days > 0
+                    else "Schedule grease trap service immediately"
+                )
+                eval.add_warning(ComplianceViolation(
+                    rule_id="GREASE_MAINTENANCE",
+                    severity="warning",
+                    message=f"Grease trap service due soon ({days_since} days since last service)",
+                    remedy=remedy_text
+                ))
 
 
 # Example usage
