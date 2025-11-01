@@ -6,3 +6,4 @@ export * from './listing/listing-gallery';
 export * from './listing/booking-card';
 export * from './theme-toggle';
 export * from './analytics/revenue-sparkline';
+export * from './compliance';
