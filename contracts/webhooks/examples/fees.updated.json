@@ -1,0 +1,15 @@
+{
+  "type": "fees.updated",
+  "id": "a9f5b7fb-45f8-4a9b-90c6-9aefc3b6b0c4",
+  "created_at": "2025-10-31T19:02:00Z",
+  "data": {
+    "jurisdiction": "san_francisco",
+    "etag": "4c2f5a…",
+    "version": "2025-10",
+    "totals": {
+      "one_time_cents": 45000,
+      "recurring_annualized_cents": 98000,
+      "incremental_fee_count": 1
+    }
+  }
+}

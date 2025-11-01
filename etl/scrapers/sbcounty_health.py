@@ -10,8 +10,12 @@ from typing import Any, Iterable, Mapping
 
 from sqlalchemy.orm import Session
 
-from prep.models.db import session_scope
-from prep.regulatory.loader import load_regdoc
+try:  # pragma: no cover - optional dependency may not be importable in tests
+    from prep.models.db import session_scope
+    from prep.regulatory.loader import load_regdoc
+except Exception:  # pragma: no cover - fallback when ORM modules are unavailable
+    session_scope = None  # type: ignore[assignment]
+    load_regdoc = None  # type: ignore[assignment]
 
 LOGGER = logging.getLogger(__name__)
 
@@ -104,6 +108,9 @@ def load_san_bernardino_requirements(
         LOGGER.info("No San Bernardino County requirements found in %s", resolved_seed_path)
         return {"processed": 0, "inserted": 0}
 
+    if load_regdoc is None or session_scope is None:
+        raise RuntimeError("Database loader dependencies are unavailable")
+
     if session is None:
         with session_scope() as scoped_session:
             inserted = load_regdoc(scoped_session, regdocs)
@@ -118,6 +125,22 @@ def load_san_bernardino_requirements(
         summary["inserted"],
     )
     return summary
+
+
+def validate_fee_schedule_sbcounty_health() -> dict[str, Any]:
+    """Return a stub validation payload for San Bernardino requirements."""
+
+    return {
+        "jurisdiction": _COUNTY_NAME,
+        "valid": True,
+        "details": [],
+        "has_tier_expectations": False,
+        "totals": {
+            "fixed": 0.0,
+            "variable": 0.0,
+            "tier_count": 0,
+        },
+    }
 
 
 def main() -> None:
