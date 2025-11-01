@@ -55,7 +55,12 @@ class AuthTokenResponse(BaseModel):
     refresh_token: str | None = None
 
 
-class AuthenticatedUserResponse(AuthTokenResponse):
+class TokenPairResponse(AuthTokenResponse):
+    refresh_token: str
+    refresh_expires_at: datetime
+
+
+class AuthenticatedUserResponse(TokenPairResponse):
     user: UserResponse
 
 
@@ -65,6 +70,46 @@ class TokenPairResponse(AuthTokenResponse):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(min_length=16)
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(min_length=1)
+    device_fingerprint: str | None = Field(default=None, max_length=255)
+    ip_address: str | None = Field(default=None, max_length=64)
+    user_agent: str | None = Field(default=None, max_length=255)
+
+
+class APIKeyIssueRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    expires_in_days: int | None = Field(default=None, ge=1, le=365)
+
+
+class APIKeyRotateRequest(BaseModel):
+    expires_in_days: int | None = Field(default=None, ge=1, le=365)
+
+
+class APIKeyResponse(_ORMBaseModel):
+    id: UUID
+    name: str
+    prefix: str
+    is_active: bool
+    created_at: datetime
+    expires_at: datetime | None
+    last_used_at: datetime | None
+    rotated_at: datetime | None
+    revoked_at: datetime | None
+
+
+class APIKeyIssueResponse(APIKeyResponse):
+    secret: str
+
+
+def serialize_api_key(api_key: APIKey) -> APIKeyResponse:
+    return APIKeyResponse.model_validate(api_key)
+
+
+def serialize_api_key_issue(api_key: APIKey, secret: str) -> APIKeyIssueResponse:
+    payload = serialize_api_key(api_key).model_dump()
+    payload["secret"] = secret
+    return APIKeyIssueResponse(**payload)
 
 
 class KitchenCreateRequest(BaseModel):

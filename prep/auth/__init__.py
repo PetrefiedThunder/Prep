@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 from typing import Any
+"""Authentication helpers and dependencies used across the Prep API surface."""
+
+from __future__ import annotations
+
+from typing import Any, Iterable
 from uuid import UUID
 
 import jwt
@@ -39,6 +44,15 @@ def _extract_roles(payload: dict[str, Any]) -> list[str]:
 
 def _decode_jwt(token: str, settings: Settings) -> dict[str, Any]:
     """Decode and validate a JWT payload."""
+# The OAuth2 password flow used by the legacy admin and analytics surfaces.
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
+
+
+_ALLOWED_JWT_ALGORITHMS: tuple[str, ...] = ("HS256", "RS256")
+
+
+def decode_token(token: str, settings: Settings) -> dict[str, Any]:
+    """Decode and validate a JWT payload using the configured signing keys."""
 
     try:
         header = jwt.get_unverified_header(token)
@@ -60,6 +74,14 @@ def _decode_jwt(token: str, settings: Settings) -> dict[str, Any]:
             token,
             settings.secret_key,
             algorithms=_ALLOWED_JWT_ALGORITHMS,
+    signing_key = settings.auth_signing_key or settings.secret_key
+    try:
+        payload = jwt.decode(
+            token,
+            signing_key,
+            algorithms=_ALLOWED_JWT_ALGORITHMS,
+            audience=settings.oidc_audience if settings.oidc_audience else None,
+            options={"verify_aud": bool(settings.oidc_audience)},
         )
     except jwt.PyJWTError as exc:
         raise HTTPException(
@@ -81,6 +103,10 @@ def get_token_roles(token: str, settings: Settings) -> list[str]:
 
     payload = _decode_jwt(token, settings)
     return _extract_roles(payload)
+def _decode_jwt(token: str, settings: Settings) -> dict[str, Any]:
+    """Backwards compatible alias retained for the existing unit tests."""
+
+    return decode_token(token, settings)
 
 
 async def get_current_admin(
@@ -92,6 +118,14 @@ async def get_current_admin(
 
     user, roles = await _resolve_user(token, db, settings)
     if "admin" not in roles and not user.is_admin and user.role is not UserRole.ADMIN:
+    if not _has_required_role(
+        roles,
+        {
+            UserRole.ADMIN.value,
+            UserRole.OPERATOR_ADMIN.value,
+            UserRole.SUPPORT_ANALYST.value,
+        },
+    ) and not user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin role required",
@@ -121,6 +155,24 @@ async def get_current_user(
         )
 
     if not roles and user.role not in {UserRole.ADMIN, UserRole.HOST, UserRole.CUSTOMER}:
+    allowed_roles = {
+        UserRole.ADMIN.value,
+        UserRole.HOST.value,
+        UserRole.CUSTOMER.value,
+        UserRole.OPERATOR_ADMIN.value,
+        UserRole.KITCHEN_MANAGER.value,
+        UserRole.FOOD_BUSINESS_ADMIN.value,
+        UserRole.CITY_REVIEWER.value,
+        UserRole.SUPPORT_ANALYST.value,
+    }
+
+    if not roles and user.role.value not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    if roles and not _has_required_role(roles, allowed_roles):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
@@ -137,6 +189,15 @@ async def _resolve_user(
     payload = _decode_jwt(token, settings)
     subject = payload.get("sub")
     roles = _extract_roles(payload)
+    token: str,
+    db: AsyncSession,
+    settings: Settings,
+) -> tuple[User, list[str]]:
+    """Decode the token and load the associated user."""
+
+    payload = decode_token(token, settings)
+    subject = payload.get("sub")
+    roles = payload.get("roles", [])
     if not subject:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -169,3 +230,21 @@ __all__ = [
     "_decode_jwt",
 ]
 
+    return user, roles if isinstance(roles, list) else [str(roles)]
+
+
+def _has_required_role(roles: Iterable[str], required: Iterable[str]) -> bool:
+    """Return ``True`` if the token roles intersect with ``required``."""
+
+    role_set = {role for role in roles}
+    required_set = {role for role in required}
+    return bool(role_set.intersection(required_set))
+
+
+__all__ = [
+    "decode_token",
+    "get_current_admin",
+    "get_current_user",
+    "oauth2_scheme",
+    "_decode_jwt",
+]
