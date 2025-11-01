@@ -16,7 +16,7 @@
 
 **Fees/Taxes**
 
-* **TOT 14%** applied to base, cleaning, platform fee (itemized at checkout).
+* **CRT 3.5%** applied to base rent via the SF tax service (itemized at checkout alongside GRT checks).
 * **Deposit**: min $100; held ≤ 72h post-booking (auto-release unless incident).
 
 **Safety & Incident**
@@ -36,7 +36,7 @@
 ### Remaining Gaps for Full Market Launch
 
 * **Regulatory depth is incomplete.** The current rule pack mirrors a generic California implementation and does **not encode San Francisco Health Code Article 11 requirements** (commercial-grade equipment attestations, grease trap maintenance logs, pest control verification, composting plans, etc.). Without these checks, the compliance engine cannot deliver legally binding pass/fail decisions for SF operators.
-* **Financial compliance is missing.** Pricing flows omit **SF Gross Receipts (1.5%), Transient Occupancy (14%), and Tourism Improvement (0.25%) taxes**. These must be collected, itemized, and remitted in the booking lifecycle alongside platform fees.
+* **Financial compliance is missing.** Pricing flows omit **SF Commercial Rents (3.5%), Gross Receipts (1.5%), and Tourism Improvement (0.25%) taxes**. These must be collected, itemized, and remitted in the booking lifecycle alongside platform fees.
 * **City validation integrations are stubs.** There are no live hooks for **SF Department of Public Health permit verification, Business Registration Certificate lookups, zoning confirmations, or fire inspection records**. Launch readiness demands real-time validations + monitoring for these endpoints.
 * **Insurance thresholds are under-scoped.** SF requires **$2M general liability aggregate, $1M employment practices liability, and conditional liquor/auto coverage**, which exceed the current generic $1M policy checks.
 

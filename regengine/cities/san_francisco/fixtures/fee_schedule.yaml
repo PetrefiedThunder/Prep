@@ -1,9 +1,9 @@
 fees:
-  - code: TOT
-    name: Transient Occupancy Tax
+  - code: CRT
+    name: Commercial Rents Tax
     kind: percent
-    value: 0.14
-    applies_to: [base, cleaning, platform_fee]
+    value: 0.035
+    applies_to: [base]
 deposits:
   min_cents: 10000
   hold_window_hours: 72

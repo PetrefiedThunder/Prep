@@ -54,6 +54,18 @@ import pytest
 import requests
 import psycopg2
 import psycopg2.extras
+try:
+    import psycopg2
+    import psycopg2.extras
+except ImportError:  # pragma: no cover - optional dependency
+    psycopg2 = None  # type: ignore
+
+try:
+    import psycopg
+    from psycopg.rows import dict_row
+except ImportError:  # pragma: no cover - optional dependency
+    psycopg = None  # type: ignore
+    dict_row = None  # type: ignore
 
 
 # ---------------------------
@@ -99,6 +111,36 @@ def db_conn():
     yield conn
     conn.close()
 
+    pwd  = _get_env("AUDIT_DB_PASSWORD")
+    sslmode = os.getenv("AUDIT_DB_SSLMODE", "prefer")
+
+    if psycopg2 is not None:
+        conn = psycopg2.connect(
+            host=host,
+            port=port,
+            dbname=name,
+            user=user,
+            password=pwd,
+            sslmode=sslmode,
+            cursor_factory=psycopg2.extras.DictCursor,
+        )
+    elif psycopg is not None and dict_row is not None:
+        conn = psycopg.connect(
+            host=host,
+            port=port,
+            dbname=name,
+            user=user,
+            password=pwd,
+            sslmode=sslmode,
+            row_factory=dict_row,
+        )
+    else:  # pragma: no cover - dependency missing in environment
+        pytest.skip("psycopg2 or psycopg library required for DB connectivity")
+
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 @pytest.fixture(scope="session")
 def perf_thresholds():
@@ -121,6 +163,11 @@ def query_scalar(conn, sql, params=None):
         row = cur.fetchone()
         return row[0] if row else None
 
+        if not row:
+            return None
+        if isinstance(row, dict):
+            return next(iter(row.values()))
+        return row[0]
 
 def query_row(conn, sql, params=None):
     with conn.cursor() as cur:
@@ -177,6 +224,7 @@ def test_onboarding_blocks_without_business_certificate(base_url, auth_headers):
     r = requests.post(url, headers=auth_headers, data=json.dumps(payload), timeout=30)
     assert r.status_code in (400, 409), f"Expected BLOCK; got {r.status_code} {r.text}"
     body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+    body = r.json() if r.headers.get("content-type","").startswith("application/json") else {}
     assert any("CERT" in (issue.upper()) for issue in body.get("issues", [])), f"Missing explicit business cert error: {body}"
 
 
@@ -362,6 +410,8 @@ def test_compliance_check_latency_p95(base_url, auth_headers, perf_thresholds):
     assert (
         p95 <= perf_thresholds["compliance_ms"]
     ), f"p95 compliance_check {p95:.1f}ms exceeds budget {perf_thresholds['compliance_ms']}ms"
+    p95 = sorted(samples)[int(len(samples)*0.95) - 1]
+    assert p95 <= perf_thresholds["compliance_ms"], f"p95 compliance_check {p95:.1f}ms exceeds budget {perf_thresholds['compliance_ms']}ms"
 
 
 @pytest.mark.skipif(os.getenv("SF_TEST_BOOKING_ID") in (None, "",), reason="No booking id for tax perf probe")
@@ -384,6 +434,7 @@ def test_tax_calculate_latency_p95(base_url, auth_headers, perf_thresholds):
         samples.append((t1 - t0) * 1000.0)
 
     p95 = sorted(samples)[int(len(samples) * 0.95) - 1]
+    p95 = sorted(samples)[int(len(samples)*0.95) - 1]
     assert p95 <= perf_thresholds["tax_ms"], f"p95 tax_calculate {p95:.1f}ms exceeds budget {perf_thresholds['tax_ms']}ms"
 
 
@@ -421,6 +472,7 @@ def test_etl_last_7_runs_success(db_conn):
     rows = query_all(
         db_conn,
         """
+    rows = query_all(db_conn, """
         SELECT run_date, status, records_extracted, records_changed
         FROM city_etl_runs
         WHERE city='San Francisco'
@@ -428,6 +480,7 @@ def test_etl_last_7_runs_success(db_conn):
         LIMIT 7
     """,
     )
+    """)
     assert rows and len(rows) == 7, "Expected 7 ETL runs for SF."
     failures = [r for r in rows if r["status"] != "success"]
     assert not failures, f"ETL failures detected: {failures}"
@@ -435,6 +488,7 @@ def test_etl_last_7_runs_success(db_conn):
     latest = rows[0]["run_date"]
     delta = dt.datetime.now(dt.timezone.utc) - latest
     assert delta.total_seconds() <= 24 * 3600, f"Last SF ETL run too old: {latest}"
+    assert delta.total_seconds() <= 24*3600, f"Last SF ETL run too old: {latest}"
 
 
 # ---------------------------
@@ -458,4 +512,5 @@ def test_sf_endpoints_require_auth(base_url):
         url = f"{base_url}{ep}"
         # POST for those that require POST, GET for GET; we’ll POST JSON since most are POST.
         r = requests.post(url, headers={"Content-Type": "application/json"}, data="{}", timeout=15)
+        r = requests.post(url, headers={"Content-Type":"application/json"}, data="{}", timeout=15)
         assert r.status_code in (401, 403), f"{ep} should require auth; got {r.status_code}"

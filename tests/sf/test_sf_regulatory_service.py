@@ -82,6 +82,46 @@ def test_host_onboard_missing_business_registration(regulatory_client: TestClien
     assert any("Business registration" in issue for issue in body["issues"])
 
 
+def test_host_onboard_blocks_missing_grease_certificate(regulatory_client: TestClient) -> None:
+    payload = _base_payload()
+    payload["greaseTrapCertificate"] = ""
+    response = regulatory_client.post("/sf/host/onboard", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "blocked"
+    assert "Grease trap service documentation is required" in body["issues"]
+
+
+def test_host_onboard_blocks_missing_grease_service_date(regulatory_client: TestClient) -> None:
+    payload = _base_payload()
+    payload.pop("greaseLastService")
+    response = regulatory_client.post("/sf/host/onboard", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "blocked"
+    assert "Grease trap service date is required" in body["issues"]
+
+
+def test_host_onboard_flags_grease_due_soon(regulatory_client: TestClient) -> None:
+    payload = _base_payload()
+    payload["greaseLastService"] = (date.today() - timedelta(days=155)).isoformat()
+    response = regulatory_client.post("/sf/host/onboard", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "flagged"
+    assert "Grease interceptor service due soon" in body["issues"]
+
+
+def test_host_onboard_blocks_grease_overdue(regulatory_client: TestClient) -> None:
+    payload = _base_payload()
+    payload["greaseLastService"] = (date.today() - timedelta(days=200)).isoformat()
+    response = regulatory_client.post("/sf/host/onboard", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "blocked"
+    assert "Grease interceptor service interval exceeded" in body["issues"]
+
+
 def test_compliance_check_blocks_for_stale_fire(regulatory_client: TestClient) -> None:
     payload = _base_payload()
     payload["fireLastInspection"] = (date.today() - timedelta(days=500)).isoformat()
