@@ -189,7 +189,7 @@ epics:
             - pricing-service/fee_engine.py
             - api/fees/quote.py
           Tasks:
-            - Compute city taxes (SF TOT 14%, PDX Lodging 11.5%, SEA Lodging 2% + B&O 0.44%), deposits, penalties.
+            - Compute city taxes (SF CRT 3.5%, PDX Lodging 11.5%, SEA Lodging 2% + B&O 0.44%), deposits, penalties.
           Acceptance:
             - tests/finance/test_fee_engine.py golden math; totals reconcile to payments ledger.
 

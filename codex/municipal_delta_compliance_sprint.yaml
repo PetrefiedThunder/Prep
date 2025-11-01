@@ -60,7 +60,7 @@ epics:
       - title: "Migration 010 — Fees, Taxes, Deposits, Penalties"
         body: |
           ## Overview
-          Implement municipal fee schedules for TOT, B&O, deposits, and late penalties.
+          Implement municipal fee schedules for CRT, B&O, deposits, and late penalties.
 
           ## Files
           - `/migrations/010_municipal_fees_taxes_deposits.sql`
@@ -74,7 +74,7 @@ epics:
           - `applied_late_penalties` — Penalties applied
 
           ## Fee Schedules
-          - SF: 14% TOT
+          - SF: 3.5% Commercial Rents Tax (CRT)
           - Portland: 11.5% Lodging Tax
           - Seattle: 2% King County + 0.44% B&O
 
@@ -172,7 +172,7 @@ epics:
 
           ## Config Includes
           - Health Code §6.15
-          - 14% TOT
+          - 3.5% Commercial Rents Tax (CRT)
           - Insurance: $1M/$2M, additional insured "City and County of SF"
           - Neighborhood notice required (300ft, 30 days)
           - Quiet hours: 22:00-06:00
@@ -410,7 +410,7 @@ epics:
           ```
 
           ## Acceptance Criteria
-          - [ ] SF TOT 14% computed correctly
+          - [ ] SF CRT 3.5% computed correctly
           - [ ] Portland 11.5% computed correctly
           - [ ] Seattle dual fees (2% + 0.44%) computed correctly
           - [ ] Deposit from policy applied
@@ -447,7 +447,7 @@ epics:
           Comprehensive test fixtures for fee calculations.
 
           ## Test Cases
-          - SF: $195 base + $25 cleaning + $22 platform → $33.88 TOT
+          - SF: $195 base + $25 cleaning + $22 platform → $6.83 CRT (base only)
           - Portland: Same breakdown → $27.83 Lodging
           - Seattle: Same breakdown → $4.40 Lodging + $0.10 B&O
           - Edge: Rounding (e.g., $19.995 → $20.00)
@@ -673,8 +673,8 @@ epics:
           Display itemized fee breakdown with tooltips and links.
 
           ## Design
-          - Line items: Base rate, Cleaning, Platform fee, TOT, Deposit
-          - Tooltip on each: "14% SF Transient Occupancy Tax" [Learn more]
+          - Line items: Base rate, Cleaning, Platform fee, CRT, Deposit
+          - Tooltip on each: "3.5% SF Commercial Rents Tax" [Learn more]
           - Total fees, total amount, deposit hold window
           - Link to city tax code citation
 

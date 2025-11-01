@@ -34,16 +34,14 @@ zoning:
 
 # Fees and taxes
 fees:
-  - code: TOT
-    display_name: "Transient Occupancy Tax"
+  - code: CRT
+    display_name: "Commercial Rents Tax"
     kind: percent
-    value: 0.1400                     # 14%
+    value: 0.0350                     # 3.5%
     applies_to:
       - base
-      - cleaning
-      - platform_fee
-    citation: "SF Business and Tax Regulations Code Article 7"
-    remittance_url: "https://treasurer.sfgov.org/transient-occupancy-tax"
+    citation: "SF Business and Tax Regulations Code Article 21"
+    remittance_url: "https://sftreasurer.org/business/taxes-fees/commercial-rents-tax"
 
 # Security deposits
 deposits:

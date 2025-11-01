@@ -25,13 +25,13 @@ _SAN_FRANCISCO_CONFIG: Dict[str, Any] = {
     },
     "fees": [
         {
-            "code": "TOT",
-            "display_name": "Transient Occupancy Tax",
+            "code": "CRT",
+            "display_name": "Commercial Rents Tax",
             "kind": "percent",
-            "value": 0.14,
-            "applies_to": ["base", "cleaning", "platform_fee"],
-            "citation": "SF Business and Tax Regulations Code Article 7",
-            "remittance_url": "https://treasurer.sfgov.org/transient-occupancy-tax",
+            "value": 0.035,
+            "applies_to": ["base"],
+            "citation": "SF Business and Tax Regulations Code Article 21",
+            "remittance_url": "https://sftreasurer.org/business/taxes-fees/commercial-rents-tax",
         }
     ],
     "deposits": {
