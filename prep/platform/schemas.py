@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, Sequence
 from uuid import UUID
 
 from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr, Field
@@ -11,9 +12,17 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from prep.models.orm import (
     Booking,
     BookingStatus,
+    BusinessProfile,
+    CheckoutPayment,
+    CheckoutPaymentStatus,
     ComplianceDocument,
     ComplianceDocumentStatus,
+    DocumentOCRStatus,
+    DocumentUpload,
+    DocumentUploadStatus,
     Kitchen,
+    Permit,
+    PermitStatus,
     Review,
     SubleaseContractStatus,
     User,
@@ -178,6 +187,122 @@ class ComplianceDocumentResponse(_ORMBaseModel):
     notes: str | None
 
 
+class DocumentUploadCreateRequest(BaseModel):
+    business_id: UUID
+    uploader_id: UUID | None = None
+    document_type: str = Field(min_length=1, max_length=120)
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str | None = Field(default=None, max_length=120)
+    storage_bucket: str = Field(min_length=1, max_length=120)
+    storage_key: str = Field(min_length=1, max_length=255)
+    status: DocumentUploadStatus | None = None
+    ocr_status: DocumentOCRStatus | None = None
+    notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] | None = None
+
+
+class DocumentUploadResponse(_ORMBaseModel):
+    id: UUID
+    business_id: UUID
+    uploader_id: UUID | None
+    document_type: str
+    filename: str
+    content_type: str | None
+    storage_bucket: str
+    storage_key: str
+    status: DocumentUploadStatus
+    ocr_status: DocumentOCRStatus
+    ocr_text: str | None
+    ocr_metadata: dict[str, Any] | None
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PermitResponse(_ORMBaseModel):
+    id: UUID
+    business_id: UUID
+    name: str
+    permit_type: str
+    permit_number: str | None
+    issuing_authority: str | None
+    jurisdiction: str | None
+    status: PermitStatus
+    issued_on: datetime | None
+    expires_on: datetime | None
+    webhook_url: str | None
+    last_webhook_at: datetime | None
+    document_id: UUID | None
+    metadata: dict[str, Any] | None
+
+
+class BusinessReadinessChecklistItem(BaseModel):
+    slug: str
+    title: str
+    description: str
+    status: str
+    completed_at: datetime | None = None
+
+
+class BusinessReadinessResponse(BaseModel):
+    business_id: UUID
+    business_name: str
+    readiness_score: float = Field(ge=0.0, le=1.0)
+    readiness_stage: str
+    checklist: list[BusinessReadinessChecklistItem]
+    gating_requirements: list[str]
+    outstanding_actions: list[str]
+    last_evaluated_at: datetime
+
+
+class CheckoutLineItem(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    amount: int = Field(ge=0, description="Amount in the smallest currency unit")
+    quantity: int = Field(default=1, ge=1)
+    taxable: bool = False
+    refundable: bool = True
+
+
+class CheckoutPaymentCreateRequest(BaseModel):
+    currency: str = Field(min_length=3, max_length=3)
+    line_items: Sequence[CheckoutLineItem]
+    business_id: UUID | None = None
+    booking_id: UUID | None = None
+    metadata: dict[str, Any] | None = None
+    requirements_gate: bool = False
+    minimum_readiness_score: float = Field(default=0.6, ge=0.0, le=1.0)
+    action: str = Field(default="confirm", pattern="^(confirm|refund)$")
+    existing_payment_id: UUID | None = None
+    refund_reason: str | None = Field(default=None, max_length=255)
+
+    @field_validator("currency")
+    @classmethod
+    def _normalize_currency(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if len(normalized) != 3 or not normalized.isalpha():
+            raise ValueError("currency must be a 3-letter ISO code")
+        return normalized
+
+
+class CheckoutPaymentResponse(_ORMBaseModel):
+    id: UUID
+    business_id: UUID | None
+    booking_id: UUID | None
+    status: CheckoutPaymentStatus
+    currency: str
+    total_amount: float
+    line_items: list[dict[str, Any]]
+    payment_provider: str
+    provider_reference: str | None
+    receipt_url: str | None
+    metadata: dict[str, Any] | None
+    refund_reason: str | None
+    refund_requested_at: datetime | None
+    refunded_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
 class PaymentIntentCreateRequest(BaseModel):
     booking_id: UUID
     amount: int = Field(gt=0)
@@ -238,3 +363,15 @@ def serialize_review(review: Review) -> ReviewResponse:
 
 def serialize_compliance_document(document: ComplianceDocument) -> ComplianceDocumentResponse:
     return ComplianceDocumentResponse.model_validate(document)
+
+
+def serialize_document_upload(upload: DocumentUpload) -> DocumentUploadResponse:
+    return DocumentUploadResponse.model_validate(upload)
+
+
+def serialize_permit(permit: Permit) -> PermitResponse:
+    return PermitResponse.model_validate(permit)
+
+
+def serialize_checkout_payment(payment: CheckoutPayment) -> CheckoutPaymentResponse:
+    return CheckoutPaymentResponse.model_validate(payment)
