@@ -2,6 +2,14 @@
 
 from __future__ import annotations
 
+from fastapi import APIRouter, FastAPI, Request, Response
+import ipaddress
+from datetime import UTC, datetime
+from typing import Sequence
+
+import jwt
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, FastAPI
 from collections.abc import Iterable
 from importlib import import_module
 
@@ -86,7 +94,9 @@ from prep.kitchen_cam.api import router as kitchen_cam_router
 from prep.integrations.api import router as integrations_router
 from prep.matching.api import router as matching_router
 from prep.mobile.api import router as mobile_router
-from prep.platform.api import router as platform_router
+from prep.auth.dependencies import enforce_allowlists, require_active_session
+from prep.auth.rbac import RBACMiddleware
+from prep.platform.api import auth_router, router as platform_router
 from prep.payments.api import router as payments_router
 from prep.ratings.api import router as ratings_router
 from prep.reviews.api import router as reviews_router
@@ -100,13 +110,109 @@ from prep.logistics.api import router as logistics_router
 from prep.monitoring.api import router as monitoring_router
 from prep.integrations.runtime import configure_integration_event_consumers
 from prep.pos.api import router as pos_router
+from prep.api.middleware import IdempotencyMiddleware
+from prep.auth.rbac import RBACMiddleware, RBAC_ROLES
+from prep.cache import RedisProtocol, get_redis
+from prep.settings import Settings, get_settings
+
+
+def _ip_in_allowlist(ip: str, allowlist: Sequence[str]) -> bool:
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+
+    for entry in allowlist:
+        value = entry.strip()
+        if not value:
+            continue
+        if value == "*":
+            return True
+        try:
+            network = ipaddress.ip_network(value, strict=False)
+        except ValueError:
+            if value == ip:
+                return True
+        else:
+            if ip_obj in network:
+                return True
+    return False
+
+
+async def enforce_client_allowlist(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    device_id: str | None = Header(default=None, alias="X-Device-ID"),
+) -> None:
+    client_host = request.client.host if request.client else None
+    if settings.auth_ip_allowlist:
+        if not client_host or not _ip_in_allowlist(client_host, settings.auth_ip_allowlist):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Request IP address is not allowed",
+            )
+    if settings.auth_device_allowlist:
+        if device_id is None or device_id not in settings.auth_device_allowlist:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Device is not authorized",
+            )
+
+
+async def enforce_active_session(
+    request: Request,
+    cache: RedisProtocol = Depends(get_redis),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    authorization = request.headers.get("Authorization")
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return
+
+    token = authorization.split(" ", 1)[1].strip()
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authorization header",
+        )
+
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=("HS256",))
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session token expired",
+        )
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid session token",
+        )
+
+    exp = payload.get("exp")
+    if exp is not None:
+        expires_at = datetime.fromtimestamp(int(exp), tz=UTC)
+        if expires_at < datetime.now(UTC):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session token expired",
+            )
+
+    cache_key = f"session:{token}"
+    cached = await cache.get(cache_key)
+    if cached is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session is no longer active",
+        )
+from prep.settings import get_settings
 
 
 def _build_router() -> APIRouter:
     """Aggregate the project's routers into a single API surface."""
 
-    router = APIRouter()
+    router = APIRouter(dependencies=[Depends(enforce_allowlists), Depends(require_active_session)])
     router.include_router(ledger_router)
+    router.include_router(auth_router)
     router.include_router(platform_router)
     router.include_router(mobile_router)
     router.include_router(admin_router)
@@ -138,9 +244,34 @@ def _build_router() -> APIRouter:
 def create_app() -> FastAPI:
     """Instantiate the FastAPI application used by Vercel."""
 
+    settings = get_settings()
     app = FastAPI(title="Prep API Gateway", version="1.0.0")
 
+    settings = get_settings()
+    app.add_middleware(
+        RBACMiddleware,
+        settings=settings,
+        route_roles={
+            "/api/v1/admin": {"operator_admin"},
+            "/api/v1/analytics": {"operator_admin", "support_analyst"},
+            "/api/v1/matching": {"operator_admin", "support_analyst"},
+            "/api/v1/cities": {"operator_admin", "city_reviewer"},
+            "/api/v1/platform": set(RBAC_ROLES),
+        },
+        exempt_paths=(
+            "/healthz",
+            "/docs",
+            "/openapi.json",
+            "/api/v1/platform/users/register",
+            "/api/v1/platform/auth/login",
+            "/api/v1/platform/auth/token",
+            "/api/v1/platform/auth/refresh",
+        ),
+    )
+
     configure_fastapi_tracing(app, targeted_routes=DEFAULT_TARGETED_ROUTES)
+
+    app.add_middleware(RBACMiddleware, settings=settings)
 
     app.add_middleware(
         CORSMiddleware,
@@ -149,12 +280,39 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
         allow_credentials=False,
     )
+    app.add_middleware(IdempotencyMiddleware)
 
+    security_dependencies = [Depends(enforce_client_allowlist), Depends(enforce_active_session)]
+    app.include_router(_build_router(), dependencies=security_dependencies)
+    configure_integration_event_consumers(app)
     app.include_router(_build_router())
     try:  # pragma: no cover - integrations may require external services
         configure_integration_event_consumers(app)
     except RuntimeError:
         pass
+
+    API_VERSION = "v1"
+    sunset_date = "Wed, 01 Jan 2025 00:00:00 GMT"
+
+    @app.middleware("http")
+    async def _apply_version_headers(request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers.setdefault("X-API-Version", API_VERSION)
+        if not request.url.path.startswith(f"/api/{API_VERSION}"):
+            response.headers.setdefault("Deprecation", f"version={API_VERSION}-1")
+            response.headers.setdefault("Sunset", sunset_date)
+        return response
+
+    @app.get("/v1", tags=["meta"])
+    async def version_guidance() -> dict[str, str]:
+        """Communicate stable API versioning guidance to integrators."""
+
+        return {
+            "version": API_VERSION,
+            "status": "stable",
+            "guidance": "All new integrations should target /api/v1 endpoints. Unversioned paths will sunset soon.",
+            "sunset": sunset_date,
+        }
 
     @app.get("/healthz", tags=["health"])
     async def healthcheck() -> dict[str, str]:

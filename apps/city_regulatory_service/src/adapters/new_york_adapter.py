@@ -95,6 +95,24 @@ class NewYorkCityAdapter:
                     "frequency": "annual",
                     "schedule": "variable by seating capacity",
                     "notes": "Ranges from $280 to $1,350+ based on seating and risk",
+                    "tiers": [
+                        {
+                            "threshold": "up to 30 seats",
+                            "fee": 280.00,
+                        },
+                        {
+                            "threshold": "31-60 seats",
+                            "fee": 400.00,
+                        },
+                        {
+                            "threshold": "61-200 seats",
+                            "fee": 700.00,
+                        },
+                        {
+                            "threshold": "over 200 seats",
+                            "fee": 1350.00,
+                        },
+                    ],
                 },
                 "submission_channel": "online",
                 "application_url": "https://www1.nyc.gov/site/doh/business/food-operators/apply-for-a-permit.page",

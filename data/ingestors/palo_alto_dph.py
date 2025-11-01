@@ -1,3 +1,4 @@
+"""Palo Alto fee schedule for environmental health permits."""
 """Fee schedule for Palo Alto (Santa Clara County Environmental Health)."""
 
 from __future__ import annotations
@@ -76,19 +77,20 @@ from __future__ import annotations
 
 from apps.city_regulatory_service.jurisdictions.common.fees import (
     FeeItem,
+    FeeSchedule,
     make_fee_schedule as build_schedule,
 )
 
 
-def make_fee_schedule():
+def make_fee_schedule() -> FeeSchedule:
+    paperwork = ["Environmental Health Application", "Fire Marshal Sign-off"]
     fees = [
-        FeeItem(name="Plan Review", amount_cents=36000, kind="one_time"),
+        FeeItem(name="Plan Review", amount_cents=58500, kind="one_time"),
         FeeItem(
-            name="County Health Permit",
-            amount_cents=70000,
+            name="Retail Food Permit",
+            amount_cents=74200,
             kind="recurring",
             cadence="annual",
         ),
     ]
-    paperwork = ["Santa Clara Health Application", "Menu Submission"]
     return build_schedule("palo_alto", paperwork=paperwork, fees=fees)

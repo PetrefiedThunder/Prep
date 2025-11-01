@@ -11,14 +11,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from prep.models.db import CertificationReviewStatus, ModerationStatus
-
-
-class PaginationMeta(BaseModel):
-    """Metadata describing a paginated response."""
-
-    limit: int = Field(default=20, ge=1, le=100)
-    offset: int = Field(default=0, ge=0)
-    total: int = Field(ge=0)
+from prep.platform.schemas import CursorPageMeta
 
 
 class KitchenSummary(BaseModel):
@@ -144,7 +137,7 @@ class UserListResponse(BaseModel):
     """Paginated list of users."""
 
     items: List[UserSummary]
-    pagination: PaginationMeta
+    pagination: CursorPageMeta
 
 
 class UserStats(BaseModel):
@@ -167,14 +160,14 @@ class CertificationListResponse(BaseModel):
     """Paginated certification document response."""
 
     items: List[CertificationSummary]
-    pagination: PaginationMeta
+    pagination: CursorPageMeta
 
 
 class KitchenListResponse(BaseModel):
     """Paginated kitchen moderation response."""
 
     items: List[KitchenSummary]
-    pagination: PaginationMeta
+    pagination: CursorPageMeta
 
 
 class ChecklistTemplateCreateRequest(BaseModel):

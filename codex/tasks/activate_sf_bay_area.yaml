@@ -17,6 +17,7 @@ steps:
   - run: make db.migrate
   - run: make test
   - run: make codex-verify
+  - run: make etl.validate
 success_criteria:
   - "pytest exit code is 0"
   - "verify_readiness returns exit code 0"
