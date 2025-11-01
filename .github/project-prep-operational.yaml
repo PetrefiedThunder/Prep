@@ -1,0 +1,191 @@
+version: 1
+project: "Prep Operational Enablement"
+owner: "PetrefiedThunder"
+epics:
+
+  - name: EPIC 0 — Environment & Observability
+    description: Stand up staging and monitoring environment for all core services.
+    issues:
+      - title: Deploy staging stack
+        body: "Compose Docker stack with API, DB, Grafana, Redis. Confirm /healthz returns 200."
+        labels: [infra, staging, priority-high]
+      - title: Create Helm chart
+        body: "Package infra/helm/prepchef for staging and production. helm install should deploy green."
+        labels: [infra, helm]
+      - title: Configure Grafana dashboards
+        body: "Dashboards for uptime, webhook latency, booking count."
+        labels: [observability]
+      - title: Setup CI/CD pipelines
+        body: "GitHub Actions to build, test, and deploy on PR merge."
+        labels: [ci, automation]
+
+  - name: EPIC 1 — Database Foundations
+    description: Create unified schema for users, bookings, payments, compliance.
+    issues:
+      - title: Core entity tables
+        body: "Implement migrations/001_core_tables.sql for users, hosts, makers, kitchens."
+        labels: [database, migration]
+      - title: Booking ledger schema
+        body: "Implement migrations/002_bookings.sql and migrations/003_payments.sql with ACID tests."
+        labels: [database, bookings]
+      - title: Compliance and audit schema
+        body: "Implement migrations/004_compliance.sql with FK integrity."
+        labels: [database, compliance]
+
+  - name: EPIC 2 — Regulatory ETL
+    description: Ingest, normalize, and refresh jurisdictional regulations daily.
+    issues:
+      - title: Regulatory refresh worker
+        body: "Create etl/jobs/reg_refresh_worker.py with cron scheduling and manifest updates."
+        labels: [etl, automation]
+      - title: Manifest schema
+        body: "Build schemas/regulation_manifest.sql and validate integrity."
+        labels: [database, compliance]
+      - title: Regional adapters
+        body: "Implement etl/adapters for CA, NY, IL, plus generic HTML crawler."
+        labels: [etl, parser]
+      - title: ETL tests
+        body: "Add tests/test_reg_etl.py with >90% coverage."
+        labels: [testing]
+
+  - name: EPIC 3 — Host Onboarding
+    description: End-to-end onboarding for kitchen hosts with Stripe Connect.
+    issues:
+      - title: Host onboarding wizard (frontend)
+        body: "Create apps/onboarding-host React flow with 4 steps to Stripe Connect."
+        labels: [frontend, onboarding]
+      - title: Host onboarding API
+        body: "Create api/onboarding/host.py validating input, returning host_id."
+        labels: [api, backend]
+      - title: Stripe Connect integration
+        body: "Implement integrations/stripe/connect.py and webhook callback."
+        labels: [payments, integration]
+      - title: Host onboarding tests
+        body: "tests/test_host_onboarding.py full flow."
+        labels: [testing]
+
+  - name: EPIC 4 — Maker Onboarding
+    description: Full flow for makers including compliance checklist.
+    issues:
+      - title: Maker onboarding wizard
+        body: "React wizard for makers to enter details and receive compliance checklist."
+        labels: [frontend, onboarding]
+      - title: Maker onboarding API
+        body: "api/onboarding/maker.py create maker record."
+        labels: [api, backend]
+      - title: Compliance checklist endpoint
+        body: "api/compliance/checklist.py returning requirements per jurisdiction."
+        labels: [api, compliance]
+      - title: Maker onboarding tests
+        body: "Integration tests in tests/test_maker_onboarding.py."
+        labels: [testing]
+
+  - name: EPIC 5 — Compliance Evaluation Engine
+    description: Deterministic policy evaluator for booking authorization.
+    issues:
+      - title: Build evaluator logic
+        body: "apps/policy/evaluator.py producing ALLOW|ALLOW_WITH_CONDITIONS|DENY."
+        labels: [backend, compliance]
+      - title: Public evaluation API
+        body: "api/compliance/evaluate.py with FastAPI endpoint."
+        labels: [api, backend]
+      - title: Policy evaluation tests
+        body: "Comprehensive edge-case tests in tests/test_policy_evaluator.py."
+        labels: [testing]
+
+  - name: EPIC 6 — Booking & Payments Core
+    description: Implement full booking lifecycle with Stripe payments.
+    issues:
+      - title: Booking CRUD endpoints
+        body: "api/bookings/ create, confirm, cancel routes."
+        labels: [api, backend]
+      - title: Payment integration
+        body: "api/payments/ with capture/refund and live Stripe webhook."
+        labels: [payments]
+      - title: Webhook receiver
+        body: "webhooks/stripe_receiver.py with HMAC verification and idempotency."
+        labels: [security, integration]
+      - title: Booking/payment tests
+        body: "tests/test_bookings_payments.py E2E balance verification."
+        labels: [testing]
+
+  - name: EPIC 7 — Scheduling Engine
+    description: Conflict-free booking availability and sanitation buffer management.
+    issues:
+      - title: Availability management
+        body: "apps/scheduling-service create/update routes for availability blocks."
+        labels: [backend, scheduling]
+      - title: Conflict resolver
+        body: "apps/scheduling/conflict_resolver.py ensures no overlapping bookings."
+        labels: [backend, scheduling]
+      - title: Scheduling performance tests
+        body: "tests/test_scheduling.py 10k booking load test <100ms avg query."
+        labels: [testing, performance]
+
+  - name: EPIC 8 — Insurance & Risk
+    description: Manage proof of insurance and optional day-pass coverage.
+    issues:
+      - title: COI upload & OCR
+        body: "api/documents/coi.py parse coverage limits and expiry."
+        labels: [api, compliance]
+      - title: Day-pass insurance integration
+        body: "integrations/insurance/next_daypass.py broker API call returning policy_id."
+        labels: [integration, insurance]
+      - title: Insurance test suite
+        body: "tests/test_insurance.py mock COI upload flow."
+        labels: [testing]
+
+  - name: EPIC 9 — Messaging & Incidents
+    description: Implement booking chat threads and safety incident reporting.
+    issues:
+      - title: Booking thread messaging
+        body: "api/messages/ CRUD endpoints for host↔maker chat."
+        labels: [api, messaging]
+      - title: Incident reporting
+        body: "api/incidents/ create/update + Slack alert."
+        labels: [api, safety]
+      - title: Slack integration
+        body: "integrations/slack/webhook.py send message on severity >=3."
+        labels: [integration, ops]
+
+  - name: EPIC 10 — Admin Console
+    description: RBAC dashboard for approvals, refunds, and oversight.
+    issues:
+      - title: Admin React dashboard
+        body: "apps/admin/ UI for Owner, Ops, Compliance roles."
+        labels: [frontend, admin]
+      - title: Approval API
+        body: "api/admin/approvals.py approve/reject hosts."
+        labels: [api, admin]
+      - title: Refund API
+        body: "api/admin/refunds.py manual refund endpoint."
+        labels: [api, admin]
+      - title: Admin tests
+        body: "tests/test_admin.py UI smoke tests."
+        labels: [testing]
+
+  - name: EPIC 11 — Privacy & Security
+    description: Data protection, role enforcement, and retention policies.
+    issues:
+      - title: Security middleware
+        body: "middleware/security_middleware.ts enforce JWT + RBAC."
+        labels: [security]
+      - title: Data retention worker
+        body: "jobs/data_retention_worker.py purge expired IDs and COIs."
+        labels: [security, automation]
+      - title: Incident response doc
+        body: "docs/incident_response.md match RUNBOOK.md."
+        labels: [documentation, security]
+
+  - name: EPIC 12 — Pilot Launch & QA
+    description: Joshua Tree & SF end-to-end pilot deployment.
+    issues:
+      - title: Seed pilot data
+        body: "scripts/seed_pilot_data.py create 3 hosts and 10 makers."
+        labels: [qa, pilot]
+      - title: E2E pilot test
+        body: "tests/e2e_pilot_flow.py full booking lifecycle test."
+        labels: [qa, testing]
+      - title: Pilot analytics notebook
+        body: "analytics/pilot_report.ipynb KPIs time-to-book and payout latency."
+        labels: [analytics, pilot]
