@@ -173,6 +173,26 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 
+def _configure_logging() -> None:
+    """Configure structured logging for the webhook receiver."""
+
+    level_name = os.getenv("PREP_WEBHOOK_LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+
+    # The app may run under uvicorn which configures logging itself. Avoid
+    # duplicating handlers if they already exist.
+    if logging.getLogger().handlers:
+        logging.getLogger().setLevel(level)
+    else:  # pragma: no cover - depends on runtime environment
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+        )
+
+
+_configure_logging()
+
+
 logger = logging.getLogger("prep.webhooks")
 
 
