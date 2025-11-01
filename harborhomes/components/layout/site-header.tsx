@@ -38,6 +38,9 @@ export function SiteHeader() {
           <SearchPill />
         </div>
         <div className="hidden items-center gap-2 md:flex">
+          <Link href="/sf-and-jt" className="text-sm font-medium text-muted-ink transition hover:text-ink">
+            {t("sfAndJt")}
+          </Link>
           <Button variant="ghost" className="text-sm" asChild>
             <Link href="/host">{t("becomeHost")}</Link>
           </Button>
@@ -61,6 +64,9 @@ export function SiteHeader() {
                 </Link>
                 <Link href="/trips" className="text-sm font-medium" onClick={() => setOpen(false)}>
                   <Globe2 className="mr-2 inline h-4 w-4" /> {t("trips")}
+                </Link>
+                <Link href="/sf-and-jt" className="text-sm font-medium" onClick={() => setOpen(false)}>
+                  {t("sfAndJt")}
                 </Link>
                 <Link href="/inbox" className="text-sm font-medium" onClick={() => setOpen(false)}>
                   <MessageCircle className="mr-2 inline h-4 w-4" /> {t("inbox")}

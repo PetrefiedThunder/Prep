@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Mapping
 from uuid import UUID
 
 import stripe
@@ -30,9 +30,18 @@ logger = logging.getLogger("prep.payments.service")
 class PaymentsError(Exception):
     """Raised for recoverable errors in the payments domain."""
 
-    def __init__(self, message: str, *, status_code: int = 400) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int = 400,
+        code: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.code = code or "payments_error"
+        self.metadata = dict(metadata) if metadata else None
 
 
 class PaymentsService:
