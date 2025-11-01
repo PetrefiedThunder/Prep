@@ -79,6 +79,7 @@ except Exception:  # pragma: no cover
 
 from api.routes.city_fees import router as city_fees_router
 from api.routes.diff import router as city_diff_router
+from api.city.requirements import router as city_requirements_router
 from apps.compliance_service.main import app as compliance_app
 from prep.accounting import ledger_router
 from apps.inventory_service.main import app as inventory_app
@@ -287,8 +288,7 @@ def _build_router(*, include_full: bool) -> APIRouter:
     router.include_router(orders_router)
     router.include_router(city_fees_router, prefix="/city", tags=["city"])
     router.include_router(city_diff_router)
-    router.include_router(city_fees_router)
-    router.include_router(city_diff_router)
+    router.include_router(city_requirements_router)
     return router
 
 

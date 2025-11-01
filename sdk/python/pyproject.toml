@@ -1,0 +1,23 @@
+[project]
+name = "prep-sdk"
+version = "0.1.0"
+description = "Async Python client for the Prep Compliance API"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "Prep", email = "support@prep.house" }
+]
+dependencies = [
+  "httpx>=0.27,<0.28",
+  "pydantic>=2.6,<3.0",
+]
+license = { file = "../../LICENSE" }
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["prep_sdk", "prep_sdk.api", "prep_sdk.api.city", "prep_sdk.api.requirements", "prep_sdk.models"]
+package-dir = {"" = "prep_sdk"}
+include-package-data = true

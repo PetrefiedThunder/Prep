@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { FeeCard, PermitBadge, RequirementsList } from "@/components/compliance";
+import { FeeCard, PermitBadge, RequirementsList } from "@/components/prep";
 import { fetchCityCompliance, type CityCompliance } from "@/lib/compliance";
 
 const CITY_CONFIGS = [
@@ -27,13 +27,13 @@ type CityResult = {
 export const metadata: Metadata = {
   title: "San Francisco & Joshua Tree permitting overview",
   description:
-    "Compare HarborHomes compliance requirements across San Francisco and Joshua Tree with live data from your configured NEXT_PUBLIC_API_BASE endpoint."
+    "Compare HarborHomes compliance requirements across San Francisco and Joshua Tree with live data hydrated via your configured COMPLIANCE_API_BASE endpoint."
 };
 
 function formatError(error: unknown) {
   if (error instanceof Error) {
-    if (error.message.includes("NEXT_PUBLIC_API_BASE")) {
-      return "Set NEXT_PUBLIC_API_BASE to the base URL of your compliance API to stream live data.";
+    if (error.message.includes("COMPLIANCE_API_BASE")) {
+      return "Set COMPLIANCE_API_BASE (or NEXT_PUBLIC_API_BASE) to the base URL of your compliance API to stream live data.";
     }
     return error.message;
   }
@@ -61,7 +61,7 @@ export default async function SfAndJtPage() {
           <h1 className="text-3xl font-semibold tracking-tight text-ink sm:text-4xl">San Francisco ↔ Joshua Tree</h1>
           <p className="mx-auto max-w-3xl text-sm text-muted-ink sm:text-base lg:mx-0">
             HarborHomes pulls city and county requirements directly from your configured compliance API. Update
-            <code className="mx-1 rounded bg-surface px-1.5 py-0.5 text-xs">NEXT_PUBLIC_API_BASE</code>
+            <code className="mx-1 rounded bg-surface px-1.5 py-0.5 text-xs">COMPLIANCE_API_BASE</code>
             to point at the desired environment and we&apos;ll hydrate these cards on every visit.
           </p>
         </header>

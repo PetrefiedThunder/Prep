@@ -1,7 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/currency";
-import type { Fee } from "@/lib/compliance";
+import type { CityCompliance } from "@/lib/compliance";
 import { cn } from "@/lib/utils";
+
+type Fee = CityCompliance["fees"][number];
 
 const KIND_LABEL: Record<Fee["kind"], string> = {
   one_time: "One-time",
