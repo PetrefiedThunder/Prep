@@ -79,7 +79,7 @@ FALLBACK_CONFIG = {
     },
     "grease": {
         "interceptor_required": True,
-        "max_service_interval_days": 90,
+        "max_service_interval_days": 180,
         "manifest_required": True,
     },
     "outbreak": {
@@ -116,7 +116,7 @@ FALLBACK_CONFIG = {
         },
         "grease": {
             "required_for": ["cooking_kitchen", "commissary_non_cooking"],
-            "service_interval_days": 365,
+            "service_interval_days": 180,
         },
         "tax": {
             "crt_rate": 0.035,

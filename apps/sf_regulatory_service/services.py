@@ -151,24 +151,41 @@ class ComplianceEvaluator:
         # Grease waste requirements
         grease_config = self.config.get("grease", {})
         grease_required = payload.facility_type in set(grease_config.get("required_for", []))
-        service_interval = int(grease_config.get("service_interval_days", 365))
+        service_interval = int(grease_config.get("service_interval_days", 180))
+        interval_text = f"{service_interval} days"
         if grease_required:
             if not payload.grease_trap_certificate:
-                status = "flagged" if status != "blocked" else status
-                issues.append("Grease trap certificate missing")
+                status = "blocked"
+                issues.append("Grease trap service documentation is required")
                 remediation.append(
                     RemediationAction(
                         field="greaseTrapCertificate",
-                        action="Provide proof of grease interceptor service within the last year.",
+                        action=f"Provide proof of grease interceptor service within the last {interval_text}.",
                     ),
                 )
-            elif payload.grease_last_service:
-                if (today - payload.grease_last_service).days > service_interval:
+            elif not payload.grease_last_service:
+                status = "blocked"
+                issues.append("Grease trap service date is required")
+                remediation.append(
+                    RemediationAction(
+                        field="greaseLastService",
+                        action=f"Document the most recent grease interceptor service within the last {interval_text}.",
+                    ),
+                )
+            else:
+                days_since_service = (today - payload.grease_last_service).days
+                if days_since_service > service_interval:
                     status = "blocked"
                     issues.append("Grease interceptor service interval exceeded")
-            else:
-                status = "flagged" if status != "blocked" else status
-                issues.append("Grease service date required")
+                    remediation.append(
+                        RemediationAction(
+                            field="greaseLastService",
+                            action=f"Schedule grease interceptor service (required every {interval_text}).",
+                        ),
+                    )
+                elif days_since_service >= max(service_interval - 30, 0) and status != "blocked":
+                    status = "flagged"
+                    issues.append("Grease interceptor service due soon")
 
         # Tax classification validation
         tax_config = self.config.get("tax", {})
@@ -251,7 +268,7 @@ class WasteComplianceService:
     """Validate grease trap service interval."""
 
     def __init__(self, config: Dict[str, object]):
-        self.service_interval_days = int(config.get("grease", {}).get("service_interval_days", 365))
+        self.service_interval_days = int(config.get("grease", {}).get("service_interval_days", 180))
 
     def verify(self, request: WasteVerificationRequest) -> WasteVerificationResponse:
         if (date.today() - request.last_service_date).days > self.service_interval_days:
