@@ -52,6 +52,8 @@ import datetime as dt
 
 import pytest
 import requests
+import psycopg2
+import psycopg2.extras
 try:
     import psycopg2
     import psycopg2.extras
@@ -76,14 +78,17 @@ def _get_env(name, default=None):
         pytest.skip(f"Missing required env var: {name}")
     return val
 
+
 @pytest.fixture(scope="session")
 def base_url():
     return _get_env("AUDIT_BASE_URL")
+
 
 @pytest.fixture(scope="session")
 def auth_headers():
     token = _get_env("AUDIT_JWT")
     return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
 
 @pytest.fixture(scope="session")
 def db_conn():
@@ -91,6 +96,21 @@ def db_conn():
     port = int(os.getenv("AUDIT_DB_PORT", "5432"))
     name = _get_env("AUDIT_DB_NAME")
     user = _get_env("AUDIT_DB_USER")
+    pwd = _get_env("AUDIT_DB_PASSWORD")
+    sslmode = os.getenv("AUDIT_DB_SSLMODE", "prefer")
+
+    conn = psycopg2.connect(
+        host=host,
+        port=port,
+        dbname=name,
+        user=user,
+        password=pwd,
+        sslmode=sslmode,
+        cursor_factory=psycopg2.extras.DictCursor,
+    )
+    yield conn
+    conn.close()
+
     pwd  = _get_env("AUDIT_DB_PASSWORD")
     sslmode = os.getenv("AUDIT_DB_SSLMODE", "prefer")
 
@@ -129,16 +149,20 @@ def perf_thresholds():
         "tax_ms": int(os.getenv("SF_P95_MS_TAX_CALCULATE", "200")),
     }
 
+
 @pytest.fixture(scope="session")
 def policy_thresholds():
     return {
         "zoning_manual_max_pct": float(os.getenv("SF_ZONING_MANUAL_REVIEW_MAX_PCT", "5.0")),
     }
 
+
 def query_scalar(conn, sql, params=None):
     with conn.cursor() as cur:
         cur.execute(sql, params or ())
         row = cur.fetchone()
+        return row[0] if row else None
+
         if not row:
             return None
         if isinstance(row, dict):
@@ -150,6 +174,7 @@ def query_row(conn, sql, params=None):
         cur.execute(sql, params or ())
         return cur.fetchone()
 
+
 def query_all(conn, sql, params=None):
     with conn.cursor() as cur:
         cur.execute(sql, params or ())
@@ -159,6 +184,7 @@ def query_all(conn, sql, params=None):
 # ---------------------------
 # Domain A: Business Registration
 # ---------------------------
+
 
 def test_business_registration_present_and_valid(db_conn):
     """
@@ -197,6 +223,7 @@ def test_onboarding_blocks_without_business_certificate(base_url, auth_headers):
     }
     r = requests.post(url, headers=auth_headers, data=json.dumps(payload), timeout=30)
     assert r.status_code in (400, 409), f"Expected BLOCK; got {r.status_code} {r.text}"
+    body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
     body = r.json() if r.headers.get("content-type","").startswith("application/json") else {}
     assert any("CERT" in (issue.upper()) for issue in body.get("issues", [])), f"Missing explicit business cert error: {body}"
 
@@ -204,6 +231,7 @@ def test_onboarding_blocks_without_business_certificate(base_url, auth_headers):
 # ---------------------------
 # Domain B: Health Permit
 # ---------------------------
+
 
 def test_health_permit_valid_for_all_sf_hosts(db_conn):
     """
@@ -242,6 +270,7 @@ def test_compliance_check_blocks_expired_permit(base_url, auth_headers):
 # Domain C: Fire Suppression & FOG
 # ---------------------------
 
+
 def test_fire_suppression_and_grease_service_current(db_conn):
     """
     For cooking kitchens, ensure fire suppression inspection <= 365 days
@@ -276,6 +305,7 @@ def test_fire_suppression_and_grease_service_current(db_conn):
 # ---------------------------
 # Domain D: Zoning / Use District
 # ---------------------------
+
 
 def test_zoning_mapped_and_manual_rate_within_threshold(db_conn, policy_thresholds):
     """
@@ -316,6 +346,7 @@ def test_zoning_mapped_and_manual_rate_within_threshold(db_conn, policy_threshol
 # Domain E: Taxes (CRT / GRT)
 # ---------------------------
 
+
 def test_crt_lines_exist_for_lease_sublease_bookings_last_30_days(db_conn):
     """
     Ensure CRT lines are being produced for lease/sublease bookings in SF.
@@ -352,9 +383,11 @@ def test_finance_reconciliation_last_30_days(db_conn):
     delta_pct = abs(ledger_sum - gl_sum) / gl_sum * decimal.Decimal("100")
     assert delta_pct <= decimal.Decimal("0.1"), f"Tax ledger vs GL delta {delta_pct:.4f}% exceeds 0.1%."
 
+
 # ---------------------------
 # Domain F: Observability / Performance
 # ---------------------------
+
 
 @pytest.mark.skipif(os.getenv("SF_TEST_COMPLIANCE_CHECK_HOST") in (None, "",), reason="No host id for perf probe")
 def test_compliance_check_latency_p95(base_url, auth_headers, perf_thresholds):
@@ -373,6 +406,10 @@ def test_compliance_check_latency_p95(base_url, auth_headers, perf_thresholds):
         assert r.ok, f"/sf/compliance/check error: {r.status_code} {r.text}"
         samples.append((t1 - t0) * 1000.0)  # ms
 
+    p95 = sorted(samples)[int(len(samples) * 0.95) - 1]
+    assert (
+        p95 <= perf_thresholds["compliance_ms"]
+    ), f"p95 compliance_check {p95:.1f}ms exceeds budget {perf_thresholds['compliance_ms']}ms"
     p95 = sorted(samples)[int(len(samples)*0.95) - 1]
     assert p95 <= perf_thresholds["compliance_ms"], f"p95 compliance_check {p95:.1f}ms exceeds budget {perf_thresholds['compliance_ms']}ms"
 
@@ -396,6 +433,7 @@ def test_tax_calculate_latency_p95(base_url, auth_headers, perf_thresholds):
         assert r.ok, f"/sf/tax/calculate error: {r.status_code} {r.text}"
         samples.append((t1 - t0) * 1000.0)
 
+    p95 = sorted(samples)[int(len(samples) * 0.95) - 1]
     p95 = sorted(samples)[int(len(samples)*0.95) - 1]
     assert p95 <= perf_thresholds["tax_ms"], f"p95 tax_calculate {p95:.1f}ms exceeds budget {perf_thresholds['tax_ms']}ms"
 
@@ -426,16 +464,22 @@ def test_metrics_exposed_and_key_counters_present(base_url):
 # Domain G: ETL Freshness
 # ---------------------------
 
+
 def test_etl_last_7_runs_success(db_conn):
     """
     Verify SF ETL succeeded for the last 7 runs and latency is within 24h.
     """
+    rows = query_all(
+        db_conn,
+        """
     rows = query_all(db_conn, """
         SELECT run_date, status, records_extracted, records_changed
         FROM city_etl_runs
         WHERE city='San Francisco'
         ORDER BY run_date DESC
         LIMIT 7
+    """,
+    )
     """)
     assert rows and len(rows) == 7, "Expected 7 ETL runs for SF."
     failures = [r for r in rows if r["status"] != "success"]
@@ -443,12 +487,14 @@ def test_etl_last_7_runs_success(db_conn):
 
     latest = rows[0]["run_date"]
     delta = dt.datetime.now(dt.timezone.utc) - latest
+    assert delta.total_seconds() <= 24 * 3600, f"Last SF ETL run too old: {latest}"
     assert delta.total_seconds() <= 24*3600, f"Last SF ETL run too old: {latest}"
 
 
 # ---------------------------
 # Domain H: Security & Governance
 # ---------------------------
+
 
 def test_sf_endpoints_require_auth(base_url):
     """
@@ -465,5 +511,6 @@ def test_sf_endpoints_require_auth(base_url):
     for ep in endpoints:
         url = f"{base_url}{ep}"
         # POST for those that require POST, GET for GET; we’ll POST JSON since most are POST.
+        r = requests.post(url, headers={"Content-Type": "application/json"}, data="{}", timeout=15)
         r = requests.post(url, headers={"Content-Type":"application/json"}, data="{}", timeout=15)
         assert r.status_code in (401, 403), f"{ep} should require auth; got {r.status_code}"
