@@ -25,6 +25,20 @@ This runbook provides step-by-step procedures for common incidents and emergency
 5. **Resolve** - Fix root cause
 6. **Document** - Write post-mortem (P0/P1 only)
 
+## Synthetic Monitoring & Alerting
+
+- **Coverage**: `perf/synthetics/run_synthetics.py` exercises the San Francisco and Joshua Tree
+  `/city/{slug}/requirements` and `/city/{slug}/requirements/estimate` endpoints.
+- **SLO**: p95 latency &lt; 200 ms across 5 samples per endpoint (configurable via `SYNTHETIC_THRESHOLD_MS`).
+- **CI**: `.github/workflows/synthetics.yml` runs hourly and publishes `perf/synthetics/out/latest.json`
+  to GitHub Pages for the status dashboard.
+- **Alerting Hooks**:
+  - **PagerDuty**: Configure the GitHub Action to call the `OBS_ALERT_WEBHOOK` repository secret on failure.
+  - **Slack**: The Pages artifact powers `apps/web/src/pages/StatusPage.tsx`; degraded status is surfaced in
+    `#observability` via the existing Grafana webhook (see `modules/observability/alerts.py`).
+- **Runbook Linkage**: Incidents displayed on the status page must include a runbook URL in the
+  `remediations` array pointing back to the relevant section in this document when available.
+
 ## Scheduled Jobs
 
 ### Finance payout reconciliation
