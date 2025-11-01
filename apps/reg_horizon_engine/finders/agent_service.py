@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, HttpUrl
 
@@ -70,7 +70,7 @@ async def record_candidates(
     SQLAlchemy within this module, keeping the agent layer decoupled.
     """
 
-    now = datetime.now(datetime.UTC)
+    now = datetime.now(timezone.utc)
     rows = []
     for candidate in candidates:
         rows.append(

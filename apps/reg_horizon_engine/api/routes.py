@@ -11,6 +11,7 @@ from ..database import session_scope
 from ..finders.agent_service import FinderAgent, PortalCandidate, record_candidates
 from ..parsers.extract_pipeline import ExtractedDocument, ParserPipeline
 from ..predictors.momentum_model import MomentumModel, PredictionResult
+from reg_horizon_engine.api.routes.relationships import router as relationships_router
 
 router = APIRouter()
 
@@ -109,3 +110,6 @@ async def create_prediction(
             },
         )
     return PredictionResponse(prediction=prediction)
+
+
+router.include_router(relationships_router, prefix="/relationships", tags=["lkg"])
