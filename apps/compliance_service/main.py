@@ -51,6 +51,10 @@ except Exception:  # pragma: no cover - defer failure until endpoint invocation
 HTMLRenderer = WeasyPrintHTML
 from prep.models.orm import COIDocument
 from prep.regulatory.ingest_state import fetch_status
+from apps.compliance_service.sf.router import (
+    booking_router as sf_booking_router,
+    router as sf_compliance_router,
+)
 
 
 class KitchenPayload(BaseModel):
@@ -85,6 +89,8 @@ def _build_engine() -> FoodSafetyComplianceEngine:
 
 engine = _build_engine()
 app = FastAPI(title="Prep Compliance Service", version=ENGINE_VERSION)
+app.include_router(sf_compliance_router)
+app.include_router(sf_booking_router)
 
 
 def _enrich_with_apicbase_data(kitchen_payload: dict[str, Any]) -> dict[str, Any]:
