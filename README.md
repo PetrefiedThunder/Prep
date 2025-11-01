@@ -444,6 +444,15 @@ mypy .
 npm run type-check
 ```
 
+### Alembic City Schema Check
+Validate that a city-specific database matches the SQLAlchemy models before deploying migrations:
+
+```bash
+python tools/alembic_city_check.py --city sf --database-url sqlite:///./sf.db
+```
+
+If `--database-url` is omitted, the command falls back to the default URL (or environment override) defined for the San Francisco regulatory service. Any differences in enums, cascade rules, or defaults are reported with actionable details.
+
 ### Pre-commit Hooks
 Install pre-commit hooks to ensure code quality:
 ```bash
