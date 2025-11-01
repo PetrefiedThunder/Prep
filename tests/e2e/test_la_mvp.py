@@ -5,16 +5,11 @@ import importlib
 
 
 SERVICE_MODULES = [
-    "apps.ingestion_service.main",
-    "apps.graph_service.main",
-    "apps.obligation_extractor.main",
-    "apps.formalizer.catala",
-    "apps.policy_engine.main",
-    "apps.provenance_ledger.main",
-    "apps.zk_proofs.main",
-    "apps.monitor.main",
-    "apps.predictor.main",
-    "apps.twin.main",
+    "apps.api_gateway.app",
+    "apps.bookings.repository",
+    "apps.city_regulatory_service.main",
+    "apps.compliance_service.main",
+    "apps.federal_regulatory_service.main",
 ]
 
 

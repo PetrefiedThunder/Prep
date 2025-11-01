@@ -35,7 +35,7 @@ This runbook provides step-by-step procedures for common incidents and emergency
 - **Alerting Hooks**:
   - **PagerDuty**: Configure the GitHub Action to call the `OBS_ALERT_WEBHOOK` repository secret on failure.
   - **Slack**: The Pages artifact powers `apps/web/src/pages/StatusPage.tsx`; degraded status is surfaced in
-    `#observability` via the existing Grafana webhook (see `modules/observability/alerts.py`).
+    `#observability` via the existing Grafana webhook (see alert rules in `monitoring/grafana/`).
 - **Runbook Linkage**: Incidents displayed on the status page must include a runbook URL in the
   `remediations` array pointing back to the relevant section in this document when available.
 
@@ -45,7 +45,7 @@ This runbook provides step-by-step procedures for common incidents and emergency
 
 - **Cadence**: Nightly at 02:00 UTC (`0 2 * * *`)
 - **Purpose**: Compares host payout records with GAAP ledger exports and emits a reconciliation summary for finance operations.
-- **Alerting**: Missed SLA events trigger the shared observability callback (`modules/observability/alerts.py`) which records a metric and structured log entry for investigation.
+- **Alerting**: Missed SLA events trigger Grafana alert rules (see `monitoring/grafana/alerts/`) which record a metric and structured log entry for investigation.
 
 ---
 

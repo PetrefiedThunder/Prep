@@ -56,7 +56,7 @@ This roadmap assumes Prep has completed Phase 1 delivery (federal + city complia
   - HRIS sync (Workday, Rippling) for food handler credential monitoring.
   - SSO + SCIM in `services/auth/enterprise/`.
 - **Advanced Automation**
-  - Risk scoring ML pipeline in `modules/risk_engine/` with feature store.
+  - Risk scoring ML pipeline (legacy `modules/risk_engine/`, now archived in favour of the core services).
   - Predictive renewal reminders integrated with `apps/notification_service/`.
 - **Governance & Compliance**
   - SOC 2 Type II and ISO 27001 pursuit (evidence tracked in `docs/compliance/audit/`).

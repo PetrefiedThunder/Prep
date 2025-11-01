@@ -16,15 +16,9 @@ reporting, and score calculation.
 - **GDPR/CCPA Engine (`prep/compliance/gdpr_ccpa_core.py`)** – Checks consent
   management, data minimisation, deletion workflows, breach notification, and
   third-party data sharing controls.
-- **HBS Model Validator (`prep/compliance/hbs_model_validator.py`)** – Validates
-  business model artefacts against Harvard Business School guidance with
-  structure, documentation, and validation requirements.
 - **LSE Impact Simulator (`prep/compliance/lse_impact_simulator.py`)** – Monitors
   market conduct obligations and simulates market impact scenarios for London
   Stock Exchange compliance.
-- **MultiVoice UI Engine (`prep/compliance/multivoice_compliance_ui.py`)** –
-  Ensures accessibility, localisation, consent, and transparency expectations
-  across multilingual interfaces.
 - **Coordinator (`prep/compliance/coordinator.py`)** – Orchestrates all engines
   to deliver comprehensive audits, executive summaries, and prioritised
   recommendations.
@@ -54,10 +48,10 @@ is absent a sensible default configuration is loaded and can be customised via
 `ComplianceConfigManager`.
 
 - **enabled_engines** – Controls which audit engines the CLI will run. Provide a
-  list of engine keys (e.g. `dol`, `privacy`, `hbs`, `lse`, `ui`). Any engines
-  omitted from this list are skipped when `prep-compliance --audit` executes,
-  allowing you to disable domains that are not relevant to a deployment. If the
-  setting is omitted, all available engines are executed by default.
+  list of engine keys (e.g. `dol`, `privacy`, `lse`). Any engines omitted from
+  this list are skipped when `prep-compliance --audit` executes, allowing you to
+  disable domains that are not relevant to a deployment. If the setting is
+  omitted, all available engines are executed by default.
 
 ## Testing
 

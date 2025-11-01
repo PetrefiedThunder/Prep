@@ -7,9 +7,7 @@ from typing import Any, Dict, List, Sequence
 from .base_engine import ComplianceEngine, ComplianceReport
 from .dol_reg_compliance_engine import DOLRegComplianceEngine
 from .gdpr_ccpa_core import GDPRCCPACore
-from .hbs_model_validator import HBSModelValidator
 from .lse_impact_simulator import LondonStockExchangeSimulator
-from .multivoice_compliance_ui import MultiVoiceComplianceUI
 
 
 class ComplianceCoordinator:
@@ -18,9 +16,7 @@ class ComplianceCoordinator:
     _AVAILABLE_ENGINES: Dict[str, type[ComplianceEngine]] = {
         "dol": DOLRegComplianceEngine,
         "privacy": GDPRCCPACore,
-        "hbs": HBSModelValidator,
         "lse": LondonStockExchangeSimulator,
-        "ui": MultiVoiceComplianceUI,
     }
 
     def __init__(self, enabled_engines: Sequence[str] | None = None) -> None:
