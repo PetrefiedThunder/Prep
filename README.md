@@ -7,14 +7,25 @@
 ### Core Mission
 Enable commercial kitchens to verify and maintain compliance across all regulatory jurisdictions (FDA, state health departments, city regulations) while facilitating a marketplace for kitchen rental during off-hours.
 
+### Current Project Status
+- **Progress**: 40 of 61 scoped production prompts have been delivered across infrastructure, core booking flows, payments, compliance automation, and documentation. Remaining work primarily covers frontend UX, advanced analytics, and growth initiatives.【F:FINAL_SUMMARY.md†L5-L83】
+- **Production-ready services**: booking, payments, pricing, admin onboarding, and shared observability foundations are implemented and ready for staging/production deployment.【F:FINAL_SUMMARY.md†L85-L115】
+- **In-flight priorities**: RBAC, event analytics, advanced frontend flows, and growth features remain open and are tracked in the Implementation and Final Summary documents.【F:FINAL_SUMMARY.md†L83-L150】【F:IMPLEMENTATION_SUMMARY.md†L1-L139】
+
+### Key Documents
+- [`FINAL_SUMMARY.md`](./FINAL_SUMMARY.md): end-to-end view of completed prompts, remaining work, and deployment readiness.
+- [`IMPLEMENTATION_SUMMARY.md`](./IMPLEMENTATION_SUMMARY.md): chronological catalog of prompts with implementation details.
+- [`DEVELOPER_ONBOARDING.md`](./DEVELOPER_ONBOARDING.md): environment setup, tooling, and workflows for new contributors.
+- [`RUNBOOK.md`](./RUNBOOK.md): incident response procedures and operational checklists.
+
 ### Architecture
 Microservices-based platform with:
-- **28 microservices** in `/apps` including regulatory engines, compliance services, and marketplace operations
-- **Frontend Layer**: React/Next.js applications (HarborHomes, Web)
-- **API Gateway**: Node.js backend (prepchef)
-- **Compliance & Regulatory Engines**: Python FastAPI microservices
-- **Data & Event Pipeline**: Kafka-based streaming/batch processing
-- **Infrastructure**: Docker, Kubernetes (Helm), PostgreSQL, Redis, MinIO
+- **30+ service directories** in `/apps`, including regulatory engines, compliance services, and marketplace operations (federal, city, bookings, payments, pricing, scheduling, etc.).
+- **Frontend Layer**: React/Next.js applications (HarborHomes, Web) backed by shared UI packages.
+- **API Gateway**: Node.js backend (`prepchef`) orchestrating booking, payments, and host flows.
+- **Compliance & Regulatory Engines**: Python FastAPI services with SQLite-powered datasets.
+- **Data & Event Pipeline**: Kafka-based streaming/batch processing foundations.
+- **Infrastructure**: Docker, Kubernetes (Helm), PostgreSQL, Redis, MinIO, GitHub Actions CI/CD.
 
 ## Technology Stack
 
@@ -154,10 +165,17 @@ This starts 6 services:
 
 5. **Run database migrations:**
    ```bash
-   psql $DATABASE_URL < migrations/001_initial_schema.sql
-   psql $DATABASE_URL < migrations/002_add_availability.sql
-   # ... run all migrations in order
-   python scripts/refresh_views.py  # Populate materialized views
+   # Initialize schema
+   psql $DATABASE_URL < migrations/init.sql
+
+   # Apply incremental migrations in order
+   for file in migrations/00*.sql; do
+     [ "$(basename "$file")" = "init.sql" ] && continue
+     psql $DATABASE_URL < "$file"
+   done
+
+   # Populate materialized views once the schema is loaded
+   python scripts/refresh_views.py
    ```
 
 6. **Start services:**
@@ -179,7 +197,7 @@ This starts 6 services:
 
 ```
 /
-├── apps/                    # 28 microservices
+├── apps/                    # 30+ service directories
 │   ├── federal_regulatory_service/  # FDA compliance engine (PROD)
 │   ├── city_regulatory_service/     # City-level regulations (PROD)
 │   ├── compliance_service/          # Food safety compliance (PROD)
@@ -201,8 +219,8 @@ This starts 6 services:
 ├── data/                    # Regulatory databases
 │   ├── federal/             # Federal regulatory data (SQLite)
 │   └── cities/              # City regulatory data (SQLite)
-├── migrations/              # SQL database migrations (12 files)
-├── tests/                   # Comprehensive test suite (40+ directories)
+├── migrations/              # SQL database migrations (init + incremental updates)
+├── tests/                   # Python, Node, and E2E suites
 ├── infra/                   # Infrastructure as Code
 │   ├── helm/                # Kubernetes Helm charts
 │   ├── prometheus/          # Monitoring configuration
@@ -221,23 +239,16 @@ This starts 6 services:
 
 ## Microservices Directory (`/apps`)
 
-| Service | Purpose | Status |
-|---------|---------|--------|
-| **federal_regulatory_service** | FDA compliance & certifier management | PROD |
-| **city_regulatory_service** | City-level regulatory requirements | PROD |
-| **compliance_service** | Food safety compliance validation | PROD |
-| **harborhomes** | Next.js marketplace demo application | PROD |
-| **policy_engine** | Policy evaluation engine (Rego) | SCAFF |
-| **graph_service** | Regulatory obligation graph | SCAFF |
-| **ingestion_service** | Data ingestion pipeline | SCAFF |
-| **obligation_extractor** | Extract obligations from documents | SCAFF |
-| **provenance_ledger** | Audit trail and provenance | SCAFF |
-| **inventory_service** | Kitchen equipment tracking | SCAFF |
-| **pricing** | Dynamic pricing calculations | SCAFF |
-| **scheduling** | Calendar and schedule management | SCAFF |
-| **monitor** | Health monitoring and alerting | SCAFF |
-| **web** | React web application | DEV |
-| ... and 14 more services | | |
+The repository contains more than thirty service directories. The following are the primary production-ready back-end services, each backed by FastAPI or supporting modules and covered by automated tests and operational runbooks:
+
+- **`bookings/`** – Atomic booking management, availability locking, and hold release workers.【F:FINAL_SUMMARY.md†L21-L43】【F:FINAL_SUMMARY.md†L85-L110】
+- **`pricing/`** – Platform fee computation and payout aggregation logic.【F:FINAL_SUMMARY.md†L31-L47】【F:FINAL_SUMMARY.md†L85-L99】
+- **`compliance_service/`** – Food safety compliance validation pipeline with OCR metadata enrichment.【F:FINAL_SUMMARY.md†L45-L57】
+- **`federal_regulatory_service/`** – FDA accreditation and certification authority chain management.【F:FINAL_SUMMARY.md†L13-L25】
+- **`city_regulatory_service/`** – Municipal compliance integration layered on top of the federal data set.【F:FINAL_SUMMARY.md†L25-L40】
+- **`harborhomes/`** – Next.js/React experience used for demos and manual validation of the booking and compliance flows.【F:FINAL_SUMMARY.md†L1-L19】
+
+Additional directories (policy engines, graph exploration, scheduling, ingestion, provenance, etc.) are scaffolded for future phases and tracked in the Implementation Summary backlog.【F:IMPLEMENTATION_SUMMARY.md†L70-L139】
 
 ## Testing
 
@@ -297,8 +308,10 @@ Primary tables:
 
 ### Running Migrations
 ```bash
-# Apply all migrations
-for file in migrations/*.sql; do
+# Apply all migrations (skipping init once applied)
+psql $DATABASE_URL < migrations/init.sql
+for file in migrations/00*.sql; do
+  [ "$(basename "$file")" = "init.sql" ] && continue
   psql $DATABASE_URL < "$file"
 done
 
