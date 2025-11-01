@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from fastapi import APIRouter, FastAPI, Request, Response
 import ipaddress
 from datetime import UTC, datetime
 from typing import Sequence
@@ -109,6 +110,7 @@ from prep.logistics.api import router as logistics_router
 from prep.monitoring.api import router as monitoring_router
 from prep.integrations.runtime import configure_integration_event_consumers
 from prep.pos.api import router as pos_router
+from prep.api.middleware import IdempotencyMiddleware
 from prep.auth.rbac import RBACMiddleware, RBAC_ROLES
 from prep.cache import RedisProtocol, get_redis
 from prep.settings import Settings, get_settings
@@ -278,6 +280,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
         allow_credentials=False,
     )
+    app.add_middleware(IdempotencyMiddleware)
 
     security_dependencies = [Depends(enforce_client_allowlist), Depends(enforce_active_session)]
     app.include_router(_build_router(), dependencies=security_dependencies)
@@ -287,6 +290,29 @@ def create_app() -> FastAPI:
         configure_integration_event_consumers(app)
     except RuntimeError:
         pass
+
+    API_VERSION = "v1"
+    sunset_date = "Wed, 01 Jan 2025 00:00:00 GMT"
+
+    @app.middleware("http")
+    async def _apply_version_headers(request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers.setdefault("X-API-Version", API_VERSION)
+        if not request.url.path.startswith(f"/api/{API_VERSION}"):
+            response.headers.setdefault("Deprecation", f"version={API_VERSION}-1")
+            response.headers.setdefault("Sunset", sunset_date)
+        return response
+
+    @app.get("/v1", tags=["meta"])
+    async def version_guidance() -> dict[str, str]:
+        """Communicate stable API versioning guidance to integrators."""
+
+        return {
+            "version": API_VERSION,
+            "status": "stable",
+            "guidance": "All new integrations should target /api/v1 endpoints. Unversioned paths will sunset soon.",
+            "sunset": sunset_date,
+        }
 
     @app.get("/healthz", tags=["health"])
     async def healthcheck() -> dict[str, str]:

@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 import boto3
 from botocore.client import BaseClient
+from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docusign_client import DocuSignClient
+from prep.api.errors import http_exception
 from prep.cache import RedisProtocol, get_redis
 from prep.database import get_db
 from prep.auth import get_current_user
@@ -33,6 +36,9 @@ async def get_platform_service(
     return PlatformService(session, cache, settings)
 
 
+def get_docusign_client(
+    request: Request, settings: Settings = Depends(get_settings)
+) -> DocuSignClient:
 def _extract_request_metadata(request: Request) -> tuple[str | None, str | None, str | None]:
     client_ip = request.client.host if request.client else None
     device_id = request.headers.get("X-Device-Id")
@@ -42,7 +48,12 @@ def _extract_request_metadata(request: Request) -> tuple[str | None, str | None,
 
 def get_docusign_client(settings: Settings = Depends(get_settings)) -> DocuSignClient:
     if not settings.docusign_account_id or not settings.docusign_access_token:
-        raise HTTPException(status_code=500, detail="DocuSign credentials are not configured")
+        raise http_exception(
+            request,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code="platform.integrations.docusign_missing",
+            message="DocuSign credentials are not configured",
+        )
     return DocuSignClient(
         base_url=str(settings.docusign_base_url),
         account_id=settings.docusign_account_id,
@@ -63,19 +74,43 @@ async def get_sublease_contract_service(
     return SubleaseContractService(session, docusign, s3_client, settings)
 
 
-def _handle_service_error(exc: PlatformError) -> HTTPException:
-    return HTTPException(status_code=exc.status_code, detail=str(exc))
+def _handle_service_error(request: Request, exc: PlatformError):
+    raise http_exception(
+        request,
+        status_code=exc.status_code,
+        code=getattr(exc, "code", "platform_error"),
+        message=str(exc),
+        metadata=getattr(exc, "metadata", None),
+    )
+
+
+def _parse_review_cursor(request: Request, cursor: str | None) -> tuple[datetime, UUID] | None:
+    if cursor is None:
+        return None
+    try:
+        timestamp_raw, review_id_raw = cursor.split("::", 1)
+        timestamp = datetime.fromisoformat(timestamp_raw)
+        review_id = UUID(review_id_raw)
+    except (ValueError, AttributeError):
+        raise http_exception(
+            request,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="platform.reviews.invalid_cursor",
+            message="Cursor must be formatted as <ISO timestamp>::<review id>",
+        )
+    return timestamp, review_id
 
 
 @router.post("/users/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(
     payload: schemas.UserRegistrationRequest,
+    request: Request,
     service: PlatformService = Depends(get_platform_service),
 ) -> schemas.UserResponse:
     try:
         user = await service.register_user(payload)
     except PlatformError as exc:
-        raise _handle_service_error(exc)
+        _handle_service_error(request, exc)
     return schemas.serialize_user(user)
 
 
@@ -95,7 +130,7 @@ async def login_user(
             user_agent=user_agent,
         )
     except PlatformError as exc:
-        raise _handle_service_error(exc)
+        _handle_service_error(request, exc)
     return schemas.AuthenticatedUserResponse(
         access_token=token,
         refresh_token=refresh_token,
@@ -285,12 +320,13 @@ async def revoke_api_key(
 @router.post("/kitchens", response_model=schemas.KitchenResponse, status_code=status.HTTP_201_CREATED)
 async def create_kitchen(
     payload: schemas.KitchenCreateRequest,
+    request: Request,
     service: PlatformService = Depends(get_platform_service),
 ) -> schemas.KitchenResponse:
     try:
         kitchen = await service.create_kitchen(payload)
     except PlatformError as exc:
-        raise _handle_service_error(exc)
+        _handle_service_error(request, exc)
     return schemas.serialize_kitchen(kitchen)
 
 
@@ -298,24 +334,26 @@ async def create_kitchen(
 async def update_kitchen(
     kitchen_id: UUID,
     payload: schemas.KitchenUpdateRequest,
+    request: Request,
     service: PlatformService = Depends(get_platform_service),
 ) -> schemas.KitchenResponse:
     try:
         kitchen = await service.update_kitchen(kitchen_id, payload)
     except PlatformError as exc:
-        raise _handle_service_error(exc)
+        _handle_service_error(request, exc)
     return schemas.serialize_kitchen(kitchen)
 
 
 @router.post("/bookings", response_model=schemas.BookingResponse, status_code=status.HTTP_201_CREATED)
 async def create_booking(
     payload: schemas.BookingCreateRequest,
+    request: Request,
     service: PlatformService = Depends(get_platform_service),
 ) -> schemas.BookingResponse:
     try:
         booking = await service.create_booking(payload)
     except PlatformError as exc:
-        raise _handle_service_error(exc)
+        _handle_service_error(request, exc)
     return schemas.serialize_booking(booking)
 
 
@@ -323,37 +361,58 @@ async def create_booking(
 async def update_booking(
     booking_id: UUID,
     payload: schemas.BookingStatusUpdateRequest,
+    request: Request,
     service: PlatformService = Depends(get_platform_service),
 ) -> schemas.BookingResponse:
     try:
         booking = await service.update_booking_status(booking_id, payload)
     except PlatformError as exc:
-        raise _handle_service_error(exc)
+        _handle_service_error(request, exc)
     return schemas.serialize_booking(booking)
 
 
 @router.post("/reviews", response_model=schemas.ReviewResponse, status_code=status.HTTP_201_CREATED)
 async def create_review(
     payload: schemas.ReviewCreateRequest,
+    request: Request,
     service: PlatformService = Depends(get_platform_service),
 ) -> schemas.ReviewResponse:
     try:
         review = await service.create_review(payload)
     except PlatformError as exc:
-        raise _handle_service_error(exc)
+        _handle_service_error(request, exc)
     return schemas.serialize_review(review)
 
 
-@router.get("/reviews/kitchens/{kitchen_id}", response_model=list[schemas.ReviewResponse])
+@router.get("/reviews/kitchens/{kitchen_id}", response_model=schemas.ReviewListResponse)
 async def list_reviews(
     kitchen_id: UUID,
+    request: Request,
+    cursor: str | None = Query(
+        default=None,
+        description="Cursor returned by the previous page of results",
+    ),
+    limit: int = Query(20, ge=1, le=100),
     service: PlatformService = Depends(get_platform_service),
-) -> list[schemas.ReviewResponse]:
+) -> schemas.ReviewListResponse:
+    parsed_cursor = _parse_review_cursor(request, cursor)
     try:
-        reviews = await service.list_reviews_for_kitchen(kitchen_id)
+        reviews, next_cursor = await service.list_reviews_for_kitchen(
+            kitchen_id,
+            cursor=parsed_cursor,
+            limit=limit,
+        )
     except PlatformError as exc:
-        raise _handle_service_error(exc)
-    return [schemas.serialize_review(review) for review in reviews]
+        _handle_service_error(request, exc)
+    return schemas.ReviewListResponse(
+        items=[schemas.serialize_review(review) for review in reviews],
+        pagination=schemas.CursorPageMeta(
+            cursor=cursor,
+            next_cursor=next_cursor,
+            limit=limit,
+            has_more=next_cursor is not None,
+        ),
+    )
 
 
 @router.post("/documents", response_model=schemas.DocumentUploadResponse, status_code=status.HTTP_201_CREATED)
@@ -398,12 +457,13 @@ async def get_business_readiness(
 @router.post("/payments/intent", response_model=schemas.PaymentIntentResponse)
 async def create_payment_intent(
     payload: schemas.PaymentIntentCreateRequest,
+    request: Request,
     service: PlatformService = Depends(get_platform_service),
 ) -> schemas.PaymentIntentResponse:
     try:
         client_secret = await service.create_payment_intent(payload)
     except PlatformError as exc:
-        raise _handle_service_error(exc)
+        _handle_service_error(request, exc)
     return schemas.PaymentIntentResponse(client_secret=client_secret)
 
 
@@ -429,6 +489,7 @@ async def create_checkout_payment(
 )
 async def send_sublease_contract(
     payload: schemas.SubleaseContractSendRequest,
+    request: Request,
     service: SubleaseContractService = Depends(get_sublease_contract_service),
 ) -> schemas.SubleaseContractSendResponse:
     try:
@@ -439,7 +500,7 @@ async def send_sublease_contract(
             return_url=payload.return_url,
         )
     except PlatformError as exc:
-        raise _handle_service_error(exc)
+        _handle_service_error(request, exc)
 
     return schemas.SubleaseContractSendResponse(
         booking_id=result.contract.booking_id,
@@ -454,12 +515,13 @@ async def send_sublease_contract(
 )
 async def get_sublease_contract_status(
     booking_id: UUID,
+    request: Request,
     service: SubleaseContractService = Depends(get_sublease_contract_service),
 ) -> schemas.SubleaseContractStatusResponse:
     try:
         contract = await service.get_contract_status(booking_id)
     except PlatformError as exc:
-        raise _handle_service_error(exc)
+        _handle_service_error(request, exc)
 
     return schemas.SubleaseContractStatusResponse(
         booking_id=contract.booking_id,
@@ -478,12 +540,13 @@ async def get_sublease_contract_status(
 )
 async def create_compliance_document(
     payload: schemas.ComplianceDocumentCreateRequest,
+    request: Request,
     service: PlatformService = Depends(get_platform_service),
 ) -> schemas.ComplianceDocumentResponse:
     try:
         document = await service.create_compliance_document(payload)
     except PlatformError as exc:
-        raise _handle_service_error(exc)
+        _handle_service_error(request, exc)
     return schemas.serialize_compliance_document(document)
 
 

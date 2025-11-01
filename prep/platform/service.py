@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import UTC, datetime
+from typing import Any, Mapping
 from decimal import Decimal, ROUND_HALF_UP
 from uuid import UUID, uuid4
 from datetime import UTC, datetime, timedelta
@@ -12,7 +13,7 @@ from typing import Any
 from uuid import UUID
 
 import stripe
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,9 +67,18 @@ logger = logging.getLogger("prep.platform.service")
 class PlatformError(Exception):
     """Base exception raised for recoverable platform service errors."""
 
-    def __init__(self, message: str, *, status_code: int = 400) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int = 400,
+        code: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.code = code or "platform_error"
+        self.metadata = dict(metadata) if metadata else None
 
 
 class PlatformService:
@@ -666,19 +676,49 @@ class PlatformService:
         logger.info("Created review", extra={"review_id": str(review.id)})
         return review
 
-    async def list_reviews_for_kitchen(self, kitchen_id: UUID) -> list[Review]:
+    async def list_reviews_for_kitchen(
+        self,
+        kitchen_id: UUID,
+        *,
+        cursor: tuple[datetime, UUID] | None,
+        limit: int,
+    ) -> tuple[list[Review], str | None]:
         stmt = (
             select(Review)
             .where(Review.kitchen_id == kitchen_id)
-            .order_by(Review.created_at.desc())
+            .order_by(Review.created_at.desc(), Review.id.desc())
         )
+
+        if cursor is not None:
+            cursor_timestamp, cursor_id = cursor
+            stmt = stmt.where(
+                or_(
+                    Review.created_at < cursor_timestamp,
+                    and_(Review.created_at == cursor_timestamp, Review.id < cursor_id),
+                )
+            )
+
+        stmt = stmt.limit(limit + 1)
         result = await self._session.execute(stmt)
         reviews = list(result.scalars().all())
+
+        has_more = len(reviews) > limit
+        if has_more:
+            reviews = reviews[:limit]
+            tail = reviews[-1]
+            next_cursor = f"{tail.created_at.isoformat()}::{tail.id}"
+        else:
+            next_cursor = None
+
         logger.debug(
             "Fetched reviews",
-            extra={"kitchen_id": str(kitchen_id), "count": len(reviews)},
+            extra={
+                "kitchen_id": str(kitchen_id),
+                "count": len(reviews),
+                "has_more": has_more,
+            },
         )
-        return reviews
+        return reviews, next_cursor
 
     async def create_compliance_document(
         self, payload: schemas.ComplianceDocumentCreateRequest
