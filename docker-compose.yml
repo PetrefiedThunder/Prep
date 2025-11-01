@@ -120,6 +120,25 @@ services:
     networks:
       - prepchef-network
 
+  city-etl-orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: prepchef-city-etl-orchestrator
+    restart: unless-stopped
+    command: uvicorn apps.city_etl_orchestrator.main:app --host 0.0.0.0 --port 8080
+    environment:
+      - SF_DATABASE_URL=sqlite:////var/lib/city-etl/sf_regulatory_service.db
+    depends_on:
+      python-compliance:
+        condition: service_started
+    volumes:
+      - city_etl_data:/var/lib/city-etl
+    ports:
+      - "${CITY_ETL_ORCHESTRATOR_PORT:-8083}:8080"
+    networks:
+      - prepchef-network
+
   compliance-reports:
     build:
       context: .
@@ -175,6 +194,8 @@ volumes:
   redis_data:
     driver: local
   minio_data:
+    driver: local
+  city_etl_data:
     driver: local
 
 networks:
