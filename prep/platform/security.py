@@ -74,6 +74,7 @@ def create_access_token(
 
     payload: Dict[str, Any] = {
         "sub": str(user.id),
+        "roles": _collect_roles(user),
         "roles": derived_roles,
         "exp": expire,
         "iss": settings.oidc_issuer or "prep-platform",
@@ -118,7 +119,38 @@ def serialize_session(user: User, expires_at: datetime) -> str:
     payload = {
         "user_id": str(user.id),
         "role": user.role.value,
+        "roles": _collect_roles(user),
         "roles": [user.role.value],
         "expires_at": expires_at.isoformat(),
     }
     return json.dumps(payload)
+
+
+def hash_token(token: str) -> str:
+    """Return a deterministic hash for sensitive token strings."""
+
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def generate_refresh_token() -> str:
+    """Generate a high-entropy refresh token."""
+
+    return secrets.token_urlsafe(48)
+
+
+def generate_api_key() -> tuple[str, str, str]:
+    """Return a tuple of (raw_key, prefix, hashed_key)."""
+
+    raw = secrets.token_urlsafe(48)
+    prefix = raw[:12]
+    return raw, prefix, hash_token(raw)
+
+
+def _collect_roles(user: User) -> list[str]:
+    roles = {user.role.value}
+    extra_roles = getattr(user, "rbac_roles", None)
+    if isinstance(extra_roles, list):
+        for role in extra_roles:
+            if isinstance(role, str) and role.strip():
+                roles.add(role.strip())
+    return sorted(roles)

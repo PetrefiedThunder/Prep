@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from docusign_client import DocuSignClient
 from prep.cache import RedisProtocol, get_redis
 from prep.database import get_db
+from prep.auth import get_current_user
 from prep.auth import get_current_admin
 from prep.models.orm import User
 from prep.platform import schemas
@@ -85,6 +86,7 @@ async def login_user(
     service: PlatformService = Depends(get_platform_service),
 ) -> schemas.AuthenticatedUserResponse:
     try:
+        user, token, refresh_token, expires_at = await service.authenticate_user(payload)
         device_id, client_ip, user_agent = _extract_request_metadata(request)
         user, token, expires_at, refresh_token, refresh_expires = await service.authenticate_user(
             payload,
@@ -96,6 +98,7 @@ async def login_user(
         raise _handle_service_error(exc)
     return schemas.AuthenticatedUserResponse(
         access_token=token,
+        refresh_token=refresh_token,
         expires_at=expires_at,
         refresh_token=refresh_token,
         refresh_expires_at=refresh_expires,
@@ -103,6 +106,73 @@ async def login_user(
     )
 
 
+@router.post("/auth/token", response_model=schemas.TokenPairResponse)
+async def issue_access_token(
+    payload: schemas.UserLoginRequest,
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.TokenPairResponse:
+    try:
+        _, token, refresh_token, expires_at = await service.authenticate_user(payload)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    return schemas.TokenPairResponse(
+        access_token=token,
+        refresh_token=refresh_token,
+        expires_at=expires_at,
+    )
+
+
+@router.post("/auth/refresh", response_model=schemas.TokenPairResponse)
+async def refresh_access_token(
+    payload: schemas.RefreshTokenRequest,
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.TokenPairResponse:
+    try:
+        _, token, refresh_token, expires_at = await service.refresh_access_token(
+            payload.refresh_token
+        )
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    return schemas.TokenPairResponse(
+        access_token=token,
+        refresh_token=refresh_token,
+        expires_at=expires_at,
+    )
+
+
+@router.post(
+    "/auth/api-keys",
+    response_model=schemas.APIKeyWithSecretResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_api_key(
+    payload: schemas.APIKeyCreateRequest,
+    current_user=Depends(get_current_user),
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.APIKeyWithSecretResponse:
+    try:
+        api_key, secret = await service.create_api_key(current_user.id, payload)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    serialized = schemas.serialize_api_key(api_key)
+    return schemas.APIKeyWithSecretResponse(**serialized.model_dump(), secret=secret)
+
+
+@router.post(
+    "/auth/api-keys/{key_id}/rotate",
+    response_model=schemas.APIKeyWithSecretResponse,
+)
+async def rotate_api_key(
+    key_id: UUID,
+    current_user=Depends(get_current_user),
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.APIKeyWithSecretResponse:
+    try:
+        api_key, secret = await service.rotate_api_key(current_user.id, key_id)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    serialized = schemas.serialize_api_key(api_key)
+    return schemas.APIKeyWithSecretResponse(**serialized.model_dump(), secret=secret)
 @auth_router.post("/token", response_model=schemas.TokenPairResponse)
 async def issue_access_token(
     request: Request,

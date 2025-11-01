@@ -1,3 +1,8 @@
+"""Authentication helpers and shared dependencies for Prep services."""
+
+from __future__ import annotations
+
+from typing import Any
 """Authentication helpers and dependencies used across the Prep API surface."""
 
 from __future__ import annotations
@@ -14,6 +19,31 @@ from prep.database import get_db
 from prep.models.orm import User, UserRole
 from prep.settings import Settings, get_settings
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
+
+
+_ALLOWED_JWT_ALGORITHMS: tuple[str, ...] = ("HS256",)
+
+
+def _extract_roles(payload: dict[str, Any]) -> list[str]:
+    """Normalize the ``roles`` claim from a decoded JWT payload."""
+
+    raw_roles = payload.get("roles", [])
+    if isinstance(raw_roles, str):
+        raw_roles = [raw_roles]
+    if not isinstance(raw_roles, (list, tuple, set)):
+        return []
+    roles: list[str] = []
+    for value in raw_roles:
+        if isinstance(value, str):
+            normalized = value.strip()
+            if normalized:
+                roles.append(normalized)
+    return roles
+
+
+def _decode_jwt(token: str, settings: Settings) -> dict[str, Any]:
+    """Decode and validate a JWT payload."""
 # The OAuth2 password flow used by the legacy admin and analytics surfaces.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
@@ -39,6 +69,11 @@ def decode_token(token: str, settings: Settings) -> dict[str, Any]:
             detail="Unsupported token algorithm",
         )
 
+    try:
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=_ALLOWED_JWT_ALGORITHMS,
     signing_key = settings.auth_signing_key or settings.secret_key
     try:
         payload = jwt.decode(
@@ -63,6 +98,11 @@ def decode_token(token: str, settings: Settings) -> dict[str, Any]:
     return payload
 
 
+def get_token_roles(token: str, settings: Settings) -> list[str]:
+    """Return the normalized role claims encoded in ``token``."""
+
+    payload = _decode_jwt(token, settings)
+    return _extract_roles(payload)
 def _decode_jwt(token: str, settings: Settings) -> dict[str, Any]:
     """Backwards compatible alias retained for the existing unit tests."""
 
@@ -77,6 +117,7 @@ async def get_current_admin(
     """Resolve and authorize the currently authenticated admin user."""
 
     user, roles = await _resolve_user(token, db, settings)
+    if "admin" not in roles and not user.is_admin and user.role is not UserRole.ADMIN:
     if not _has_required_role(
         roles,
         {
@@ -113,6 +154,7 @@ async def get_current_user(
             detail="Account is not active",
         )
 
+    if not roles and user.role not in {UserRole.ADMIN, UserRole.HOST, UserRole.CUSTOMER}:
     allowed_roles = {
         UserRole.ADMIN.value,
         UserRole.HOST.value,
@@ -140,6 +182,13 @@ async def get_current_user(
 
 
 async def _resolve_user(
+    token: str, db: AsyncSession, settings: Settings
+) -> tuple[User, list[str]]:
+    """Decode the token and load the associated user."""
+
+    payload = _decode_jwt(token, settings)
+    subject = payload.get("sub")
+    roles = _extract_roles(payload)
     token: str,
     db: AsyncSession,
     settings: Settings,
@@ -169,6 +218,17 @@ async def _resolve_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
+
+    return user, roles
+
+
+__all__ = [
+    "get_current_admin",
+    "get_current_user",
+    "get_token_roles",
+    "oauth2_scheme",
+    "_decode_jwt",
+]
 
     return user, roles if isinstance(roles, list) else [str(roles)]
 

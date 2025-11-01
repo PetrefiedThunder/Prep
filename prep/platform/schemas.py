@@ -45,12 +45,14 @@ class UserResponse(_ORMBaseModel):
     role: UserRole
     is_active: bool
     created_at: datetime
+    rbac_roles: list[str] = Field(default_factory=list)
 
 
 class AuthTokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_at: datetime
+    refresh_token: str | None = None
 
 
 class TokenPairResponse(AuthTokenResponse):
@@ -62,6 +64,12 @@ class AuthenticatedUserResponse(TokenPairResponse):
     user: UserResponse
 
 
+class TokenPairResponse(AuthTokenResponse):
+    refresh_token: str
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(min_length=16)
 class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(min_length=1)
     device_fingerprint: str | None = Field(default=None, max_length=255)
@@ -270,6 +278,30 @@ class SubleaseContractStatusResponse(BaseModel):
 
 def serialize_user(user: User) -> UserResponse:
     return UserResponse.model_validate(user)
+
+
+class APIKeyCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    expires_at: datetime | None = None
+
+
+class APIKeyResponse(_ORMBaseModel):
+    id: UUID
+    name: str
+    key_prefix: str
+    is_active: bool
+    expires_at: datetime | None
+    last_used_at: datetime | None
+    rotated_at: datetime | None
+    created_at: datetime
+
+
+class APIKeyWithSecretResponse(APIKeyResponse):
+    secret: str
+
+
+def serialize_api_key(api_key: APIKey) -> APIKeyResponse:
+    return APIKeyResponse.model_validate(api_key)
 
 
 def serialize_kitchen(kitchen: Kitchen) -> KitchenResponse:

@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import ipaddress
+from datetime import UTC, datetime
+from typing import Sequence
+
+import jwt
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi import APIRouter, Depends, FastAPI
 from collections.abc import Iterable
 from importlib import import_module
@@ -103,6 +109,99 @@ from prep.logistics.api import router as logistics_router
 from prep.monitoring.api import router as monitoring_router
 from prep.integrations.runtime import configure_integration_event_consumers
 from prep.pos.api import router as pos_router
+from prep.auth.rbac import RBACMiddleware, RBAC_ROLES
+from prep.cache import RedisProtocol, get_redis
+from prep.settings import Settings, get_settings
+
+
+def _ip_in_allowlist(ip: str, allowlist: Sequence[str]) -> bool:
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+
+    for entry in allowlist:
+        value = entry.strip()
+        if not value:
+            continue
+        if value == "*":
+            return True
+        try:
+            network = ipaddress.ip_network(value, strict=False)
+        except ValueError:
+            if value == ip:
+                return True
+        else:
+            if ip_obj in network:
+                return True
+    return False
+
+
+async def enforce_client_allowlist(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    device_id: str | None = Header(default=None, alias="X-Device-ID"),
+) -> None:
+    client_host = request.client.host if request.client else None
+    if settings.auth_ip_allowlist:
+        if not client_host or not _ip_in_allowlist(client_host, settings.auth_ip_allowlist):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Request IP address is not allowed",
+            )
+    if settings.auth_device_allowlist:
+        if device_id is None or device_id not in settings.auth_device_allowlist:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Device is not authorized",
+            )
+
+
+async def enforce_active_session(
+    request: Request,
+    cache: RedisProtocol = Depends(get_redis),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    authorization = request.headers.get("Authorization")
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return
+
+    token = authorization.split(" ", 1)[1].strip()
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authorization header",
+        )
+
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=("HS256",))
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session token expired",
+        )
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid session token",
+        )
+
+    exp = payload.get("exp")
+    if exp is not None:
+        expires_at = datetime.fromtimestamp(int(exp), tz=UTC)
+        if expires_at < datetime.now(UTC):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session token expired",
+            )
+
+    cache_key = f"session:{token}"
+    cached = await cache.get(cache_key)
+    if cached is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session is no longer active",
+        )
 from prep.settings import get_settings
 
 
@@ -146,6 +245,28 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="Prep API Gateway", version="1.0.0")
 
+    settings = get_settings()
+    app.add_middleware(
+        RBACMiddleware,
+        settings=settings,
+        route_roles={
+            "/api/v1/admin": {"operator_admin"},
+            "/api/v1/analytics": {"operator_admin", "support_analyst"},
+            "/api/v1/matching": {"operator_admin", "support_analyst"},
+            "/api/v1/cities": {"operator_admin", "city_reviewer"},
+            "/api/v1/platform": set(RBAC_ROLES),
+        },
+        exempt_paths=(
+            "/healthz",
+            "/docs",
+            "/openapi.json",
+            "/api/v1/platform/users/register",
+            "/api/v1/platform/auth/login",
+            "/api/v1/platform/auth/token",
+            "/api/v1/platform/auth/refresh",
+        ),
+    )
+
     configure_fastapi_tracing(app, targeted_routes=DEFAULT_TARGETED_ROUTES)
 
     app.add_middleware(RBACMiddleware, settings=settings)
@@ -158,6 +279,9 @@ def create_app() -> FastAPI:
         allow_credentials=False,
     )
 
+    security_dependencies = [Depends(enforce_client_allowlist), Depends(enforce_active_session)]
+    app.include_router(_build_router(), dependencies=security_dependencies)
+    configure_integration_event_consumers(app)
     app.include_router(_build_router())
     try:  # pragma: no cover - integrations may require external services
         configure_integration_event_consumers(app)
