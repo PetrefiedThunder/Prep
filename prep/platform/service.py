@@ -7,12 +7,16 @@ import logging
 from datetime import UTC, datetime
 from decimal import Decimal, ROUND_HALF_UP
 from uuid import UUID, uuid4
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from uuid import UUID
 
 import stripe
 from sqlalchemy import Select, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prep.auth.providers import IdentityProfile
 from prep.cache import RedisProtocol
 from prep.models.orm import (
     Booking,
@@ -29,10 +33,31 @@ from prep.models.orm import (
     PermitStatus,
     Review,
     User,
+    APIKey,
+    Booking,
+    ComplianceDocument,
+    IdentityProvider,
+    IdentityProviderType,
+    Kitchen,
+    RefreshToken,
+    Review,
+    User,
+    UserIdentity,
     UserRole,
 )
 from prep.platform import schemas
-from prep.platform.security import create_access_token, hash_password, serialize_session, verify_password
+from prep.platform.security import (
+    create_access_token,
+    generate_api_key,
+    generate_refresh_token,
+    create_refresh_token,
+    generate_api_key_secret,
+    hash_api_key_secret,
+    hash_password,
+    hash_token,
+    serialize_session,
+    verify_password,
+)
 from prep.settings import Settings
 
 logger = logging.getLogger("prep.platform.service")
@@ -206,6 +231,7 @@ class PlatformService:
             hashed_password=hashed,
             role=payload.role,
             is_active=True,
+            rbac_roles=self._default_rbac_roles(payload.role),
         )
         self._session.add(user)
         try:
@@ -220,7 +246,14 @@ class PlatformService:
 
     async def authenticate_user(
         self, payload: schemas.UserLoginRequest
-    ) -> tuple[User, str, datetime]:
+    ) -> tuple[User, str, str, datetime]:
+        self,
+        payload: schemas.UserLoginRequest,
+        *,
+        device_fingerprint: str | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[User, str, datetime, str, datetime]:
         stmt = select(User).where(func.lower(User.email) == payload.email.lower())
         result = await self._session.execute(stmt)
         user = result.scalar_one_or_none()
@@ -231,8 +264,51 @@ class PlatformService:
             raise PlatformError("Invalid credentials", status_code=401)
 
         user.last_login_at = datetime.now(UTC)
+        refresh_token, _ = await self._create_refresh_token(user, commit=False)
+
+        token, expires_at = create_access_token(user, self._settings)
+        refresh_token, refresh_expires = create_refresh_token(self._settings)
+        refresh_record = RefreshToken(
+            user_id=user.id,
+            token_hash=hash_token(refresh_token),
+            expires_at=refresh_expires,
+            device_fingerprint=device_fingerprint,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+        self._session.add(refresh_record)
         await self._session.commit()
         await self._session.refresh(user)
+
+        await self._cache.setex(
+            f"session:{token}",
+            self._settings.session_ttl_seconds,
+            serialize_session(user, expires_at),
+        )
+        return user, token, refresh_token, expires_at
+
+    async def refresh_access_token(
+        self, refresh_token: str
+    ) -> tuple[User, str, str, datetime]:
+        token_hash = hash_token(refresh_token)
+        stmt = select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+        result = await self._session.execute(stmt)
+        stored_token = result.scalar_one_or_none()
+        if stored_token is None:
+            raise PlatformError("Refresh token is invalid", status_code=401)
+
+        now = datetime.now(UTC)
+        if stored_token.revoked_at is not None or stored_token.expires_at < now:
+            stored_token.revoked_at = stored_token.revoked_at or now
+            await self._session.commit()
+            raise PlatformError("Refresh token expired", status_code=401)
+
+        user = await self._session.get(User, stored_token.user_id)
+        if user is None or not user.is_active:
+            raise PlatformError("Account is not active", status_code=403)
+
+        stored_token.revoked_at = now
+        new_refresh_token, _ = await self._create_refresh_token(user, commit=False)
 
         token, expires_at = create_access_token(user, self._settings)
         await self._cache.setex(
@@ -240,13 +316,195 @@ class PlatformService:
             self._settings.session_ttl_seconds,
             serialize_session(user, expires_at),
         )
-        return user, token, expires_at
+
+        await self._session.commit()
+        await self._session.refresh(user)
+
+        return user, token, new_refresh_token, expires_at
+        return user, token, expires_at, refresh_token, refresh_expires
+
+    async def refresh_access_token(
+        self,
+        refresh_token: str,
+        *,
+        device_fingerprint: str | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[User, str, datetime, str, datetime]:
+        token_hash = hash_token(refresh_token)
+        stmt = select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+        if record is None or record.revoked_at is not None:
+            raise PlatformError("Invalid refresh token", status_code=401)
+
+        if record.expires_at <= datetime.now(UTC):
+            raise PlatformError("Refresh token expired", status_code=401)
+
+        user = await self._session.get(User, record.user_id)
+        if user is None or not user.is_active:
+            raise PlatformError("User not found", status_code=401)
+
+        access_token, access_expires = create_access_token(user, self._settings)
+        new_refresh_token, new_refresh_expires = create_refresh_token(self._settings)
+
+        record.token_hash = hash_token(new_refresh_token)
+        record.expires_at = new_refresh_expires
+        record.rotated_at = datetime.now(UTC)
+        if device_fingerprint:
+            record.device_fingerprint = device_fingerprint
+        if ip_address:
+            record.ip_address = ip_address
+        if user_agent:
+            record.user_agent = user_agent
+
+        await self._session.commit()
+        await self._session.refresh(user)
+
+        await self._cache.setex(
+            f"session:{access_token}",
+            self._settings.session_ttl_seconds,
+            serialize_session(user, access_expires),
+        )
+
+        return user, access_token, access_expires, new_refresh_token, new_refresh_expires
+
+    async def issue_api_key(
+        self, user_id: UUID, payload: schemas.APIKeyIssueRequest
+    ) -> tuple[APIKey, str]:
+        user = await self._session.get(User, user_id)
+        if user is None:
+            raise PlatformError("User not found", status_code=404)
+
+        prefix, secret = generate_api_key_secret()
+        hashed_secret = hash_api_key_secret(secret)
+        expires_at: datetime | None = None
+        if payload.expires_in_days is not None:
+            expires_at = datetime.now(UTC) + timedelta(days=payload.expires_in_days)
+
+        api_key = APIKey(
+            user_id=user.id,
+            name=payload.name,
+            prefix=prefix,
+            hashed_secret=hashed_secret,
+            expires_at=expires_at,
+            is_active=True,
+        )
+
+        self._session.add(api_key)
+        await self._session.commit()
+        await self._session.refresh(api_key)
+        return api_key, secret
+
+    async def rotate_api_key(
+        self,
+        api_key_id: UUID,
+        *,
+        actor_id: UUID,
+        expires_in_days: int | None = None,
+    ) -> tuple[APIKey, str]:
+        api_key = await self._session.get(APIKey, api_key_id)
+        if api_key is None or not api_key.is_active:
+            raise PlatformError("API key not found", status_code=404)
+
+        if api_key.user_id != actor_id:
+            raise PlatformError("Cannot rotate key for another user", status_code=403)
+
+        prefix, secret = generate_api_key_secret()
+        api_key.prefix = prefix
+        api_key.hashed_secret = hash_api_key_secret(secret)
+        api_key.rotated_at = datetime.now(UTC)
+        if expires_in_days is not None:
+            api_key.expires_at = datetime.now(UTC) + timedelta(days=expires_in_days)
+
+        await self._session.commit()
+        await self._session.refresh(api_key)
+        return api_key, secret
+
+    async def revoke_api_key(self, api_key_id: UUID, *, actor_id: UUID) -> APIKey:
+        api_key = await self._session.get(APIKey, api_key_id)
+        if api_key is None:
+            raise PlatformError("API key not found", status_code=404)
+
+        if api_key.user_id != actor_id:
+            raise PlatformError("Cannot revoke key for another user", status_code=403)
+
+        api_key.is_active = False
+        api_key.revoked_at = datetime.now(UTC)
+        await self._session.commit()
+        await self._session.refresh(api_key)
+        return api_key
+
+    async def link_identity_provider(
+        self,
+        user: User,
+        *,
+        provider_slug: str,
+        provider_name: str,
+        provider_type: IdentityProviderType,
+        issuer: str,
+        subject: str,
+        email: str | None,
+        full_name: str | None,
+        attributes: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> UserIdentity:
+        stmt = select(IdentityProvider).where(IdentityProvider.slug == provider_slug)
+        result = await self._session.execute(stmt)
+        provider = result.scalar_one_or_none()
+        if provider is None:
+            provider = IdentityProvider(
+                name=provider_name,
+                slug=provider_slug,
+                provider_type=provider_type,
+                issuer=issuer,
+                metadata_url=metadata.get("metadata_url") if metadata else None,
+                jwks_url=metadata.get("jwks_url") if metadata else None,
+                sso_url=metadata.get("sso_url") if metadata else None,
+                acs_url=metadata.get("acs_url") if metadata else None,
+                settings=metadata or {},
+            )
+            self._session.add(provider)
+            await self._session.flush()
+
+        stmt = select(UserIdentity).where(
+            UserIdentity.provider_id == provider.id,
+            UserIdentity.subject == subject,
+        )
+        result = await self._session.execute(stmt)
+        identity = result.scalar_one_or_none()
+        if identity is None:
+            identity = UserIdentity(
+                user_id=user.id,
+                provider_id=provider.id,
+                subject=subject,
+                email=email,
+                full_name=full_name,
+                attributes=attributes or {},
+                last_login_at=datetime.now(UTC),
+            )
+            self._session.add(identity)
+        else:
+            identity.user_id = user.id
+            identity.email = email
+            identity.full_name = full_name
+            identity.attributes = attributes or {}
+            identity.last_login_at = datetime.now(UTC)
+
+        await self._session.commit()
+        await self._session.refresh(identity)
+        return identity
 
     async def create_kitchen(self, payload: schemas.KitchenCreateRequest) -> Kitchen:
         host = await self._session.get(User, payload.host_id)
         if host is None:
             raise PlatformError("Host not found", status_code=404)
-        if host.role not in (UserRole.HOST, UserRole.ADMIN):
+        if host.role not in (
+            UserRole.HOST,
+            UserRole.ADMIN,
+            UserRole.KITCHEN_MANAGER,
+            UserRole.OPERATOR_ADMIN,
+        ):
             raise PlatformError("Host account required to create kitchen", status_code=403)
 
         kitchen = Kitchen(
@@ -591,3 +849,112 @@ class PlatformService:
 
         return payment
 *** End Patch
+    async def create_api_key(
+        self, user_id: UUID, payload: schemas.APIKeyCreateRequest
+    ) -> tuple[APIKey, str]:
+        user = await self._session.get(User, user_id)
+        if user is None:
+            raise PlatformError("User not found", status_code=404)
+
+        raw_key, prefix, hashed = generate_api_key()
+        api_key = APIKey(
+            user_id=user_id,
+            name=payload.name,
+            key_prefix=prefix,
+            hashed_key=hashed,
+            expires_at=payload.expires_at,
+            is_active=True,
+        )
+        self._session.add(api_key)
+
+        try:
+            await self._session.commit()
+        except IntegrityError as exc:
+            await self._session.rollback()
+            logger.exception(
+                "Failed to create API key", extra={"user_id": str(user_id)}
+            )
+            raise PlatformError("Unable to issue API key", status_code=500) from exc
+
+        await self._session.refresh(api_key)
+        return api_key, raw_key
+
+    async def rotate_api_key(self, user_id: UUID, key_id: UUID) -> tuple[APIKey, str]:
+        api_key = await self._session.get(APIKey, key_id)
+        if api_key is None or api_key.user_id != user_id:
+            raise PlatformError("API key not found", status_code=404)
+
+        if not api_key.is_active:
+            raise PlatformError("API key is inactive", status_code=400)
+
+        raw_key, prefix, hashed = generate_api_key()
+        api_key.key_prefix = prefix
+        api_key.hashed_key = hashed
+        api_key.rotated_at = datetime.now(UTC)
+
+        await self._session.commit()
+        await self._session.refresh(api_key)
+        return api_key, raw_key
+
+    async def upsert_identity_link(
+        self, user_id: UUID, provider_slug: str, profile: IdentityProfile
+    ) -> UserIdentity:
+        provider_stmt = select(IdentityProvider).where(
+            func.lower(IdentityProvider.slug) == provider_slug.lower()
+        )
+        provider_result = await self._session.execute(provider_stmt)
+        provider = provider_result.scalar_one_or_none()
+        if provider is None or not provider.is_active:
+            raise PlatformError("Identity provider not found", status_code=404)
+
+        stmt = select(UserIdentity).where(
+            UserIdentity.user_id == user_id,
+            UserIdentity.provider_id == provider.id,
+        )
+        result = await self._session.execute(stmt)
+        identity = result.scalar_one_or_none()
+        now = datetime.now(UTC)
+        if identity is None:
+            identity = UserIdentity(
+                user_id=user_id,
+                provider_id=provider.id,
+                subject=profile.subject,
+                email=profile.email,
+                raw_attributes=profile.claims,
+                last_sign_in_at=now,
+            )
+            self._session.add(identity)
+        else:
+            identity.subject = profile.subject
+            identity.email = profile.email
+            identity.raw_attributes = profile.claims
+            identity.last_sign_in_at = now
+
+        await self._session.commit()
+        await self._session.refresh(identity)
+        return identity
+
+    async def _create_refresh_token(
+        self, user: User, *, commit: bool = True
+    ) -> tuple[str, RefreshToken]:
+        raw = generate_refresh_token()
+        refresh = RefreshToken(
+            user_id=user.id,
+            token_hash=hash_token(raw),
+            expires_at=datetime.now(UTC)
+            + timedelta(days=self._settings.refresh_token_ttl_days),
+        )
+        self._session.add(refresh)
+        if commit:
+            await self._session.commit()
+            await self._session.refresh(refresh)
+        else:
+            await self._session.flush()
+        return raw, refresh
+
+    def _default_rbac_roles(self, role: UserRole) -> list[str]:
+        if role is UserRole.ADMIN:
+            return ["operator_admin", "support_analyst", "city_reviewer"]
+        if role is UserRole.HOST:
+            return ["kitchen_manager"]
+        return ["food_business_admin"]

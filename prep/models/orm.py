@@ -78,6 +78,11 @@ class UserRole(str, enum.Enum):
     ADMIN = "admin"
     HOST = "host"
     CUSTOMER = "customer"
+    OPERATOR_ADMIN = "operator_admin"
+    KITCHEN_MANAGER = "kitchen_manager"
+    FOOD_BUSINESS_ADMIN = "food_business_admin"
+    CITY_REVIEWER = "city_reviewer"
+    SUPPORT_ANALYST = "support_analyst"
 
 
 class SubscriptionStatus(str, enum.Enum):
@@ -207,6 +212,9 @@ class CheckoutPaymentStatus(str, enum.Enum):
     REFUND_REQUESTED = "refund_requested"
     REFUNDED = "refunded"
     FAILED = "failed"
+class IdentityProviderType(str, enum.Enum):
+    OIDC = "oidc"
+    SAML = "saml"
 
 
 class User(TimestampMixin, Base):
@@ -229,6 +237,7 @@ class User(TimestampMixin, Base):
     is_pilot_user: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     pilot_county: Mapped[str | None] = mapped_column(String(255))
     pilot_zip_code: Mapped[str | None] = mapped_column(String(20))
+    rbac_roles: Mapped[list[str]] = mapped_column(JSON, default=list)
     subscription_status: Mapped[SubscriptionStatus] = mapped_column(
         Enum(SubscriptionStatus), default=SubscriptionStatus.INACTIVE, nullable=False
     )
@@ -277,6 +286,110 @@ class User(TimestampMixin, Base):
     api_usage_events: Mapped[List["APIUsageEvent"]] = relationship(
         "APIUsageEvent", back_populates="user", cascade="all, delete-orphan"
     )
+    identities: Mapped[List["UserIdentity"]] = relationship(
+        "UserIdentity", back_populates="user", cascade="all, delete-orphan"
+    )
+    api_keys: Mapped[List["APIKey"]] = relationship(
+        "APIKey", back_populates="user", cascade="all, delete-orphan"
+    )
+    refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
+        "RefreshToken", back_populates="user", cascade="all, delete-orphan"
+    )
+    identities: Mapped[List["UserIdentity"]] = relationship(
+        "UserIdentity", back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class IdentityProvider(TimestampMixin, Base):
+    __tablename__ = "identity_providers"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    slug: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    provider_type: Mapped[IdentityProviderType] = mapped_column(
+        Enum(IdentityProviderType), nullable=False
+    )
+    issuer: Mapped[str] = mapped_column(String(512), nullable=False)
+    metadata_url: Mapped[str | None] = mapped_column(String(1024))
+    client_id: Mapped[str | None] = mapped_column(String(255))
+    client_secret: Mapped[str | None] = mapped_column(String(255))
+    jwks_url: Mapped[str | None] = mapped_column(String(1024))
+    sso_url: Mapped[str | None] = mapped_column(String(1024))
+    acs_url: Mapped[str | None] = mapped_column(String(1024))
+    certificate: Mapped[str | None] = mapped_column(Text)
+    settings: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    identities: Mapped[List["UserIdentity"]] = relationship(
+        "UserIdentity", back_populates="provider", cascade="all, delete-orphan"
+    )
+
+
+class UserIdentity(TimestampMixin, Base):
+    __tablename__ = "user_identities"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    provider_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("identity_providers.id", ondelete="CASCADE"), nullable=False
+    )
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255))
+    full_name: Mapped[str | None] = mapped_column(String(255))
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attributes: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
+
+    user: Mapped[User] = relationship("User", back_populates="identities")
+    provider: Mapped[IdentityProvider] = relationship(
+        "IdentityProvider", back_populates="identities"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("provider_id", "subject", name="uq_user_identity_subject"),
+    )
+
+
+class APIKey(TimestampMixin, Base):
+    __tablename__ = "api_keys"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    prefix: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    hashed_secret: Mapped[str] = mapped_column(String(128), nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    user: Mapped[User] = relationship("User", back_populates="api_keys")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_api_key_user_name"),
+    )
+
+
+class RefreshToken(TimestampMixin, Base):
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    device_fingerprint: Mapped[str | None] = mapped_column(String(255))
+    ip_address: Mapped[str | None] = mapped_column(String(64))
+    user_agent: Mapped[str | None] = mapped_column(String(255))
+
+    user: Mapped[User] = relationship("User", back_populates="refresh_tokens")
 
 
 class Kitchen(TimestampMixin, Base):
@@ -329,6 +442,7 @@ class Kitchen(TimestampMixin, Base):
     )
     pos_orders: Mapped[List["POSOrder"]] = relationship(
         "POSOrder", back_populates="kitchen", cascade="all, delete-orphan"
+    )
 
     integrations: Mapped[List["Integration"]] = relationship(
         "Integration",
@@ -380,7 +494,7 @@ class POSIntegration(TimestampMixin, Base):
     status: Mapped[POSIntegrationStatus] = mapped_column(
         Enum(POSIntegrationStatus), default=POSIntegrationStatus.ACTIVE, nullable=False
     )
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON)
 
     kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="pos_integrations")
     transactions: Mapped[List["POSTransaction"]] = relationship(
@@ -460,6 +574,9 @@ class POSOrder(TimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("provider", "external_id", name="uq_pos_order_provider_external"),
         Index("ix_pos_orders_kitchen_closed_at", "kitchen_id", "closed_at"),
+    )
+
+
 class Supplier(TimestampMixin, Base):
     """Vendors that provide inventory to Prep kitchens."""
 
@@ -589,6 +706,9 @@ class InventoryTransfer(TimestampMixin, Base):
     )
     approved_by_host: Mapped[User | None] = relationship(
         "User", foreign_keys=[approved_by_host_id], lazy="joined"
+    )
+
+
 class Integration(TimestampMixin, Base):
     __tablename__ = "integrations"
 
@@ -606,7 +726,9 @@ class Integration(TimestampMixin, Base):
     status: Mapped[IntegrationStatus] = mapped_column(
         Enum(IntegrationStatus), default=IntegrationStatus.ACTIVE, nullable=False
     )
-    metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSON, default=dict, nullable=False
+    )
 
     owner: Mapped[User] = relationship(
         "User",
@@ -671,7 +793,7 @@ class Booking(TimestampMixin, Base):
     reviews: Mapped[List["Review"]] = relationship(
         "Review", back_populates="booking", cascade="all, delete-orphan"
     )
-    sublease_contract: Mapped["SubleaseContract" | None] = relationship(
+    sublease_contract: Mapped[SubleaseContract | None] = relationship(
         "SubleaseContract", back_populates="booking", uselist=False
     )
     ledger_entries: Mapped[List["LedgerEntry"]] = relationship(
@@ -697,7 +819,9 @@ class APIUsageEvent(TimestampMixin, Base):
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(
+        "metadata", JSON, default=dict
+    )
 
     user: Mapped["User"] = relationship("User", back_populates="api_usage_events")
 
@@ -1129,7 +1253,9 @@ class DeliveryComplianceEvent(TimestampMixin, Base):
     verification_type: Mapped[str] = mapped_column(String(64), nullable=False)
     verification_reference: Mapped[str | None] = mapped_column(String(255))
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(
+        "metadata", JSON, default=dict
+    )
 
     delivery: Mapped[DeliveryOrder] = relationship("DeliveryOrder", back_populates="compliance_events")
 
@@ -1284,6 +1410,86 @@ class CheckoutPayment(TimestampMixin, Base):
         "BusinessProfile", back_populates="payments"
     )
     booking: Mapped[Booking | None] = relationship("Booking")
+class IdentityProviderType(str, enum.Enum):
+    OIDC = "oidc"
+    SAML = "saml"
+
+
+class IdentityProvider(TimestampMixin, Base):
+    __tablename__ = "identity_providers"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    slug: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    provider_type: Mapped[IdentityProviderType] = mapped_column(
+        Enum(IdentityProviderType), nullable=False
+    )
+    issuer: Mapped[str | None] = mapped_column(String(255))
+    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    settings: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    last_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user_links: Mapped[List["UserIdentity"]] = relationship(
+        "UserIdentity", back_populates="provider", cascade="all, delete-orphan"
+    )
+
+
+class UserIdentity(TimestampMixin, Base):
+    __tablename__ = "user_identities"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    provider_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("identity_providers.id", ondelete="CASCADE"), nullable=False
+    )
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255))
+    raw_attributes: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    last_sign_in_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[User] = relationship("User", back_populates="identities")
+    provider: Mapped[IdentityProvider] = relationship(
+        "IdentityProvider", back_populates="user_links"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("provider_id", "subject", name="uq_user_identity_provider_subject"),
+    )
+
+
+class APIKey(TimestampMixin, Base):
+    __tablename__ = "api_keys"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    key_prefix: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
+    hashed_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[User] = relationship("User", back_populates="api_keys")
+
+
+class RefreshToken(TimestampMixin, Base):
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[User] = relationship("User", back_populates="refresh_tokens")
 
 
 __all__ = [
@@ -1314,6 +1520,11 @@ __all__ = [
     "RegDoc",
     "User",
     "UserRole",
+    "UserIdentity",
+    "IdentityProvider",
+    "IdentityProviderType",
+    "APIKey",
+    "RefreshToken",
     "COIDocument",
     "DeliveryOrder",
     "DeliveryStatusEvent",

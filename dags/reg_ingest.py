@@ -7,7 +7,7 @@ import hashlib
 import logging
 from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Callable
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -18,6 +18,12 @@ from prep.regulatory import RegulatoryScraper, load_regdoc
 from prep.regulatory.ingest_state import record_document_changes, store_status
 from prep.regulatory.models import RegDoc
 from prep.regulatory.parser import extract_reg_sections
+from data.ingestors.berkeley_dph import validate_fee_schedule_berkeley
+from data.ingestors.joshua_tree_dph import validate_fee_schedule_joshua_tree
+from data.ingestors.oakland_dph import validate_fee_schedule_oakland
+from data.ingestors.palo_alto_dph import validate_fee_schedule_palo_alto
+from data.ingestors.san_jose_dph import validate_fee_schedule_san_jose
+from data.ingestors.sf_dph import validate_fee_schedule_sf
 
 logger = logging.getLogger(__name__)
 
@@ -188,6 +194,7 @@ def _warm_cache(**context: Any) -> dict[str, Any]:
         "documents_by_state": documents_by_state,
         "failures": failures,
         "status": "success" if not failures else "degraded",
+        "fee_schedules": _collect_fee_schedule_metadata(),
     }
 
     asyncio.run(store_status(status_payload))
@@ -231,3 +238,29 @@ def _create_dag() -> DAG:
 
 
 dag = _create_dag()
+FEE_SCHEDULE_VALIDATORS: tuple[Callable[[], Any], ...] = (
+    validate_fee_schedule_sf,
+    validate_fee_schedule_oakland,
+    validate_fee_schedule_joshua_tree,
+    validate_fee_schedule_berkeley,
+    validate_fee_schedule_san_jose,
+    validate_fee_schedule_palo_alto,
+)
+
+
+def _collect_fee_schedule_metadata() -> list[dict[str, Any]]:
+    """Materialize fee schedule metadata to surface ingestion coverage."""
+
+    schedules: list[dict[str, Any]] = []
+    for validator in FEE_SCHEDULE_VALIDATORS:
+        schedule = validator()
+        schedules.append(
+            {
+                "jurisdiction": schedule.jurisdiction,
+                "program": schedule.program,
+                "agency": schedule.agency,
+                "renewal_frequency": schedule.renewal_frequency,
+                "component_count": schedule.component_count(),
+            }
+        )
+    return schedules
