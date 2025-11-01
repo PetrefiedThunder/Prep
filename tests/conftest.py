@@ -58,6 +58,11 @@ def _ensure_aiohttp_stub() -> None:
     sys.modules["sqlalchemy.dialects.postgresql"] = postgresql_module
     sys.modules["sqlalchemy.types"] = types_module
     sys.modules["sqlalchemy.ext"] = ext_module
+
+
+_sqlalchemy_spec = importlib.util.find_spec("sqlalchemy")
+if _sqlalchemy_spec is None:
+    _ensure_sqlalchemy_stub()
     sys.modules["sqlalchemy.ext.mutable"] = mutable_module
 
 # Provide a lightweight Stripe stub for test environments without the SDK installed.
@@ -222,7 +227,6 @@ def _create_schema() -> Generator[None, None, None]:
 
     try:
         init_db()
-    except Exception:  # pragma: no cover - database is optional in lightweight envs
     except Exception:  # pragma: no cover - database optional in lightweight envs
         init_db = None
         yield
