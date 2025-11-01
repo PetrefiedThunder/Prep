@@ -67,8 +67,32 @@ class Settings(BaseModel):
     database_pool_timeout: int = Field(default=30, ge=1, alias="DATABASE_POOL_TIMEOUT")
     database_pool_recycle: int = Field(default=1800, ge=1, alias="DATABASE_POOL_RECYCLE")
     session_ttl_seconds: int = Field(default=3600, ge=300, alias="SESSION_TTL_SECONDS")
+    session_max_age_minutes: int = Field(
+        default=480, ge=30, alias="SESSION_MAX_AGE_MINUTES"
+    )
     secret_key: str = Field(default="change-me", alias="SECRET_KEY")
     access_token_expire_minutes: int = Field(default=60, ge=5, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+    refresh_token_ttl_days: int = Field(
+        default=30, ge=1, alias="REFRESH_TOKEN_TTL_DAYS"
+    )
+    auth_oidc_metadata: Dict[str, Any] = Field(
+        default_factory=dict, alias="AUTH_OIDC_METADATA"
+    )
+    auth_saml_metadata: Dict[str, Any] = Field(
+        default_factory=dict, alias="AUTH_SAML_METADATA"
+    )
+    auth_signing_public_key: str | None = Field(
+        default=None, alias="AUTH_SIGNING_PUBLIC_KEY"
+    )
+    auth_signing_private_key: str | None = Field(
+        default=None, alias="AUTH_SIGNING_PRIVATE_KEY"
+    )
+    auth_ip_allowlist: List[str] = Field(
+        default_factory=list, alias="AUTH_IP_ALLOWLIST"
+    )
+    auth_device_allowlist: List[str] = Field(
+        default_factory=list, alias="AUTH_DEVICE_ALLOWLIST"
+    )
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     stripe_secret_key: str | None = Field(default=None, alias="STRIPE_SECRET_KEY")
     stripe_connect_refresh_url: AnyUrl = Field(
@@ -223,6 +247,18 @@ class Settings(BaseModel):
         if isinstance(value, Iterable):
             return [str(item).strip() for item in value if str(item).strip()]
         raise TypeError("Pilot configuration must be provided as a string or iterable")
+
+    @field_validator("auth_ip_allowlist", "auth_device_allowlist", mode="before")
+    @classmethod
+    def _parse_allowlists(cls, value: Any) -> list[str]:
+        if value in (None, "", []):
+            return []
+        if isinstance(value, str):
+            normalized = value.replace(";", ",")
+            return [item.strip() for item in normalized.split(",") if item.strip()]
+        if isinstance(value, Iterable):
+            return [str(item).strip() for item in value if str(item).strip()]
+        raise TypeError("Allowlist configuration must be a string or iterable")
 
     @property
     def is_development(self) -> bool:
