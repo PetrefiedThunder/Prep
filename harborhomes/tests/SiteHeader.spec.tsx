@@ -49,7 +49,7 @@ vi.mock("next/link", () => ({
 describe("SiteHeader", () => {
   it("links to the San Francisco and Joshua Tree overview", () => {
     render(<SiteHeader />);
-    const link = screen.getAllByRole("link", { name: "sfAndJt" })[0];
-    expect(link).toHaveAttribute("href", "/sf-and-jt");
+    const link = screen.getAllByRole("link", { name: "complianceDemo" })[0];
+    expect(link).toHaveAttribute("href", "/demo/sf-and-jt");
   });
 });

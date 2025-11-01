@@ -83,6 +83,106 @@ paths:
   /city/{city}/requirements/estimate:
     post:
       parameters: [{ name: city, in: path, required: true, schema: { type: string } }]
+  title: Prep Compliance API
+  version: 1.0.0
+  description: |
+    API for accessing municipal compliance requirements, fees, and filing estimates
+    for Prep customers. The specification also documents webhook events emitted by
+    the platform.
+servers:
+  - url: https://api.prep.house/v1
+    description: Production server
+  - url: https://sandbox.prep.house/v1
+    description: Sandbox server
+security:
+  - ApiKeyAuth: []
+paths:
+  /city/{city}/fees:
+    get:
+      summary: List recurring and one-time fees for a city
+      description: |
+        Returns a curated list of fees associated with starting or maintaining a
+        business in the requested city. The endpoint supports filtering by
+        business type so that the returned fees reflect the relevant rules.
+      operationId: listCityFees
+      tags:
+        - Fees
+      parameters:
+        - $ref: '#/components/parameters/CityParam'
+        - name: businessType
+          in: query
+          description: Optional business classification used to tailor fee recommendations.
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/ApiVersionHeader'
+      responses:
+        '200':
+          description: Matching fees
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeCollection'
+        default:
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /city/{city}/requirements:
+    get:
+      summary: Retrieve compliance requirements for a city
+      description: |
+        Provides the core municipal compliance requirements for a city, including
+        any prerequisite filings, required documentation, and due dates.
+      operationId: listCityRequirements
+      tags:
+        - Requirements
+      parameters:
+        - $ref: '#/components/parameters/CityParam'
+        - name: registrationStatus
+          in: query
+          description: Filter requirements by the company's current registration status.
+          required: false
+          schema:
+            type: string
+            enum:
+              - pre-registration
+              - registered
+              - delinquent
+        - $ref: '#/components/parameters/ApiVersionHeader'
+      responses:
+        '200':
+          description: Requirements for the specified city
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementCollection'
+        default:
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /requirements/estimate:
+    post:
+      summary: Estimate the filings and fees required for a business scenario
+      description: |
+        Produces an estimate of the compliance requirements and associated fees for
+        a proposed business scenario. Use the `Idempotency-Key` header to make the
+        request safely retryable.
+      operationId: createRequirementEstimate
+      tags:
+        - Requirements
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+        - $ref: '#/components/parameters/ApiVersionHeader'
       requestBody:
         required: true
         content:
@@ -120,3 +220,310 @@ paths:
           description: OK
           headers: { ETag: { schema: { type: string } } }
         "304": { description: Not Modified }
+              $ref: '#/components/schemas/RequirementEstimateRequest'
+      responses:
+        '200':
+          description: Estimate generated successfully
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementEstimateResponse'
+        default:
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+webhooks:
+  requirement.status.updated:
+    post:
+      summary: A tracked requirement changed status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequirementStatusWebhook'
+      responses:
+        '200':
+          description: Acknowledged
+  requirement.due.soon:
+    post:
+      summary: A requirement has an upcoming due date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequirementDueWebhook'
+      responses:
+        '200':
+          description: Acknowledged
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: API key provided as a bearer token (e.g., `Bearer <token>`).
+  headers:
+    X-Request-Id:
+      description: Unique identifier for the request, echoed back in the response.
+      schema:
+        type: string
+    Idempotency-Key:
+      description: Idempotency key that allows safe request retries within 24 hours.
+      schema:
+        type: string
+  parameters:
+    CityParam:
+      name: city
+      in: path
+      required: true
+      description: Slug identifier for the city (e.g., `san-francisco-ca`).
+      schema:
+        type: string
+        pattern: '^[a-z0-9-]+$'
+    ApiVersionHeader:
+      name: Prep-Version
+      in: header
+      required: false
+      description: Optional version override for the API.
+      schema:
+        type: string
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Ensures the request is processed only once.
+      schema:
+        type: string
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code.
+          example: invalid_city
+        message:
+          type: string
+          description: Human-readable error message.
+          example: The requested city is not supported.
+        details:
+          type: object
+          description: Additional structured details about the failure.
+          additionalProperties: true
+    Fee:
+      type: object
+      required:
+        - id
+        - name
+        - amount
+        - currency
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: Short human readable name for the fee.
+        description:
+          type: string
+        amount:
+          type: number
+          format: float
+          description: Monetary amount in the provided currency.
+        currency:
+          type: string
+          description: ISO 4217 currency code.
+          example: USD
+        frequency:
+          type: string
+          description: How often the fee is due.
+          enum:
+            - one-time
+            - annual
+            - quarterly
+            - monthly
+    FeeCollection:
+      type: object
+      required:
+        - city
+        - fees
+      properties:
+        city:
+          type: string
+        businessType:
+          type: string
+          nullable: true
+        fees:
+          type: array
+          items:
+            $ref: '#/components/schemas/Fee'
+    Requirement:
+      type: object
+      required:
+        - id
+        - name
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+            - upcoming
+            - due
+            - filed
+            - late
+        dueDate:
+          type: string
+          format: date
+        dependencies:
+          type: array
+          items:
+            type: string
+            description: Requirement IDs that must be satisfied first.
+    RequirementCollection:
+      type: object
+      required:
+        - city
+        - requirements
+      properties:
+        city:
+          type: string
+        registrationStatus:
+          type: string
+          nullable: true
+        requirements:
+          type: array
+          items:
+            $ref: '#/components/schemas/Requirement'
+    RequirementEstimateRequest:
+      type: object
+      required:
+        - city
+        - businessType
+      properties:
+        city:
+          type: string
+          description: City slug for the request.
+        businessType:
+          type: string
+          description: Business classification used in estimating filings.
+        annualRevenue:
+          type: number
+          format: float
+          description: Estimated annual revenue in USD.
+        employeeCount:
+          type: integer
+          minimum: 0
+        filingFrequencyPreference:
+          type: string
+          enum:
+            - automatic
+            - manual
+    RequirementEstimateResponse:
+      type: object
+      required:
+        - city
+        - currency
+        - totalEstimatedFees
+        - requirements
+      properties:
+        city:
+          type: string
+        currency:
+          type: string
+          example: USD
+        totalEstimatedFees:
+          type: number
+          format: float
+        assumptions:
+          type: array
+          items:
+            type: string
+        requirements:
+          type: array
+          items:
+            $ref: '#/components/schemas/Requirement'
+    RequirementStatusPayload:
+      type: object
+      required:
+        - id
+        - status
+        - occurredAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - upcoming
+            - due
+            - filed
+            - late
+        occurredAt:
+          type: string
+          format: date-time
+        city:
+          type: string
+        previousStatus:
+          type: string
+          nullable: true
+    RequirementDuePayload:
+      type: object
+      required:
+        - id
+        - dueDate
+        - city
+      properties:
+        id:
+          type: string
+          format: uuid
+        dueDate:
+          type: string
+          format: date
+        city:
+          type: string
+        name:
+          type: string
+        daysUntilDue:
+          type: integer
+    RequirementStatusWebhook:
+      type: object
+      required:
+        - event
+        - data
+      properties:
+        event:
+          type: string
+          enum:
+            - requirement.status.updated
+        data:
+          $ref: '#/components/schemas/RequirementStatusPayload'
+    RequirementDueWebhook:
+      type: object
+      required:
+        - event
+        - data
+      properties:
+        event:
+          type: string
+          enum:
+            - requirement.due.soon
+        data:
+          $ref: '#/components/schemas/RequirementDuePayload'

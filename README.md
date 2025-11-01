@@ -500,3 +500,25 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - **Issues**: [GitHub Issues](https://github.com/PetrefiedThunder/Prep/issues)
 - **Documentation**: [docs/](docs/)
 - **API Docs**: [OpenAPI Specification](openapi.yaml)
+
+## API SDK generation
+
+The OpenAPI description for the Prep Compliance API lives at `contracts/openapi/prep.yaml`.
+
+To update the generated client libraries:
+
+1. Generate the TypeScript types:
+   ```bash
+   npm run openapi:ts
+   ```
+   The command emits `sdk/typescript/index.ts` using [`openapi-typescript`](https://github.com/drwpow/openapi-typescript).
+
+2. Generate the Python SDK (requires [`openapi-python-client`](https://github.com/openapi-generators/openapi-python-client)):
+   ```bash
+   openapi-python-client generate \
+     --path contracts/openapi/prep.yaml \
+     --config contracts/openapi/openapi-python-client-config.yaml \
+     --output sdk/python
+   ```
+
+Both commands should be run from the repository root. Remember to commit the resulting files.

@@ -2,14 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchCityCompliance, type CityCompliance } from "@/lib/compliance";
 
 describe("fetchCityCompliance", () => {
-  const originalEnv = process.env.NEXT_PUBLIC_API_BASE;
+  const originalBase = process.env.COMPLIANCE_API_BASE;
+  const originalKey = process.env.COMPLIANCE_API_KEY;
 
   beforeEach(() => {
-    process.env.NEXT_PUBLIC_API_BASE = "https://api.test";
+    process.env.COMPLIANCE_API_BASE = "https://api.test";
+    process.env.COMPLIANCE_API_KEY = "secret";
   });
 
   afterEach(() => {
-    process.env.NEXT_PUBLIC_API_BASE = originalEnv;
+    process.env.COMPLIANCE_API_BASE = originalBase;
+    process.env.COMPLIANCE_API_KEY = originalKey;
     vi.restoreAllMocks();
   });
 
@@ -38,13 +41,19 @@ describe("fetchCityCompliance", () => {
 
     expect(fetchSpy).toHaveBeenCalledWith(
       "https://api.test/city/san-francisco/fees",
-      expect.objectContaining({ headers: expect.objectContaining({ Accept: "application/json" }) })
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Accept: "application/json",
+          "x-api-key": "secret"
+        })
+      })
     );
     expect(payload).toEqual(response);
   });
 
   it("throws when the API base is missing", async () => {
+    delete process.env.COMPLIANCE_API_BASE;
     delete process.env.NEXT_PUBLIC_API_BASE;
-    await expect(fetchCityCompliance("san-francisco")).rejects.toThrow(/NEXT_PUBLIC_API_BASE/);
+    await expect(fetchCityCompliance("san-francisco")).rejects.toThrow(/COMPLIANCE_API_BASE/);
   });
 });
