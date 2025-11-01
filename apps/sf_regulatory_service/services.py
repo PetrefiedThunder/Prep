@@ -9,6 +9,8 @@ from typing import Dict, List, Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from apps.bookings import SanFranciscoBookingComplianceService
+
 from . import metrics
 from .config import get_compliance_config
 from .models import CityEtlRun, SFBookingCompliance, SFHostProfile, SFTaxLedger
@@ -270,6 +272,7 @@ class SFRegulatoryService:
         self.health_validator = HealthPermitValidator(self.config)
         self.fire_service = FireComplianceService(self.config)
         self.waste_service = WasteComplianceService(self.config)
+        self.booking_compliance = SanFranciscoBookingComplianceService()
 
     # Host onboarding -----------------------------------------------------
     def onboard_host(self, payload: SFHostProfilePayload) -> ComplianceResponse:
@@ -307,20 +310,26 @@ class SFRegulatoryService:
         payload = self._to_payload(profile)
         zoning_allowed, manual_review, _ = self.zoning_service.check("", profile.zoning_use_district)
         result = self.evaluator.evaluate(payload, zoning_allowed, manual_review)
+        kernel_decision = self.booking_compliance.evaluate(profile=profile)
+        prebooking_status = self._merge_statuses(
+            "passed" if result.status == "compliant" else result.status,
+            kernel_decision.status,
+        )
+        combined_issues = self._merge_issues(result.issues, kernel_decision.issues)
         if request.booking_id:
             record = SFBookingCompliance(
                 booking_id=request.booking_id,
-                prebooking_status=result.status if result.status != "compliant" else "passed",
-                issues=result.issues,
+                prebooking_status=prebooking_status,
+                issues=combined_issues,
             )
             self.session.merge(record)
         metrics.sf_compliance_check_total.labels(
-            status=result.status if result.status != "compliant" else "passed",
+            status=prebooking_status,
         ).inc()
         return ComplianceCheckResponse(
             bookingId=request.booking_id,
-            status=result.status if result.status != "compliant" else "passed",
-            issues=result.issues,
+            status=prebooking_status,
+            issues=combined_issues,
             remediation=result.remediation,
         )
 
@@ -389,6 +398,25 @@ class SFRegulatoryService:
             taxClassification=profile.tax_classification,
             leaseGrossReceiptsYtd=float(profile.lease_gross_receipts_ytd or 0),
         )
+
+    @staticmethod
+    def _merge_statuses(*statuses: str) -> str:
+        precedence = {"blocked": 3, "flagged": 2, "passed": 1}
+        normalized = [status for status in statuses if status]
+        if not normalized:
+            return "passed"
+        return max(normalized, key=lambda value: precedence.get(value, 0))
+
+    @staticmethod
+    def _merge_issues(*issue_lists: List[str]) -> List[str]:
+        merged: List[str] = []
+        seen: set[str] = set()
+        for issues in issue_lists:
+            for issue in issues:
+                if issue and issue not in seen:
+                    merged.append(issue)
+                    seen.add(issue)
+        return merged
 
     def _update_compliant_ratio(self) -> None:
         total = self.session.query(func.count(SFHostProfile.host_kitchen_id)).scalar() or 0
