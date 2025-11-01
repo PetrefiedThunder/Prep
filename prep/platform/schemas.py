@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
-from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr, Field
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from prep.models.orm import (
     Booking,
@@ -19,6 +19,42 @@ from prep.models.orm import (
     User,
     UserRole,
 )
+
+
+class ErrorDetail(BaseModel):
+    """Machine-readable description of a request failure."""
+
+    code: str = Field(description="Stable identifier for the error condition")
+    message: str = Field(description="Human readable explanation of the error")
+    target: str | None = Field(
+        default=None,
+        description="Optional field or domain that triggered the error",
+    )
+    metadata: dict[str, Any] | None = Field(
+        default=None, description="Additional structured context for debugging"
+    )
+
+
+class ErrorResponse(BaseModel):
+    """Canonical error envelope returned by Prep APIs."""
+
+    request_id: str = Field(description="Server assigned identifier for this request")
+    error: ErrorDetail
+
+
+class CursorPageMeta(BaseModel):
+    """Pagination metadata used by cursor-based collection endpoints."""
+
+    cursor: str | None = Field(
+        default=None,
+        description="Cursor supplied in the request that produced this page",
+    )
+    next_cursor: str | None = Field(
+        default=None,
+        description="Cursor to request the next page, if additional records exist",
+    )
+    limit: int = Field(default=20, ge=1, le=100, description="Maximum page size")
+    has_more: bool = Field(description="Whether more results are available")
 
 
 class _ORMBaseModel(BaseModel):
@@ -154,6 +190,13 @@ class ReviewResponse(_ORMBaseModel):
     rating: float
     comment: str | None
     created_at: datetime
+
+
+class ReviewListResponse(BaseModel):
+    """Cursor paginated list of kitchen reviews."""
+
+    items: list[ReviewResponse]
+    pagination: CursorPageMeta
 
 
 class ComplianceDocumentCreateRequest(BaseModel):

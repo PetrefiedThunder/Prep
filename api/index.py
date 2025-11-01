@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.compliance_service.main import app as compliance_app
@@ -33,6 +33,7 @@ from prep.logistics.api import router as logistics_router
 from prep.monitoring.api import router as monitoring_router
 from prep.integrations.runtime import configure_integration_event_consumers
 from prep.pos.api import router as pos_router
+from prep.api.middleware import IdempotencyMiddleware
 
 
 def _build_router() -> APIRouter:
@@ -79,9 +80,33 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
         allow_credentials=False,
     )
+    app.add_middleware(IdempotencyMiddleware)
 
     app.include_router(_build_router())
     configure_integration_event_consumers(app)
+
+    API_VERSION = "v1"
+    sunset_date = "Wed, 01 Jan 2025 00:00:00 GMT"
+
+    @app.middleware("http")
+    async def _apply_version_headers(request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers.setdefault("X-API-Version", API_VERSION)
+        if not request.url.path.startswith(f"/api/{API_VERSION}"):
+            response.headers.setdefault("Deprecation", f"version={API_VERSION}-1")
+            response.headers.setdefault("Sunset", sunset_date)
+        return response
+
+    @app.get("/v1", tags=["meta"])
+    async def version_guidance() -> dict[str, str]:
+        """Communicate stable API versioning guidance to integrators."""
+
+        return {
+            "version": API_VERSION,
+            "status": "stable",
+            "guidance": "All new integrations should target /api/v1 endpoints. Unversioned paths will sunset soon.",
+            "sunset": sunset_date,
+        }
 
     @app.get("/healthz", tags=["health"])
     async def healthcheck() -> dict[str, str]:
