@@ -1,13 +1,13 @@
-# Incident Response Runbook (J33)
+# Incident Response Runbook
 
 This runbook provides step-by-step procedures for common incidents and emergency scenarios.
 
 ## Emergency Contacts
 
 - **On-Call Engineer**: Pager Duty rotation
-- **Security Team**: security@prepchef.com
-- **Database Team**: dba@prepchef.com
-- **CEO**: CEO contact (for major incidents)
+- **Security Team**: [SECURITY_EMAIL]
+- **Database Team**: [DBA_EMAIL]
+- **Leadership**: Leadership contact (for major incidents)
 
 ## Severity Levels
 
@@ -97,8 +97,8 @@ kubectl scale deployment python-compliance --replicas=2 -n prepchef
 
 5. **Verify application:**
 ```bash
-curl https://api.prepchef.com/health
-curl https://prepchef.com
+curl https://api.example.com/health
+curl https://example.com
 ```
 
 **Rollback**: Swap databases back if issues occur.
@@ -183,7 +183,7 @@ metadata:
 ```
 
 4. **Communicate to users:**
-   - Post status update: status.prepchef.com
+   - Post status update: status page URL
    - Send email to active users with pending bookings
    - Update social media
 
@@ -283,7 +283,7 @@ redis-cli CONFIG SET maxmemory-policy allkeys-lru
 
 1. **Check certificate expiration:**
 ```bash
-echo | openssl s_client -connect prepchef.com:443 2>/dev/null | openssl x509 -noout -dates
+echo | openssl s_client -connect example.com:443 2>/dev/null | openssl x509 -noout -dates
 ```
 
 2. **Renew with cert-manager:**
@@ -294,8 +294,8 @@ kubectl annotate certificate prepchef-tls cert-manager.io/issue-temporary-certif
 
 3. **Manual renewal (if cert-manager fails):**
 ```bash
-certbot renew --force-renewal --cert-name prepchef.com
-kubectl create secret tls prepchef-tls --cert=/etc/letsencrypt/live/prepchef.com/fullchain.pem --key=/etc/letsencrypt/live/prepchef.com/privkey.pem -n prepchef
+certbot renew --force-renewal --cert-name example.com
+kubectl create secret tls app-tls --cert=/etc/letsencrypt/live/example.com/fullchain.pem --key=/etc/letsencrypt/live/example.com/privkey.pem -n app
 ```
 
 ---
@@ -329,7 +329,7 @@ Within 48 hours of P0/P1 incidents:
 
 **Check service health:**
 ```bash
-curl https://api.prepchef.com/health
+curl https://api.example.com/health
 ```
 
 **View recent logs:**

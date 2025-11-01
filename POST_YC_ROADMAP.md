@@ -1,6 +1,6 @@
-# Post-YC Roadmap
+# Platform Growth Roadmap
 
-This roadmap assumes Prep has completed YC Phase 1 delivery (federal + city compliance layers, onboarding foundation) and is preparing for the next 12 months. It prioritizes **scale**, **monetization**, and **enterprise integrations** while maintaining regulatory credibility.
+This roadmap assumes Prep has completed Phase 1 delivery (federal + city compliance layers, onboarding foundation) and is preparing for the next 12 months. It prioritizes **scale**, **monetization**, and **enterprise integrations** while maintaining regulatory credibility.
 
 ---
 
@@ -81,8 +81,8 @@ This roadmap assumes Prep has completed YC Phase 1 delivery (federal + city comp
 ---
 
 ## Next Steps
-1. Socialize roadmap with leadership & YC partners.
-2. Convert initiatives into Jira epics referencing the outlined directories.
+1. Socialize roadmap with leadership and stakeholders.
+2. Convert initiatives into project management epics referencing the outlined directories.
 3. Establish quarterly OKRs aligned to metrics listed above.
-4. Kick off California state implementation as the first expansion block.
+4. Kick off state expansion implementation as the first growth block.
 

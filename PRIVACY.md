@@ -1,9 +1,9 @@
-# Privacy Policy (O43)
+# Privacy Policy
 
-**Last Updated:** January 26, 2025
-**Effective Date:** January 26, 2025
+**Last Updated:** [DATE]
+**Effective Date:** [DATE]
 
-PrepChef ("we," "our," "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and share your personal information.
+Prep ("we," "our," "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and share your personal information.
 
 ## 1. Information We Collect
 
@@ -49,11 +49,11 @@ We share your information with:
 
 ### B. Service Providers
 
-- **Stripe**: Payment processing
-- **AWS**: Cloud hosting
-- **SendGrid**: Email delivery
-- **Sentry**: Error tracking
-- **Analytics**: Google Analytics, Mixpanel
+- **Payment Processor**: Payment processing (PCI-DSS compliant)
+- **Cloud Provider**: Cloud hosting
+- **Email Service**: Email delivery
+- **Error Tracking**: Error monitoring and tracking
+- **Analytics**: Usage analytics and monitoring
 
 ### C. Legal Requirements
 
@@ -99,7 +99,7 @@ You have the right to:
 - **Opt-Out**: Opt out of data sale (we do not sell data)
 - **Non-Discrimination**: Equal service regardless of privacy choices
 
-**To exercise rights**: Email privacy@prepchef.com
+**To exercise rights**: Contact privacy team through designated channels
 
 ## 6. Cookies and Tracking
 
@@ -120,11 +120,11 @@ We implement:
 - **Monitoring**: Intrusion detection and logging
 - **Audits**: Regular security assessments
 
-**Payment Data**: We never store credit card numbers. Stripe handles all payment data (PCI-DSS Level 1).
+**Payment Data**: We never store credit card numbers. Our payment processor handles all payment data (PCI-DSS Level 1 compliant).
 
 ## 8. Children's Privacy
 
-PrepChef is not intended for users under 18. We do not knowingly collect data from children.
+This service is not intended for users under 18. We do not knowingly collect data from children.
 
 ## 9. International Transfers
 
@@ -150,15 +150,15 @@ We may update this policy. Material changes will be notified via:
 ## 12. Contact Us
 
 **Privacy Questions:**
-- Email: privacy@prepchef.com
-- Mail: PrepChef Privacy Officer, [Address]
+- Email: [PRIVACY_EMAIL]
+- Mail: Privacy Officer, [ORGANIZATION_ADDRESS]
 
 **Data Protection Officer (EU):**
-- Email: dpo@prepchef.com
+- Email: [DPO_EMAIL]
 
 **CCPA Requests (California):**
-- Email: ccpa@prepchef.com
-- Phone: 1-800-PREPCHEF
+- Email: [CCPA_EMAIL]
+- Phone: [SUPPORT_PHONE]
 
 ## 13. Cookie Policy
 
@@ -179,6 +179,6 @@ We do not currently respond to Do Not Track (DNT) signals.
 
 ---
 
-By using PrepChef, you consent to this Privacy Policy.
+By using this service, you consent to this Privacy Policy.
 
-**Last Review Date**: January 26, 2025
+**Last Review Date**: [DATE]
