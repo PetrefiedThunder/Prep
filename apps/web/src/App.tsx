@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard';
 import AdminPortal from './pages/AdminPortal';
 import AnalyticsPortal from './pages/AnalyticsPortal';
 import AdminModerationPage from './pages/admin/moderation';
+import SFJoshuaTreeDemo from './pages/SFJoshuaTreeDemo';
+import StatusPage from './pages/StatusPage';
 
 export default function App() {
   return (
@@ -18,6 +20,8 @@ export default function App() {
         <Link to="/admin">Admin</Link>
         <Link to="/admin/moderation">Moderation</Link>
         <Link to="/analytics">Analytics</Link>
+        <Link to="/city-pilots">City pilots</Link>
+        <Link to="/status">Status</Link>
       </nav>
       <Routes>
         <Route path="/" element={<LandingPage />} />
@@ -27,6 +31,8 @@ export default function App() {
         <Route path="/admin" element={<AdminPortal />} />
         <Route path="/admin/moderation" element={<AdminModerationPage />} />
         <Route path="/analytics" element={<AnalyticsPortal />} />
+        <Route path="/city-pilots" element={<SFJoshuaTreeDemo />} />
+        <Route path="/status" element={<StatusPage />} />
       </Routes>
     </BrowserRouter>
   );

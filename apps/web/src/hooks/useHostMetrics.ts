@@ -113,6 +113,10 @@ export function useHostMetrics<T = unknown>(hostId: string | number | null | und
   }, [load]);
 
   return { data, isLoading, error, refetch };
+}
+
+/**
+ * Provides a cached view of host metrics backed by SWR.
  * @returns SWR response slice with loading state for the requested host metrics.
  */
 export function useHostMetrics<T = unknown>(hostId: HostIdentifier): UseHostMetricsReturn<T> {
