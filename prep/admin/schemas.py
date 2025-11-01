@@ -17,7 +17,14 @@ class PaginationMeta(BaseModel):
     """Metadata describing a paginated response."""
 
     limit: int = Field(default=20, ge=1, le=100)
-    offset: int = Field(default=0, ge=0)
+    cursor: datetime | None = Field(
+        default=None,
+        description="Cursor supplied by the client for this page",
+    )
+    next_cursor: datetime | None = Field(
+        default=None,
+        description="Cursor to fetch the next page of data",
+    )
     total: int = Field(ge=0)
 
 

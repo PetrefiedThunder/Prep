@@ -13,9 +13,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prep.cache import RedisProtocol
-from prep.models.orm import Booking, Kitchen, Review, User, UserRole, ComplianceDocument
+from prep.models.orm import Booking, ComplianceDocument, Kitchen, Review, User, UserRole
 from prep.platform import schemas
-from prep.platform.security import create_access_token, hash_password, serialize_session, verify_password
+from prep.platform.security import (
+    create_access_token,
+    hash_password,
+    serialize_session,
+    verify_password,
+)
 from prep.settings import Settings
 
 logger = logging.getLogger("prep.platform.service")
@@ -253,19 +258,40 @@ class PlatformService:
         logger.info("Created review", extra={"review_id": str(review.id)})
         return review
 
-    async def list_reviews_for_kitchen(self, kitchen_id: UUID) -> list[Review]:
+    async def list_reviews_for_kitchen(
+        self,
+        *,
+        kitchen_id: UUID,
+        cursor: datetime | None = None,
+        limit: int = 20,
+    ) -> tuple[list[Review], datetime | None, int]:
+        total_stmt = select(func.count()).select_from(Review).where(
+            Review.kitchen_id == kitchen_id
+        )
+        total = (await self._session.execute(total_stmt)).scalar_one()
+
         stmt = (
             select(Review)
             .where(Review.kitchen_id == kitchen_id)
             .order_by(Review.created_at.desc())
         )
+        if cursor is not None:
+            stmt = stmt.where(Review.created_at < cursor)
+        stmt = stmt.limit(limit + 1)
         result = await self._session.execute(stmt)
-        reviews = list(result.scalars().all())
+        rows = list(result.scalars().all())
+        items = rows[:limit]
+        next_cursor = items[-1].created_at if len(rows) > limit and items else None
         logger.debug(
             "Fetched reviews",
-            extra={"kitchen_id": str(kitchen_id), "count": len(reviews)},
+            extra={
+                "kitchen_id": str(kitchen_id),
+                "count": len(items),
+                "next_cursor": next_cursor.isoformat() if next_cursor else None,
+                "total": total,
+            },
         )
-        return reviews
+        return items, next_cursor, total
 
     async def create_compliance_document(
         self, payload: schemas.ComplianceDocumentCreateRequest
@@ -290,4 +316,3 @@ class PlatformService:
             extra={"document_id": str(document.id), "kitchen_id": str(payload.kitchen_id)},
         )
         return document
-*** End Patch

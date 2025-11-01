@@ -34,6 +34,7 @@ from prep.logistics.api import router as logistics_router
 from prep.monitoring.api import router as monitoring_router
 from prep.integrations.runtime import configure_integration_event_consumers
 from prep.pos.api import router as pos_router
+from prep.api.middleware import IdempotencyMiddleware
 
 
 def _build_router() -> APIRouter:
@@ -81,15 +82,47 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
         allow_credentials=False,
     )
+    app.add_middleware(IdempotencyMiddleware)
 
     app.include_router(_build_router())
     configure_integration_event_consumers(app)
+
+    @app.middleware("http")
+    async def add_version_headers(request, call_next):  # type: ignore[override]
+        response = await call_next(request)
+        response.headers.setdefault("X-API-Version", "v1")
+        if request.url.path.startswith("/api/v1"):
+            response.headers.setdefault("Deprecation", "false")
+        else:
+            sunset = "2024-12-31T00:00:00Z"
+            response.headers.setdefault(
+                "Deprecation", f'true; sunset="{sunset}"; version="v0"'
+            )
+            response.headers.setdefault("Sunset", sunset)
+        return response
 
     @app.get("/healthz", tags=["health"])
     async def healthcheck() -> dict[str, str]:
         """Lightweight readiness probe for hosting platforms."""
 
         return {"status": "ok"}
+
+    @app.get(
+        "/v1",
+        tags=["meta"],
+        summary="API versioning guidance",
+        description="Document the supported Prep API versions and deprecation schedule.",
+    )
+    async def version_metadata() -> dict[str, object]:
+        """Publish versioning expectations for API consumers."""
+
+        sunset = "2024-12-31T00:00:00Z"
+        return {
+            "current_version": "v1",
+            "recommended_base_path": "/api/v1",
+            "sunset": sunset,
+            "deprecation_policy": "Older prefixes receive Deprecation and Sunset headers to signal migration timelines.",
+        }
 
     app.mount("/compliance", compliance_app)
     app.mount("/inventory", inventory_app)

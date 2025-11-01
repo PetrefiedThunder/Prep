@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prep.api.errors import http_error
 from prep.database import get_db
 from prep.settings import Settings, get_settings
 
@@ -26,6 +27,7 @@ async def get_payments_service(
 @router.post("/connect", response_model=PaymentsConnectResponse, status_code=status.HTTP_201_CREATED)
 async def connect_stripe_account(
     payload: PaymentsConnectRequest,
+    request: Request,
     service: PaymentsService = Depends(get_payments_service),
 ) -> PaymentsConnectResponse:
     """Create a Stripe Connect account and return the onboarding link."""
@@ -33,7 +35,12 @@ async def connect_stripe_account(
     try:
         account_id, onboarding_url = await service.create_connect_account(user_id=payload.user_id)
     except PaymentsError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+        raise http_error(
+            request,
+            status_code=exc.status_code,
+            code="payments.error",
+            message=str(exc),
+        ) from exc
     return PaymentsConnectResponse(account_id=account_id, onboarding_url=onboarding_url)
 
 
@@ -50,6 +57,11 @@ async def handle_webhook(
     try:
         await service.process_webhook(payload, signature)
     except PaymentsError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+        raise http_error(
+            request,
+            status_code=exc.status_code,
+            code="payments.webhook_error",
+            message=str(exc),
+        ) from exc
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
