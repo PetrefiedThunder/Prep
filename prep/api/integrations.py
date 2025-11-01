@@ -79,7 +79,7 @@ def _serialize_integration(record: Integration) -> IntegrationResponse:
         auth_method=record.auth_method,
         sync_frequency=record.sync_frequency,
         status=record.status,
-        metadata=record.metadata or {},
+        metadata=record.metadata_json or {},
         created_at=record.created_at,
         updated_at=record.updated_at,
     )
@@ -151,7 +151,7 @@ async def create_integration(
         auth_method=payload.auth_method,
         sync_frequency=payload.sync_frequency,
         status=payload.status,
-        metadata=payload.metadata or {},
+        metadata_json=payload.metadata or {},
     )
 
     session.add(integration)
@@ -185,7 +185,7 @@ async def update_integration(
     if payload.status is not None:
         integration.status = payload.status
     if payload.metadata is not None:
-        integration.metadata = payload.metadata
+        integration.metadata_json = payload.metadata
     if payload.kitchen_id is not None:
         integration.kitchen_id = payload.kitchen_id
 

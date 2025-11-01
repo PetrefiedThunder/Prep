@@ -68,7 +68,14 @@ _safe_import(
 )
 _safe_import(
     ".models",
-    ["InsuranceRequirement", "RegDoc", "Regulation", "RegulationSource"],
+    [
+        "InsuranceRequirement",
+        "RegDoc",
+        "RegRequirement",
+        "FeeSchedule",
+        "Regulation",
+        "RegulationSource",
+    ],
 )
 _safe_import(
     ".monitoring.changes",

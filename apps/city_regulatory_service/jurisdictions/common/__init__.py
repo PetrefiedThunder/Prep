@@ -1,4 +1,5 @@
 """Common jurisdiction utilities for the city regulatory service."""
+"""Shared utilities for city regulatory jurisdictions."""
 
 from .fees import (
     FeeItem,

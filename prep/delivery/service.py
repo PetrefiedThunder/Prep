@@ -174,7 +174,7 @@ class DeliveryService:
                 verification_type="handoff",
                 verification_reference=update.proof_signature,
                 occurred_at=occurred_at,
-                metadata={
+                metadata_json={
                     "courier_phone": update.courier_phone,
                     "proof_photo_url": str(update.proof_photo_url) if update.proof_photo_url else None,
                     "provider_status": update.status,
