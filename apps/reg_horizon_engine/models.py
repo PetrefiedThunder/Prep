@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import JSON, Date, DateTime, Float, String, Text
@@ -42,7 +42,7 @@ class RHEDocument(Base):
     entities: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(datetime.UTC)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
 
@@ -63,5 +63,5 @@ class RHEPrediction(Base):
     summary: Mapped[str | None] = mapped_column(Text)
     change_diff: Mapped[dict] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(datetime.UTC)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
