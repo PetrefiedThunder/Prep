@@ -299,6 +299,7 @@ class Kitchen(TimestampMixin, Base):
     )
     pos_orders: Mapped[List["POSOrder"]] = relationship(
         "POSOrder", back_populates="kitchen", cascade="all, delete-orphan"
+    )
 
     integrations: Mapped[List["Integration"]] = relationship(
         "Integration",
@@ -428,8 +429,13 @@ class POSOrder(TimestampMixin, Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("provider", "external_id", name="uq_pos_order_provider_external"),
+        UniqueConstraint(
+            "provider", "external_id", name="uq_pos_order_provider_external"
+        ),
         Index("ix_pos_orders_kitchen_closed_at", "kitchen_id", "closed_at"),
+    )
+
+
 class Supplier(TimestampMixin, Base):
     """Vendors that provide inventory to Prep kitchens."""
 
@@ -559,6 +565,9 @@ class InventoryTransfer(TimestampMixin, Base):
     )
     approved_by_host: Mapped[User | None] = relationship(
         "User", foreign_keys=[approved_by_host_id], lazy="joined"
+    )
+
+
 class Integration(TimestampMixin, Base):
     __tablename__ = "integrations"
 
