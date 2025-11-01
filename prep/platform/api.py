@@ -356,6 +356,45 @@ async def list_reviews(
     return [schemas.serialize_review(review) for review in reviews]
 
 
+@router.post("/documents", response_model=schemas.DocumentUploadResponse, status_code=status.HTTP_201_CREATED)
+async def create_document_upload(
+    payload: schemas.DocumentUploadCreateRequest,
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.DocumentUploadResponse:
+    try:
+        document = await service.create_document_upload(payload)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    return schemas.serialize_document_upload(document)
+
+
+@router.get("/permits/{permit_id}", response_model=schemas.PermitResponse)
+async def get_permit(
+    permit_id: UUID,
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.PermitResponse:
+    try:
+        permit = await service.get_permit(permit_id)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    return schemas.serialize_permit(permit)
+
+
+@router.get(
+    "/business/{business_id}/readiness",
+    response_model=schemas.BusinessReadinessResponse,
+)
+async def get_business_readiness(
+    business_id: UUID,
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.BusinessReadinessResponse:
+    try:
+        readiness = await service.get_business_readiness(business_id)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    return readiness
+
+
 @router.post("/payments/intent", response_model=schemas.PaymentIntentResponse)
 async def create_payment_intent(
     payload: schemas.PaymentIntentCreateRequest,
@@ -366,6 +405,22 @@ async def create_payment_intent(
     except PlatformError as exc:
         raise _handle_service_error(exc)
     return schemas.PaymentIntentResponse(client_secret=client_secret)
+
+
+@router.post(
+    "/payments/checkout",
+    response_model=schemas.CheckoutPaymentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_checkout_payment(
+    payload: schemas.CheckoutPaymentCreateRequest,
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.CheckoutPaymentResponse:
+    try:
+        payment = await service.create_checkout_payment(payload)
+    except PlatformError as exc:
+        raise _handle_service_error(exc)
+    return schemas.serialize_checkout_payment(payment)
 
 
 @router.post(

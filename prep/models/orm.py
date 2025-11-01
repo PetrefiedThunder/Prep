@@ -184,6 +184,34 @@ class DeliveryStatus(str, enum.Enum):
     RETURNED = "returned"
 
 
+class DocumentUploadStatus(str, enum.Enum):
+    STORED = "stored"
+    PROCESSING = "processing"
+    VERIFIED = "verified"
+    REJECTED = "rejected"
+
+
+class DocumentOCRStatus(str, enum.Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class PermitStatus(str, enum.Enum):
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    PENDING = "pending"
+    REVOKED = "revoked"
+
+
+class CheckoutPaymentStatus(str, enum.Enum):
+    PENDING = "pending"
+    SUCCEEDED = "succeeded"
+    REQUIRES_ACTION = "requires_action"
+    REFUND_REQUESTED = "refund_requested"
+    REFUNDED = "refunded"
+    FAILED = "failed"
 class IdentityProviderType(str, enum.Enum):
     OIDC = "oidc"
     SAML = "saml"
@@ -1232,6 +1260,156 @@ class DeliveryComplianceEvent(TimestampMixin, Base):
     delivery: Mapped[DeliveryOrder] = relationship("DeliveryOrder", back_populates="compliance_events")
 
 
+class BusinessProfile(TimestampMixin, Base):
+    """Represents a food business progressing through Prep onboarding."""
+
+    __tablename__ = "business_profiles"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    owner_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    kitchen_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("kitchens.id", ondelete="SET NULL"), nullable=True
+    )
+    legal_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    doing_business_as: Mapped[str | None] = mapped_column(String(255))
+    country: Mapped[str] = mapped_column(String(2), default="US", nullable=False)
+    region: Mapped[str | None] = mapped_column(String(64))
+    readiness_stage: Mapped[str] = mapped_column(String(64), default="not_ready", nullable=False)
+    readiness_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    readiness_summary: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+
+    owner: Mapped[User] = relationship("User")
+    kitchen: Mapped["Kitchen" | None] = relationship("Kitchen")
+    documents: Mapped[List["DocumentUpload"]] = relationship(
+        "DocumentUpload", back_populates="business", cascade="all, delete-orphan"
+    )
+    permits: Mapped[List["Permit"]] = relationship(
+        "Permit", back_populates="business", cascade="all, delete-orphan"
+    )
+    readiness_snapshots: Mapped[List["BusinessReadinessSnapshot"]] = relationship(
+        "BusinessReadinessSnapshot", back_populates="business", cascade="all, delete-orphan"
+    )
+    payments: Mapped[List["CheckoutPayment"]] = relationship(
+        "CheckoutPayment", back_populates="business"
+    )
+
+
+class DocumentUpload(TimestampMixin, Base):
+    """Stores uploads used for compliance verification and OCR extraction."""
+
+    __tablename__ = "document_uploads"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    business_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("business_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    uploader_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    document_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str | None] = mapped_column(String(120))
+    storage_bucket: Mapped[str] = mapped_column(String(120), nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[DocumentUploadStatus] = mapped_column(
+        Enum(DocumentUploadStatus), default=DocumentUploadStatus.STORED, nullable=False
+    )
+    ocr_status: Mapped[DocumentOCRStatus] = mapped_column(
+        Enum(DocumentOCRStatus), default=DocumentOCRStatus.PENDING, nullable=False
+    )
+    ocr_text: Mapped[str | None] = mapped_column(Text)
+    ocr_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="documents")
+    uploader: Mapped[User | None] = relationship("User")
+
+
+class Permit(TimestampMixin, Base):
+    """Permit or license tracked within the permit wallet."""
+
+    __tablename__ = "permits"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    business_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("business_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    permit_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    permit_number: Mapped[str | None] = mapped_column(String(120), index=True)
+    issuing_authority: Mapped[str | None] = mapped_column(String(255))
+    jurisdiction: Mapped[str | None] = mapped_column(String(120))
+    status: Mapped[PermitStatus] = mapped_column(
+        Enum(PermitStatus), default=PermitStatus.PENDING, nullable=False
+    )
+    issued_on: Mapped[date | None] = mapped_column(Date)
+    expires_on: Mapped[date | None] = mapped_column(Date)
+    webhook_url: Mapped[str | None] = mapped_column(String(255))
+    last_webhook_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    document_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("document_uploads.id", ondelete="SET NULL"), nullable=True
+    )
+    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+
+    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="permits")
+    document: Mapped[DocumentUpload | None] = relationship("DocumentUpload")
+
+
+class BusinessReadinessSnapshot(TimestampMixin, Base):
+    """Historical readiness snapshot for auditing gating decisions."""
+
+    __tablename__ = "business_readiness_snapshots"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    business_id: Mapped[UUID] = mapped_column(
+        GUID(), ForeignKey("business_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    overall_score: Mapped[float] = mapped_column(Float, nullable=False)
+    stage: Mapped[str] = mapped_column(String(64), nullable=False)
+    checklist: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    gating_requirements: Mapped[list[str]] = mapped_column(JSON, default=list)
+    outstanding_actions: Mapped[list[str]] = mapped_column(JSON, default=list)
+    computed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+
+    business: Mapped[BusinessProfile] = relationship(
+        "BusinessProfile", back_populates="readiness_snapshots"
+    )
+
+
+class CheckoutPayment(TimestampMixin, Base):
+    """Checkout session persisted for bookings and regulatory fees."""
+
+    __tablename__ = "checkout_payments"
+
+    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
+    business_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("business_profiles.id", ondelete="SET NULL"), nullable=True
+    )
+    booking_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("bookings.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[CheckoutPaymentStatus] = mapped_column(
+        Enum(CheckoutPaymentStatus), default=CheckoutPaymentStatus.PENDING, nullable=False
+    )
+    currency: Mapped[str] = mapped_column(String(3), default="usd", nullable=False)
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    line_items: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    payment_provider: Mapped[str] = mapped_column(String(64), default="stripe", nullable=False)
+    provider_reference: Mapped[str | None] = mapped_column(String(255))
+    receipt_url: Mapped[str | None] = mapped_column(String(255))
+    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    refund_reason: Mapped[str | None] = mapped_column(String(255))
+    refund_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    business: Mapped[BusinessProfile | None] = relationship(
+        "BusinessProfile", back_populates="payments"
+    )
+    booking: Mapped[Booking | None] = relationship("Booking")
 class IdentityProviderType(str, enum.Enum):
     OIDC = "oidc"
     SAML = "saml"
@@ -1353,4 +1531,13 @@ __all__ = [
     "DeliveryComplianceEvent",
     "DeliveryStatus",
     "DeliveryProvider",
+    "BusinessProfile",
+    "DocumentUpload",
+    "DocumentUploadStatus",
+    "DocumentOCRStatus",
+    "Permit",
+    "PermitStatus",
+    "BusinessReadinessSnapshot",
+    "CheckoutPayment",
+    "CheckoutPaymentStatus",
 ]
