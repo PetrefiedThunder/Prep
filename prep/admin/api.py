@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -33,6 +33,7 @@ from prep.admin.schemas import (
     UserStats,
     UserSummary,
 )
+from prep.api.errors import http_error
 from prep.platform.schemas import CursorPageMeta
 from prep.database import get_db
 from prep.models.admin import AdminUser
@@ -122,6 +123,9 @@ def _build_certification_summary(document: CertificationDocument) -> Certificati
     )
 
 
+async def _get_kitchen_or_404(
+    request: Request, db: AsyncSession, kitchen_id: UUID
+) -> Kitchen:
 def _parse_entity_cursor(
     request: Request,
     cursor: str | None,
@@ -158,6 +162,10 @@ async def _get_kitchen_or_404(request: Request, db: AsyncSession, kitchen_id: UU
     )
     kitchen = result.unique().scalar_one_or_none()
     if kitchen is None:
+        raise http_error(
+            request,
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="admin.kitchen_not_found",
         raise http_exception(
             request,
             status_code=status.HTTP_404_NOT_FOUND,
@@ -170,6 +178,7 @@ async def _get_kitchen_or_404(request: Request, db: AsyncSession, kitchen_id: UU
 @router.get("/kitchens/pending", response_model=KitchenListResponse)
 async def get_pending_kitchens(
     *,
+    cursor: datetime | None = Query(default=None, description="Cursor from the previous page"),
     request: Request,
     cursor: str | None = Query(
         default=None,
@@ -205,6 +214,10 @@ async def get_pending_kitchens(
         .options(joinedload(Kitchen.host))
         .join(User)
         .where(and_(*filters))
+        .order_by(Kitchen.submitted_at.desc())
+    )
+    if cursor is not None:
+        query = query.where(Kitchen.submitted_at < cursor)
         .order_by(Kitchen.submitted_at.desc(), Kitchen.id.desc())
     )
 
@@ -225,13 +238,20 @@ async def get_pending_kitchens(
 
     query = query.limit(limit + 1)
     result = await db.execute(query)
-    kitchens: Sequence[Kitchen] = result.scalars().unique().all()
+    fetched: Sequence[Kitchen] = result.scalars().unique().all()
+    kitchens = list(fetched[:limit])
+    next_cursor = kitchens[-1].submitted_at if len(fetched) > limit and kitchens else None
 
     has_more = len(kitchens) > limit
     if has_more:
         kitchens = kitchens[:limit]
 
     items = [_build_kitchen_summary(kitchen) for kitchen in kitchens]
+    pagination = PaginationMeta(
+        limit=limit,
+        cursor=cursor,
+        next_cursor=next_cursor,
+        total=total,
     next_cursor = None
     if items:
         tail = kitchens[-1]
@@ -276,6 +296,10 @@ async def moderate_kitchen(
     kitchen = await _get_kitchen_or_404(request, db, kitchen_id)
 
     if kitchen.moderation_status != ModerationStatus.PENDING:
+        raise http_error(
+            request,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="admin.kitchen_already_moderated",
         raise http_exception(
             request,
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -283,7 +307,7 @@ async def moderate_kitchen(
             message="Kitchen already moderated",
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     message: str
 
     if payload.action == ModerationDecision.APPROVE:
@@ -343,7 +367,7 @@ async def get_kitchen_moderation_stats(
         )
     ).scalar_one()
 
-    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    seven_days_ago = datetime.now(UTC) - timedelta(days=7)
     approvals_last_7_days = (
         await db.execute(
             base_stmt.where(
@@ -366,6 +390,7 @@ async def get_kitchen_moderation_stats(
 @router.get("/certifications/pending", response_model=CertificationListResponse)
 async def get_pending_certifications(
     *,
+    cursor: datetime | None = Query(default=None, description="Cursor from the previous page"),
     request: Request,
     cursor: str | None = Query(
         default=None,
@@ -393,6 +418,10 @@ async def get_pending_certifications(
         .options(joinedload(CertificationDocument.kitchen))
         .join(Kitchen)
         .where(and_(*filters))
+        .order_by(CertificationDocument.submitted_at.asc())
+    )
+    if cursor is not None:
+        query = query.where(CertificationDocument.submitted_at > cursor)
         .order_by(CertificationDocument.submitted_at.asc(), CertificationDocument.id.asc())
     )
 
@@ -416,13 +445,20 @@ async def get_pending_certifications(
 
     query = query.limit(limit + 1)
     result = await db.execute(query)
-    documents: Sequence[CertificationDocument] = result.scalars().unique().all()
+    fetched: Sequence[CertificationDocument] = result.scalars().unique().all()
+    documents = list(fetched[:limit])
+    next_cursor = documents[-1].submitted_at if len(fetched) > limit and documents else None
 
     has_more = len(documents) > limit
     if has_more:
         documents = documents[:limit]
 
     items = [_build_certification_summary(doc) for doc in documents]
+    pagination = PaginationMeta(
+        limit=limit,
+        cursor=cursor,
+        next_cursor=next_cursor,
+        total=total,
     next_cursor = None
     if items:
         tail = documents[-1]
@@ -456,6 +492,10 @@ async def verify_certification(
     )
     document = result.scalar_one_or_none()
     if document is None:
+        raise http_error(
+            request,
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="admin.certification_not_found",
         raise http_exception(
             request,
             status_code=status.HTTP_404_NOT_FOUND,
@@ -464,6 +504,10 @@ async def verify_certification(
         )
 
     if document.status != CertificationReviewStatus.PENDING:
+        raise http_error(
+            request,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="admin.certification_already_reviewed",
         raise http_exception(
             request,
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -471,7 +515,7 @@ async def verify_certification(
             message="Certification already reviewed",
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if payload.approve:
         document.status = CertificationReviewStatus.APPROVED
         document.rejection_reason = None
@@ -479,6 +523,11 @@ async def verify_certification(
         message = "Certification approved"
     else:
         if not payload.rejection_reason:
+            raise http_error(
+                request,
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                code="admin.certification_rejection_reason_missing",
+                message="Rejection reason is required when rejecting a certification",
             raise http_exception(
                 request,
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -526,7 +575,7 @@ async def get_certification_stats(
         await db.execute(base_stmt.where(CertificationDocument.status == CertificationReviewStatus.REJECTED))
     ).scalar_one()
 
-    soon_threshold = datetime.now(timezone.utc) + timedelta(days=30)
+    soon_threshold = datetime.now(UTC) + timedelta(days=30)
     expiring_soon = (
         await db.execute(
             base_stmt.where(
@@ -549,6 +598,7 @@ async def get_certification_stats(
 @router.get("/users", response_model=UserListResponse)
 async def list_users(
     *,
+    cursor: datetime | None = Query(default=None, description="Cursor from the previous page"),
     request: Request,
     cursor: str | None = Query(
         default=None,
@@ -579,6 +629,9 @@ async def list_users(
     query = select(User)
     if filters:
         query = query.where(and_(*filters))
+    query = query.order_by(User.created_at.desc())
+    if cursor is not None:
+        query = query.where(User.created_at < cursor)
     query = query.order_by(User.created_at.desc(), User.id.desc())
 
     parsed_cursor = _parse_entity_cursor(
@@ -599,7 +652,9 @@ async def list_users(
     query = query.limit(limit + 1)
 
     result = await db.execute(query)
-    users: Sequence[User] = result.scalars().all()
+    fetched: Sequence[User] = result.scalars().all()
+    users = list(fetched[:limit])
+    next_cursor = users[-1].created_at if len(fetched) > limit and users else None
 
     has_more = len(users) > limit
     if has_more:
@@ -619,6 +674,11 @@ async def list_users(
         )
         for user in users
     ]
+    pagination = PaginationMeta(
+        limit=limit,
+        cursor=cursor,
+        next_cursor=next_cursor,
+        total=total,
     next_cursor = None
     if users:
         tail = users[-1]
@@ -648,6 +708,10 @@ async def suspend_user(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
+        raise http_error(
+            request,
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="admin.user_not_found",
         raise http_exception(
             request,
             status_code=status.HTTP_404_NOT_FOUND,
@@ -656,6 +720,10 @@ async def suspend_user(
         )
 
     if user.role == UserRole.ADMIN and user.id == current_admin.id:
+        raise http_error(
+            request,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="admin.self_suspension_forbidden",
         raise http_exception(
             request,
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -665,7 +733,7 @@ async def suspend_user(
 
     user.is_suspended = True
     user.suspension_reason = payload.reason
-    user.suspended_at = datetime.now(timezone.utc)
+    user.suspended_at = datetime.now(UTC)
 
     await db.commit()
     await db.refresh(user)

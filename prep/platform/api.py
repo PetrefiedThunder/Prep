@@ -8,6 +8,10 @@ from uuid import UUID
 import boto3
 from botocore.client import BaseClient
 from fastapi import APIRouter, Depends, Query, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from docusign_client import DocuSignClient
+from prep.api.errors import http_error
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +43,11 @@ async def get_platform_service(
 def get_docusign_client(
     request: Request, settings: Settings = Depends(get_settings)
 ) -> DocuSignClient:
+    if not settings.docusign_account_id or not settings.docusign_access_token:
+        raise http_error(
+            request,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code="platform.docusign_configuration_missing",
 def _extract_request_metadata(request: Request) -> tuple[str | None, str | None, str | None]:
     client_ip = request.client.host if request.client else None
     device_id = request.headers.get("X-Device-Id")
@@ -75,6 +84,12 @@ async def get_sublease_contract_service(
 
 
 def _handle_service_error(request: Request, exc: PlatformError):
+    raise http_error(
+        request,
+        status_code=exc.status_code,
+        code="platform.error",
+        message=str(exc),
+    )
     raise http_exception(
         request,
         status_code=exc.status_code,
@@ -384,6 +399,35 @@ async def create_review(
     return schemas.serialize_review(review)
 
 
+@router.get(
+    "/reviews/kitchens/{kitchen_id}",
+    response_model=schemas.ReviewCollectionResponse,
+)
+async def list_reviews(
+    kitchen_id: UUID,
+    request: Request,
+    cursor: datetime | None = Query(default=None, description="Cursor from a previous page"),
+    limit: int = Query(20, ge=1, le=100),
+    service: PlatformService = Depends(get_platform_service),
+) -> schemas.ReviewCollectionResponse:
+    try:
+        reviews, next_cursor, total = await service.list_reviews_for_kitchen(
+            kitchen_id=kitchen_id,
+            cursor=cursor,
+            limit=limit,
+        )
+    except PlatformError as exc:
+        _handle_service_error(request, exc)
+    items = [schemas.serialize_review(review) for review in reviews]
+    return schemas.ReviewCollectionResponse(
+        items=items,
+        pagination=schemas.CursorPagination(
+            limit=limit,
+            cursor=cursor,
+            next_cursor=next_cursor,
+            total=total,
+        ),
+    )
 @router.get("/reviews/kitchens/{kitchen_id}", response_model=schemas.ReviewListResponse)
 async def list_reviews(
     kitchen_id: UUID,

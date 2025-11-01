@@ -20,6 +20,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prep.auth.providers import IdentityProfile
 from prep.cache import RedisProtocol
+from prep.models.orm import Booking, ComplianceDocument, Kitchen, Review, User, UserRole
+from prep.platform import schemas
+from prep.platform.security import (
+    create_access_token,
+    hash_password,
 from prep.models.orm import (
     Booking,
     BusinessPermit,
@@ -916,6 +921,16 @@ class PlatformService:
 
     async def list_reviews_for_kitchen(
         self,
+        *,
+        kitchen_id: UUID,
+        cursor: datetime | None = None,
+        limit: int = 20,
+    ) -> tuple[list[Review], datetime | None, int]:
+        total_stmt = select(func.count()).select_from(Review).where(
+            Review.kitchen_id == kitchen_id
+        )
+        total = (await self._session.execute(total_stmt)).scalar_one()
+
         kitchen_id: UUID,
         *,
         cursor: tuple[datetime, UUID] | None,
@@ -926,6 +941,13 @@ class PlatformService:
             .where(Review.kitchen_id == kitchen_id)
             .order_by(Review.created_at.desc(), Review.id.desc())
         )
+        if cursor is not None:
+            stmt = stmt.where(Review.created_at < cursor)
+        stmt = stmt.limit(limit + 1)
+        result = await self._session.execute(stmt)
+        rows = list(result.scalars().all())
+        items = rows[:limit]
+        next_cursor = items[-1].created_at if len(rows) > limit and items else None
 
         if cursor is not None:
             cursor_timestamp, cursor_id = cursor
@@ -952,6 +974,12 @@ class PlatformService:
             "Fetched reviews",
             extra={
                 "kitchen_id": str(kitchen_id),
+                "count": len(items),
+                "next_cursor": next_cursor.isoformat() if next_cursor else None,
+                "total": total,
+            },
+        )
+        return items, next_cursor, total
                 "count": len(reviews),
                 "has_more": has_more,
             },
