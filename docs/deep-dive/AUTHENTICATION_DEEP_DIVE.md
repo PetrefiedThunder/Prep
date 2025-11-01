@@ -305,7 +305,7 @@ JWT_EXPIRES_IN="15m"
 JWT_REFRESH_EXPIRES_IN="7d"
 
 RESEND_API_KEY="re_..."
-FROM_EMAIL="noreply@prepchef.com"
+FROM_EMAIL="noreply@example.com"
 
 REDIS_URL="redis://localhost:6379"
 ```

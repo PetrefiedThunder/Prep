@@ -1,14 +1,14 @@
-# Terms of Service (O43)
+# Terms of Service
 
-**Last Updated:** January 26, 2025
+**Last Updated:** [DATE]
 
 ## 1. Acceptance of Terms
 
-By accessing PrepChef ("Service"), you agree to these Terms of Service. If you disagree, do not use the Service.
+By accessing this Service ("Service"), you agree to these Terms of Service. If you disagree, do not use the Service.
 
 ## 2. Description of Service
 
-PrepChef is a marketplace connecting commercial kitchen hosts with renters for temporary kitchen space bookings.
+Prep is a compliance orchestration platform and marketplace connecting commercial kitchen hosts with renters for temporary kitchen space bookings.
 
 ## 3. User Accounts
 
@@ -40,27 +40,26 @@ As a kitchen renter, you agree to:
 
 ## 6. Payments and Fees
 
-- Platform charges 15% service fee on bookings
-- Hosts receive 85% of booking amount
-- Payments processed via Stripe
+- Platform charges service fee on bookings (see pricing documentation)
+- Payment processing handled by third-party payment processor
 - Refunds subject to cancellation policy
-- Hosts responsible for tax reporting
+- Users responsible for tax reporting and compliance
 
 ## 7. Cancellation Policy
 
 - **Host cancellation**: Full refund to renter, host may face penalties
 - **Renter cancellation**:
-  - >48 hours before: Full refund minus 5% processing fee
-  - 24-48 hours: 50% refund
-  - <24 hours: No refund
+  - Advance notice: Full or partial refund based on timing
+  - Late cancellation: Reduced or no refund
+  - Specific refund percentages available in platform documentation
 - Force majeure exceptions apply
 
 ## 8. Liability and Insurance
 
-- PrepChef is a marketplace platform only
+- Prep is a marketplace platform only
 - We do not own or operate kitchens
 - Hosts and renters enter into direct agreement
-- PrepChef not liable for injuries, damages, or losses
+- Prep not liable for injuries, damages, or losses
 - Users required to maintain appropriate insurance
 - Platform facilitates transactions but is not a party to rental agreements
 
@@ -68,14 +67,14 @@ As a kitchen renter, you agree to:
 
 - Hosts must maintain valid health permits
 - All users must follow local food safety regulations
-- PrepChef may verify compliance documentation
+- Platform may verify compliance documentation
 - Non-compliant listings may be removed
 
 ## 10. Intellectual Property
 
-- PrepChef owns platform, logo, and content
+- Platform operator owns platform, logo, and content
 - Users retain rights to their listing photos/descriptions
-- Users grant PrepChef license to display content
+- Users grant platform license to display content
 
 ## 11. Prohibited Conduct
 
@@ -91,13 +90,13 @@ You may not:
 
 ## 12. Dispute Resolution
 
-- Users should first contact PrepChef support
+- Users should first contact platform support
 - Binding arbitration for disputes (not class action)
-- Governing law: [Your State/Country]
+- Governing law: [JURISDICTION]
 
 ## 13. Termination
 
-PrepChef may suspend or terminate accounts for:
+Platform may suspend or terminate accounts for:
 
 - Terms of Service violations
 - Fraudulent activity
@@ -106,7 +105,7 @@ PrepChef may suspend or terminate accounts for:
 
 ## 14. Disclaimer of Warranties
 
-Service provided "AS IS" without warranties. PrepChef does not guarantee:
+Service provided "AS IS" without warranties. Platform does not guarantee:
 
 - Uninterrupted service
 - Error-free platform
@@ -116,7 +115,7 @@ Service provided "AS IS" without warranties. PrepChef does not guarantee:
 
 ## 15. Limitation of Liability
 
-PrepChef's liability limited to fees paid in last 12 months. Not liable for:
+Platform's liability limited to fees paid in last 12 months. Not liable for:
 
 - Indirect, incidental, or consequential damages
 - Lost profits or revenue
@@ -125,7 +124,7 @@ PrepChef's liability limited to fees paid in last 12 months. Not liable for:
 
 ## 16. Indemnification
 
-You agree to indemnify PrepChef against claims arising from:
+You agree to indemnify platform operator against claims arising from:
 
 - Your use of the Service
 - Violation of Terms
@@ -134,7 +133,7 @@ You agree to indemnify PrepChef against claims arising from:
 
 ## 17. Changes to Terms
 
-- PrepChef may update Terms at any time
+- Platform may update Terms at any time
 - Continued use constitutes acceptance
 - Material changes will be notified via email
 
@@ -142,9 +141,9 @@ You agree to indemnify PrepChef against claims arising from:
 
 For questions about these Terms:
 
-- Email: legal@prepchef.com
-- Mail: PrepChef Legal, [Address]
+- Email: [LEGAL_EMAIL]
+- Mail: Legal Department, [ORGANIZATION_ADDRESS]
 
 ---
 
-By using PrepChef, you acknowledge that you have read and agree to these Terms of Service.
+By using this Service, you acknowledge that you have read and agree to these Terms of Service.

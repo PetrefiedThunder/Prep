@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you find a vulnerability, please do not open a public issue. Instead, email us at [security@prepchef.com] or use GitHub's private security advisory.
+If you find a vulnerability, please do not open a public issue. Instead, contact the security team through the designated private security channels.
 
 We take security seriously and will respond to vulnerability reports within 24 hours.
 
@@ -45,9 +45,9 @@ For local development:
 - Enable automatic secret rotation
 - Example Vault path structure:
   ```
-  secret/prepchef/production/database
-  secret/prepchef/production/stripe
-  secret/prepchef/production/jwt
+  secret/app/production/database
+  secret/app/production/stripe
+  secret/app/production/jwt
   ```
 
 **Option 2: GitHub Secrets (CI/CD)**
@@ -59,10 +59,10 @@ For local development:
 - Use External Secrets Operator to sync from Vault
 - Or create secrets manually:
   ```bash
-  kubectl create secret generic prepchef-secrets \
+  kubectl create secret generic app-secrets \
     --from-literal=DATABASE_URL='...' \
     --from-literal=STRIPE_SECRET_KEY='...' \
-    -n prepchef
+    -n app
   ```
 
 **Option 4: Cloud Provider Secret Managers**
@@ -115,11 +115,11 @@ For local development:
 NEW_SECRET=$(openssl rand -base64 32)
 
 # Update in secret store (Vault example)
-vault kv put secret/prepchef/production/jwt secret=$NEW_SECRET
+vault kv put secret/app/production/jwt secret=$NEW_SECRET
 
 # Rolling restart of services
-kubectl rollout restart deployment/node-api -n prepchef
-kubectl rollout restart deployment/python-compliance -n prepchef
+kubectl rollout restart deployment/node-api -n app
+kubectl rollout restart deployment/python-compliance -n app
 
 # Old tokens remain valid until expiry (grace period)
 ```
@@ -130,10 +130,10 @@ kubectl rollout restart deployment/python-compliance -n prepchef
 NEW_PASSWORD=$(openssl rand -base64 24)
 
 # 2. Update database user
-psql -c "ALTER USER prepchef_app WITH PASSWORD '$NEW_PASSWORD';"
+psql -c "ALTER USER app_user WITH PASSWORD '$NEW_PASSWORD';"
 
 # 3. Update secret store
-vault kv put secret/prepchef/production/database password=$NEW_PASSWORD
+vault kv put secret/app/production/database password=$NEW_PASSWORD
 
 # 4. Rolling restart with zero downtime
 kubectl set env deployment/node-api DATABASE_PASSWORD=$NEW_PASSWORD -n prepchef
@@ -196,16 +196,16 @@ mc admin user remove myminio olduser
 ### Database Credential Revocation
 ```sql
 -- Revoke all privileges
-REVOKE ALL PRIVILEGES ON DATABASE prepchef FROM compromised_user;
+REVOKE ALL PRIVILEGES ON DATABASE app_db FROM compromised_user;
 REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM compromised_user;
 
 -- Drop user
 DROP USER compromised_user;
 
 -- Create new user with proper permissions
-CREATE USER prepchef_app WITH PASSWORD 'new_secure_password';
-GRANT CONNECT ON DATABASE prepchef TO prepchef_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO prepchef_app;
+CREATE USER app_user WITH PASSWORD 'new_secure_password';
+GRANT CONNECT ON DATABASE app_db TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
 ```
 
 ### Post-Incident
@@ -214,6 +214,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO prepchef_
 3. Update secret rotation schedule if needed
 4. Notify stakeholders if customer data was accessed
 5. Conduct post-mortem and implement preventive measures
+6. Report to security team through designated channels
 
 ## Security Best Practices
 
@@ -260,7 +261,7 @@ This script will:
 
 In case of a security incident:
 1. Immediately revoke compromised credentials (see above)
-2. Notify security team: security@prepchef.com
+2. Notify security team through designated channels
 3. Document incident timeline
 4. Assess data exposure
 5. Rotate all potentially affected secrets

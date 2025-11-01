@@ -1,6 +1,6 @@
-# Developer Onboarding (J31)
+# Developer Onboarding
 
-Welcome to the PrepChef development team! This guide will help you set up your local environment and get started contributing.
+Welcome to the Prep development team! This guide will help you set up your local environment and get started contributing.
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ Welcome to the PrepChef development team! This guide will help you set up your l
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/PetrefiedThunder/Prep.git
+git clone [REPOSITORY_URL]
 cd Prep
 ```
 

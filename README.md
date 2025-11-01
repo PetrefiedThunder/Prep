@@ -116,7 +116,7 @@ This starts 6 services:
 
 1. **Clone the repository:**
    ```bash
-   git clone <repo-url>
+   git clone [REPOSITORY_URL]
    cd Prep
    ```
 
@@ -402,11 +402,12 @@ Sentry integration for error monitoring and alerting.
 
 ## Recent Major Updates
 
-### Q4 2025
-- **City Compliance Layer** (PR #313) - Implemented city-level regulatory requirements for 8 major US cities with hierarchical compliance validation
-- **Federal Regulatory Engine** (PR #311-312) - Complete federal food safety compliance backbone with 34 accreditor-certifier-scope relationships and authority chain validation
-- **Data Plane Streaming** (PR #309) - Event platform foundation for real-time data processing with Kafka integration
-- **Monorepo Restructure** (PR #310) - Reorganized services into modular microservices architecture
+### Recent Updates
+- **City Compliance Layer** - Implemented city-level regulatory requirements for 8 major US cities with hierarchical compliance validation
+- **Federal Regulatory Engine** - Complete federal food safety compliance backbone with 34 accreditor-certifier-scope relationships and authority chain validation
+- **Data Plane Streaming** - Event platform foundation for real-time data processing with Kafka integration
+- **Monorepo Restructure** - Reorganized services into modular microservices architecture
+- **SDK Generation** - Added OpenAPI-based TypeScript and Python SDK generation
 
 ## Development Tools
 
@@ -497,7 +498,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/PetrefiedThunder/Prep/issues)
+- **Issues**: [Internal Issue Tracker]
 - **Documentation**: [docs/](docs/)
 - **API Docs**: [OpenAPI Specification](openapi.yaml)
 
