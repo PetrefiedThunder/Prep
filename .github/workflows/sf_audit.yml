@@ -1,0 +1,35 @@
+name: SF Regulatory Audit
+
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+jobs:
+  nightly-audit:
+    name: Run SF audit harness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Execute SF audit suite
+        run: |
+          pytest tests/audit_sf.py --json-report --json-report-file reports/sf_audit.json
+      - name: Generate audit summary
+        env:
+          SLACK_WEBHOOK_SFOPS: ${{ secrets.SLACK_WEBHOOK_SFOPS }}
+        run: |
+          python scripts/post_audit_summary.py --report reports/sf_audit.json --output-dir reports
+      - name: Upload audit artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sf-audit-report
+          path: |
+            reports/sf_audit.json
+            reports/SF_Audit_Report_*.json
