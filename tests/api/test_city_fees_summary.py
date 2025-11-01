@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from apps.api_gateway.app import create_app
+from api.index import create_app
 
-client = TestClient(create_app())
+client = TestClient(
+    create_app(include_full_router=False, include_legacy_mounts=False)
+)
 
 
 def test_summary_basic():
