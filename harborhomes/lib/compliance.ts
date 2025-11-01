@@ -27,26 +27,48 @@ type NextFetchInit = RequestInit & { next?: { revalidate?: number } };
 
 const DEFAULT_REVALIDATE_SECONDS = 60 * 60; // 1 hour
 
-export async function fetchCityCompliance(city: string, init?: NextFetchInit): Promise<CityCompliance> {
-  const base = process.env.NEXT_PUBLIC_API_BASE;
+function resolveComplianceBase() {
+  const base = process.env.COMPLIANCE_API_BASE ?? process.env.NEXT_PUBLIC_API_BASE;
   if (!base) {
-    throw new Error("NEXT_PUBLIC_API_BASE is not configured");
+    throw new Error("COMPLIANCE_API_BASE is not configured");
   }
+  return base.endsWith("/") ? base.slice(0, -1) : base;
+}
 
-  const normalizedBase = base.endsWith("/") ? base.slice(0, -1) : base;
-  const headers = { Accept: "application/json", ...(init?.headers ?? {}) };
+function buildComplianceHeaders(headers?: NextFetchInit["headers"]) {
+  const merged = new Headers(headers ?? {});
+  if (!merged.has("Accept")) {
+    merged.set("Accept", "application/json");
+  }
+  const apiKey = process.env.COMPLIANCE_API_KEY;
+  if (apiKey && !merged.has("x-api-key")) {
+    merged.set("x-api-key", apiKey);
+  }
+  return merged;
+}
+
+async function fetchCompliance<T>(path: string, init?: NextFetchInit): Promise<T> {
+  const base = resolveComplianceBase();
+  const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
+  const headers = buildComplianceHeaders(init?.headers);
   const requestInit: NextFetchInit = {
     ...init,
     headers,
     next: init?.next ?? { revalidate: DEFAULT_REVALIDATE_SECONDS }
   };
 
-  const response = await fetch(`${normalizedBase}/city/${city}/fees`, requestInit);
+  const response = await fetch(`${base}/${normalizedPath}`, requestInit);
 
   if (!response.ok) {
-    throw new Error(`Failed to load compliance data for ${city}`);
+    const detail = await response.text();
+    throw new Error(detail || `Failed to load compliance resource at ${normalizedPath}`);
   }
 
-  const payload: CityCompliance = await response.json();
-  return payload;
+  return (await response.json()) as T;
 }
+
+export async function fetchCityCompliance(city: string, init?: NextFetchInit): Promise<CityCompliance> {
+  return fetchCompliance<CityCompliance>(`city/${city}/fees`, init);
+}
+
+export { resolveComplianceBase, buildComplianceHeaders, fetchCompliance };

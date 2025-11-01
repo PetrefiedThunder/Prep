@@ -1,5 +1,7 @@
+import type { CityCompliance } from "@/lib/compliance";
+
 interface RequirementsListProps {
-  items: string[];
+  items: CityCompliance["paperwork"];
   title?: string;
 }
 

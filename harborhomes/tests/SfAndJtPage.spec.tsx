@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import type { MockedFunction } from "vitest";
 
-import SfAndJtPage from "@/app/sf-and-jt/page";
+import SfAndJtPage from "@/app/(demo)/sf-and-jt/page";
 import { fetchCityCompliance, type CityCompliance } from "@/lib/compliance";
 
 vi.mock("@/lib/compliance", () => ({
@@ -73,7 +73,7 @@ describe("SfAndJtPage", () => {
     expect(screen.getByRole("heading", { name: "San Francisco, CA" })).toBeInTheDocument();
     expect(screen.getByText("Annual Health Permit")).toBeInTheDocument();
     expect(screen.getByText("San Bernardino County Permit")).toBeInTheDocument();
-    expect(screen.getAllByText(/Permit active/i)).toHaveLength(2);
+    expect(screen.getAllByText(/Ready/i)).toHaveLength(2);
   });
 
   it("surfaces guidance when the compliance API is unavailable", async () => {
@@ -88,7 +88,8 @@ describe("SfAndJtPage", () => {
     expect(screen.getByRole("heading", { name: "Joshua Tree, CA" })).toBeInTheDocument();
     expect(screen.getByText(/Unable to load compliance data/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Set NEXT_PUBLIC_API_BASE to the base URL of your compliance API to stream live data/)
+      screen.getByText(/Set COMPLIANCE_API_BASE \(or NEXT_PUBLIC_API_BASE\) to the base URL of your compliance API/
+    )
     ).toBeInTheDocument();
   });
 });

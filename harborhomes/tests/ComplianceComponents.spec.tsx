@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
-import { FeeCard } from "@/components/compliance/fee-card";
-import { RequirementsList } from "@/components/compliance/requirements-list";
-import { PermitBadge } from "@/components/compliance/permit-badge";
+import { FeeCard } from "@/components/prep/FeeCard";
+import { RequirementsList } from "@/components/prep/RequirementsList";
+import { PermitBadge } from "@/components/prep/PermitBadge";
 import type { CityCompliance, Fee } from "@/lib/compliance";
 
 describe("Compliance components", () => {
@@ -40,7 +40,7 @@ describe("Compliance components", () => {
 
   it("highlights permit status", () => {
     render(<PermitBadge validation={compliance.validation} totals={compliance.totals} />);
-    expect(screen.getByText(/Permit active/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ready/i)).toBeInTheDocument();
     expect(screen.getByText(/One-time fees/)).toBeInTheDocument();
   });
 });
