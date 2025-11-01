@@ -1,0 +1,365 @@
+version: 1
+program: growth_alpha
+meta:
+  goal: "Supersize Growth α into a build-ready program with referrals, promos, discovery, portfolios, analytics, comms, and ops guardrails."
+  implementation_order:
+    - week: 1
+      focus:
+        - "Referrals"
+        - "Promos"
+        - "Events capture"
+    - week: 2
+      focus:
+        - "Kitchen discovery search"
+        - "Maker portfolio pages"
+        - "Admin promos CRUD"
+    - week: 3
+      focus:
+        - "Ratings and reviews"
+        - "Email & push jobs"
+        - "Invoices & tax rates"
+    - week: 4
+      focus:
+        - "Growth dashboards"
+        - "Rate limits & abuse tooling"
+        - "Hardening & DX polish"
+  acceptance_gate:
+    - "Promo + referral campaign drives ≥ 5 discounted bookings."
+    - "Search P95 < 500 ms for 10k kitchens with portfolio uploads stable."
+    - "Event capture coverage > 99% with zero PII leaks."
+    - "Ratings visible once entities reach 3+ reviews with abuse toggle active."
+    - "Email unsubscribe and push opt-out respected."
+    - "Invoices downloadable for every completed booking with tax lines."
+epics:
+  - key: referrals
+    title: "Referral Ecosystem (Host ↔ Maker)"
+    description: "Implement referral codes, claims, conversion credits, and lifecycle jobs that reward both sides while enforcing limits."
+    issues:
+      - title: "Create referral data models"
+        body: |
+          ## Summary
+          - Add SQL migrations for `referral_codes`, `referrals`, and `referral_credits` tables matching the Growth α spec.
+          - Ensure foreign keys, constraints, and defaults align with existing `users` and `bookings` tables.
+
+          ## Acceptance Criteria
+          - Migration applies cleanly and is reversible.
+          - Constraints prevent negative credits, duplicate invitee usage, and invalid status values.
+        labels: [area:referrals, type:migration]
+      - title: "Expose referral API endpoints"
+        body: |
+          ## Summary
+          - Implement `POST /referrals/codes`, `POST /referrals/claim`, and `GET /referrals/me` routes per contract.
+          - Enforce referral code kind, expiry, and max use rules.
+          - Return earned credit totals and pending conversions for authenticated users.
+
+          ## Acceptance Criteria
+          - OpenAPI spec updated.
+          - Unit tests cover happy paths and invalid code handling.
+        labels: [area:referrals, type:backend]
+      - title: "Referral conversion job"
+        body: |
+          ## Summary
+          - Create `jobs/referral_worker` triggered on `booking.completed` events.
+          - Mark referrals converted when bookings meet `REFERRAL_MIN_BOOK_TOTAL_CENTS` and issue credits for inviter and invitee.
+          - Ensure idempotency and audit logging of credit issuance.
+
+          ## Acceptance Criteria
+          - Credits issued exactly once per qualifying booking.
+          - Job emits tracking events `referral_claimed` and `booking_confirmed` with referral metadata.
+        labels: [area:referrals, type:jobs]
+      - title: "Referral redemption at checkout"
+        body: |
+          ## Summary
+          - Allow invitees to apply referral credits during booking checkout with audit log entries.
+          - Prevent totals dropping below zero and ensure credits decrement atomically.
+
+          ## Acceptance Criteria
+          - Integration test: create code → claim → complete booking → two credits issued and redeemed once.
+          - Expired codes and max uses rejected with clear UX messaging.
+        labels: [area:referrals, type:checkout]
+  - key: promos
+    title: "Promo Codes & Pricing"
+    description: "Deliver promo infrastructure, validation, and pricing integration with concurrency safety."
+    issues:
+      - title: "Promo data model migrations"
+        body: |
+          ## Summary
+          - Add migrations for `promos` and `promo_usages` tables with enum constraints and usage counters.
+          - Index on `code` and lock semantics to support concurrent usage limits.
+
+          ## Acceptance Criteria
+          - `SELECT FOR UPDATE` ready schema and down migration.
+          - Migration verified against staging data set.
+        labels: [area:promos, type:migration]
+      - title: "Promo validation API"
+        body: |
+          ## Summary
+          - Implement `POST /promos/validate` to assess eligibility using user, city, tags, and cart payloads.
+          - Return discount amount or rejection reason, applying rate limits (10/min per IP).
+
+          ## Acceptance Criteria
+          - API rejects inactive, expired, or over-limit promos with actionable errors.
+          - Tests cover first-time enforcement and tag filters.
+        labels: [area:promos, type:backend]
+      - title: "Pricing service promo integration"
+        body: |
+          ## Summary
+          - Extend pricing service to combine promos with referral credits ensuring totals never below zero.
+          - Handle concurrency on `usage_limit` using transactional locking.
+
+          ## Acceptance Criteria
+          - Load tests simulate concurrent bookings hitting the same promo without double counting.
+          - Pricing outputs logged to `audit_log` with promo and credit references.
+        labels: [area:promos, type:service]
+      - title: "Admin promo CRUD"
+        body: |
+          ## Summary
+          - Build admin UI/API to create, edit, activate/deactivate promos and view usage counts.
+          - Include filters for city/tags and schedule windows.
+
+          ## Acceptance Criteria
+          - Role-based access enforced.
+          - Audit trail captured for each mutation.
+        labels: [area:promos, type:admin]
+  - key: discovery
+    title: "Kitchen Discovery Search"
+    description: "Ship performant kitchen search with sticky filters, availability chips, and clear empty states."
+    issues:
+      - title: "Search index setup"
+        body: |
+          ## Summary
+          - Configure PostgreSQL GIN index using `to_tsvector` over name, equipment, and city fields.
+          - Evaluate optional `pg_trgm` extension for fuzzy matching.
+
+          ## Acceptance Criteria
+          - Migration adds necessary indexes and toggles extension.
+          - Query plan verified to use index for representative queries.
+        labels: [area:search, type:database]
+      - title: "Discovery API endpoint"
+        body: |
+          ## Summary
+          - Implement `GET /search/kitchens` with query, price, equipment, and availability filters.
+          - Ensure responses include badges, photo URLs, and next available slots.
+
+          ## Acceptance Criteria
+          - Performance test shows <500 ms P95 with 10k kitchens.
+          - Availability filter only returns kitchens free in requested window.
+        labels: [area:search, type:backend]
+      - title: "Discovery UX"
+        body: |
+          ## Summary
+          - Build frontend cards with availability chips, sticky filters, and "Clear all" control.
+          - Implement empty state copy: “No matches. Try removing filters or expanding dates.”
+
+          ## Acceptance Criteria
+          - UX copy approved by product.
+          - Accessibility audit passes (focus management on filter changes).
+        labels: [area:search, type:frontend]
+  - key: portfolios
+    title: "Maker Portfolios"
+    description: "Enable makers to showcase their work with rich profiles and media uploads."
+    issues:
+      - title: "Portfolio schema migrations"
+        body: |
+          ## Summary
+          - Add `maker_portfolios` and `maker_media` tables with timestamps and constraints.
+          - Ensure media records cascade on maker deletion.
+
+          ## Acceptance Criteria
+          - Upload size limit enforced at database/service layer (≤ 50 MB metadata).
+          - Down migration cleans up indexes.
+        labels: [area:portfolios, type:migration]
+      - title: "Portfolio API & caching"
+        body: |
+          ## Summary
+          - Implement GET/POST endpoints for portfolio profiles and media per spec.
+          - Cache public portfolio responses for 30 minutes; purge cache on updates.
+
+          ## Acceptance Criteria
+          - Auth checks ensure makers only modify their portfolios.
+          - Upload confirmations validate file type whitelist.
+        labels: [area:portfolios, type:backend]
+      - title: "Maker portfolio UX"
+        body: |
+          ## Summary
+          - Create maker dashboard UI with title "Your work, your way." and subtitle copy.
+          - Surface CTAs “Add photos” and “Link Instagram”.
+
+          ## Acceptance Criteria
+          - Signed upload flow integrated with storage provider (S3/GCS).
+          - Responsive layout validated on mobile and desktop.
+        labels: [area:portfolios, type:frontend]
+  - key: analytics
+    title: "Analytics & Metrics Foundation"
+    description: "Capture product events, warehouse schema, and operational dashboards."
+    issues:
+      - title: "Event warehouse schema"
+        body: |
+          ## Summary
+          - Create `events` table with indexes supporting name/time queries.
+          - Ensure props column enforces JSONB and tracks IP/UA.
+
+          ## Acceptance Criteria
+          - Migration deployed and backfilled with existing tracking if available.
+          - Data retention policy documented.
+        labels: [area:analytics, type:migration]
+      - title: "Event capture middleware"
+        body: |
+          ## Summary
+          - Implement middleware to record tracking plan events with standardized schema.
+          - Prevent PII leakage by redacting sensitive fields.
+
+          ## Acceptance Criteria
+          - Unit tests for each event in tracking plan.
+          - Coverage report shows >99% capture success in staging.
+        labels: [area:analytics, type:backend]
+      - title: "Growth dashboards"
+        body: |
+          ## Summary
+          - Build Grafana dashboards: Growth Funnel, Promo Efficacy, Referral R₀, Email Deliverability.
+          - Define data sources and refresh cadence.
+
+          ## Acceptance Criteria
+          - Dashboards reviewed by Growth team and alert thresholds configured.
+          - Documentation added to Ops runbook.
+        labels: [area:analytics, type:observability]
+  - key: reviews
+    title: "Ratings & Reviews"
+    description: "Collect post-booking feedback with abuse detection and public aggregates."
+    issues:
+      - title: "Reviews schema & aggregates"
+        body: |
+          ## Summary
+          - Create `reviews` table and materialized view `rating_aggregates` with unique index.
+          - Only expose averages when count ≥ 3 and flagged=false.
+
+          ## Acceptance Criteria
+          - Materialized view refresh job scheduled.
+          - Tests cover flagging and aggregation accuracy.
+        labels: [area:reviews, type:migration]
+      - title: "Review collection flow"
+        body: |
+          ## Summary
+          - Trigger email/push after bookings asking users to rate experiences.
+          - Integrate sentiment analysis and keyword filters to auto-flag abusive content.
+
+          ## Acceptance Criteria
+          - Ratings limited to 1–5 with single review per booking.
+          - Auto-flag threshold (< -0.7) escalates to moderation queue.
+        labels: [area:reviews, type:backend]
+      - title: "Public rating display"
+        body: |
+          ## Summary
+          - Update kitchen/maker pages to show average rating once ≥3 reviews and handle flagged states.
+          - Provide manual override to hide reviews during investigations.
+
+          ## Acceptance Criteria
+          - Frontend shows review count and handles no-review state gracefully.
+          - Cache invalidation occurs when new review posted or flag toggled.
+        labels: [area:reviews, type:frontend]
+  - key: communications
+    title: "Lifecycle Email & Push"
+    description: "Automate maker welcome, abandoned booking nudges, and referral reminders with compliance guardrails."
+    issues:
+      - title: "Template creation"
+        body: |
+          ## Summary
+          - Build email templates for Welcome Maker, Abandoned Booking, and Referral Nudge with provided subject, preview, and CTA copy.
+          - Ensure unsubscribe link included and responsive layout.
+
+          ## Acceptance Criteria
+          - Templates render correctly across major clients.
+          - Localization ready strings stored centrally.
+        labels: [area:communications, type:email]
+      - title: "Lifecycle jobs"
+        body: |
+          ## Summary
+          - Implement `jobs/digest_worker` (daily 9am local) and `jobs/abandonment_worker` (hourly, 4h inactivity trigger).
+          - Integrate push notifications via FCM respecting opt-out.
+
+          ## Acceptance Criteria
+          - Scheduling resilient to daylight savings.
+          - Jobs record sends in audit log with outcomes.
+        labels: [area:communications, type:jobs]
+      - title: "Compliance & preferences"
+        body: |
+          ## Summary
+          - Track `email_unsubscribed_at` and device-level push opt-out states.
+          - Enforce preference checks before sends.
+
+          ## Acceptance Criteria
+          - Preference changes propagate within 5 minutes.
+          - Tests verify unsubscribed users never receive email/push.
+        labels: [area:communications, type:compliance]
+  - key: invoicing
+    title: "Tax & Invoicing"
+    description: "Generate booking invoices with accurate tax breakdowns and fast PDF delivery."
+    issues:
+      - title: "Tax rate data pipeline"
+        body: |
+          ## Summary
+          - Create static tax rates table with nightly job to refresh and allow city overrides.
+          - Document data source provenance.
+
+          ## Acceptance Criteria
+          - Job retries on failure and alerts Ops.
+          - Rates versioned for auditing.
+        labels: [area:tax, type:data]
+      - title: "Invoice PDF service"
+        body: |
+          ## Summary
+          - Implement `POST /invoice/:booking_id/pdf` returning signed URL with line items, promo/credit lines, and tax details.
+          - Ensure rendering under 1 second.
+
+          ## Acceptance Criteria
+          - Totals reconcile with booking ledger entries.
+          - Integration tests validate rounding rules.
+        labels: [area:tax, type:service]
+  - key: security
+    title: "Security, Privacy, Abuse Guardrails"
+    description: "Protect referral/promo flows with rate limits, CAPTCHA, and audit logging."
+    issues:
+      - title: "Rate limiting & CAPTCHA"
+        body: |
+          ## Summary
+          - Apply rate limits: `/promos/validate` 10/min per IP, `/referrals/claim` 5/hour per user.
+          - Add CAPTCHA challenge to sign-up after 3 rapid attempts.
+
+          ## Acceptance Criteria
+          - Limits configurable via env.
+          - CAPTCHA UX accessible and localized.
+        labels: [area:security, type:backend]
+      - title: "Discount audit logging"
+        body: |
+          ## Summary
+          - Ensure all discount and credit applications write to `audit_log` with reason codes and actor metadata.
+          - Provide admin review interface for flagged entries.
+
+          ## Acceptance Criteria
+          - Logs queryable for compliance exports.
+          - Review interface supports status transitions and comments.
+        labels: [area:security, type:governance]
+  - key: ops
+    title: "Operations & Observability"
+    description: "Provide Grafana panels and operational hooks monitoring growth funnel health."
+    issues:
+      - title: "Ops hooks integration"
+        body: |
+          ## Summary
+          - Wire referral, promo, and booking events into ops alerting workflows.
+          - Define escalation policies for job failures.
+
+          ## Acceptance Criteria
+          - Runbook updates with troubleshooting steps.
+          - PagerDuty alerts fire on worker failure simulation.
+        labels: [area:ops, type:runbook]
+      - title: "Grafana dashboards"
+        body: |
+          ## Summary
+          - Build dashboards for Growth Funnel, Promo Efficacy, Referral R₀, Email Deliverability per metrics spec.
+          - Include annotations for campaigns.
+
+          ## Acceptance Criteria
+          - Dashboards reviewed and signed off by Ops lead.
+          - Data sources documented in `RUNBOOK.md`.
+        labels: [area:ops, type:observability]
