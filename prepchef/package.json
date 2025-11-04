@@ -24,8 +24,7 @@
     "prisma:migrate:create": "prisma migrate dev --create-only",
     "prisma:studio": "prisma studio",
     "db:push": "prisma db push",
-    "db:seed": "prisma db seed",
-    "vercel-build": "npm run build"
+    "db:seed": "prisma db seed"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",

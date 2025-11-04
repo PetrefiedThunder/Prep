@@ -19,11 +19,8 @@ review_gates:
     pyproject_required: true
   tests:
     require_green_py_ci: true
-  vercel:
+  fly:
     allowed_to_fail: false
-    dep_pins:
-      - package: "@fastify/websocket"
-        version: "8.3.1"
   dialect:
     uuid_adapter_required: prep/models/guid.py
     forbid_pg_array_in_sqlite_tests: true
@@ -33,7 +30,7 @@ artifacts:
     - "pytest-report.txt"
     - "ruff-report.txt"
     - "mypy-report.txt"
-    - "vercel-build-log.txt"
+    - "fly-deploy-log.txt"
 
 labels:
   ready: ready-to-merge
@@ -46,7 +43,7 @@ outputs:
       - Python CI: green
       - Mass deletion guard: satisfied
       - Packaging: valid
-      - Vercel: green / de-scoped as declared
+      - Fly.io deployment: green
       Merging is unblocked. Proceed with rebase-merge and tag.
     gate_fail: |
       ❌ **Gate Check Failed**
