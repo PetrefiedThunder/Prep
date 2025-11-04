@@ -87,7 +87,7 @@ def _build_router(*, include_full: bool = True) -> APIRouter:
 
 
 def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool = True) -> FastAPI:
-    """Instantiate the FastAPI application used by Vercel."""
+    """Instantiate the FastAPI application for our default containerized deployment."""
 
     settings = get_settings()
     app = FastAPI(title="Prep API Gateway", version="1.0.0")

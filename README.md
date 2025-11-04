@@ -58,6 +58,13 @@ Essential references live at the root of the repository:
 - [`SECURITY.md`](SECURITY.md) – Security policies and reporting process.
 - [`PRIVACY.md`](PRIVACY.md) – Data handling guidelines.
 
+## Deployment
+The API gateway is deployed in a containerized environment. Hosting platforms
+should import the ASGI application via either `main:app` or `run_api:app`, both
+of which call `api.index.create_app()` under the hood. Example launch commands
+include `uvicorn main:app` for local testing or `gunicorn run_api:app` for
+process-managed environments.
+
 ## Development Environment
 ### Docker Compose (recommended)
 Start the full stack with a single command:

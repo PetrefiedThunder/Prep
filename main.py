@@ -1,4 +1,4 @@
-"""FastAPI entrypoint for hosting platforms expecting a `main.py` module."""
+"""ASGI entrypoint for hosting platforms that import `main:app`."""
 
 from __future__ import annotations
 
