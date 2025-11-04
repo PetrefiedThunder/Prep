@@ -23,7 +23,7 @@ The MVP delivery is organized into four execution phases. Each phase concludes w
 
 ### 2.1 High-Level System Diagram
 
-- **Frontend Web App (React + Vite + Tailwind):** Deployed to Vercel, authenticated via JWT stored in httpOnly cookies, uses Zustand for session state, and hits backend APIs via `/api/*` reverse proxy.
+- **Frontend Web App (React + Vite + Tailwind):** Deployed to Cloudflare Pages, authenticated via JWT stored in httpOnly cookies, uses Zustand for session state, and hits backend APIs via `/api/*` reverse proxy.
 - **Backend API (Node.js + Express):** Deployed on Fly.io with Docker; exposes REST endpoints documented in `contracts/openapi.yaml`. Services include `auth`, `listing`, `availability`, `booking`, `payments`, and `admin`.
 - **Database:** PostgreSQL 15 (Supabase managed) with schemas for `users`, `kitchens`, `documents`, `availability_slots`, `bookings`, `payments`, and `reviews`.
 - **Cache & Queues:** Redis for rate limiting, session invalidation, and storing temporary availability locks. BullMQ handles asynchronous jobs (email, payout retries, document virus scanning).
@@ -35,7 +35,7 @@ The MVP delivery is organized into four execution phases. Each phase concludes w
 | Environment | Purpose | Branch | Notes |
 | --- | --- | --- | --- |
 | **Local** | Developer productivity. | Feature branches. | Docker Compose spins up PostgreSQL, Redis, mailhog, and MinIO (S3 mock). |
-| **Staging** | QA sign-off, stakeholder demos. | `develop`. | Deploy via GitHub Actions to Fly.io and Vercel with feature flag toggles. |
+| **Staging** | QA sign-off, stakeholder demos. | `develop`. | Deploy via GitHub Actions to Fly.io and Cloudflare Pages with feature flag toggles. |
 | **Production** | Public release. | `main`. | Require passing smoke tests + manual approval gate. |
 
 ---
@@ -82,9 +82,9 @@ The MVP delivery is organized into four execution phases. Each phase concludes w
 
 ### 3.6 Security & Compliance
 
-- Enforce OWASP-recommended headers via Helmet middleware; CSP tuned for Vercel assets.
+- Enforce OWASP-recommended headers via Helmet middleware; CSP tuned for Cloudflare Pages assets.
 - Regular dependency scanning using GitHub Dependabot and `npm audit` gate in CI.
-- Store secrets in Fly.io secrets manager and Vercel environment variables; prohibit storing secrets in repo.
+- Store secrets in Fly.io secrets manager and Cloudflare Pages environment variables; prohibit storing secrets in repo.
 - Document SOC 2-aligned controls for audit readiness; maintain runbook for data export/delete requests (GDPR/CCPA).
 
 ---
@@ -122,7 +122,7 @@ Bug triage meets twice per week during Phases 3–4; Sev1 incidents require resp
 
 1. **Repository Setup:** Monorepo using npm workspaces; `apps/web`, `services/*`, `packages/*` shared libs.
 2. **CI/CD:** GitHub Actions workflow running lint, tests, build, and Docker image publishing. Separate workflow deploys to staging on merge into `develop` and production on manual approval from release manager.
-3. **Secrets Management:** Use Doppler or 1Password for secret distribution; bootstrap Fly.io & Vercel with environment variables via `doppler secrets upload`.
+3. **Secrets Management:** Use Doppler or 1Password for secret distribution; bootstrap Fly.io & Cloudflare Pages with environment variables via `doppler secrets upload`.
 4. **Monitoring:** Configure Honeycomb dataset for API traces, Grafana dashboards for key metrics (booking conversion, Stripe failures, queue depth), and PagerDuty escalation for Sev1 incidents.
 5. **Analytics:** PostHog for event tracking (search, booking funnel, cancellation reasons) with privacy consent banner handled via Cookiebot.
 6. **Runbooks:** Document rollback procedures, Stripe webhook replay instructions, and compliance escalation steps in `/runbooks`.
@@ -165,7 +165,7 @@ Bug triage meets twice per week during Phases 3–4; Sev1 incidents require resp
 
 1. Confirm architecture decisions with CTO and document any deviations in `docs/decisions/adr-001-foundation.md`.
 2. Stand up initial Supabase project and apply base migrations (`prepchef/db/schema.sql`).
-3. Configure GitHub Actions secrets for Vercel, Fly.io, Stripe, Supabase, Resend, and PostHog.
+3. Configure GitHub Actions secrets for Cloudflare Pages, Fly.io, Stripe, Supabase, Resend, and PostHog.
 4. Create shared UI component library package (`packages/ui`) with Tailwind preset and Storybook.
 5. Draft customer support SOP and escalation matrix in `operations/support_playbook.md`.
 

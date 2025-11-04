@@ -191,7 +191,7 @@ cp prepchef/.env.example prepchef/.env
 
 6. **Deploy to Staging** (auto on `develop`)
    - Fly.io backend deployment
-   - Vercel frontend deployment
+   - Cloudflare Pages frontend deployment
 
 7. **Deploy to Production** (auto on `main`)
    - Manual approval gate
@@ -199,9 +199,9 @@ cp prepchef/.env.example prepchef/.env
 
 **Required Secrets**:
 - `FLY_API_TOKEN` - Fly.io deployment
-- `VERCEL_TOKEN` - Vercel deployment
-- `VERCEL_ORG_ID` - Vercel organization
-- `VERCEL_PROJECT_ID` - Vercel project
+- `CLOUDFLARE_API_TOKEN` - Cloudflare Pages deployment
+- `CLOUDFLARE_ACCOUNT_ID` - Cloudflare account
+- `CLOUDFLARE_PROJECT_NAME` - Cloudflare Pages project
 
 ---
 
@@ -626,7 +626,7 @@ Tickets can be imported into:
 **A**: Supabase Storage for production, MinIO for local dev.
 
 ### Q: How do we deploy?
-**A**: Backend on Fly.io, frontend on Vercel. CI/CD configured in GitHub Actions.
+**A**: Backend on Fly.io, frontend on Cloudflare Pages. CI/CD configured in GitHub Actions.
 
 ---
 
