@@ -185,7 +185,7 @@ Post-MVP: Extract high-traffic services (payments, booking) as needed
 #### Week 1: Infrastructure Setup
 - [ ] Create Supabase project and apply `prepchef/db/schema.sql`
 - [ ] Install Prisma ORM and generate client from existing schema
-- [ ] Set up Doppler for secrets management (or Vercel/Fly.io secrets)
+- [ ] Set up Doppler for secrets management (or Cloudflare Pages/Fly.io secrets)
 - [ ] Configure GitHub Actions CI pipeline:
   - ESLint + Prettier
   - TypeScript type checking
@@ -195,7 +195,7 @@ Post-MVP: Extract high-traffic services (payments, booking) as needed
   - Redis 7
   - MinIO (S3 mock)
   - MailHog (email testing)
-- [ ] Deploy "hello world" to staging (Fly.io + Vercel)
+- [ ] Deploy "hello world" to staging (Fly.io + Cloudflare Pages)
 
 **Exit Criteria**:
 - ✅ `npm run dev` starts entire stack locally
@@ -457,7 +457,7 @@ Post-MVP: Extract high-traffic services (payments, booking) as needed
 - **Payments**: Stripe Elements
 - **Real-time**: Socket.IO client
 - **PWA**: Vite PWA plugin
-- **Deployment**: Vercel
+- **Deployment**: Cloudflare Pages
 
 ### Backend
 - **Runtime**: Node.js 20 LTS
@@ -600,14 +600,14 @@ jobs:
   deploy-staging:
     if: branch == 'develop'
     - Deploy backend to Fly.io staging
-    - Deploy frontend to Vercel preview
+    - Deploy frontend to Cloudflare Pages preview
 
   deploy-prod:
     if: branch == 'main'
     - Run E2E tests (Playwright)
     - Manual approval gate
     - Deploy backend to Fly.io production
-    - Deploy frontend to Vercel production
+    - Deploy frontend to Cloudflare Pages production
 ```
 
 ### Monitoring & Alerts
@@ -675,7 +675,7 @@ jobs:
 ### Priority 4: CI/CD
 1. [ ] Create `.github/workflows/ci.yml`
 2. [ ] Configure Fly.io deployment
-3. [ ] Configure Vercel deployment
+3. [ ] Configure Cloudflare Pages deployment
 4. [ ] Set up Doppler for secrets management
 
 ---
