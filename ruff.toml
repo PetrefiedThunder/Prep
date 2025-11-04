@@ -1,9 +1,27 @@
 line-length = 100
 target-version = "py311"
+indent-width = 4
 
 [lint]
-select = ["E", "F", "I", "UP", "ASYNC"]
-ignore = ["E501"]
+select = [
+  "E",
+  "F",
+  "I",
+  "UP",
+  "ASYNC",
+  "B",
+  "C4",
+  "SIM"
+]
+ignore = ["E203", "E266", "E501"]
 
 [lint.per-file-ignores]
-"tests/**" = ["E402", "F401", "S101", "T201"]
+"tests/**" = ["S101", "T201", "PLR2004"]
+
+[lint.isort]
+combine-as-imports = true
+known-first-party = [
+  "prep",
+  "apps",
+  "services"
+]
