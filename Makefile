@@ -95,7 +95,16 @@ migrate:
 	@echo "Running database migrations..."
 	@# Wait for postgres to be ready
 	@echo "Waiting for PostgreSQL to be ready..."
-	@timeout 30 bash -c 'until docker compose exec -T postgres pg_isready -U postgres; do sleep 1; done' || { echo "PostgreSQL not ready"; exit 1; }
+	@max_wait=30; \
+	elapsed=0; \
+	until docker compose exec -T postgres pg_isready -U postgres >/dev/null 2>&1; do \
+		if [ "$$elapsed" -ge "$$max_wait" ]; then \
+			echo "PostgreSQL not ready"; \
+			exit 1; \
+		fi; \
+		sleep 1; \
+		elapsed=$$((elapsed + 1)); \
+	done
 	@# Run init.sql if database is fresh
 	@echo "Checking if database needs initialization..."
 	@if ! docker compose exec -T postgres psql -U postgres -d prepchef -c "SELECT 1 FROM users LIMIT 1" 2>/dev/null; then \
