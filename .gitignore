@@ -3,3 +3,5 @@
 *.pem
 *.key
 *.p12
+
+.venv
