@@ -205,67 +205,6 @@ class CityFeeSchedule(Base):
     data_source = Column(String(255))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-class FeeSchedule(Base):
-    """Normalized fee schedules for regulatory jurisdictions."""
-
-    __tablename__ = "reg_fee_schedules"
-    __table_args__ = (
-        UniqueConstraint(
-            "jurisdiction", "version", name="uq_reg_fee_schedule_jurisdiction_version"
-        ),
-        Index("ix_reg_fee_schedules_jurisdiction", "jurisdiction"),
-    )
-
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    jurisdiction = Column(String(255), nullable=False)
-    version = Column(String(64), nullable=False, default="default")
-    notes = Column(Text)
-    paperwork = Column(MutableList.as_mutable(JSON), nullable=False, default=list)
-    fees = Column(MutableList.as_mutable(JSON), nullable=False, default=list)
-    totals = Column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
-    extra = Column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-
-class RegRequirement(Base):
-    """Normalized regulatory requirements linked to jurisdictions and fee schedules."""
-
-    __tablename__ = "reg_requirements"
-    __table_args__ = (
-        UniqueConstraint("external_id", name="uq_reg_requirements_external_id"),
-        Index("ix_reg_requirements_jurisdiction", "jurisdiction"),
-        Index("ix_reg_requirements_type", "requirement_type"),
-    )
-
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    external_id = Column(String(255), nullable=False)
-    jurisdiction = Column(String(255), nullable=False)
-    jurisdiction_kind = Column(String(50), nullable=False, default="city")
-    country_code = Column(String(2), nullable=False, default="US")
-    state_code = Column(String(2))
-    requirement_type = Column(String(100), nullable=False)
-    normalized_type = Column(String(100))
-    requirement_label = Column(String(255), nullable=False)
-    governing_agency = Column(String(255))
-    agency_type = Column(String(100))
-    submission_channel = Column(String(100))
-    application_url = Column(Text)
-    inspection_required = Column(Boolean, nullable=False, default=False)
-    renewal_frequency = Column(String(50))
-    applies_to = Column(MutableList.as_mutable(JSON), nullable=False, default=list)
-    required_documents = Column(MutableList.as_mutable(JSON), nullable=False, default=list)
-    rules = Column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
-    source_url = Column(Text)
-    last_updated = Column(DateTime)
-    fee_schedule_reference = Column(String(255))
-    fee_amount_cents = Column(Integer)
-    fee_schedule_id = Column(GUID(), ForeignKey("reg_fee_schedules.id"))
-    extra = Column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-    fee_schedule = relationship("FeeSchedule", backref="requirements")
 
 
 class CityRequirementLink(Base):

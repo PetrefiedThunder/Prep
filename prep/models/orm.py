@@ -227,13 +227,6 @@ class DocumentOCRStatus(str, enum.Enum):
     FAILED = "failed"
 
 
-class PermitStatus(str, enum.Enum):
-    ACTIVE = "active"
-    EXPIRED = "expired"
-    PENDING = "pending"
-    REVOKED = "revoked"
-
-
 class CheckoutPaymentStatus(str, enum.Enum):
     PENDING = "pending"
     SUCCEEDED = "succeeded"
@@ -423,32 +416,6 @@ class RefreshToken(TimestampMixin, Base):
     user: Mapped[User] = relationship("User", back_populates="refresh_tokens")
 
 
-class BusinessProfile(TimestampMixin, Base):
-    __tablename__ = "business_profiles"
-
-    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
-    owner_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("users.id"), nullable=False)
-    legal_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    doing_business_as: Mapped[str | None] = mapped_column(String(255))
-    industry: Mapped[str | None] = mapped_column(String(120))
-    city: Mapped[str | None] = mapped_column(String(120))
-    state: Mapped[str | None] = mapped_column(String(60))
-    readiness_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    requirements: Mapped[dict | None] = mapped_column(JSON, default=dict)
-    profile_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
-
-    owner: Mapped["User"] = relationship("User", backref="business_profiles")
-    permits: Mapped[list["BusinessPermit"]] = relationship(
-        "BusinessPermit", back_populates="business", cascade="all, delete-orphan"
-    )
-    documents: Mapped[list["DocumentUpload"]] = relationship(
-        "DocumentUpload", back_populates="business", cascade="all, delete-orphan"
-    )
-    payments: Mapped[list["PaymentRecord"]] = relationship(
-        "PaymentRecord", back_populates="business", cascade="all, delete-orphan"
-    )
-
-
 class BusinessPermit(TimestampMixin, Base):
     __tablename__ = "business_permits"
 
@@ -468,30 +435,6 @@ class BusinessPermit(TimestampMixin, Base):
     )
 
 
-class DocumentUpload(TimestampMixin, Base):
-    __tablename__ = "document_uploads"
-
-    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
-    business_id: Mapped[UUID] = mapped_column(GUID(), ForeignKey("business_profiles.id"), nullable=False)
-    uploader_id: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("users.id"))
-    permit_id: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("business_permits.id"))
-    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    file_url: Mapped[str] = mapped_column(String(512), nullable=False)
-    content_type: Mapped[str | None] = mapped_column(String(120))
-    storage_bucket: Mapped[str | None] = mapped_column(String(255))
-    ocr_status: Mapped[DocumentProcessingStatus] = mapped_column(
-        Enum(DocumentProcessingStatus), default=DocumentProcessingStatus.PROCESSING, nullable=False
-    )
-    requirement_key: Mapped[str | None] = mapped_column(String(120))
-    ocr_text: Mapped[str | None] = mapped_column(Text)
-    ocr_confidence: Mapped[float | None] = mapped_column(Float)
-    external_reference: Mapped[str | None] = mapped_column(String(255))
-
-    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="documents")
-    permit: Mapped[BusinessPermit | None] = relationship("BusinessPermit", back_populates="documents")
-    uploader: Mapped[User | None] = relationship("User")
-
-
 class PaymentRecord(TimestampMixin, Base):
     __tablename__ = "payment_records"
 
@@ -509,7 +452,7 @@ class PaymentRecord(TimestampMixin, Base):
     payment_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
     business: Mapped[BusinessProfile | None] = relationship("BusinessProfile", back_populates="payments")
-    booking: Mapped["Booking" | None] = relationship("Booking")
+    booking: Mapped["Booking | None"] = relationship("Booking")
 
 
 class Kitchen(TimestampMixin, Base):
@@ -857,7 +800,7 @@ class Integration(TimestampMixin, Base):
         back_populates="integrations",
         foreign_keys=[user_id],
     )
-    kitchen: Mapped[Kitchen | None] = relationship(
+    kitchen: Mapped["Kitchen | None"] = relationship(
         "Kitchen",
         back_populates="integrations",
         foreign_keys=[kitchen_id],
@@ -1253,7 +1196,7 @@ class LedgerEntry(TimestampMixin, Base):
     external_reference: Mapped[str | None] = mapped_column(String(120))
     details: Mapped[Dict[str, Any] | None] = mapped_column(JSON, default=dict)
 
-    booking: Mapped["Booking" | None] = relationship(
+    booking: Mapped["Booking | None"] = relationship(
         "Booking", back_populates="ledger_entries"
     )
 
@@ -1334,7 +1277,7 @@ class DeliveryOrder(TimestampMixin, Base):
     proof_signature: Mapped[str | None] = mapped_column(Text)
     last_status_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    booking: Mapped["Booking" | None] = relationship("Booking")
+    booking: Mapped["Booking | None"] = relationship("Booking")
     status_events: Mapped[List["DeliveryStatusEvent"]] = relationship(
         "DeliveryStatusEvent",
         back_populates="delivery",
@@ -1403,7 +1346,7 @@ class BusinessProfile(TimestampMixin, Base):
     readiness_summary: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
 
     owner: Mapped[User] = relationship("User")
-    kitchen: Mapped["Kitchen" | None] = relationship("Kitchen")
+    kitchen: Mapped["Kitchen | None"] = relationship("Kitchen")
     documents: Mapped[List["DocumentUpload"]] = relationship(
         "DocumentUpload", back_populates="business", cascade="all, delete-orphan"
     )
@@ -1531,87 +1474,7 @@ class CheckoutPayment(TimestampMixin, Base):
     business: Mapped[BusinessProfile | None] = relationship(
         "BusinessProfile", back_populates="payments"
     )
-    booking: Mapped[Booking | None] = relationship("Booking")
-class IdentityProviderType(str, enum.Enum):
-    OIDC = "oidc"
-    SAML = "saml"
-
-
-class IdentityProvider(TimestampMixin, Base):
-    __tablename__ = "identity_providers"
-
-    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
-    slug: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    provider_type: Mapped[IdentityProviderType] = mapped_column(
-        Enum(IdentityProviderType), nullable=False
-    )
-    issuer: Mapped[str | None] = mapped_column(String(255))
-    provider_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
-    settings: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    last_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-    user_links: Mapped[List["UserIdentity"]] = relationship(
-        "UserIdentity", back_populates="provider", cascade="all, delete-orphan"
-    )
-
-
-class UserIdentity(TimestampMixin, Base):
-    __tablename__ = "user_identities"
-
-    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
-    user_id: Mapped[UUID] = mapped_column(
-        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    provider_id: Mapped[UUID] = mapped_column(
-        GUID(), ForeignKey("identity_providers.id", ondelete="CASCADE"), nullable=False
-    )
-    subject: Mapped[str] = mapped_column(String(255), nullable=False)
-    email: Mapped[str | None] = mapped_column(String(255))
-    raw_attributes: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
-    last_sign_in_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-    user: Mapped[User] = relationship("User", back_populates="identities")
-    provider: Mapped[IdentityProvider] = relationship(
-        "IdentityProvider", back_populates="user_links"
-    )
-
-    __table_args__ = (
-        UniqueConstraint("provider_id", "subject", name="uq_user_identity_provider_subject"),
-    )
-
-
-class APIKey(TimestampMixin, Base):
-    __tablename__ = "api_keys"
-
-    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
-    user_id: Mapped[UUID] = mapped_column(
-        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    name: Mapped[str] = mapped_column(String(120), nullable=False)
-    key_prefix: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
-    hashed_key: Mapped[str] = mapped_column(String(128), nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-    user: Mapped[User] = relationship("User", back_populates="api_keys")
-
-
-class RefreshToken(TimestampMixin, Base):
-    __tablename__ = "refresh_tokens"
-
-    id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
-    user_id: Mapped[UUID] = mapped_column(
-        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    token_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-    user: Mapped[User] = relationship("User", back_populates="refresh_tokens")
+    booking: Mapped["Booking | None"] = relationship("Booking")
 
 
 __all__ = [
