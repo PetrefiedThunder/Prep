@@ -452,7 +452,7 @@ class PaymentRecord(TimestampMixin, Base):
     payment_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
     business: Mapped[BusinessProfile | None] = relationship("BusinessProfile", back_populates="payments")
-    booking: Mapped["Booking | None"] = relationship("Booking")
+    booking: Mapped[Optional["Booking"]] = relationship("Booking")
 
 
 class Kitchen(TimestampMixin, Base):
@@ -800,7 +800,7 @@ class Integration(TimestampMixin, Base):
         back_populates="integrations",
         foreign_keys=[user_id],
     )
-    kitchen: Mapped["Kitchen | None"] = relationship(
+    kitchen: Mapped[Optional["Kitchen"]] = relationship(
         "Kitchen",
         back_populates="integrations",
         foreign_keys=[kitchen_id],
@@ -1196,7 +1196,7 @@ class LedgerEntry(TimestampMixin, Base):
     external_reference: Mapped[str | None] = mapped_column(String(120))
     details: Mapped[Dict[str, Any] | None] = mapped_column(JSON, default=dict)
 
-    booking: Mapped["Booking | None"] = relationship(
+    booking: Mapped[Optional["Booking"]] = relationship(
         "Booking", back_populates="ledger_entries"
     )
 
@@ -1277,7 +1277,7 @@ class DeliveryOrder(TimestampMixin, Base):
     proof_signature: Mapped[str | None] = mapped_column(Text)
     last_status_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    booking: Mapped["Booking | None"] = relationship("Booking")
+    booking: Mapped[Optional["Booking"]] = relationship("Booking")
     status_events: Mapped[List["DeliveryStatusEvent"]] = relationship(
         "DeliveryStatusEvent",
         back_populates="delivery",
@@ -1346,7 +1346,7 @@ class BusinessProfile(TimestampMixin, Base):
     readiness_summary: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
 
     owner: Mapped[User] = relationship("User")
-    kitchen: Mapped["Kitchen | None"] = relationship("Kitchen")
+    kitchen: Mapped[Optional["Kitchen"]] = relationship("Kitchen")
     documents: Mapped[List["DocumentUpload"]] = relationship(
         "DocumentUpload", back_populates="business", cascade="all, delete-orphan"
     )
@@ -1474,7 +1474,7 @@ class CheckoutPayment(TimestampMixin, Base):
     business: Mapped[BusinessProfile | None] = relationship(
         "BusinessProfile", back_populates="payments"
     )
-    booking: Mapped["Booking | None"] = relationship("Booking")
+    booking: Mapped[Optional["Booking"]] = relationship("Booking")
 
 
 __all__ = [
