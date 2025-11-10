@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from importlib import import_module
+
+from libs.safe_import import safe_import
 
 _CANON = {
     "san francisco": "san_francisco",
@@ -46,7 +47,7 @@ def ingestor_module_for(city_norm: str):
     path = _MOD_MAP.get(city_norm)
     if not path:
         raise KeyError(city_norm)
-    return import_module(path)
+    return safe_import(path)
 
 
 __all__ = ["SUPPORTED_CITIES", "normalize_city", "ingestor_module_for"]

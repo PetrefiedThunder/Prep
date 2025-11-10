@@ -1,4 +1,4 @@
-.PHONY: help bootstrap up down migrate test lint typecheck health format setup policy.build opa.up db.migrate codex-verify etl.validate api.summary.test api.test api.run run-% clean preflight
+.PHONY: help bootstrap up down migrate check-db smoke-test test lint typecheck health format setup policy.build opa.up db.migrate codex-verify etl.validate api.summary.test api.test api.run run-% clean preflight
 
 # Default target
 help:
@@ -13,9 +13,11 @@ help:
 	@echo "  up             Start all Docker Compose services in background"
 	@echo "  down           Stop all Docker Compose services and remove volumes"
 	@echo "  migrate        Run all database migrations (SQL + Alembic)"
+	@echo "  check-db       Check database connectivity and health"
 	@echo ""
 	@echo "Testing & Quality:"
 	@echo "  test           Run all tests (Python + Node if available)"
+	@echo "  smoke-test     Run import smoke tests for all configured modules"
 	@echo "  lint           Run all linters (ruff, black, bandit)"
 	@echo "  typecheck      Run mypy type checking"
 	@echo "  health         Check health of all running services"
@@ -131,6 +133,16 @@ migrate:
 # Legacy migration target (kept for compatibility)
 db.migrate:
 	@$(MAKE) migrate
+
+# Database health check
+check-db:
+	@echo "Checking database connectivity..."
+	@. .venv/bin/activate && python scripts/check_db.py
+
+# Smoke test imports
+smoke-test:
+	@echo "Running import smoke tests..."
+	@. .venv/bin/activate && python scripts/smoke_test_imports.py
 
 # Run all tests
 test:

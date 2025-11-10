@@ -22,8 +22,9 @@ def __getattr__(name: str) -> Any:  # pragma: no cover - thin import shim
 
 def __dir__() -> list[str]:  # pragma: no cover - delegated to stdlib introspection
     return sorted(__all__)
-from importlib import import_module
 from typing import TYPE_CHECKING, Any
+
+from libs.safe_import import safe_import_attr
 
 if TYPE_CHECKING:  # pragma: no cover - only for static analysis
     from .expiry_check import ExpirySummary, run_expiry_check, run_expiry_check_async
@@ -52,8 +53,10 @@ __all__ = [
 
 def __getattr__(name: str) -> Any:
     if name in {"ExpirySummary", "run_expiry_check", "run_expiry_check_async"}:
-        module = import_module("jobs.expiry_check")
-        return getattr(module, name)
+        attr = safe_import_attr("jobs.expiry_check", name)
+        if attr is None:
+            raise AttributeError(f"module 'jobs' has no attribute {name!r}")
+        return attr
     if name in {
         "DefaultPricingStrategy",
         "PricingRefreshSummary",
@@ -62,8 +65,10 @@ def __getattr__(name: str) -> Any:
         "run_pricing_refresh",
         "run_pricing_refresh_async",
     }:
-        module = import_module("jobs.pricing_hourly_refresh")
-        return getattr(module, name)
+        attr = safe_import_attr("jobs.pricing_hourly_refresh", name)
+        if attr is None:
+            raise AttributeError(f"module 'jobs' has no attribute {name!r}")
+        return attr
     raise AttributeError(f"module 'jobs' has no attribute {name!r}")
 
 
