@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from importlib import import_module
+import logging
 from typing import Iterable
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from libs.safe_import import safe_import
+
+logger = logging.getLogger(__name__)
 
 
 def _load_router(module_path: str, attr: str = "router") -> APIRouter:
@@ -15,14 +19,26 @@ def _load_router(module_path: str, attr: str = "router") -> APIRouter:
     Missing modules or attributes are treated as optional so the gateway can boot even
     when a downstream service has been archived.
     """
-
-    try:
-        module = import_module(module_path)
-    except Exception:  # pragma: no cover - optional routers may be absent
+    module = safe_import(module_path, optional=True)
+    if module is None:
+        logger.info("Optional router module %s not available, using empty router", module_path)
         return APIRouter()
 
     router_obj = getattr(module, attr, None)
-    return router_obj if isinstance(router_obj, APIRouter) else APIRouter()
+    if router_obj is None:
+        logger.warning("Module %s has no attribute '%s', using empty router", module_path, attr)
+        return APIRouter()
+
+    if not isinstance(router_obj, APIRouter):
+        logger.warning(
+            "Module %s.%s is not an APIRouter (got %s), using empty router",
+            module_path,
+            attr,
+            type(router_obj).__name__,
+        )
+        return APIRouter()
+
+    return router_obj
 
 
 OPTIONAL_ROUTERS: Iterable[str] = (

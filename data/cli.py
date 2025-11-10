@@ -7,8 +7,9 @@ import json
 import logging
 import os
 from dataclasses import dataclass, replace
-from importlib import import_module
 from typing import Callable, Iterable, Mapping, MutableMapping, Sequence
+
+from libs.safe_import import safe_import
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -91,7 +92,7 @@ CITY_SPECS: dict[str, CitySpec] = _build_city_specs()
 
 
 def _load_fee_schedule(module_path: str) -> FeeSchedule:
-    module = import_module(module_path)
+    module = safe_import(module_path)
     if not hasattr(module, "make_fee_schedule"):
         raise AttributeError(f"fee ingestor '{module_path}' does not define make_fee_schedule()")
     schedule = module.make_fee_schedule()

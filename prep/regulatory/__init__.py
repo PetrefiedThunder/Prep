@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
-from importlib import import_module
+import logging
 from typing import Iterable
 
+from libs.safe_import import safe_import
+
 __all__: list[str] = []
+logger = logging.getLogger(__name__)
 
 
 def _safe_import(module: str, names: Iterable[str]) -> None:
-    try:
-        mod = import_module(module, package=__name__)
-    except Exception:  # pragma: no cover - defensive against legacy modules
+    # Construct full module path (relative to this package)
+    full_module = f"prep.regulatory{module}"
+    mod = safe_import(full_module, optional=True)
+    if mod is None:
+        logger.info("Optional regulatory module %s not available, skipping exports", full_module)
         return
 
     exported: list[str] = []
