@@ -1,5 +1,5 @@
 # Keep AWS SDK libraries aligned to avoid breaking API changes.
 boto3==1.34.106
-botocore==1.34.106
+botocore==1.40.70
 s3transfer==0.10.4
 aiobotocore==2.13.0
