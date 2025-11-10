@@ -20,7 +20,7 @@ pytesseract==0.3.13
 boto3
 botocore
 s3transfer
-WeasyPrint==62.0
+WeasyPrint==66.0
 psycopg[binary]==3.2.1
 aiobotocore
 alembic==1.13.1
