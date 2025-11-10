@@ -53,7 +53,10 @@ booking kitchens, and getting paid.
 ## Documentation
 Essential references live at the root of the repository:
 - [`DEVELOPER_ONBOARDING.md`](DEVELOPER_ONBOARDING.md) – Environment setup and
-  troubleshooting.
+  first-time configuration.
+- [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) – Common issues and fixes for
+  development environment problems.
+- [`README.local.md`](README.local.md) – Detailed local development guide.
 - [`RUNBOOK.md`](RUNBOOK.md) – Operational procedures and incident guidance.
 - [`SECURITY.md`](SECURITY.md) – Security policies and reporting process.
 - [`PRIVACY.md`](PRIVACY.md) – Data handling guidelines.
@@ -66,7 +69,28 @@ include `uvicorn main:app` for local testing or `gunicorn run_api:app` for
 process-managed environments.
 
 ## Development Environment
-### Docker Compose (recommended)
+
+### Quick Start (Recommended)
+The fastest way to get started is using the Makefile:
+
+```bash
+# Bootstrap the entire development environment
+make bootstrap
+
+# Start all services
+make up
+
+# Check database connectivity
+make check-db
+
+# Run migrations
+make migrate
+
+# Verify everything is working
+make health
+```
+
+### Docker Compose
 Start the full stack with a single command:
 
 ```bash
@@ -76,7 +100,7 @@ docker-compose up -d
 This launches PostgreSQL, Redis, MinIO, the API gateway, compliance services,
 and the HarborHomes frontend.
 
-### Local setup
+### Manual Local Setup
 1. **Clone and install Python dependencies**
    ```bash
    git clone <repo>
@@ -95,18 +119,25 @@ and the HarborHomes frontend.
    ```
 3. **Configure environment**
    ```bash
-   cp .env.example .env
-   # Update database, Redis, MinIO, and Stripe credentials as needed
+   cp .env.example .env.local
+   # Edit .env.local with your local settings
+   export $(cat .env.local | xargs)
    ```
-4. **Run migrations**
+4. **Verify database connectivity**
    ```bash
+   python scripts/check_db.py
+   ```
+5. **Run migrations**
+   ```bash
+   make migrate
+   # Or manually:
    psql $DATABASE_URL < migrations/init.sql
    for file in migrations/00*.sql; do
      [ "$(basename "$file")" = "init.sql" ] && continue
      psql $DATABASE_URL < "$file"
    done
    ```
-5. **Start services**
+6. **Start services**
    ```bash
    # Python compliance + regulatory APIs
    uvicorn apps.federal_regulatory_service.main:app --reload --port 8000
@@ -117,21 +148,45 @@ and the HarborHomes frontend.
    cd prepchef
    npm run dev
    ```
-6. **Launch the frontend**
+7. **Launch the frontend**
    ```bash
    cd apps/harborhomes
    npm run dev
    ```
 
+### Troubleshooting
+If you encounter issues during setup, see [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
+for solutions to common problems including:
+- Missing environment variables
+- Database connection failures
+- Module import errors
+- Docker Compose issues
+
 ## Testing
-- **Python**
+- **All tests**
+  ```bash
+  make test
+  ```
+- **Python tests**
   ```bash
   pytest
   ```
-- **Frontend**
+- **Import smoke tests** (validates all modules can be imported)
+  ```bash
+  make smoke-test
+  ```
+- **Frontend tests**
   ```bash
   cd apps/harborhomes
   npm run test
+  ```
+- **Linting**
+  ```bash
+  make lint
+  ```
+- **Type checking**
+  ```bash
+  make typecheck
   ```
 
 ## Project Layout
