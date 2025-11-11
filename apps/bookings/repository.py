@@ -7,9 +7,9 @@ that surfaces a representative subset of booking metadata.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Iterable, List, Sequence
+from datetime import UTC, datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,7 +34,7 @@ class Booking:
 
 
 def _utc(year: int, month: int, day: int, hour: int, minute: int = 0) -> datetime:
-    return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
+    return datetime(year, month, day, hour, minute, tzinfo=UTC)
 
 
 _DEFAULT_BOOKINGS: Sequence[Booking] = (
@@ -81,9 +81,9 @@ class BookingHistoryRepository:
     """Read-only repository exposing historical bookings for analytics tasks."""
 
     def __init__(self, source: Iterable[Booking] | None = None) -> None:
-        self._bookings: List[Booking] = list(source or _DEFAULT_BOOKINGS)
+        self._bookings: list[Booking] = list(source or _DEFAULT_BOOKINGS)
 
-    def list_completed_bookings(self) -> List[Booking]:
+    def list_completed_bookings(self) -> list[Booking]:
         """Return bookings that finished successfully, ordered chronologically."""
 
         completed = [b for b in self._bookings if b.status.lower() == "completed"]

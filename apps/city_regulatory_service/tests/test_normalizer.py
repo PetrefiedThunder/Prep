@@ -1,7 +1,5 @@
 """Tests for requirement normalizer."""
 
-import pytest
-from datetime import datetime
 
 from apps.city_regulatory_service.src.normalizers import RequirementNormalizer
 

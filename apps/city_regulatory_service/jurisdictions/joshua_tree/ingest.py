@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from apps.city_regulatory_service.models import FacilityType, RegulationType
+
 from . import DATA_SOURCE, JURISDICTION_NAME, OPA_PACKAGE, STATE
 
-JURISDICTION_INFO: Dict[str, Any] = {
+JURISDICTION_INFO: dict[str, Any] = {
     "county": "San Bernardino County",
     "country_code": "US",
     "fips_code": "06071",
@@ -24,7 +25,7 @@ JURISDICTION_INFO: Dict[str, Any] = {
     "timezone": "America/Los_Angeles",
 }
 
-REGULATIONS: List[Dict[str, Any]] = [
+REGULATIONS: list[dict[str, Any]] = [
     {
         "regulation_type": RegulationType.ZONING.value,
         "title": "Desert Region Land Use Permit",
@@ -60,7 +61,7 @@ REGULATIONS: List[Dict[str, Any]] = [
     },
 ]
 
-INSURANCE_REQUIREMENTS: List[Dict[str, Any]] = [
+INSURANCE_REQUIREMENTS: list[dict[str, Any]] = [
     {
         "insurance_type": "general_liability",
         "coverage_name": "General Liability",
@@ -86,7 +87,7 @@ INSURANCE_REQUIREMENTS: List[Dict[str, Any]] = [
     },
 ]
 
-def build_payload(verification_date: Optional[datetime] = None) -> Dict[str, Any]:
+def build_payload(verification_date: datetime | None = None) -> dict[str, Any]:
     """Return a DataIngestionRequest-compatible payload for Joshua Tree."""
 
     verification = verification_date or datetime.utcnow()

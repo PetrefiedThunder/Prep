@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime
 import logging
 import re
-from typing import Dict, Mapping
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from datetime import datetime
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
@@ -15,7 +15,8 @@ try:
     from prep.regulatory.models import CityAgency, CityJurisdiction, CityRequirement
 except Exception:  # pragma: no cover - fallback for minimal test environments
     import uuid
-    from sqlalchemy import Boolean, Column, DateTime, ForeignKey, JSON, String
+
+    from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, String
     from sqlalchemy.orm import declarative_base
 
     _FallbackBase = declarative_base()
@@ -300,7 +301,7 @@ class CostEstimate:
     incremental_fee_count: int
     requirement_count: int
     fee_item_count: int
-    per_requirement: Dict[str, RequirementCostBreakdown] = field(default_factory=dict)
+    per_requirement: dict[str, RequirementCostBreakdown] = field(default_factory=dict)
 
     @property
     def total_annualized_cents(self) -> int:
@@ -333,7 +334,7 @@ class CostEstimate:
 def estimate_costs(bundle: RequirementsBundle) -> CostEstimate:
     """Estimate total costs for a requirements bundle."""
 
-    per_requirement: Dict[str, RequirementCostBreakdown] = {}
+    per_requirement: dict[str, RequirementCostBreakdown] = {}
     for record in bundle.requirements:
         per_requirement[record.id] = RequirementCostBreakdown(requirement_id=record.id)
 

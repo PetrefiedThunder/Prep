@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
 import logging
+from functools import lru_cache
 from typing import Any
 
 try:  # pragma: no cover - optional dependency

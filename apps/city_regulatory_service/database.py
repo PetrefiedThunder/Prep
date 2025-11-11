@@ -6,25 +6,21 @@ for the city-level compliance regulatory system.
 """
 
 import os
-import sqlite3
-from datetime import datetime, timedelta
-from typing import List, Dict, Any
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
-import json
+from datetime import datetime
 
 from models import (
     Base,
-    CityJurisdiction,
-    CityRegulation,
     CityInsuranceRequirement,
+    CityJurisdiction,
     CityPermitApplication,
+    CityRegulation,
     FacilityComplianceStatus,
-    RegulationType,
     FacilityType,
+    RegulationType,
 )
-
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 # Database configuration
 DATABASE_DIR = "/home/user/Prep/data/cities"

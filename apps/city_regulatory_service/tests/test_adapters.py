@@ -1,10 +1,9 @@
 """Tests for city ingestion adapters."""
 
-import pytest
 
 from apps.city_regulatory_service.src.adapters import (
-    SanFranciscoAdapter,
     NewYorkCityAdapter,
+    SanFranciscoAdapter,
 )
 
 

@@ -1,7 +1,7 @@
 """Tests for the Oakland jurisdiction Rego policy."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -58,7 +58,7 @@ def test_policy_parses_expiry_before_comparison() -> None:
 def test_allow_rule_handles_rfc3339_expiry_without_type_errors(delta_days: int) -> None:
     """Simulate the allow rule and assert it does not suffer from type errors."""
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expiry = (now + timedelta(days=delta_days)).isoformat()
     now_ns = int(now.timestamp() * 1_000_000_000)
 
@@ -73,6 +73,6 @@ def test_allow_rule_handles_rfc3339_expiry_without_type_errors(delta_days: int) 
 def test_allow_rule_rejects_invalid_expiry_strings() -> None:
     """Invalid expiry strings should not trigger type errors and yield ``False``."""
 
-    now_ns = int(datetime.now(timezone.utc).timestamp() * 1_000_000_000)
+    now_ns = int(datetime.now(UTC).timestamp() * 1_000_000_000)
     result = _evaluate_allow({"permit": {"status": "active", "expiry": "not-a-date"}}, now_ns)
     assert result is False

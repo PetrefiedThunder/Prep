@@ -5,23 +5,21 @@ This module provides tools for extracting, transforming, and loading city
 regulatory data from various sources into the compliance database.
 """
 
-import json
 import csv
+import json
+import logging
 import os
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-from sqlalchemy.orm import Session
-import logging
+from typing import Any
 
-from database import get_session, get_engine
+from database import get_session
 from models import (
+    CityInsuranceRequirement,
     CityJurisdiction,
     CityRegulation,
-    CityInsuranceRequirement,
-    CityPermitApplication,
     RegulationType,
-    FacilityType,
 )
+from sqlalchemy.orm import Session
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -38,7 +36,7 @@ class CityRegulatoryETL:
     - Updating existing records
     """
 
-    def __init__(self, db: Optional[Session] = None):
+    def __init__(self, db: Session | None = None):
         """
         Initialize the ETL pipeline.
 
@@ -57,7 +55,7 @@ class CityRegulatoryETL:
             "warnings": [],
         }
 
-    def load_from_json(self, json_file_path: str) -> Dict[str, int]:
+    def load_from_json(self, json_file_path: str) -> dict[str, int]:
         """
         Load regulatory data from a JSON file.
 
@@ -96,7 +94,7 @@ class CityRegulatoryETL:
         if not os.path.exists(json_file_path):
             raise FileNotFoundError(f"JSON file not found: {json_file_path}")
 
-        with open(json_file_path, 'r') as f:
+        with open(json_file_path) as f:
             data = json.load(f)
 
         # Process city jurisdiction info
@@ -134,9 +132,9 @@ class CityRegulatoryETL:
         self,
         city_name: str,
         state: str,
-        regulations_csv: Optional[str] = None,
-        insurance_csv: Optional[str] = None,
-    ) -> Dict[str, int]:
+        regulations_csv: str | None = None,
+        insurance_csv: str | None = None,
+    ) -> dict[str, int]:
         """
         Load regulatory data from CSV files.
 
@@ -176,7 +174,7 @@ class CityRegulatoryETL:
         # Load regulations CSV
         if regulations_csv and os.path.exists(regulations_csv):
             logger.info(f"Loading regulations from: {regulations_csv}")
-            with open(regulations_csv, 'r') as f:
+            with open(regulations_csv) as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     # Transform CSV row to regulation data
@@ -186,7 +184,7 @@ class CityRegulatoryETL:
         # Load insurance CSV
         if insurance_csv and os.path.exists(insurance_csv):
             logger.info(f"Loading insurance requirements from: {insurance_csv}")
-            with open(insurance_csv, 'r') as f:
+            with open(insurance_csv) as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     # Transform CSV row to insurance data
@@ -205,10 +203,10 @@ class CityRegulatoryETL:
         self,
         city_name: str,
         state: str,
-        regulations: List[Dict[str, Any]],
-        insurance_requirements: Optional[List[Dict[str, Any]]] = None,
-        jurisdiction_info: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, int]:
+        regulations: list[dict[str, Any]],
+        insurance_requirements: list[dict[str, Any]] | None = None,
+        jurisdiction_info: dict[str, Any] | None = None,
+    ) -> dict[str, int]:
         """
         Bulk update all data for a city.
 
@@ -254,7 +252,7 @@ class CityRegulatoryETL:
 
         return self.stats
 
-    def _process_jurisdiction(self, jurisdiction_data: Dict[str, Any]) -> None:
+    def _process_jurisdiction(self, jurisdiction_data: dict[str, Any]) -> None:
         """Process city jurisdiction data"""
         city_name = jurisdiction_data.get("city_name")
         state = jurisdiction_data.get("state")
@@ -288,7 +286,7 @@ class CityRegulatoryETL:
             self.stats["jurisdictions_created"] += 1
             logger.info(f"Created jurisdiction: {city_name}, {state}")
 
-    def _process_regulation(self, city_id: str, regulation_data: Dict[str, Any]) -> None:
+    def _process_regulation(self, city_id: str, regulation_data: dict[str, Any]) -> None:
         """Process regulation data"""
         try:
             regulation_type = regulation_data.get("regulation_type")
@@ -351,7 +349,7 @@ class CityRegulatoryETL:
             self.stats["errors"].append(f"Failed to process regulation: {str(e)}")
             logger.error(f"Error processing regulation: {str(e)}")
 
-    def _process_insurance_requirement(self, city_id: str, insurance_data: Dict[str, Any]) -> None:
+    def _process_insurance_requirement(self, city_id: str, insurance_data: dict[str, Any]) -> None:
         """Process insurance requirement data"""
         try:
             insurance_type = insurance_data.get("insurance_type")
@@ -401,14 +399,14 @@ class CityRegulatoryETL:
             self.stats["errors"].append(f"Failed to process insurance requirement: {str(e)}")
             logger.error(f"Error processing insurance requirement: {str(e)}")
 
-    def _get_city(self, city_name: str, state: str) -> Optional[CityJurisdiction]:
+    def _get_city(self, city_name: str, state: str) -> CityJurisdiction | None:
         """Get city jurisdiction by name and state"""
         return self.db.query(CityJurisdiction).filter(
             CityJurisdiction.city_name.ilike(city_name),
             CityJurisdiction.state == state.upper(),
         ).first()
 
-    def _transform_csv_regulation(self, row: Dict[str, str]) -> Dict[str, Any]:
+    def _transform_csv_regulation(self, row: dict[str, str]) -> dict[str, Any]:
         """Transform CSV row to regulation data structure"""
         # Parse applicable facility types
         facility_types_str = row.get("applicable_facility_types", "")
@@ -471,7 +469,7 @@ class CityRegulatoryETL:
             "notes": row.get("notes"),
         }
 
-    def _transform_csv_insurance(self, row: Dict[str, str]) -> Dict[str, Any]:
+    def _transform_csv_insurance(self, row: dict[str, str]) -> dict[str, Any]:
         """Transform CSV row to insurance requirement data structure"""
         # Parse applicable facility types
         facility_types_str = row.get("applicable_facility_types", "")
