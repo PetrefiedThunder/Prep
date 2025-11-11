@@ -2,17 +2,26 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 
-# Install dependencies
-RUN npm ci
+# Copy package files
+COPY --chown=nodejs:nodejs package*.json ./
+
+# Install dependencies (production only)
+RUN npm ci --omit=dev
 
 # Copy application code
-COPY . .
+COPY --chown=nodejs:nodejs . .
+
+# Build the application for production
+RUN npm run build
+
+# Switch to non-root user
+USER nodejs
 
 # Expose Node API port
 EXPOSE 3000
 
-# Start the application
-CMD ["npm", "run", "dev"]
+# Start the application in production mode
+CMD ["npm", "run", "start"]

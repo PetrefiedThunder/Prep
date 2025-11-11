@@ -57,10 +57,6 @@ OPTIONAL_ROUTERS: Iterable[str] = (
 )
 
 
-def create_app() -> FastAPI:
-    """Construct the FastAPI application used by the API gateway."""
-
-    app = FastAPI(title="Prep API", version="1.0.0")
 def _build_router(*, include_full: bool = True) -> APIRouter:
     """Aggregate the project's routers into a single API surface."""
 
@@ -114,7 +110,6 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
         app.state.db = get_session_factory()
         app.middleware("http")(audit_logger)
 
-    settings = get_settings()
     app.add_middleware(
         RBACMiddleware,
         settings=settings,
@@ -137,8 +132,6 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
     )
 
     configure_fastapi_tracing(app, targeted_routes=DEFAULT_TARGETED_ROUTES)
-
-    app.add_middleware(RBACMiddleware, settings=settings)
 
     # SECURITY FIX: Use specific origins instead of wildcard to prevent CSRF attacks
     # Configure allowed origins from environment variable

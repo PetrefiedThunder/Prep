@@ -74,8 +74,17 @@ export const prepSecurityPlugin: FastifyPluginAsync<PrepSecurityPluginOptions> =
 
   if (jwt !== false) {
     const { secret, ...rest } = jwt ?? {};
+    const jwtSecret = secret ?? process.env.JWT_SECRET;
+
+    if (!jwtSecret) {
+      throw new Error(
+        'JWT_SECRET must be provided either via options.jwt.secret or JWT_SECRET environment variable. ' +
+        'Never use default secrets in production.'
+      );
+    }
+
     await app.register(fastifyJwt, {
-      secret: secret ?? process.env.JWT_SECRET ?? 'supersecret',
+      secret: jwtSecret,
       ...rest
     });
   }
