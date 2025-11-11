@@ -1,5 +1,5 @@
 -c constraints.txt
-fastapi==0.120.0
+fastapi==0.121.1
 uvicorn[standard]==0.38.0
 sqlalchemy==2.0.44
 asyncpg==0.30.0
