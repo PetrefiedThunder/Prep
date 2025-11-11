@@ -10,8 +10,8 @@ import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
-from typing import Any, Awaitable, Callable, Iterable, Sequence
-from urllib.parse import unquote, urlsplit
+from typing import Any, Awaitable, Callable, Iterable, List, Optional, Sequence, Tuple
+from urllib.parse import unquote, urlparse, urlsplit
 
 import aiohttp
 import boto3
@@ -157,46 +157,70 @@ async def fetch_and_store(
     bucket: str = DEFAULT_BUCKET,
     run_date: datetime | None = None,
     max_attempts: int = MAX_ATTEMPTS,
-    sleep: callable = asyncio.sleep,
+    base_delay: float = DEFAULT_BASE_DELAY,
+    max_delay: float = DEFAULT_MAX_DELAY,
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> FetchResult:
     """Fetch ``url`` with retries and persist to S3."""
 
     attempts = 0
-    backoff = 1
     run_date = run_date or datetime.now(UTC)
 
-    while True:
+    while attempts < max_attempts:
         attempts += 1
         try:
-            async with session.get(url) as response:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
                 if 500 <= response.status < 600:
                     if attempts >= max_attempts:
-                        body = await response.read()
                         msg = f"Server error {response.status} after {attempts} attempts"
                         return FetchResult(url, None, None, RuntimeError(msg))
-                    logger.debug("5xx response for %s, retrying", url)
-                    await sleep(backoff)
-                    backoff *= 2
+                    delay = min(base_delay * (2 ** (attempts - 1)), max_delay)
+                    logger.debug("5xx response for %s, retrying in %.2fs", url, delay)
+                    await sleep(delay)
                     continue
 
                 response.raise_for_status()
                 body = await response.read()
-                logger.debug("Fetched %s (%d bytes)", url, len(body))
-                return body
+
+                # Calculate hash and store in S3
+                sha256_hash = hashlib.sha256(body).hexdigest()
+                jurisdiction = _extract_jurisdiction(url)
+                filename = _extract_filename(url)
+                key = f"{run_date.date().isoformat()}/{jurisdiction}/{filename}"
+
+                await _store_in_s3(
+                    s3_client=s3_client,
+                    bucket=bucket,
+                    key=key,
+                    body=body,
+                    sha256_hash=sha256_hash,
+                )
+
+                logger.info("Stored %s (%d bytes) to s3://%s/%s", url, len(body), bucket, key)
+                return FetchResult(url, key, sha256_hash, None)
+
         except aiohttp.ClientError as exc:
-            if attempt >= max_attempts:
-                logger.error("Failed to fetch %s after %d attempts", url, attempt)
-                raise CrawlerError(f"Failed to fetch {url}") from exc
-            delay = min(base_delay * (2 ** (attempt - 1)), max_delay)
+            if attempts >= max_attempts:
+                logger.error("Failed to fetch %s after %d attempts: %s", url, attempts, exc)
+                return FetchResult(url, None, None, exc)
+
+            delay = min(base_delay * (2 ** (attempts - 1)), max_delay)
             logger.warning(
-                "Client error %s for %s (attempt %s/%s); retrying in %.2fs",
-                exc,
+                "Client error for %s (attempt %d/%d); retrying in %.2fs: %s",
                 url,
-                attempt,
+                attempts,
                 max_attempts,
                 delay,
+                exc,
             )
             await sleep(delay)
+
+        except Exception as exc:
+            logger.error("Unexpected error fetching %s: %s", url, exc, exc_info=True)
+            return FetchResult(url, None, None, exc)
+
+    # Should never reach here
+    return FetchResult(url, None, None, RuntimeError(f"Max attempts ({max_attempts}) exceeded"))
 
 
 def parse_targets(lines: Iterable[str]) -> List[CrawlTarget]:
@@ -236,7 +260,7 @@ def parse_targets(lines: Iterable[str]) -> List[CrawlTarget]:
 def build_s3_key(date_prefix: str, jurisdiction: str, url: str) -> str:
     """Construct the S3 key for ``url`` within ``jurisdiction``."""
 
-    parsed = urllib.parse.urlparse(url)
+    parsed = urlparse(url)
     filename = os.path.basename(parsed.path)
     if not filename:
         filename = "index.html"
@@ -308,7 +332,7 @@ async def run_crawler(
     own_session = session is None
     own_s3_client = s3_client is None
     if date_prefix is None:
-        date_prefix = _dt.datetime.now(UTC).date().isoformat()
+        date_prefix = datetime.now(UTC).date().isoformat()
 
     if own_s3_client:
         s3_client = boto3.client("s3")
@@ -422,7 +446,10 @@ async def process_urls(
     run_date: datetime | None = None,
     session: aiohttp.ClientSession | None = None,
     s3_client=None,
-    sleep: callable = asyncio.sleep,
+    base_delay: float = DEFAULT_BASE_DELAY,
+    max_delay: float = DEFAULT_MAX_DELAY,
+    max_attempts: int = MAX_ATTEMPTS,
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> dict[str, int]:
     """Process a batch of URLs and return a summary."""
 
@@ -442,6 +469,9 @@ async def process_urls(
                 s3_client=s3_client,
                 bucket=bucket,
                 run_date=run_date,
+                base_delay=base_delay,
+                max_delay=max_delay,
+                max_attempts=max_attempts,
                 sleep=sleep,
             )
             for url in urls
@@ -459,22 +489,3 @@ async def process_urls(
             summary["failed"] += 1
             logger.error("Failed to process %s: %s", result.url, result.error)
     return summary
-
-
-def _read_urls_from_stdin(stdin: Iterable[str]) -> list[str]:
-    return [line.strip() for line in stdin if line.strip()]
-
-
-def main() -> None:
-    """Entry point for CLI usage."""
-
-    urls = _read_urls_from_stdin(sys.stdin)
-    if not urls:
-        logger.info("No URLs provided to crawler")
-        return
-    summary = asyncio.run(process_urls(urls))
-    logger.info("Crawler finished: %s", summary)
-
-
-if __name__ == "__main__":  # pragma: no cover
-    main()

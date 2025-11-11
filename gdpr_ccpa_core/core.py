@@ -55,9 +55,24 @@ class GDPRCCPACore:
             last_updated_str = record.get("last_updated")
             try:
                 last_updated = datetime.fromisoformat(last_updated_str)
-            except Exception:
-                errors.append(f"Record {index} has invalid last_updated timestamp")
+            except (TypeError, ValueError) as exc:
+                errors.append(
+                    f"Record {index} has invalid last_updated timestamp: "
+                    f"{last_updated_str!r} - {exc}"
+                )
                 continue
+            except Exception as exc:
+                # Unexpected error - log and re-raise
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.error(
+                    "Unexpected error validating record %d",
+                    index,
+                    exc_info=True,
+                    extra={"record": record}
+                )
+                raise
 
             if last_updated.tzinfo is None:
                 last_updated = last_updated.replace(tzinfo=timezone.utc)

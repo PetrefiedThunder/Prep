@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import Redis from 'ioredis';
 import { randomUUID } from 'crypto';
 import { log } from '@prep/logger';
@@ -21,6 +21,42 @@ export interface Booking {
   status: 'pending' | 'confirmed' | 'cancelled' | 'rejected';
   created_at: Date;
   updated_at: Date;
+}
+
+// Database row type from query results
+interface BookingRow {
+  booking_id: string;
+  kitchen_id: string;
+  user_id: string;
+  start_time: string;
+  end_time: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'rejected';
+  created_at: string;
+  updated_at: string;
+  payment_intent_id: string | null;
+  amount_cents: number | null;
+}
+
+// Custom error types for better error handling
+export class BookingConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BookingConflictError';
+  }
+}
+
+export class BookingLockError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BookingLockError';
+  }
+}
+
+export class BookingCreationError extends Error {
+  constructor(message: string, public cause?: unknown) {
+    super(message);
+    this.name = 'BookingCreationError';
+  }
 }
 
 /**
@@ -46,8 +82,13 @@ export class BookingService {
    * 4. Insert booking record into database
    * 5. Return booking ID
    *
+   * On failure, automatically releases Redis lock to prevent resource leaks.
+   *
    * @param params - Booking creation parameters
    * @returns Created booking
+   * @throws {BookingConflictError} If kitchen not available
+   * @throws {BookingLockError} If unable to acquire lock
+   * @throws {BookingCreationError} For other creation errors
    */
   async createBooking(params: CreateBookingParams): Promise<Booking> {
     const { kitchen_id, user_id, start_time, end_time } = params;
@@ -55,9 +96,14 @@ export class BookingService {
     // Step 1: Validate request
     this.validateBookingParams(params);
 
-    const client = await this.db.connect();
+    let client: PoolClient | null = null;
+    let lockAcquired = false;
+    let booking_id: string | null = null;
 
     try {
+      client = await this.db.connect();
+      await client.query('BEGIN');
+
       // Step 2: Check availability with database lock
       const availabilityCheck = await this.availabilityService.check({
         kitchen_id,
@@ -66,12 +112,12 @@ export class BookingService {
       });
 
       if (!availabilityCheck.available) {
-        throw new Error('Kitchen not available for selected time range');
+        throw new BookingConflictError('Kitchen not available for selected time range');
       }
 
       // Step 3: Create Redis lock
-      const booking_id = randomUUID();
-      const lockAcquired = await this.availabilityService.createLock(
+      booking_id = randomUUID();
+      lockAcquired = await this.availabilityService.createLock(
         kitchen_id,
         start_time,
         end_time,
@@ -79,15 +125,12 @@ export class BookingService {
       );
 
       if (!lockAcquired) {
-        throw new Error('Failed to acquire booking lock');
+        throw new BookingLockError('Failed to acquire booking lock');
       }
 
       // Step 4: Insert booking record
-      await client.query('BEGIN');
-
-      const insertResult = await client.query(
-        `
-        INSERT INTO bookings (
+      const insertResult = await client.query<BookingRow>(
+        `INSERT INTO bookings (
           booking_id,
           kitchen_id,
           user_id,
@@ -98,8 +141,7 @@ export class BookingService {
           updated_at
         )
         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-        RETURNING *
-        `,
+        RETURNING *`,
         [booking_id, kitchen_id, user_id, start_time.toISOString(), end_time.toISOString(), 'pending']
       );
 
@@ -107,27 +149,69 @@ export class BookingService {
 
       const booking = this.mapRowToBooking(insertResult.rows[0]);
 
-      log.info('Booking created', {
+      log.info('Booking created successfully', {
         booking_id,
         kitchen_id,
         user_id,
-        start_time,
-        end_time
+        start_time: start_time.toISOString(),
+        end_time: end_time.toISOString(),
       });
 
       return booking;
 
     } catch (error) {
-      await client.query('ROLLBACK');
-      log.error('Booking creation failed', error);
-      throw error;
+      // Rollback database transaction
+      if (client) {
+        await client.query('ROLLBACK').catch(rollbackError => {
+          log.error('Database rollback failed', rollbackError as Error, {
+            booking_id,
+            kitchen_id,
+          });
+        });
+      }
+
+      // Release Redis lock if acquired
+      if (lockAcquired && booking_id) {
+        await this.availabilityService.releaseLock(
+          kitchen_id,
+          start_time,
+          end_time,
+          booking_id
+        ).catch(lockError => {
+          log.error('Failed to release lock after error', lockError as Error, {
+            booking_id,
+            kitchen_id,
+            start_time: start_time.toISOString(),
+            end_time: end_time.toISOString(),
+          });
+          // Emit metric for monitoring - manual intervention may be needed
+          // metrics.increment('booking.lock.release.failure');
+        });
+      }
+
+      log.error('Booking creation failed', error as Error, {
+        kitchen_id,
+        user_id,
+        booking_id,
+      });
+
+      // Rethrow with appropriate error type
+      if (error instanceof BookingConflictError || error instanceof BookingLockError) {
+        throw error;
+      }
+
+      throw new BookingCreationError('Failed to create booking', error);
+
     } finally {
-      client.release();
+      if (client) {
+        client.release();
+      }
     }
   }
 
   /**
    * Validate booking parameters.
+   * @throws {Error} If parameters are invalid
    */
   private validateBookingParams(params: CreateBookingParams): void {
     const { kitchen_id, user_id, start_time, end_time } = params;
@@ -157,14 +241,14 @@ export class BookingService {
     }
 
     // Minimum booking duration: 1 hour
-    const minDuration = 60 * 60 * 1000; // 1 hour in milliseconds
-    if (end_time.getTime() - start_time.getTime() < minDuration) {
+    const MIN_DURATION_MS = 60 * 60 * 1000;
+    if (end_time.getTime() - start_time.getTime() < MIN_DURATION_MS) {
       throw new Error('Booking duration must be at least 1 hour');
     }
 
     // Maximum booking duration: 30 days
-    const maxDuration = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
-    if (end_time.getTime() - start_time.getTime() > maxDuration) {
+    const MAX_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+    if (end_time.getTime() - start_time.getTime() > MAX_DURATION_MS) {
       throw new Error('Booking duration cannot exceed 30 days');
     }
   }
@@ -173,7 +257,7 @@ export class BookingService {
    * Get booking by ID.
    */
   async getBooking(booking_id: string): Promise<Booking | null> {
-    const result = await this.db.query(
+    const result = await this.db.query<BookingRow>(
       'SELECT * FROM bookings WHERE booking_id = $1',
       [booking_id]
     );
@@ -189,13 +273,11 @@ export class BookingService {
    * Update booking status.
    */
   async updateBookingStatus(booking_id: string, status: Booking['status']): Promise<Booking> {
-    const result = await this.db.query(
-      `
-      UPDATE bookings
-      SET status = $1, updated_at = NOW()
-      WHERE booking_id = $2
-      RETURNING *
-      `,
+    const result = await this.db.query<BookingRow>(
+      `UPDATE bookings
+       SET status = $1, updated_at = NOW()
+       WHERE booking_id = $2
+       RETURNING *`,
       [status, booking_id]
     );
 
@@ -209,7 +291,7 @@ export class BookingService {
   /**
    * Map database row to Booking object.
    */
-  private mapRowToBooking(row: any): Booking {
+  private mapRowToBooking(row: BookingRow): Booking {
     return {
       booking_id: row.booking_id,
       kitchen_id: row.kitchen_id,
@@ -218,7 +300,7 @@ export class BookingService {
       end_time: new Date(row.end_time),
       status: row.status,
       created_at: new Date(row.created_at),
-      updated_at: new Date(row.updated_at)
+      updated_at: new Date(row.updated_at),
     };
   }
 }

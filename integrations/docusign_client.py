@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
-import time
 from typing import Any, Dict, Optional, Tuple
 
-import requests
+import aiohttp
 
 from Prep.docusign_client import DocuSignClient, DocuSignError
 
@@ -68,14 +68,14 @@ def send_sublease(
     )
 
 
-def poll_envelope(
+async def poll_envelope(
     envelope_id: str,
     *,
     interval: int = 10,
     backoff: float = 1.5,
     timeout: int = 300,
     max_interval: int = 60,
-    session: Optional[requests.Session] = None,
+    session: Optional[aiohttp.ClientSession] = None,
 ) -> Dict[str, Any]:
     """Poll ``envelope_id`` until it completes or fails."""
 
@@ -88,33 +88,47 @@ def poll_envelope(
     if max_interval <= 0:
         raise ValueError("max_interval must be greater than zero")
 
-    client = _create_client(session=session)
+    client = _create_client(session=None)  # TODO: Update _create_client for async
     url = f"{client.base_url}/v2.1/accounts/{client.account_id}/envelopes/{envelope_id}"
 
-    deadline = time.monotonic() + timeout
+    start_time = asyncio.get_event_loop().time()
+    deadline = start_time + timeout
     current_interval = interval
 
-    while True:
-        payload = client._request("get", url)  # pylint: disable=protected-access
-        status_raw = payload.get("status")
-        if status_raw is None:
-            raise DocuSignError("DocuSign response missing status field")
+    owns_session = session is None
+    if owns_session:
+        session = aiohttp.ClientSession()
 
-        status = str(status_raw).strip().lower()
-        if status == "completed":
-            return payload
-        if status in TERMINAL_FAILURE_STATES:
-            raise DocuSignError(
-                f"Envelope {envelope_id} entered terminal state: {status}"
-            )
+    try:
+        while asyncio.get_event_loop().time() < deadline:
+            async with session.get(
+                url,
+                headers={"Authorization": f"Bearer {client.access_token}"},
+            ) as response:
+                response.raise_for_status()
+                payload = await response.json()
 
-        if time.monotonic() >= deadline:
-            raise DocuSignTimeoutError(
-                f"Envelope {envelope_id} did not complete within {timeout} seconds"
-            )
+            status_raw = payload.get("status")
+            if status_raw is None:
+                raise DocuSignError("DocuSign response missing status field")
 
-        time.sleep(current_interval)
-        current_interval = min(current_interval * backoff, max_interval)
+            status = str(status_raw).strip().lower()
+            if status == "completed":
+                return payload
+            if status in TERMINAL_FAILURE_STATES:
+                raise DocuSignError(
+                    f"Envelope {envelope_id} entered terminal state: {status}"
+                )
+
+            await asyncio.sleep(current_interval)
+            current_interval = min(current_interval * backoff, max_interval)
+
+        raise DocuSignTimeoutError(
+            f"Envelope {envelope_id} did not complete within {timeout} seconds"
+        )
+    finally:
+        if owns_session:
+            await session.close()
 
 
 __all__ = [
