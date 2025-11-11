@@ -188,7 +188,7 @@ class FederalRegulatoryIntegration:
         # Get city regulations
         query = self.db.query(CityRegulation).filter(
             CityRegulation.city_id == city.id,
-            CityRegulation.is_active == True,
+            CityRegulation.is_active,
         )
 
         if regulation_type:
@@ -284,7 +284,7 @@ class FederalRegulatoryIntegration:
         # Get regulations with CFR citations
         regulations = self.db.query(CityRegulation).filter(
             CityRegulation.city_id == city.id,
-            CityRegulation.is_active == True,
+            CityRegulation.is_active,
             CityRegulation.cfr_citation.isnot(None),
         ).all()
 
@@ -355,7 +355,7 @@ class FederalRegulatoryIntegration:
 
         regulations = self.db.query(CityRegulation).filter(
             CityRegulation.city_id == city.id,
-            CityRegulation.is_active == True,
+            CityRegulation.is_active,
             CityRegulation.cfr_citation.isnot(None),
         ).all()
 
