@@ -6,14 +6,14 @@ creating the complete regulatory chain:
 Federal Scope → State Code → City Ordinance → Facility Compliance
 """
 
-import httpx
 import logging
-from typing import Dict, Any, List, Optional
 from datetime import datetime
-from sqlalchemy.orm import Session
+from typing import Any
 
-from models import CityRegulation, CityJurisdiction
+import httpx
 from database import get_session
+from models import CityJurisdiction, CityRegulation
+from sqlalchemy.orm import Session
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class FederalRegulatoryIntegration:
     def __init__(
         self,
         federal_service_url: str = "http://localhost:8001",
-        db: Optional[Session] = None,
+        db: Session | None = None,
     ):
         """
         Initialize the integration layer.
@@ -45,7 +45,7 @@ class FederalRegulatoryIntegration:
         self.db = db or get_session()
         self.client = httpx.AsyncClient(timeout=30.0)
 
-    async def get_federal_scopes(self) -> List[Dict[str, Any]]:
+    async def get_federal_scopes(self) -> list[dict[str, Any]]:
         """
         Get all federal scopes from the federal regulatory service.
 
@@ -60,7 +60,7 @@ class FederalRegulatoryIntegration:
             logger.error(f"Failed to fetch federal scopes: {str(e)}")
             return []
 
-    async def get_federal_scope_by_cfr(self, cfr_citation: str) -> Optional[Dict[str, Any]]:
+    async def get_federal_scope_by_cfr(self, cfr_citation: str) -> dict[str, Any] | None:
         """
         Get federal scope by CFR citation.
 
@@ -79,8 +79,8 @@ class FederalRegulatoryIntegration:
     async def get_certifiers_for_scope(
         self,
         cfr_citation: str,
-        state: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        state: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Get authorized certification bodies for a federal scope.
 
@@ -161,8 +161,8 @@ class FederalRegulatoryIntegration:
         self,
         city_name: str,
         state: str,
-        regulation_type: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        regulation_type: str | None = None,
+    ) -> dict[str, Any]:
         """
         Get the complete regulatory chain from federal to city level.
 
@@ -255,8 +255,8 @@ class FederalRegulatoryIntegration:
         facility_id: str,
         city_name: str,
         state: str,
-        certification_body_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        certification_body_name: str | None = None,
+    ) -> dict[str, Any]:
         """
         Validate that a facility's federal certifications are valid for city requirements.
 
@@ -330,7 +330,7 @@ class FederalRegulatoryIntegration:
         city_name: str,
         state: str,
         facility_type: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get recommended certification bodies for a facility type in a city.
 
@@ -366,7 +366,7 @@ class FederalRegulatoryIntegration:
         ]
 
         # Get unique CFR citations
-        cfr_citations = list(set([r.cfr_citation for r in applicable_regulations]))
+        cfr_citations = list({r.cfr_citation for r in applicable_regulations})
 
         # Get certifiers for each scope
         certifier_coverage = {}

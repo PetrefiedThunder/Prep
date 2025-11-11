@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import math
 import re
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session

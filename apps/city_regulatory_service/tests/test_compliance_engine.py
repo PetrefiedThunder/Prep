@@ -5,10 +5,11 @@ This test suite covers the compliance engine functionality for
 validating facility compliance against city regulations.
 """
 
-import pytest
-import sys
 import os
-from datetime import datetime, timezone, timedelta
+import sys
+from datetime import UTC, datetime, timedelta
+
+import pytest
 
 # Add paths to import modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
@@ -31,7 +32,7 @@ class TestCityComplianceEngine:
     @pytest.fixture
     def compliant_facility_data(self):
         """Sample data for a compliant facility"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         future_date = (now + timedelta(days=180)).isoformat()
 
         return {
@@ -151,7 +152,7 @@ class TestCityComplianceEngine:
         engine.load_rules()
         data = compliant_facility_data.copy()
         data["health_permit"]["expiration_date"] = (
-            datetime.now(timezone.utc) - timedelta(days=30)
+            datetime.now(UTC) - timedelta(days=30)
         ).isoformat()
 
         violations = engine.validate(data)
@@ -245,7 +246,7 @@ class TestCityComplianceEngine:
         engine.load_rules()
         data = compliant_facility_data.copy()
         data["fire_safety"]["next_inspection_due"] = (
-            datetime.now(timezone.utc) - timedelta(days=30)
+            datetime.now(UTC) - timedelta(days=30)
         ).isoformat()
 
         violations = engine.validate(data)
@@ -261,7 +262,7 @@ class TestCityComplianceEngine:
         data = compliant_facility_data.copy()
         # Set last cleaning to over 90 days ago
         data["grease_trap"]["last_cleaning_date"] = (
-            datetime.now(timezone.utc) - timedelta(days=120)
+            datetime.now(UTC) - timedelta(days=120)
         ).isoformat()
 
         violations = engine.validate(data)
@@ -277,7 +278,7 @@ class TestCityComplianceEngine:
         data = compliant_facility_data.copy()
         # Set health permit to expire in 15 days
         data["health_permit"]["expiration_date"] = (
-            datetime.now(timezone.utc) + timedelta(days=15)
+            datetime.now(UTC) + timedelta(days=15)
         ).isoformat()
 
         violations = engine.validate(data)

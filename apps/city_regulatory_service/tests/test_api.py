@@ -1,6 +1,5 @@
 """Tests for city regulatory API endpoints."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 from apps.city_regulatory_service.main import app

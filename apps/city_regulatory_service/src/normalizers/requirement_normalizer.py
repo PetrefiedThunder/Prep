@@ -9,8 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Optional
-
+from typing import Any
 
 # ============================================================================
 # Requirement Type Taxonomy
@@ -123,12 +122,12 @@ class NormalizedRequirement:
     # Rules
     required_documents: list[str]
     submission_channel: str
-    application_url: Optional[str]
+    application_url: str | None
 
     # Compliance
     inspection_required: bool
     renewal_frequency: str
-    fee_amount: Optional[float]
+    fee_amount: float | None
     fee_schedule: str
 
     # Applicability
@@ -267,7 +266,7 @@ class RequirementNormalizer:
         return normalized
 
     @staticmethod
-    def extract_fee_amount(fee_data: dict[str, Any]) -> tuple[Optional[float], str]:
+    def extract_fee_amount(fee_data: dict[str, Any]) -> tuple[float | None, str]:
         """
         Extract normalized fee amount and schedule.
 

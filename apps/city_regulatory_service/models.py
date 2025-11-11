@@ -6,14 +6,14 @@ including health permits, business licenses, insurance requirements, and
 operational certifications across major US cities.
 """
 
-from datetime import datetime
-from typing import Optional, List, Dict, Any
-from enum import Enum
-from pydantic import BaseModel, Field
-from sqlalchemy import Column, String, DateTime, Integer, JSON, Float, Boolean, Text, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
+from datetime import datetime
+from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
@@ -267,26 +267,26 @@ class CityJurisdictionSchema(BaseModel):
     id: str
     city_name: str
     state: str
-    county: Optional[str] = None
+    county: str | None = None
     country_code: str = "US"
-    fips_code: Optional[str] = None
-    population: Optional[int] = None
+    fips_code: str | None = None
+    population: int | None = None
 
-    health_department_name: Optional[str] = None
-    health_department_url: Optional[str] = None
-    business_licensing_dept: Optional[str] = None
-    business_licensing_url: Optional[str] = None
-    fire_department_name: Optional[str] = None
-    fire_department_url: Optional[str] = None
+    health_department_name: str | None = None
+    health_department_url: str | None = None
+    business_licensing_dept: str | None = None
+    business_licensing_url: str | None = None
+    fire_department_name: str | None = None
+    fire_department_url: str | None = None
 
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    address: Optional[str] = None
+    phone: str | None = None
+    email: str | None = None
+    address: str | None = None
     timezone: str = "America/New_York"
 
     created_at: datetime
     updated_at: datetime
-    last_verified: Optional[datetime] = None
+    last_verified: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -298,40 +298,40 @@ class CityRegulationSchema(BaseModel):
     city_id: str
     regulation_type: str
     title: str
-    description: Optional[str] = None
-    local_code_reference: Optional[str] = None
-    cfr_citation: Optional[str] = None
-    state_code_reference: Optional[str] = None
+    description: str | None = None
+    local_code_reference: str | None = None
+    cfr_citation: str | None = None
+    state_code_reference: str | None = None
 
-    effective_date: Optional[datetime] = None
-    expiration_date: Optional[datetime] = None
-    renewal_period_days: Optional[int] = None
+    effective_date: datetime | None = None
+    expiration_date: datetime | None = None
+    renewal_period_days: int | None = None
 
     enforcement_agency: str
-    agency_contact: Optional[str] = None
-    agency_phone: Optional[str] = None
-    agency_url: Optional[str] = None
+    agency_contact: str | None = None
+    agency_phone: str | None = None
+    agency_url: str | None = None
 
-    penalty_for_violation: Optional[str] = None
-    fine_amount_min: Optional[float] = None
-    fine_amount_max: Optional[float] = None
+    penalty_for_violation: str | None = None
+    fine_amount_min: float | None = None
+    fine_amount_max: float | None = None
 
-    requirements: Optional[Dict[str, Any]] = None
-    application_process: Optional[Dict[str, Any]] = None
-    required_documents: Optional[List[str]] = None
-    fees: Optional[Dict[str, float]] = None
+    requirements: dict[str, Any] | None = None
+    application_process: dict[str, Any] | None = None
+    required_documents: list[str] | None = None
+    fees: dict[str, float] | None = None
 
-    applicable_facility_types: List[str]
-    employee_count_threshold: Optional[int] = None
-    revenue_threshold: Optional[float] = None
+    applicable_facility_types: list[str]
+    employee_count_threshold: int | None = None
+    revenue_threshold: float | None = None
 
     is_active: bool = True
     priority: str = "medium"
 
     created_at: datetime
     updated_at: datetime
-    last_verified: Optional[datetime] = None
-    notes: Optional[str] = None
+    last_verified: datetime | None = None
+    notes: str | None = None
 
     class Config:
         from_attributes = True
@@ -343,25 +343,25 @@ class CityInsuranceRequirementSchema(BaseModel):
     city_id: str
     insurance_type: str
     coverage_name: str
-    description: Optional[str] = None
+    description: str | None = None
 
     minimum_coverage_amount: float
-    per_occurrence_limit: Optional[float] = None
-    aggregate_limit: Optional[float] = None
-    deductible_max: Optional[float] = None
+    per_occurrence_limit: float | None = None
+    aggregate_limit: float | None = None
+    deductible_max: float | None = None
 
-    applicable_facility_types: List[str]
-    employee_count_threshold: Optional[int] = None
+    applicable_facility_types: list[str]
+    employee_count_threshold: int | None = None
 
-    local_ordinance: Optional[str] = None
-    state_requirement: Optional[str] = None
+    local_ordinance: str | None = None
+    state_requirement: str | None = None
 
     is_mandatory: bool = True
-    effective_date: Optional[datetime] = None
+    effective_date: datetime | None = None
 
     created_at: datetime
     updated_at: datetime
-    notes: Optional[str] = None
+    notes: str | None = None
 
     class Config:
         from_attributes = True
@@ -373,10 +373,10 @@ class ComplianceCheckRequest(BaseModel):
     city_name: str
     state: str
     facility_type: FacilityType
-    employee_count: Optional[int] = None
-    annual_revenue: Optional[float] = None
-    current_permits: Optional[List[Dict[str, Any]]] = None
-    current_insurance: Optional[List[Dict[str, Any]]] = None
+    employee_count: int | None = None
+    annual_revenue: float | None = None
+    current_permits: list[dict[str, Any]] | None = None
+    current_insurance: list[dict[str, Any]] | None = None
 
 
 class ComplianceCheckResponse(BaseModel):
@@ -387,20 +387,20 @@ class ComplianceCheckResponse(BaseModel):
     overall_compliant: bool
     compliance_score: float = Field(ge=0.0, le=100.0)
 
-    required_regulations: List[CityRegulationSchema]
-    compliant_regulations: List[str]  # Regulation IDs
-    non_compliant_regulations: List[str]  # Regulation IDs
-    missing_requirements: List[Dict[str, Any]]
+    required_regulations: list[CityRegulationSchema]
+    compliant_regulations: list[str]  # Regulation IDs
+    non_compliant_regulations: list[str]  # Regulation IDs
+    missing_requirements: list[dict[str, Any]]
 
     insurance_compliant: bool
-    insurance_gaps: Optional[List[str]] = None
+    insurance_gaps: list[str] | None = None
 
-    recommended_actions: List[Dict[str, Any]]
-    estimated_cost_to_comply: Optional[float] = None
-    estimated_time_to_comply_days: Optional[int] = None
+    recommended_actions: list[dict[str, Any]]
+    estimated_cost_to_comply: float | None = None
+    estimated_time_to_comply_days: int | None = None
 
     check_timestamp: datetime
-    next_review_date: Optional[datetime] = None
+    next_review_date: datetime | None = None
 
 
 class RegulationSummary(BaseModel):
@@ -408,8 +408,8 @@ class RegulationSummary(BaseModel):
     city_name: str
     state: str
     total_regulations: int
-    by_type: Dict[str, int]
-    by_priority: Dict[str, int]
+    by_type: dict[str, int]
+    by_priority: dict[str, int]
     total_facility_types: int
     last_updated: datetime
 
@@ -418,9 +418,9 @@ class DataIngestionRequest(BaseModel):
     """Request to ingest new regulatory data"""
     city_name: str
     state: str
-    regulations: List[Dict[str, Any]]
-    insurance_requirements: Optional[List[Dict[str, Any]]] = None
-    jurisdiction_info: Optional[Dict[str, Any]] = None
+    regulations: list[dict[str, Any]]
+    insurance_requirements: list[dict[str, Any]] | None = None
+    jurisdiction_info: dict[str, Any] | None = None
     data_source: str
     verification_date: datetime = Field(default_factory=datetime.utcnow)
 
@@ -431,6 +431,6 @@ class DataIngestionResponse(BaseModel):
     city_id: str
     regulations_imported: int
     insurance_requirements_imported: int
-    errors: Optional[List[str]] = None
-    warnings: Optional[List[str]] = None
+    errors: list[str] | None = None
+    warnings: list[str] | None = None
     import_timestamp: datetime = Field(default_factory=datetime.utcnow)

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import sys
 import types
-from typing import Iterator
+from collections.abc import Iterator
+from datetime import datetime
 
 if "aiohttp" not in sys.modules:
     aiohttp_stub = types.ModuleType("aiohttp")

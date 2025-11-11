@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -80,7 +80,7 @@ class CityETLOrchestrator:
         jurisdiction: CityJurisdiction,
         agency_name: str,
         agency_type: str,
-        portal_link: Optional[str] = None,
+        portal_link: str | None = None,
     ) -> CityAgency:
         """
         Ensure agency record exists in database.
@@ -287,7 +287,7 @@ class CityETLOrchestrator:
         """
         results = {}
 
-        for city in CITY_ADAPTERS.keys():
+        for city in CITY_ADAPTERS:
             try:
                 logger.info(f"Starting ETL for {city}")
                 stats = self.run_etl_for_city(city)

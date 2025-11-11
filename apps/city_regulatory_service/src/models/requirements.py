@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Iterable, Mapping, Sequence
 
 _CADENCE_ALIASES: Mapping[str, str] = {
     "annual": "annual",
@@ -255,7 +255,8 @@ scraper-specific dataclasses that live under ``jurisdictions/common``.
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Iterable, Iterator, Literal
+from collections.abc import Iterator
+from typing import Any, ClassVar, Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
@@ -381,7 +382,7 @@ class FeeSchedule(BaseModel):
 
         return any(item.incremental for item in self.items)
 
-    def extend(self, other: Iterable[FeeItem] | "FeeSchedule") -> None:
+    def extend(self, other: Iterable[FeeItem] | FeeSchedule) -> None:
         """Append items from another schedule or iterable."""
 
         if isinstance(other, FeeSchedule):
