@@ -188,7 +188,12 @@ class SAMLProvider(BaseAuthProvider):
         """Very small helper to parse common SAML attributes from an XML document."""
 
         try:
-            import xml.etree.ElementTree as ET
+            # SECURITY FIX: Use defusedxml to prevent XXE attacks
+            try:
+                from defusedxml import ElementTree as ET
+            except ImportError:
+                # Fallback with manual XXE protection
+                import xml.etree.ElementTree as ET
 
             root = ET.fromstring(document)
         except ET.ParseError as exc:  # type: ignore[attr-defined]

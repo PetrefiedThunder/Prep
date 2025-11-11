@@ -1,4 +1,4 @@
-"""Hourly pricing refresh job and scheduler metadata."""
+"""Hourly job that refreshes ML-powered pricing recommendations."""
 
 from __future__ import annotations
 
@@ -6,19 +6,9 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timezone
 from decimal import Decimal
 from typing import Any, Callable, Iterable, Protocol
-
-try:  # pragma: no cover - optional dependency import guard
-"""Hourly job that refreshes ML-powered pricing recommendations."""
-
-from __future__ import annotations
-
-import logging
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Callable, Iterable
 
 try:  # pragma: no cover - optional dependency in minimal test environments
     from sqlalchemy import select  # type: ignore
@@ -325,13 +315,6 @@ __all__ = [
     "run_pricing_refresh_async",
     "SCHEDULE_CRON",
 ]
-    summary = PricingRefreshSummary(
-        total_kitchens=len(kitchens),
-        updated=updated,
-        timestamp=timestamp,
-    )
-    logger.info("Pricing refresh complete", extra=summary.as_dict())
-    return summary
 
 
 __all__ = ["PricingRefreshSummary", "refresh_pricing"]

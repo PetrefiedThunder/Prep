@@ -1,43 +1,16 @@
-"""Asynchronous crawler that uploads fetched documents to S3.
-
-The crawler reads lines from standard input where each non-empty line defines a
-jurisdiction and the URL to fetch. Lines can be comma, tab, or whitespace
-separated, for example::
-
-    ca,https://example.com/regulations
-    ny https://example.com/other.pdf
-
-Fetched documents are uploaded to the ``prep-etl-raw`` bucket with an
-``sha256`` metadata entry. Errors are surfaced via logging and result in a
-non-zero exit status.
-"""
+"""Async crawler that fetches regulatory documents into raw S3 storage."""
 from __future__ import annotations
 
 import argparse
 import asyncio
-import datetime as _dt
 import hashlib
 import logging
 import os
 import sys
-import urllib.parse
-from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Iterable, List, Optional, Sequence, Tuple
-
-import aiohttp
-import boto3
-"""Async crawler that fetches regulatory documents into raw S3 storage."""
-
-from __future__ import annotations
-
-import asyncio
-import hashlib
-import logging
-import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
-from typing import Iterable, Sequence
+from typing import Any, Awaitable, Callable, Iterable, Sequence
 from urllib.parse import unquote, urlsplit
 
 import aiohttp
@@ -112,6 +85,21 @@ async def fetch_with_backoff(
                         delay,
                     )
                     await sleep(delay)
+                    continue  # Retry
+
+                # Success case - return content
+                response.raise_for_status()  # Raise for 4xx errors
+                return await response.read()
+
+        except ClientError as exc:
+            if attempt >= max_attempts:
+                raise CrawlerError(f"Failed to fetch {url} after {max_attempts} attempts") from exc
+            delay = min(base_delay * (2 ** (attempt - 1)), max_delay)
+            logger.warning("Client error for %s (attempt %s/%s); retrying in %.2fs", url, attempt, max_attempts, delay)
+            await sleep(delay)
+
+
+# Constants defined at module level
 MAX_ATTEMPTS = 5
 
 
@@ -424,23 +412,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
 
 if __name__ == "__main__":  # pragma: no cover - manual execution
-        except ClientError as exc:
-            logger.warning("Failed to fetch %s: %s", url, exc)
-            return FetchResult(url, None, None, exc)
-        break
-
-    digest = hashlib.sha256(body).hexdigest()
-    jurisdiction = _extract_jurisdiction(url)
-    filename = _extract_filename(url)
-    key = f"{run_date.strftime('%Y-%m-%d')}/{jurisdiction}/{filename}"
-
-    try:
-        await _store_in_s3(s3_client=s3_client, bucket=bucket, key=key, body=body, sha256_hash=digest)
-    except Exception as exc:  # pragma: no cover - boto3 exceptions vary heavily
-        logger.exception("Failed to store %s in S3", url)
-        return FetchResult(url, None, None, exc)
-
-    return FetchResult(url, key, digest)
+    main()
 
 
 async def process_urls(
