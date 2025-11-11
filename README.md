@@ -802,20 +802,23 @@ See [`RUNBOOK.md`](RUNBOOK.md) for operational procedures.
 
 ## Roadmap
 
-### Current Focus (Q4 2024)
+### Recent Achievements (2025)
 
 - ✅ Security hardening (Docker, Gitleaks, pre-commit hooks)
 - ✅ RIC test harness for compliance engine
+- ✅ Critical bug fixes (dependency conflicts, service corruption)
+- ✅ Type annotation modernization and code quality improvements
+- ✅ Comprehensive testing infrastructure and smoke tests
 - 🚧 Multi-city expansion (LA, Chicago, Austin)
 - 🚧 Mobile app (React Native)
 - 🚧 Real-time notifications (WebSockets)
 
 ### Upcoming Features
 
-- **Q1 2025**: Automated insurance verification
-- **Q2 2025**: AI-powered compliance recommendations
-- **Q3 2025**: International expansion (Canada, UK)
-- **Q4 2025**: Supply chain and delivery management
+- **Q4 2025**: Automated insurance verification, production deployment hardening
+- **Q1 2026**: AI-powered compliance recommendations
+- **Q2 2026**: International expansion (Canada, UK)
+- **Q3-Q4 2026**: Supply chain and delivery management
 
 See [`ROADMAP.md`](ROADMAP.md) for detailed plans.
 
