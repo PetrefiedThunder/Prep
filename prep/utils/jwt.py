@@ -7,7 +7,14 @@ from datetime import datetime, timedelta
 
 from jose import JWTError, jwt
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key")
+# SECURITY FIX: Require JWT secret from environment, no insecure defaults
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY or SECRET_KEY == "your-secret-key":
+    raise ValueError(
+        "JWT_SECRET_KEY environment variable must be set to a strong secret value. "
+        "Never use default or weak secrets in production."
+    )
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

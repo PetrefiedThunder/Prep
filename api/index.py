@@ -140,12 +140,17 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
 
     app.add_middleware(RBACMiddleware, settings=settings)
 
+    # SECURITY FIX: Use specific origins instead of wildcard to prevent CSRF attacks
+    # Configure allowed origins from environment variable
+    import os
+    allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000").split(",")
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=allowed_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
     )
 
     for module_path in OPTIONAL_ROUTERS:

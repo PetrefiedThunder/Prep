@@ -68,20 +68,20 @@ def load_regdocs(
         sha_hash = normalized["sha256_hash"]
         existing = session.execute(
             select(RegDoc).where(RegDoc.sha256_hash == sha_hash)
-"""Database loader utilities for regulatory documents."""
+        ).scalar_one_or_none()
 
-from __future__ import annotations
+        if existing is None:
+            # Insert new record
+            doc = RegDoc(**normalized)
+            session.add(doc)
+            inserted += 1
+        else:
+            # Update existing record
+            for key, value in normalized.items():
+                setattr(existing, key, value)
+            updated += 1
 
-from collections.abc import Mapping, Sequence
-from datetime import date, datetime
-from typing import Any
-
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from prep.models.orm import RegDoc
-
-_REQUIRED_FIELDS = {"jurisdiction", "code_section", "requirement_text", "sha256_hash"}
+    return {"inserted": inserted, "updated": updated, "skipped": skipped}
 _OPTIONAL_FIELDS = {"effective_date", "citation_url"}
 
 
@@ -154,12 +154,6 @@ async def load_regdocs(session: AsyncSession, rows: Sequence[Mapping[str, Any]])
     session.flush()
 
     return {"inserted": inserted, "updated": updated, "skipped": skipped}
-            summary["updated"] += 1
-        else:
-            summary["skipped"] += 1
-
-    await session.flush()
-    return summary
 
 
 __all__ = ["load_regdocs"]

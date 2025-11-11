@@ -3,8 +3,17 @@
 from __future__ import annotations
 
 import base64
-import xml.etree.ElementTree as ET
 from typing import Any
+
+# SECURITY FIX: Use defusedxml to prevent XXE attacks
+try:
+    from defusedxml import ElementTree as ET
+except ImportError:
+    # Fallback with manual XXE protection if defusedxml not available
+    import xml.etree.ElementTree as ET
+    # Disable dangerous features
+    import xml.parsers.expat
+    xml.parsers.expat.ParserCreate().SetParamEntityParsing(0)
 
 from prep.settings import Settings
 

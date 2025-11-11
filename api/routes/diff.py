@@ -1,6 +1,4 @@
 """City compliance diff endpoints exposed via the API gateway."""
-
-"""City regulatory diff endpoints."""
 from __future__ import annotations
 
 import hashlib
