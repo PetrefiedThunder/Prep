@@ -1,0 +1,89 @@
+name: RegEngine Tests
+
+on:
+  push:
+    branches: [ main, develop, "claude/**" ]
+    paths:
+      - 'regengine/**'
+      - '.github/workflows/regengine-tests.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'regengine/**'
+  workflow_dispatch:
+
+jobs:
+  test-harness:
+    name: Run RIC Test Harness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run RIC test harness
+        id: test_harness
+        run: |
+          python regengine/tests/test_harness.py
+        continue-on-error: false
+
+      - name: Check for golden file changes
+        if: github.event_name == 'pull_request'
+        run: |
+          CHANGED_GOLDEN=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep 'regengine/cities/golden/' || true)
+          if [ -n "$CHANGED_GOLDEN" ]; then
+            echo "::warning::Golden files were modified in this PR. Ensure changes are intentional and reviewed by ops team."
+            echo "Changed files:"
+            echo "$CHANGED_GOLDEN"
+          fi
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-harness-output
+          path: |
+            regengine/tests/*.log
+            regengine/tests/test_harness.py
+          retention-days: 7
+
+  validate-golden-files:
+    name: Validate Golden Files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate JSON syntax
+        run: |
+          echo "Validating golden files..."
+          find regengine/cities/golden -name "*.json" -print0 | while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            python -m json.tool "$file" > /dev/null || {
+              echo "::error::Invalid JSON in $file"
+              exit 1
+            }
+          done
+          echo "All golden files are valid JSON"
+
+      - name: Check for secrets in golden files
+        run: |
+          echo "Scanning golden files for potential secrets..."
+          find regengine/cities/golden -name "*.json" -exec grep -iE '(password|secret|api[_-]?key|token|private[_-]?key|aws[_-]?access)' {} + && {
+            echo "::error::Potential secrets found in golden files!"
+            exit 1
+          } || echo "No secrets detected"
