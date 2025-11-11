@@ -9,7 +9,7 @@ import csv
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any
 
 from database import get_session
@@ -272,15 +272,15 @@ class CityRegulatoryETL:
             for key, value in jurisdiction_data.items():
                 if hasattr(existing, key):
                     setattr(existing, key, value)
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(UTC)
             self.stats["jurisdictions_updated"] += 1
             logger.info(f"Updated jurisdiction: {city_name}, {state}")
         else:
             # Create new
             jurisdiction = CityJurisdiction(
                 **jurisdiction_data,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
             self.db.add(jurisdiction)
             self.stats["jurisdictions_created"] += 1
@@ -330,7 +330,7 @@ class CityRegulatoryETL:
                 for key, value in regulation_data.items():
                     if hasattr(existing, key) and key not in ["id", "city_id", "created_at"]:
                         setattr(existing, key, value)
-                existing.updated_at = datetime.utcnow()
+                existing.updated_at = datetime.now(UTC)
                 self.stats["regulations_updated"] += 1
                 logger.debug(f"Updated regulation: {title}")
             else:
@@ -338,8 +338,8 @@ class CityRegulatoryETL:
                 regulation = CityRegulation(
                     city_id=city_id,
                     **regulation_data,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
+                    created_at=datetime.now(UTC),
+                    updated_at=datetime.now(UTC),
                 )
                 self.db.add(regulation)
                 self.stats["regulations_created"] += 1
@@ -380,7 +380,7 @@ class CityRegulatoryETL:
                 for key, value in insurance_data.items():
                     if hasattr(existing, key) and key not in ["id", "city_id", "created_at"]:
                         setattr(existing, key, value)
-                existing.updated_at = datetime.utcnow()
+                existing.updated_at = datetime.now(UTC)
                 self.stats["insurance_requirements_updated"] += 1
                 logger.debug(f"Updated insurance requirement: {coverage_name}")
             else:
@@ -388,8 +388,8 @@ class CityRegulatoryETL:
                 insurance_req = CityInsuranceRequirement(
                     city_id=city_id,
                     **insurance_data,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
+                    created_at=datetime.now(UTC),
+                    updated_at=datetime.now(UTC),
                 )
                 self.db.add(insurance_req)
                 self.stats["insurance_requirements_created"] += 1

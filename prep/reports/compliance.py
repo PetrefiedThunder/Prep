@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from typing import Iterable
 
@@ -35,7 +35,7 @@ async def generate_compliance_manifest(output_path: Path | None = None) -> Path:
         deliveries = (
             await session.execute(
                 select(Booking)
-                .where(Booking.start_time >= datetime.utcnow() - timedelta(days=30))
+                .where(Booking.start_time >= datetime.now(UTC) - timedelta(days=30))
                 .order_by(Booking.start_time.desc())
             )
         ).scalars().all()
@@ -60,7 +60,7 @@ def _build_manifest_pdf(
     pdf.set_font("Helvetica", "B", 18)
     pdf.cell(0, 12, "Prep Compliance Manifest", ln=True)
     pdf.set_font("Helvetica", "", 12)
-    pdf.multi_cell(0, 8, f"Generated at: {datetime.utcnow().isoformat()}Z")
+    pdf.multi_cell(0, 8, f"Generated at: {datetime.now(UTC).isoformat()}Z")
     pdf.ln(2)
 
     _render_kitchen_section(pdf, kitchens)

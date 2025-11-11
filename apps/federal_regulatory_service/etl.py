@@ -10,7 +10,7 @@ import json
 import logging
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Optional
 
@@ -43,7 +43,7 @@ class FederalDataETL:
     def __init__(self, db_path: Path, data_dir: Path):
         self.db_path = db_path
         self.data_dir = data_dir
-        self.run = ETLRun(started_at=datetime.utcnow())
+        self.run = ETLRun(started_at=datetime.now(UTC))
 
     def get_connection(self) -> sqlite3.Connection:
         """Get database connection."""
@@ -263,7 +263,7 @@ class FederalDataETL:
             # ias_data = self.fetch_from_ias()
 
             self.run.success = True
-            self.run.completed_at = datetime.utcnow()
+            self.run.completed_at = datetime.now(UTC)
 
             logger.info(
                 f"ETL completed successfully: "
@@ -275,7 +275,7 @@ class FederalDataETL:
             logger.error(f"ETL pipeline failed: {e}")
             self.run.errors.append(f"Pipeline failed: {str(e)}")
             self.run.success = False
-            self.run.completed_at = datetime.utcnow()
+            self.run.completed_at = datetime.now(UTC)
 
         return self.run
 

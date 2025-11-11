@@ -291,6 +291,13 @@ class Settings(BaseModel):
             raise ValueError(f"ENVIRONMENT must be one of {sorted(allowed)}")
         return normalized
 
+    @field_validator("stripe_secret_key", "stripe_api_key", "stripe_webhook_secret")
+    @classmethod
+    def _validate_stripe_keys(cls, value: str | None, info: ValidationInfo) -> str | None:
+        if value is not None and value.strip() == "":
+            raise ValueError(f"{info.field_name} cannot be an empty string")
+        return value
+
     @field_validator(
         "ip_allowlist",
         "device_allowlist",

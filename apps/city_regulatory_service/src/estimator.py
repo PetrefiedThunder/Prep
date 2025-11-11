@@ -6,7 +6,7 @@ import logging
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, UTC
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
@@ -349,7 +349,7 @@ def estimate_costs(bundle: RequirementsBundle) -> CostEstimate:
 
     return CostEstimate(
         jurisdiction=bundle.fee_schedule.jurisdiction,
-        generated_at=datetime.utcnow(),
+        generated_at=datetime.now(UTC),
         total_one_time_cents=total_one_time,
         total_recurring_annualized_cents=total_recurring,
         incremental_fee_count=incremental_count,

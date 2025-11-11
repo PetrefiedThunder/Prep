@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import AsyncIterator, Dict, List, Optional
 from uuid import UUID
 
@@ -92,7 +92,7 @@ class RegulatoryNotifier:
             self.logger.warning("Unable to load kitchen %s for compliance deadline notification", kitchen_id)
             return
 
-        days_until = max((deadline - datetime.utcnow()).days, 0)
+        days_until = max((deadline - datetime.now(UTC)).days, 0)
         await self.notification_service.send_notification(
             user_id=str(kitchen.host_id),
             type="compliance_deadline",

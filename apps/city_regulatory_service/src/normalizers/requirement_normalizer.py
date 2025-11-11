@@ -8,7 +8,7 @@ using a shared jurisdictional ontology and requirement taxonomy.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any
 
 # ============================================================================
@@ -353,7 +353,7 @@ class RequirementNormalizer:
             fee_schedule=fee_schedule,
             applies_to=applies_to,
             source_url=raw_data.get("source_url", raw_data.get("official_url", "")),
-            last_updated=datetime.utcnow(),
+            last_updated=datetime.now(UTC),
             rules=rules,
         )
 

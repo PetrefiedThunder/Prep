@@ -6,7 +6,7 @@ blackouts, and seasonal restrictions to prevent scheduling conflicts.
 """
 
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from dataclasses import dataclass
 
 
@@ -27,7 +27,7 @@ class ConflictCheckResult:
     def __init__(self):
         self.has_conflicts: bool = False
         self.conflicts: List[ConflictWindow] = []
-        self.checked_at: datetime = datetime.utcnow()
+        self.checked_at: datetime = datetime.now(UTC)
 
     def add_conflict(self, conflict: ConflictWindow):
         """Add a conflict."""

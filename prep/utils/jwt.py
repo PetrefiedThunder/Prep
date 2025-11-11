@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 from jose import JWTError, jwt
 
@@ -25,7 +25,6 @@ def create_access_token(data: dict) -> str:
     SECURITY: Uses timezone-aware datetime to prevent clock skew issues.
     """
     to_encode = data.copy()
-    # SECURITY FIX: Use datetime.now(UTC) instead of deprecated datetime.utcnow()
     expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)

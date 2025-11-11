@@ -5,7 +5,7 @@ import csv
 import io
 import os
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Iterable, Iterator, Sequence
 
 import boto3
@@ -73,7 +73,7 @@ def main() -> None:
             "DATABASE_URL environment variable must be set. "
             "Never use hardcoded credentials for database connections."
         )
-    export_date = datetime.utcnow().date().isoformat()
+    export_date = datetime.now(UTC).date().isoformat()
     s3_key = S3_OBJECT_KEY_TEMPLATE.format(date=export_date)
 
     try:

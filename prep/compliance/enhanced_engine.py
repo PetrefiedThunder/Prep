@@ -5,7 +5,7 @@ Enhanced JSON summary with confidence scores, violation codes, and remediation s
 
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, UTC
 import re
 
 @dataclass
@@ -122,7 +122,7 @@ class ComplianceEngine:
                         "Upload updated certificate to platform",
                         "Wait for re-validation"
                     ],
-                    detected_at=datetime.utcnow().isoformat()
+                    detected_at=datetime.now(UTC).isoformat()
                 ))
 
         # Rule 2: Issuing agency validation
@@ -140,7 +140,7 @@ class ComplianceEngine:
                         "Contact support if agency should be recognized",
                         "Upload certificate from recognized agency"
                     ],
-                    detected_at=datetime.utcnow().isoformat()
+                    detected_at=datetime.now(UTC).isoformat()
                 ))
 
         # Rule 3: Document completeness (signature, seal)
@@ -157,7 +157,7 @@ class ComplianceEngine:
                         "Verify seal is visible and legible",
                         "Upload higher quality scan if needed"
                     ],
-                    detected_at=datetime.utcnow().isoformat()
+                    detected_at=datetime.now(UTC).isoformat()
                 ))
 
         # Calculate overall confidence and pass/fail
@@ -179,7 +179,7 @@ class ComplianceEngine:
                 'checks_performed': len(type_rules),
                 'document_quality': self._assess_document_quality(document_text)
             },
-            validation_timestamp=datetime.utcnow().isoformat(),
+            validation_timestamp=datetime.now(UTC).isoformat(),
             validator_version=self.VERSION
         )
 
@@ -187,7 +187,7 @@ class ComplianceEngine:
         """Check if certificate is expired"""
         try:
             exp = datetime.fromisoformat(expiration_date.replace('Z', '+00:00'))
-            return exp < datetime.utcnow()
+            return exp < datetime.now(UTC)
         except:
             return True  # Assume expired if date is invalid
 

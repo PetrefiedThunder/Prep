@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Dict, Iterable, List, Optional
 
 import httpx
@@ -381,12 +381,12 @@ async def save_regulations_to_db(
                 city=city,
                 source_url=source_url,
                 source_type=source_type,
-                last_scraped=datetime.utcnow(),
+                last_scraped=datetime.now(UTC),
             )
             db.add(source)
             await db.flush()
         else:
-            source.last_scraped = datetime.utcnow()
+            source.last_scraped = datetime.now(UTC)
 
         regulation_query = select(Regulation).where(
             Regulation.source_id == source.id,

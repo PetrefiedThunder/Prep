@@ -6,7 +6,7 @@ insurance, sound ordinances, rental limits, and seasonal restrictions.
 """
 
 from typing import Dict, Any, List, Optional
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, UTC
 from enum import Enum
 import yaml
 import os
@@ -55,7 +55,7 @@ class ComplianceEvaluation:
         self.violations: List[ComplianceViolation] = []
         self.warnings: List[ComplianceViolation] = []
         self.conditions: List[str] = []
-        self.evaluated_at: datetime = datetime.utcnow()
+        self.evaluated_at: datetime = datetime.now(UTC)
 
     def add_violation(self, violation: ComplianceViolation):
         """Add a violation."""
@@ -159,7 +159,7 @@ class MunicipalComplianceKernel:
             p['kind'] for p in kitchen_permits
             if p.get('status') == 'active' and
             (not p.get('expires_at') or
-             datetime.fromisoformat(p['expires_at']) > datetime.utcnow())
+             datetime.fromisoformat(p['expires_at']) > datetime.now(UTC))
         }
 
         for permit_type in required_permits:
@@ -373,7 +373,7 @@ class MunicipalComplianceKernel:
             ))
         else:
             last_service_date = datetime.fromisoformat(last_service)
-            days_since = (datetime.utcnow() - last_service_date).days
+            days_since = (datetime.now(UTC) - last_service_date).days
 
             if days_since > max_interval_days:
                 eval.add_violation(ComplianceViolation(

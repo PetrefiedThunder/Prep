@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
@@ -302,7 +302,7 @@ async def create_sanitation_log(
     kitchen = await _get_kitchen_or_404(db, kitchen_id)
     entry = SanitationLog(
         kitchen_id=kitchen.id,
-        logged_at=log_data.logged_at or datetime.utcnow(),
+        logged_at=log_data.logged_at or datetime.now(UTC),
         status=log_data.status,
         inspector_name=log_data.inspector_name,
         notes=log_data.notes,

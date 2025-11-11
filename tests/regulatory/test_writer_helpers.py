@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any
 
 import pytest
@@ -36,7 +36,7 @@ def test_write_fee_schedule_uses_shared_session() -> None:
         fees=_sample_fee_items(),
         notes="Initial schedule",
         metadata={"source": "fixture"},
-        effective_date=datetime.utcnow(),
+        effective_date=datetime.now(UTC),
     )
 
     with SessionLocal() as session:

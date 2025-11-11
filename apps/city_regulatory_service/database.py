@@ -6,7 +6,7 @@ for the city-level compliance regulatory system.
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, UTC
 
 from models import (
     Base,
@@ -223,7 +223,7 @@ def load_sample_data(session: Session) -> None:
         city = CityJurisdiction(
             **city_data,
             data_source="Initial city setup",
-            last_verified=datetime.utcnow(),
+            last_verified=datetime.now(UTC),
         )
         city_objects.append(city)
         session.add(city)

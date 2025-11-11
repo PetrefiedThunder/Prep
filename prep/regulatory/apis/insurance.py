@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Dict, Optional
 
 from .health_departments import BaseAPIClient, RegulatoryAPIError
@@ -99,7 +99,7 @@ class BaseInsuranceAPI(BaseAPIClient):
         *,
         reference_id: Optional[str] = None,
     ) -> CertificateIssueResult:
-        issued_at = self._parse_datetime(response.get("issued_at")) or datetime.utcnow()
+        issued_at = self._parse_datetime(response.get("issued_at")) or datetime.now(UTC)
         url = response.get("certificate_url") or response.get("download_url") or ""
         return CertificateIssueResult(
             provider=self.provider,

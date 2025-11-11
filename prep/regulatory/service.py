@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Dict, List, Optional
 
 from sqlalchemy import case, func, select, text
@@ -171,7 +171,7 @@ async def summarize_state_compliance(db: AsyncSession) -> Dict[str, object]:
 async def get_regulatory_alerts(db: AsyncSession) -> List[Dict[str, str]]:
     """Return regulatory alerts with upcoming effective dates."""
 
-    window_start = datetime.utcnow()
+    window_start = datetime.now(UTC)
     window_end = window_start + timedelta(days=REGULATORY_ALERT_WINDOW_DAYS)
     stmt = text(
         """
@@ -213,7 +213,7 @@ async def get_scraping_status_snapshot(db: AsyncSession) -> Dict[str, str]:
     rows = result.mappings().all()
 
     status: Dict[str, str] = {}
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     for row in rows:
         last_run = row.get("last_run")
         if last_run is None:
