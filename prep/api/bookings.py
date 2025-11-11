@@ -265,7 +265,8 @@ async def create_booking(
         )
 
     if kitchen.last_compliance_check:
-        if (datetime.utcnow() - kitchen.last_compliance_check) > timedelta(days=30):
+        # SECURITY FIX: Use datetime.now(UTC) instead of deprecated datetime.utcnow()
+        if (datetime.now(UTC) - kitchen.last_compliance_check) > timedelta(days=30):
             background_tasks.add_task(analyze_kitchen_compliance, str(kitchen.id))
 
     await _acquire_kitchen_lock(db, kitchen_uuid)
@@ -366,7 +367,8 @@ async def create_recurring_booking(
         )
 
     if kitchen.last_compliance_check:
-        if (datetime.utcnow() - kitchen.last_compliance_check) > timedelta(days=30):
+        # SECURITY FIX: Use datetime.now(UTC) instead of deprecated datetime.utcnow()
+        if (datetime.now(UTC) - kitchen.last_compliance_check) > timedelta(days=30):
             background_tasks.add_task(analyze_kitchen_compliance, str(kitchen.id))
 
     window_start = datetime.now(UTC)
