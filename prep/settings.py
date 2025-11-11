@@ -276,8 +276,6 @@ class Settings(BaseModel):
     thimble_api_key: str | None = Field(default=None, alias="THIMBLE_API_KEY")
     pilot_zip_codes: list[str] = Field(default_factory=list, alias="PILOT_ZIP_CODES")
     pilot_counties: list[str] = Field(default_factory=list, alias="PILOT_COUNTIES")
-    pilot_zip_codes: List[str] = Field(default_factory=list, alias="PILOT_ZIP_CODES")
-    pilot_counties: List[str] = Field(default_factory=list, alias="PILOT_COUNTIES")
 
     model_config = {
         "populate_by_name": True,
@@ -333,17 +331,6 @@ class Settings(BaseModel):
                 return parsed
             raise ValueError("RBAC_POLICIES must decode to a list of policies")
         return value
-
-    @field_validator("pilot_zip_codes", "pilot_counties", mode="before")
-    @classmethod
-    def _parse_pilot_config(cls, value: Any) -> list[str]:
-        if value in (None, ""):
-            return []
-        if isinstance(value, str):
-            return [item.strip() for item in value.split(",") if item.strip()]
-        if isinstance(value, Iterable):
-            return [str(item).strip() for item in value if str(item).strip()]
-        raise TypeError("Pilot configuration must be provided as a string or iterable")
 
     @field_validator("auth_ip_allowlist", "auth_device_allowlist", mode="before")
     @classmethod

@@ -15,7 +15,6 @@ from sqlalchemy.engine import Connection, Engine, Result
 from sqlalchemy.exc import SQLAlchemyError
 
 
-DEFAULT_DATABASE_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/postgres"
 BUCKET_NAME = "investor-data-room"
 S3_OBJECT_KEY_TEMPLATE = "metrics_{date}.csv"
 KMS_KEY_ALIAS = "alias/investor-room"
@@ -68,7 +67,12 @@ def upload_to_s3(data: bytes, *, bucket: str, key: str) -> None:
 
 
 def main() -> None:
-    database_url = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise MetricsExportError(
+            "DATABASE_URL environment variable must be set. "
+            "Never use hardcoded credentials for database connections."
+        )
     export_date = datetime.utcnow().date().isoformat()
     s3_key = S3_OBJECT_KEY_TEMPLATE.format(date=export_date)
 

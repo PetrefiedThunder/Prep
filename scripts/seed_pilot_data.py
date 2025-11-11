@@ -1,9 +1,18 @@
 import os
 import random
 import requests
+import sys
 
 BASE = os.getenv("API_BASE_URL", "http://localhost:8787")
-HEADERS = {"Authorization": "Bearer seed-admin-token"}
+
+# Require admin token from environment for security
+ADMIN_TOKEN = os.getenv("SEED_ADMIN_TOKEN")
+if not ADMIN_TOKEN:
+    print("ERROR: SEED_ADMIN_TOKEN environment variable must be set.", file=sys.stderr)
+    print("Never use hardcoded authentication tokens.", file=sys.stderr)
+    sys.exit(1)
+
+HEADERS = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
 
 
 def post(path: str, payload: dict) -> dict:
