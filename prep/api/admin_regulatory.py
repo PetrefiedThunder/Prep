@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prep.auth import User, get_current_admin
 from prep.database.connection import get_db
 from prep.regulatory.service import (
     get_scraping_status_snapshot,
@@ -28,28 +29,50 @@ class ScrapeRequest(BaseModel):
 
 
 @router.get("/states")
-async def get_state_regulatory_overview(db: AsyncSession = Depends(get_db)) -> Dict[str, object]:
-    """Return aggregated compliance metrics grouped by state."""
+async def get_state_regulatory_overview(
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+) -> Dict[str, object]:
+    """Return aggregated compliance metrics grouped by state.
 
+    SECURITY: Admin-only endpoint - requires admin role.
+    """
+    # Admin authorization enforced by get_current_admin dependency
+    _ = current_admin
     return await summarize_state_compliance(db)
 
 
 @router.get("/scraping-status")
-async def get_scraping_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Dict[str, str]]:
-    """Return the current scraping status for each state."""
+async def get_scraping_status(
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+) -> Dict[str, Dict[str, str]]:
+    """Return the current scraping status for each state.
 
+    SECURITY: Admin-only endpoint - requires admin role.
+    """
+    # Admin authorization enforced by get_current_admin dependency
+    _ = current_admin
     status = await get_scraping_status_snapshot(db)
     return {"status": status}
 
 
 @router.post("/scrape")
-async def trigger_regulation_scraping(payload: ScrapeRequest) -> Dict[str, object]:
-    """Schedule scraping for the requested states."""
+async def trigger_regulation_scraping(
+    payload: ScrapeRequest,
+    current_admin: User = Depends(get_current_admin),
+) -> Dict[str, object]:
+    """Schedule scraping for the requested states.
+
+    SECURITY: Admin-only endpoint - requires admin role.
+    """
+    # Admin authorization enforced by get_current_admin dependency
+    _ = current_admin
 
     if not payload.states:
         raise HTTPException(status_code=400, detail="At least one state must be provided")
 
     states = [state.upper() for state in payload.states]
-    logger.info("Regulatory scraping requested for states: %s", states)
+    logger.info("Regulatory scraping requested for states: %s by admin: %s", states, current_admin.id)
     # In production this would enqueue a background job. For now we acknowledge immediately.
     return {"scheduled": states}
