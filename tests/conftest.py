@@ -63,6 +63,9 @@ def _ensure_aiohttp_stub() -> None:
 _sqlalchemy_spec = importlib.util.find_spec("sqlalchemy")
 if _sqlalchemy_spec is None:
     _ensure_sqlalchemy_stub()
+    # Create stub for sqlalchemy.ext.mutable
+    mutable_module = types.ModuleType("sqlalchemy.ext.mutable")
+    mutable_module.__prep_stub__ = True
     sys.modules["sqlalchemy.ext.mutable"] = mutable_module
 
 # Provide a lightweight Stripe stub for test environments without the SDK installed.

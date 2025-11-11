@@ -1,65 +1,189 @@
-"""Shared fee schedule models for city regulatory ingestors."""
 """Fee schedule models and helpers used by jurisdiction scrapers."""
-"""Common fee schedule primitives used by city ingestors."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Iterable, Sequence
+from typing import Iterable, Mapping, Sequence
 
+_CADENCE_ALIASES: Mapping[str, str] = {
+    "annual": "annual",
+    "annually": "annual",
+    "per_year": "annual",
+    "per_annum": "annual",
+    "yearly": "annual",
+    "semiannual": "semi_annual",
+    "semi-annual": "semi_annual",
+    "semi_annual": "semi_annual",
+    "biannual": "semi_annual",
+    "biennial": "biennial",
+    "quarterly": "quarterly",
+    "per_quarter": "quarterly",
+    "monthly": "monthly",
+    "per_month": "monthly",
+    "weekly": "weekly",
+    "per_week": "weekly",
+    "daily": "daily",
+    "per_day": "daily",
+}
 
-_VALID_KINDS = {"one_time", "recurring", "incremental"}
-_ANNUALIZED_CADENCE = {
-    "annual": 1,
-    "yearly": 1,
-    "semi_annual": 2,
-    "biannual": 2,
-    "quarterly": 4,
-    "monthly": 12,
+_CADENCE_FACTORS: Mapping[str, float] = {
+    "annual": 1.0,
+    "biennial": 0.5,
+    "semi_annual": 2.0,
+    "quarterly": 4.0,
+    "monthly": 12.0,
+    "weekly": 52.0,
+    "daily": 365.0,
 }
 
 
-@dataclass(frozen=True, slots=True)
+def _normalize_cadence(value: str | None) -> str | None:
+    if not value:
+        return None
+    normalized = value.strip().lower().replace("-", "_").replace(" ", "_")
+    return _CADENCE_ALIASES.get(normalized, normalized)
+
+
+@dataclass(slots=True)
 class FeeItem:
-    """Single fee entry within a jurisdiction's schedule."""
-from typing import Iterable, Optional
-from typing import Iterable, Sequence
-"""Compatibility exports for jurisdiction fee schedules."""
+    """Represents a single fee entry in a jurisdiction's schedule."""
 
-from __future__ import annotations
+    name: str
+    amount_cents: int
+    kind: str = "one_time"
+    cadence: str | None = None
+    unit: str | None = None
+    incremental: bool = False
+    notes: str | None = None
+    requirement_id: str | None = None
 
-    def __post_init__(self) -> None:  # pragma: no cover - simple validation
+    def __post_init__(self) -> None:
         if not self.name:
             raise ValueError("Fee name must be provided")
         if self.amount_cents < 0:
             raise ValueError("Fee amounts must be non-negative")
-        if self.kind not in _VALID_KINDS:
+
+        normalized_kind = self.kind.lower()
+        if normalized_kind not in {"one_time", "recurring", "incremental"}:
             raise ValueError(f"Unsupported fee kind '{self.kind}'")
+        object.__setattr__(self, "kind", normalized_kind)
+
+        cadence = _normalize_cadence(self.cadence)
+        if cadence and cadence not in _CADENCE_FACTORS:
+            raise ValueError(f"Unsupported cadence '{self.cadence}'")
+        object.__setattr__(self, "cadence", cadence)
+
+        if self.kind == "recurring" and not cadence and not self.incremental:
+            raise ValueError("Recurring fees must provide a cadence")
+
+        if self.kind == "incremental":
+            object.__setattr__(self, "incremental", True)
 
     @property
     def is_recurring(self) -> bool:
-        return self.kind == "recurring"
+        return self.kind == "recurring" and not self.incremental
 
     def annualized_amount_cents(self) -> int:
-        if not self.is_recurring:
+        if not self.is_recurring or not self.cadence:
             return 0
-        cadence = (self.cadence or "annual").lower()
-        multiplier = _ANNUALIZED_CADENCE.get(cadence, 1)
-        return self.amount_cents * multiplier
+        factor = _CADENCE_FACTORS.get(self.cadence, 0.0)
+        return int(round(self.amount_cents * factor))
 
     def dict(self) -> dict[str, object]:
-        payload = {
-from apps.city_regulatory_service.src.models.requirements import (
-    FeeItem,
-    FeeSchedule,
-    FeeValidationResult,
-    RequirementsBundle,
-    has_incremental,
-    make_fee_schedule,
-    total_one_time_cents,
-    total_recurring_annualized_cents,
-    validate_fee_schedule,
-)
+        payload: dict[str, object] = {
+            "name": self.name,
+            "amount_cents": self.amount_cents,
+            "kind": self.kind,
+            "cadence": self.cadence,
+            "unit": self.unit,
+            "incremental": self.incremental,
+            "notes": self.notes,
+            "requirement_id": self.requirement_id,
+        }
+        return {key: value for key, value in payload.items() if value not in {None, ""}}
+
+
+@dataclass(slots=True)
+class FeeSchedule:
+    """Collection of fee items along with supporting paperwork."""
+
+    jurisdiction: str
+    paperwork: Sequence[str] = field(default_factory=tuple)
+    fees: Sequence[FeeItem] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        paperwork_tuple = tuple(dict.fromkeys(item for item in self.paperwork))
+        fees_tuple = tuple(self.fees)
+        object.__setattr__(self, "paperwork", paperwork_tuple)
+        object.__setattr__(self, "fees", fees_tuple)
+
+    @property
+    def total_one_time_cents(self) -> int:
+        return sum(item.amount_cents for item in self.fees if item.kind == "one_time")
+
+    @property
+    def total_recurring_annualized_cents(self) -> int:
+        return sum(item.annualized_amount_cents() for item in self.fees)
+
+    @property
+    def incremental_fee_count(self) -> int:
+        return sum(1 for item in self.fees if item.incremental)
+
+
+@dataclass(slots=True)
+class FeeValidationResult:
+    """Validation payload summarizing potential issues."""
+
+    is_valid: bool
+    issues: list[str]
+    incremental_fee_count: int
+
+
+def validate_fee_schedule(schedule: FeeSchedule) -> FeeValidationResult:
+    issues: list[str] = []
+    seen: set[str] = set()
+
+    for fee in schedule.fees:
+        key = fee.name.strip().lower()
+        if key in seen:
+            issues.append(f"Duplicate fee item detected: {fee.name}")
+        else:
+            seen.add(key)
+
+        if fee.kind == "recurring" and not fee.cadence:
+            issues.append(f"Recurring fee '{fee.name}' missing cadence")
+
+    incremental_count = schedule.incremental_fee_count
+    return FeeValidationResult(is_valid=not issues, issues=issues, incremental_fee_count=incremental_count)
+
+
+def make_fee_schedule(
+    jurisdiction: str,
+    *,
+    paperwork: Iterable[str] | None = None,
+    fees: Iterable[FeeItem] | None = None,
+) -> FeeSchedule:
+    return FeeSchedule(
+        jurisdiction=jurisdiction,
+        paperwork=tuple(paperwork or ()),
+        fees=tuple(fees or ()),
+    )
+
+
+def total_one_time_cents(items: FeeSchedule | Iterable[FeeItem]) -> int:
+    iterable = items.fees if isinstance(items, FeeSchedule) else items
+    return sum(item.amount_cents for item in iterable if item.kind == "one_time")
+
+
+def total_recurring_annualized_cents(items: FeeSchedule | Iterable[FeeItem]) -> int:
+    iterable = items.fees if isinstance(items, FeeSchedule) else items
+    return sum(item.annualized_amount_cents() for item in iterable)
+
+
+def has_incremental(items: FeeSchedule | Iterable[FeeItem]) -> bool:
+    iterable = items.fees if isinstance(items, FeeSchedule) else items
+    return any(item.incremental for item in iterable)
+
 
 __all__ = [
     "FeeItem",
@@ -71,336 +195,3 @@ __all__ = [
     "total_recurring_annualized_cents",
     "has_incremental",
 ]
-
-# ---------------------------------------------------------------------------
-# Supported fee metadata
-# ---------------------------------------------------------------------------
-
-_VALID_KINDS: set[str] = {"one_time", "recurring", "incremental"}
-_VALID_CADENCE: dict[str, int] = {
-    "has_incremental",
-    "total_one_time_cents",
-    "total_recurring_annualized_cents",
-    "make_fee_schedule",
-    "validate_fee_schedule",
-]
-
-_VALID_KINDS = {"one_time", "recurring", "incremental"}
-_ANNUAL_MULTIPLIER = {
-    "annual": 1,
-    "yearly": 1,
-    "semi_annual": 2,
-    "semiannual": 2,
-    "biannual": 2,
-    "quarterly": 4,
-    "monthly": 12,
-    "weekly": 52,
-    "daily": 365,
-}
-_INCREMENTAL_UNITS: set[str] = {
-    "per_permit",
-    "per_inspection",
-    "per_application",
-    "per_reinspection",
-}
-
-
-# ---------------------------------------------------------------------------
-# Data models
-# ---------------------------------------------------------------------------
-
-@dataclass(slots=True)
-@dataclass(slots=True, frozen=True)
-class FeeItem:
-    """Single fee entry within a jurisdiction's schedule."""
-
-    name: str
-    amount_cents: int
-    kind: str
-    cadence: Optional[str] = None
-    unit: Optional[str] = None
-    tier_min_inclusive: Optional[int] = None
-    tier_max_inclusive: Optional[int] = None
-
-    def dict(self) -> dict[str, object]:
-        """Return a JSON-serialisable representation."""
-
-    kind: str = "one_time"
-    cadence: str | None = None
-    unit: str | None = None
-    incremental: bool = False
-    notes: str | None = None
-
-    def __post_init__(self) -> None:
-        if not self.name:
-            raise ValueError("fee name must be provided")
-        if self.amount_cents < 0:
-            raise ValueError("fee amount must be non-negative")
-        if self.kind not in _VALID_KINDS:
-            raise ValueError(f"unsupported fee kind '{self.kind}'")
-        if self.kind == "recurring":
-            cadence = (self.cadence or "annual").lower()
-            object.__setattr__(self, "cadence", cadence)
-        if self.kind == "incremental" and self.unit:
-            if self.unit not in _INCREMENTAL_UNITS:
-                raise ValueError(f"unsupported incremental unit '{self.unit}'")
-
-    @property
-    def is_recurring(self) -> bool:
-        return self.kind == "recurring"
-
-    def annualized_amount_cents(self) -> int:
-        if not self.is_recurring:
-            return 0
-        cadence = self.cadence or "annual"
-        return self.amount_cents * _ANNUAL_MULTIPLIER.get(cadence, 1)
-
-    def dict(self) -> dict[str, object]:
-        return {
-            "name": self.name,
-            "amount_cents": self.amount_cents,
-            "kind": self.kind,
-            "cadence": self.cadence,
-            "unit": self.unit,
-            "incremental": self.incremental,
-            "notes": self.notes,
-        }
-        return {key: value for key, value in payload.items() if value is not None}
-
-
-@dataclass(frozen=True, slots=True)
-
-    def annualized_amount_cents(self) -> int:
-        """Return the annualized cents value for recurring fees."""
-
-        if self.kind != "recurring":
-            return 0
-        cadence = self.cadence or "annual"
-        multiplier = _VALID_CADENCE.get(cadence, 0)
-        return self.amount_cents * multiplier
-
-@dataclass(slots=True, frozen=True)
-class FeeSchedule:
-    """Collection of fee items for a jurisdiction."""
-
-    jurisdiction: str
-    paperwork: Sequence[str] = field(default_factory=tuple)
-    fees: Sequence[FeeItem] = field(default_factory=tuple)
-
-    def __post_init__(self) -> None:  # pragma: no cover - structural normalization
-        if isinstance(self.paperwork, Iterable) and not isinstance(self.paperwork, tuple):
-            object.__setattr__(self, "paperwork", tuple(self.paperwork))
-        if isinstance(self.fees, Iterable) and not isinstance(self.fees, tuple):
-            object.__setattr__(self, "fees", tuple(self.fees))
-
-    @property
-    def total_one_time_cents(self) -> int:
-        return sum(item.amount_cents for item in self.fees if not item.is_recurring)
-
-    @property
-    def total_recurring_annualized_cents(self) -> int:
-        return sum(item.annualized_amount_cents() for item in self.fees)
-
-
-@dataclass(frozen=True, slots=True)
-class FeeValidationResult:
-    """Validation payload summarizing potential issues."""
-    paperwork: list[str] = field(default_factory=list)
-    fees: list[FeeItem] = field(default_factory=list)
-    paperwork: Sequence[str] = field(default_factory=tuple)
-    fees: Sequence[FeeItem] = field(default_factory=tuple)
-
-    def __post_init__(self) -> None:
-        if not self.jurisdiction:
-            raise ValueError("jurisdiction identifier is required")
-        paperwork: Iterable[str] = tuple(self.paperwork)
-        fees: Iterable[FeeItem] = tuple(self.fees)
-        object.__setattr__(self, "paperwork", paperwork)
-        object.__setattr__(self, "fees", fees)
-
-    @property
-    def total_one_time_cents(self) -> int:
-        return sum(item.amount_cents for item in self.fees if item.kind == "one_time")
-
-    @property
-    def total_recurring_annualized_cents(self) -> int:
-        return sum(item.annualized_amount_cents() for item in self.fees if item.is_recurring)
-
-
-@dataclass(slots=True, frozen=True)
-class FeeValidationResult:
-    """Validation payload summarising potential issues."""
-
-    is_valid: bool
-    issues: list[str]
-    incremental_fee_count: int
-
-
-# ---------------------------------------------------------------------------
-# Validation helpers
-# ---------------------------------------------------------------------------
-
-def validate_fee_schedule(schedule: FeeSchedule) -> FeeValidationResult:
-    """Validate a fee schedule returning any issues discovered."""
-
-    issues: list[str] = []
-
-    seen_names: set[str] = set()
-    for item in schedule.fees:
-        key = item.name.lower()
-        if key in seen_names:
-            issues.append(f"Duplicate fee entry detected: {item.name}")
-        else:
-            seen_names.add(key)
-        if item.amount_cents < 0:
-            issues.append(f"Negative amount for fee: {item.name}")
-
-    paperwork_lower = [doc.lower() for doc in schedule.paperwork]
-    if len(set(paperwork_lower)) != len(schedule.paperwork):
-        issues.append("Duplicate paperwork entries detected")
-
-    incremental_count = sum(1 for item in schedule.fees if item.incremental)
-    if not schedule.jurisdiction:
-        issues.append("Missing jurisdiction identifier")
-
-    if not schedule.fees:
-        issues.append("Fee schedule must include at least one fee")
-
-    incremental_count = 0
-
-    for idx, fee in enumerate(schedule.fees):
-        if fee.kind not in _VALID_KINDS:
-            issues.append(f"Fee #{idx + 1} has invalid kind '{fee.kind}'")
-        if fee.amount_cents < 0:
-            issues.append(f"Fee '{fee.name}' must have a non-negative amount")
-
-        if fee.kind == "recurring":
-            cadence = fee.cadence or "annual"
-            if cadence not in _VALID_CADENCE:
-                issues.append(f"Recurring fee '{fee.name}' has unsupported cadence '{cadence}'")
-
-        if fee.kind == "incremental":
-            incremental_count += 1
-            if fee.unit and fee.unit not in _INCREMENTAL_UNITS:
-                issues.append(f"Incremental fee '{fee.name}' has unsupported unit '{fee.unit}'")
-
-        if (
-            fee.tier_min_inclusive is not None
-            and fee.tier_max_inclusive is not None
-            and fee.tier_min_inclusive > fee.tier_max_inclusive
-        ):
-            issues.append(
-                f"Fee '{fee.name}' has inconsistent tier bounds"
-                f" ({fee.tier_min_inclusive} > {fee.tier_max_inclusive})"
-            )
-
-    return FeeValidationResult(
-        is_valid=not issues,
-        issues=issues,
-        incremental_fee_count=incremental_count,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Construction helpers
-# ---------------------------------------------------------------------------
-
-def make_fee_schedule(
-    jurisdiction: str,
-    *,
-    paperwork: Iterable[str] | None = None,
-    fees: Iterable[FeeItem] | None = None,
-) -> FeeSchedule:
-    """Helper to construct a :class:`FeeSchedule` with sensible defaults."""
-
-    return FeeSchedule(
-        jurisdiction=jurisdiction,
-        paperwork=tuple(paperwork or ()),
-        fees=tuple(fees or ()),
-    )
-
-
-def validate_fee_schedule(schedule: FeeSchedule) -> FeeValidationResult:
-    """Validate a fee schedule returning any detected issues."""
-
-    issues: list[str] = []
-    seen_names: set[str] = set()
-    incremental_count = 0
-
-    for idx, fee in enumerate(schedule.fees):
-        key = fee.name.lower()
-        if key in seen_names:
-            issues.append(f"duplicate fee entry detected: {fee.name}")
-        else:
-            seen_names.add(key)
-
-def _coerce_iterable(items: FeeSchedule | Iterable[FeeItem]) -> Iterable[FeeItem]:
-    if isinstance(items, FeeSchedule):
-        return items.fees
-    return items
-        if fee.kind == "recurring":
-            cadence = fee.cadence or "annual"
-            if cadence not in _ANNUAL_MULTIPLIER:
-                issues.append(
-                    f"recurring fee '{fee.name}' has unsupported cadence '{cadence}'"
-                )
-        if fee.kind == "incremental":
-            incremental_count += 1
-            if not fee.unit:
-                issues.append(f"incremental fee '{fee.name}' is missing a unit")
-        if fee.amount_cents < 0:
-            issues.append(f"fee '{fee.name}' has a negative amount")
-        if not fee.name:
-            issues.append(f"fee #{idx + 1} is missing a name")
-
-    paperwork = [doc.lower() for doc in schedule.paperwork]
-    if len(paperwork) != len(set(paperwork)):
-        issues.append("duplicate paperwork entries detected")
-
-    return FeeValidationResult(
-        is_valid=not issues,
-        issues=issues,
-        incremental_fee_count=incremental_count,
-    )
-
-
-__all__ = ["FeeItem", "FeeSchedule", "FeeValidationResult", "validate_fee_schedule"]
-
-
-
-def _iter_items(schedule_or_items: FeeSchedule | Iterable[FeeItem]) -> Iterable[FeeItem]:
-    if isinstance(schedule_or_items, FeeSchedule):
-        return schedule_or_items.fees
-    return schedule_or_items
-
-    return sum(item.amount_cents for item in _coerce_iterable(items) if item.kind == "one_time")
-
-def total_one_time_cents(schedule_or_items: FeeSchedule | Iterable[FeeItem]) -> int:
-    """Return the total one-time cost for the provided schedule or sequence."""
-
-def total_recurring_annualized_cents(items: FeeSchedule | Iterable[FeeItem]) -> int:
-    """Compute the total recurring fees normalised to an annual amount."""
-
-    return sum(item.annualized_amount_cents() for item in _coerce_iterable(items))
-    return sum(item.amount_cents for item in _iter_items(schedule_or_items) if item.kind == "one_time")
-
-
-def total_recurring_annualized_cents(schedule_or_items: FeeSchedule | Iterable[FeeItem]) -> int:
-    """Return the annualised recurring cost for the provided schedule or sequence."""
-
-    return sum(item.annualized_amount_cents() for item in _iter_items(schedule_or_items) if item.is_recurring)
-
-    return any(item.kind == "incremental" for item in _coerce_iterable(items))
-
-def has_incremental(schedule_or_items: FeeSchedule | Iterable[FeeItem]) -> bool:
-    """Return ``True`` if any incremental fees are present."""
-
-    return any(item.kind == "incremental" for item in _iter_items(schedule_or_items))
-    "RequirementsBundle",
-    "validate_fee_schedule",
-    "make_fee_schedule",
-    "total_one_time_cents",
-    "total_recurring_annualized_cents",
-    "has_incremental",
-]
-
