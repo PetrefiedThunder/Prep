@@ -7,7 +7,7 @@ Federal Scope → State Code → City Ordinance → Facility Compliance
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any
 
 import httpx
@@ -146,7 +146,7 @@ class FederalRegulatoryIntegration:
                 return False
 
             regulation.cfr_citation = cfr_citation
-            regulation.updated_at = datetime.utcnow()
+            regulation.updated_at = datetime.now(UTC)
             self.db.commit()
 
             logger.info(f"Linked regulation '{regulation.title}' to federal scope: {cfr_citation}")

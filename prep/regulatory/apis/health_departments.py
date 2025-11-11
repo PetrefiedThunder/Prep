@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, UTC
 import logging
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -140,7 +140,7 @@ class CaliforniaHealthDepartmentAPI(BaseAPIClient):
 
         return InspectionRecord(
             permit_number=permit_number,
-            inspection_date=self._parse_datetime(date_text) or datetime.utcnow(),
+            inspection_date=self._parse_datetime(date_text) or datetime.now(UTC),
             result=record.get("inspection_result") or record.get("pe_description", "unknown"),
             violation_points=self._parse_int(record.get("points_deducted") or record.get("inspection_score")),
             jurisdiction=record.get("facility_city") or record.get("city") or "CA",
@@ -204,7 +204,7 @@ class NewYorkHealthDepartmentAPI(BaseAPIClient):
 
         return InspectionRecord(
             permit_number=str(camis),
-            inspection_date=self._parse_datetime(inspection_date) or datetime.utcnow(),
+            inspection_date=self._parse_datetime(inspection_date) or datetime.now(UTC),
             result=record.get("action", "unknown"),
             violation_points=self._parse_int(record.get("violation_points")),
             jurisdiction=record.get("county") or "NY",

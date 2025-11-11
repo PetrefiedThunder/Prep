@@ -11,7 +11,7 @@ This test suite covers:
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 import pytest
 from fastapi.testclient import TestClient
@@ -214,27 +214,27 @@ class TestComplianceCheck:
                 {
                     "type": RegulationType.HEALTH_PERMIT.value,
                     "number": "HP-12345",
-                    "expiration_date": (datetime.utcnow() + timedelta(days=180)).isoformat(),
+                    "expiration_date": (datetime.now(UTC) + timedelta(days=180)).isoformat(),
                 },
                 {
                     "type": RegulationType.BUSINESS_LICENSE.value,
                     "number": "BL-67890",
-                    "expiration_date": (datetime.utcnow() + timedelta(days=365)).isoformat(),
+                    "expiration_date": (datetime.now(UTC) + timedelta(days=365)).isoformat(),
                 },
                 {
                     "type": RegulationType.FIRE_SAFETY.value,
                     "number": "FS-11111",
-                    "expiration_date": (datetime.utcnow() + timedelta(days=90)).isoformat(),
+                    "expiration_date": (datetime.now(UTC) + timedelta(days=90)).isoformat(),
                 },
                 {
                     "type": RegulationType.FOOD_HANDLER_CERT.value,
                     "number": "FH-22222",
-                    "expiration_date": (datetime.utcnow() + timedelta(days=365)).isoformat(),
+                    "expiration_date": (datetime.now(UTC) + timedelta(days=365)).isoformat(),
                 },
                 {
                     "type": RegulationType.INSURANCE.value,
                     "number": "INS-33333",
-                    "expiration_date": (datetime.utcnow() + timedelta(days=365)).isoformat(),
+                    "expiration_date": (datetime.now(UTC) + timedelta(days=365)).isoformat(),
                 }
             ],
             "current_insurance": [
@@ -292,7 +292,7 @@ class TestDataIngestion:
             "city_name": "New Test City",
             "state": "NT",
             "data_source": "Test data",
-            "verification_date": datetime.utcnow().isoformat(),
+            "verification_date": datetime.now(UTC).isoformat(),
             "jurisdiction_info": {
                 "county": "New Test County",
                 "health_department_name": "New Test Health Dept",
@@ -338,7 +338,7 @@ class TestDataIngestion:
             "city_name": "Update Test City",
             "state": "UT",
             "data_source": "Initial data",
-            "verification_date": datetime.utcnow().isoformat(),
+            "verification_date": datetime.now(UTC).isoformat(),
             "jurisdiction_info": {
                 "county": "Update County",
             },

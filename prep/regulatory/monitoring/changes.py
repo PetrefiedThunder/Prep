@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, UTC
 from difflib import Differ
 from typing import Dict, Iterable, List, Optional, Sequence
 
@@ -57,7 +57,7 @@ class RegulatoryChangeDetector:
                         change_type="text_change",
                         old_text=old_text,
                         new_text=new_text,
-                        timestamp=datetime.utcnow(),
+                        timestamp=datetime.now(UTC),
                         diff=diff,
                     )
                 )
@@ -69,7 +69,7 @@ class RegulatoryChangeDetector:
                         change_type="added",
                         old_text="",
                         new_text=new_reg.get("text", ""),
-                        timestamp=datetime.utcnow(),
+                        timestamp=datetime.now(UTC),
                         diff=None,
                     )
                 )
@@ -81,7 +81,7 @@ class RegulatoryChangeDetector:
                         change_type="removed",
                         old_text=old_reg.get("text", ""),
                         new_text="",
-                        timestamp=datetime.utcnow(),
+                        timestamp=datetime.now(UTC),
                         diff=None,
                     )
                 )

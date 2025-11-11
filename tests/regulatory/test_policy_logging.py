@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, UTC
 
 import pytest
 from sqlalchemy.orm import Session
@@ -19,7 +19,7 @@ def test_hash_input_is_deterministic() -> None:
 @pytest.mark.usefixtures("db_session")
 def test_write_policy_decision_creates_record(db_session: Session) -> None:
     payload = {"city": "San Francisco", "state": "CA"}
-    result = {"decision": "allow", "evaluated_at": datetime.utcnow().isoformat()}
+    result = {"decision": "allow", "evaluated_at": datetime.now(UTC).isoformat()}
 
     record = write_policy_decision(
         region="CA",

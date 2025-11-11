@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, UTC
 import logging
 import os
 import re
@@ -184,7 +184,7 @@ class RegulatoryScraper:
     def _build_s3_key(self, source_url: str) -> str:
         """Construct an S3 object key for a given source URL."""
 
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         filename = self._slugify_filename(source_url)
         return f"{today}/{filename}"
 
@@ -237,7 +237,7 @@ class RegulatoryScraper:
                             "jurisdiction": city or state,
                             "country_code": "US",
                             "state_province": state.upper(),
-                            "effective_date": datetime.utcnow(),
+                            "effective_date": datetime.now(UTC),
                             "citation": f"Health Dept - {state}",
                             "source_url": source_url,
                             "source_type": "health_dept",

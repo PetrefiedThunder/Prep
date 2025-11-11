@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 import types
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import datetime, UTC
 
 if "aiohttp" not in sys.modules:
     aiohttp_stub = types.ModuleType("aiohttp")
@@ -198,7 +198,7 @@ class TestLoadBundle:
             penalties=None,
             rules={},
             source_url="https://example.com/health",
-            last_updated=datetime.utcnow(),
+            last_updated=datetime.now(UTC),
         )
 
         requirement_two = CityRequirement(
@@ -220,7 +220,7 @@ class TestLoadBundle:
             penalties=None,
             rules={},
             source_url="https://example.com/plan",
-            last_updated=datetime.utcnow(),
+            last_updated=datetime.now(UTC),
         )
 
         session.add_all([requirement_one, requirement_two])

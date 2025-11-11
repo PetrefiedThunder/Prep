@@ -308,7 +308,7 @@ async def run_crawler(
     own_session = session is None
     own_s3_client = s3_client is None
     if date_prefix is None:
-        date_prefix = _dt.datetime.utcnow().date().isoformat()
+        date_prefix = _dt.datetime.now(UTC).date().isoformat()
 
     if own_s3_client:
         s3_client = boto3.client("s3")

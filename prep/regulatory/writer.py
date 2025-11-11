@@ -6,7 +6,7 @@ import hashlib
 import json
 from collections.abc import Iterable, Mapping, Sequence
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Iterator
 from uuid import UUID
 """Persistence helpers for regulatory requirements and fee schedules."""
@@ -16,7 +16,7 @@ from __future__ import annotations
 import dataclasses
 import uuid
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Iterable, Mapping, MutableMapping, Sequence
 
 from sqlalchemy import select
@@ -245,7 +245,7 @@ def _normalise_requirement_payload(
         "tags": _unique_strings(tags),
         "metadata": _json_ready(metadata),
         "status": str(status).lower(),
-        "last_seen_at": datetime.utcnow(),
+        "last_seen_at": datetime.now(UTC),
     }
 
     if source_url:
@@ -308,7 +308,7 @@ def write_fee_schedule(
         else:
             for key, value in schedule_payload.items():
                 setattr(existing, key, value)
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(UTC)
             record = existing
 
         active_session.flush()
@@ -347,7 +347,7 @@ def write_reg_requirements(
             else:
                 for key, value in payload.items():
                     setattr(existing, key, value)
-                existing.updated_at = datetime.utcnow()
+                existing.updated_at = datetime.now(UTC)
                 record = existing
 
             active_session.flush()

@@ -52,7 +52,7 @@ async def connect_stripe_account(
             code="payments.error",
             message=str(exc),
         ) from exc
-        _handle_payments_error(request, exc)
+
     return PaymentsConnectResponse(account_id=account_id, onboarding_url=onboarding_url)
 
 
@@ -75,6 +75,5 @@ async def handle_webhook(
             code="payments.webhook_error",
             message=str(exc),
         ) from exc
-        _handle_payments_error(request, exc)
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

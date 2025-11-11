@@ -7,7 +7,7 @@ with deterministic, auditable calculations.
 
 from typing import List, Dict, Any, Optional
 from decimal import Decimal, ROUND_HALF_UP
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import yaml
 import os
 
@@ -56,7 +56,7 @@ class FeeQuote:
         self.late_penalty_cents: int = 0
         self.total_fees_cents: int = 0
         self.total_cents: int = 0
-        self.computed_at: datetime = datetime.utcnow()
+        self.computed_at: datetime = datetime.now(UTC)
 
     def add_line_item(self, item: FeeLineItem):
         """Add a fee line item."""
@@ -109,7 +109,7 @@ class MunicipalFeeEngine:
                 {"code": "platform_fee", "cents": 2200}
             ],
             booking_id="...",
-            created_at=datetime.utcnow()
+            created_at=datetime.now(UTC)
         )
     """
 

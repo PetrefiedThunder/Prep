@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from enum import Enum
 from typing import Any, Dict, List, Sequence
 
@@ -117,7 +117,7 @@ class RegulatoryAnalyzer:
             last_logged_at = latest_log.get("logged_at")
             if isinstance(last_logged_at, datetime):
                 metadata["last_sanitation_log"] = last_logged_at.isoformat()
-                if datetime.utcnow() - last_logged_at > timedelta(days=7):
+                if datetime.now(UTC) - last_logged_at > timedelta(days=7):
                     _record_issue(
                         "Sanitation log older than 7 days",
                         "Upload the latest sanitation walkthrough results.",
@@ -170,7 +170,7 @@ class RegulatoryAnalyzer:
             risk_score=risk_score,
             missing_requirements=missing_requirements,
             recommendations=recommendations,
-            last_analyzed=datetime.utcnow(),
+            last_analyzed=datetime.now(UTC),
             kitchen_id=str(kitchen_data.get("id", "unknown")),
             state=kitchen_data.get("state"),
             city=kitchen_data.get("city"),
