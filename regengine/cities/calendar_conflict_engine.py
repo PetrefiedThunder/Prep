@@ -255,8 +255,8 @@ class CalendarConflictEngine:
 
             # Convert to datetime for comparison
             # (Simplified - would need to handle annual recurrence properly)
-            restriction_start = datetime.fromisoformat(f"{starts_on}T00:00:00")
-            restriction_end = datetime.fromisoformat(f"{ends_on}T23:59:59")
+            restriction_start = parse_datetime_safe(f"{starts_on}T00:00:00")
+            restriction_end = parse_datetime_safe(f"{ends_on}T23:59:59")
 
             if self._overlaps(requested_start, requested_end, restriction_start, restriction_end):
                 restriction_type = restriction.get("restriction_type", "prohibited")

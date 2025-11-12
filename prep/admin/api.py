@@ -285,8 +285,10 @@ async def moderate_kitchen(
         raise http_exception(
             request,
             status_code=status.HTTP_400_BAD_REQUEST,
-            code="admin.kitchens.already_moderated",
-            message="Kitchen already moderated",
+            detail={
+                "code": "admin.kitchens.already_moderated",
+                "message": "Kitchen already moderated"
+            }
         )
 
     now = datetime.now(UTC)

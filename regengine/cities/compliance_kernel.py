@@ -366,7 +366,7 @@ class MunicipalComplianceKernel:
                 )
             )
         else:
-            last_service_date = datetime.fromisoformat(last_service)
+            last_service_date = parse_datetime_safe(last_service)
             days_since = (datetime.now(UTC) - last_service_date).days
 
             if days_since > max_interval_days:
