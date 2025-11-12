@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Iterable
+from typing import Any
 
 import httpx
 
@@ -60,7 +61,9 @@ def _extract_amount(payload: dict[str, Any]) -> tuple[Decimal, str]:
     check = payload.get("check") or {}
     totals = check.get("totals") or {}
     amount = totals.get("grandTotal")
-    currency = totals.get("currencyCode") or totals.get("currency") or payload.get("currency") or "USD"
+    currency = (
+        totals.get("currencyCode") or totals.get("currency") or payload.get("currency") or "USD"
+    )
     if amount is None:
         amount = payload.get("totalAmount") or payload.get("grandTotal")
     return _normalize_amount(amount), currency
@@ -136,10 +139,7 @@ class ToastWebhookProcessor:
         if not order_id:
             raise ToastAPIError("Toast webhook payload missing order identifier")
         status = (
-            payload.get("status")
-            or payload.get("orderStatus")
-            or payload.get("state")
-            or "open"
+            payload.get("status") or payload.get("orderStatus") or payload.get("state") or "open"
         )
         amount, currency = _extract_amount(payload)
         return OrderEvent(
@@ -154,14 +154,10 @@ class ToastWebhookProcessor:
                 or payload.get("displayNumber")
             ),
             opened_at=_parse_datetime(
-                payload.get("openedDate")
-                or payload.get("openedAt")
-                or payload.get("startTime")
+                payload.get("openedDate") or payload.get("openedAt") or payload.get("startTime")
             ),
             closed_at=_parse_datetime(
-                payload.get("closedDate")
-                or payload.get("closedAt")
-                or payload.get("endTime")
+                payload.get("closedDate") or payload.get("closedAt") or payload.get("endTime")
             ),
             guest_count=_coerce_int(
                 payload.get("guestCount") or payload.get("guests") or payload.get("partySize")

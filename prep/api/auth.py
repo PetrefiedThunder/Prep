@@ -77,7 +77,9 @@ async def register_user(
     try:
         role = UserRole(user_data.role.lower())
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported role") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported role"
+        ) from exc
 
     pilot_resolution = resolve_pilot_membership(user_data.zip_code, user_data.county, settings)
     hashed_password = get_password_hash(user_data.password)

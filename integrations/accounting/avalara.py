@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Mapping
+from collections.abc import Mapping
+from decimal import ROUND_HALF_UP, Decimal
 
 from prep.accounting.schemas import BookingTaxRequest, TaxComputationResult
 

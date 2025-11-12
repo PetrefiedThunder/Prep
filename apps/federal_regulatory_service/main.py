@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import date, datetime, timedelta
+from datetime import date
 from pathlib import Path
-from typing import Any, Generator, Optional
+from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import FastAPI, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 
 # Configure logging
@@ -36,6 +37,7 @@ app = FastAPI(
 # Database Connection Management
 # ============================================================================
 
+
 @contextmanager
 def get_db() -> Generator[sqlite3.Connection, None, None]:
     """Context manager for database connections."""
@@ -51,6 +53,7 @@ def get_db() -> Generator[sqlite3.Connection, None, None]:
 # Pydantic Models
 # ============================================================================
 
+
 class AccreditationBody(BaseModel):
     """Accreditation body entity."""
 
@@ -58,9 +61,9 @@ class AccreditationBody(BaseModel):
 
     id: int
     name: str
-    url: Optional[str] = None
-    email: Optional[str] = None
-    contact: Optional[str] = None
+    url: str | None = None
+    email: str | None = None
+    contact: str | None = None
 
 
 class CertificationBody(BaseModel):
@@ -70,8 +73,8 @@ class CertificationBody(BaseModel):
 
     id: int
     name: str
-    url: Optional[str] = None
-    email: Optional[str] = None
+    url: str | None = None
+    email: str | None = None
 
 
 class Scope(BaseModel):
@@ -81,9 +84,9 @@ class Scope(BaseModel):
 
     id: int
     name: str
-    cfr_title_part_section: Optional[str] = None
-    program_reference: Optional[str] = None
-    notes: Optional[str] = None
+    cfr_title_part_section: str | None = None
+    program_reference: str | None = None
+    notes: str | None = None
 
 
 class ScopeLink(BaseModel):
@@ -95,10 +98,10 @@ class ScopeLink(BaseModel):
     accreditation_body_id: int
     certification_body_id: int
     scope_id: int
-    recognition_initial_date: Optional[date] = None
-    recognition_expiration_date: Optional[date] = None
-    scope_status: Optional[str] = None
-    source: Optional[str] = None
+    recognition_initial_date: date | None = None
+    recognition_expiration_date: date | None = None
+    scope_status: str | None = None
+    source: str | None = None
 
 
 class CertifierDetail(BaseModel):
@@ -106,14 +109,14 @@ class CertifierDetail(BaseModel):
 
     certifier_id: int
     certifier_name: str
-    certifier_url: Optional[str] = None
-    certifier_email: Optional[str] = None
+    certifier_url: str | None = None
+    certifier_email: str | None = None
     accreditor_name: str
     scope_name: str
-    cfr_citation: Optional[str] = None
-    recognition_expiration_date: Optional[date] = None
+    cfr_citation: str | None = None
+    recognition_expiration_date: date | None = None
     scope_status: str
-    days_until_expiry: Optional[int] = None
+    days_until_expiry: int | None = None
 
 
 class CertifierSummary(BaseModel):
@@ -121,8 +124,8 @@ class CertifierSummary(BaseModel):
 
     id: int
     name: str
-    url: Optional[str] = None
-    email: Optional[str] = None
+    url: str | None = None
+    email: str | None = None
     scopes: list[str]
     scope_count: int
 
@@ -143,13 +146,13 @@ class AuthorityChain(BaseModel):
 
     federal_authority: str = "FDA"
     accreditation_body: str
-    accreditation_body_url: Optional[str] = None
+    accreditation_body_url: str | None = None
     certification_body: str
-    certification_body_url: Optional[str] = None
+    certification_body_url: str | None = None
     scope: str
-    cfr_citation: Optional[str] = None
-    recognition_initial_date: Optional[date] = None
-    recognition_expiration_date: Optional[date] = None
+    cfr_citation: str | None = None
+    recognition_initial_date: date | None = None
+    recognition_expiration_date: date | None = None
     scope_status: str
     chain_validity: str
 
@@ -157,15 +160,18 @@ class AuthorityChain(BaseModel):
 class MatchRequest(BaseModel):
     """Request for matching certifiers based on activity and jurisdiction."""
 
-    activity: str = Field(..., description="Food safety activity type (e.g., 'seafood_haccp', 'preventive_controls_human_food')")
-    jurisdiction: Optional[str] = Field(None, description="Jurisdiction code (e.g., 'CA-Los Angeles')")
+    activity: str = Field(
+        ...,
+        description="Food safety activity type (e.g., 'seafood_haccp', 'preventive_controls_human_food')",
+    )
+    jurisdiction: str | None = Field(None, description="Jurisdiction code (e.g., 'CA-Los Angeles')")
 
 
 class MatchResponse(BaseModel):
     """Response with matched certifiers and regulatory context."""
 
     activity: str
-    jurisdiction: Optional[str]
+    jurisdiction: str | None
     matched_scopes: list[Scope]
     certifiers: list[CertifierDetail]
     cfr_references: list[str]
@@ -184,6 +190,7 @@ class HealthResponse(BaseModel):
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
 
 def row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     """Convert SQLite row to dictionary."""
@@ -222,6 +229,7 @@ def map_activity_to_scope(activity: str) -> list[str]:
 # API Endpoints
 # ============================================================================
 
+
 @app.get("/healthz", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
     """Health check endpoint."""
@@ -234,12 +242,9 @@ async def health_check() -> HealthResponse:
             cursor = conn.cursor()
 
             # SECURITY: Use whitelist validation and parameterized queries to prevent SQL injection
-            ALLOWED_TABLES = frozenset([
-                "accreditation_bodies",
-                "certification_bodies",
-                "scopes",
-                "ab_cb_scope_links"
-            ])
+            ALLOWED_TABLES = frozenset(
+                ["accreditation_bodies", "certification_bodies", "scopes", "ab_cb_scope_links"]
+            )
             tables = ["accreditation_bodies", "certification_bodies", "scopes", "ab_cb_scope_links"]
             for table in tables:
                 if table not in ALLOWED_TABLES:
@@ -302,7 +307,7 @@ async def list_accreditation_bodies() -> list[AccreditationBody]:
 
 @app.get("/federal/certification-bodies", response_model=list[CertificationBody])
 async def list_certification_bodies(
-    scope: Optional[str] = Query(None, description="Filter by scope name")
+    scope: str | None = Query(None, description="Filter by scope name"),
 ) -> list[CertificationBody]:
     """
     List all certification bodies, optionally filtered by scope.
@@ -314,14 +319,17 @@ async def list_certification_bodies(
         cursor = conn.cursor()
 
         if scope:
-            rows = cursor.execute("""
+            rows = cursor.execute(
+                """
                 SELECT DISTINCT cb.id, cb.name, cb.url, cb.email
                 FROM certification_bodies cb
                 JOIN ab_cb_scope_links l ON l.certification_body_id = cb.id
                 JOIN scopes s ON s.id = l.scope_id
                 WHERE s.name LIKE ? AND l.scope_status = 'active'
                 ORDER BY cb.name
-            """, (f"%{scope}%",)).fetchall()
+            """,
+                (f"%{scope}%",),
+            ).fetchall()
         else:
             rows = cursor.execute("""
                 SELECT id, name, url, email
@@ -334,9 +342,11 @@ async def list_certification_bodies(
 
 @app.get("/federal/certifiers", response_model=list[CertifierDetail])
 async def list_certifiers(
-    scope: Optional[str] = Query(None, description="Filter by scope name"),
+    scope: str | None = Query(None, description="Filter by scope name"),
     active_only: bool = Query(True, description="Only return active certifications"),
-    expiring_within_days: Optional[int] = Query(None, description="Filter to certifications expiring within N days")
+    expiring_within_days: int | None = Query(
+        None, description="Filter to certifications expiring within N days"
+    ),
 ) -> list[CertifierDetail]:
     """
     List certifiers with full details including accreditation lineage.
@@ -399,26 +409,32 @@ async def get_certifier(certifier_id: int) -> CertifierSummary:
         cursor = conn.cursor()
 
         # Get certifier info
-        certifier_row = cursor.execute("""
+        certifier_row = cursor.execute(
+            """
             SELECT id, name, url, email
             FROM certification_bodies
             WHERE id = ?
-        """, (certifier_id,)).fetchone()
+        """,
+            (certifier_id,),
+        ).fetchone()
 
         if not certifier_row:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Certification body {certifier_id} not found"
+                detail=f"Certification body {certifier_id} not found",
             )
 
         # Get scopes
-        scope_rows = cursor.execute("""
+        scope_rows = cursor.execute(
+            """
             SELECT DISTINCT s.name
             FROM scopes s
             JOIN ab_cb_scope_links l ON l.scope_id = s.id
             WHERE l.certification_body_id = ? AND l.scope_status = 'active'
             ORDER BY s.name
-        """, (certifier_id,)).fetchall()
+        """,
+            (certifier_id,),
+        ).fetchall()
 
         scopes = [row["name"] for row in scope_rows]
 
@@ -434,7 +450,7 @@ async def get_certifier(certifier_id: int) -> CertifierSummary:
 
 @app.get("/federal/expiring", response_model=list[ExpirationAlert])
 async def get_expiring_certifications(
-    days: int = Query(180, description="Number of days to look ahead", ge=1, le=730)
+    days: int = Query(180, description="Number of days to look ahead", ge=1, le=730),
 ) -> list[ExpirationAlert]:
     """
     Get certifications expiring within specified days.
@@ -445,7 +461,8 @@ async def get_expiring_certifications(
     with get_db() as conn:
         cursor = conn.cursor()
 
-        rows = cursor.execute("""
+        rows = cursor.execute(
+            """
             SELECT
                 ab.name AS accreditor,
                 cb.name AS certifier,
@@ -465,7 +482,9 @@ async def get_expiring_certifications(
             WHERE l.recognition_expiration_date BETWEEN DATE('now') AND DATE('now', '+' || ? || ' days')
               AND l.scope_status = 'active'
             ORDER BY l.recognition_expiration_date ASC
-        """, (str(days),)).fetchall()
+        """,
+            (str(days),),
+        ).fetchall()
 
         return [ExpirationAlert(**row_to_dict(row)) for row in rows]
 
@@ -473,7 +492,7 @@ async def get_expiring_certifications(
 @app.get("/federal/authority-chain", response_model=AuthorityChain)
 async def get_authority_chain(
     certifier_name: str = Query(..., description="Certification body name"),
-    scope_name: str = Query(..., description="Scope name")
+    scope_name: str = Query(..., description="Scope name"),
 ) -> AuthorityChain:
     """
     Get complete authority chain for certification validation.
@@ -485,7 +504,8 @@ async def get_authority_chain(
     with get_db() as conn:
         cursor = conn.cursor()
 
-        row = cursor.execute("""
+        row = cursor.execute(
+            """
             SELECT
                 ab.name AS accreditation_body,
                 ab.url AS ab_url,
@@ -507,12 +527,14 @@ async def get_authority_chain(
             WHERE cb.name LIKE ? AND s.name LIKE ?
             ORDER BY l.recognition_expiration_date DESC
             LIMIT 1
-        """, (f"%{certifier_name}%", f"%{scope_name}%")).fetchone()
+        """,
+            (f"%{certifier_name}%", f"%{scope_name}%"),
+        ).fetchone()
 
         if not row:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No authority chain found for certifier '{certifier_name}' and scope '{scope_name}'"
+                detail=f"No authority chain found for certifier '{certifier_name}' and scope '{scope_name}'",
             )
 
         return AuthorityChain(**row_to_dict(row))
@@ -532,7 +554,7 @@ async def match_certifiers(request: MatchRequest) -> MatchResponse:
     if not scope_names:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Could not map activity '{request.activity}' to any recognized scopes"
+            detail=f"Could not map activity '{request.activity}' to any recognized scopes",
         )
 
     with get_db() as conn:
@@ -540,24 +562,28 @@ async def match_certifiers(request: MatchRequest) -> MatchResponse:
 
         # Get matching scopes
         placeholders = ",".join("?" * len(scope_names))
-        scope_rows = cursor.execute(f"""
+        scope_rows = cursor.execute(
+            f"""
             SELECT id, name, cfr_title_part_section, program_reference, notes
             FROM scopes
             WHERE name IN ({placeholders})
-        """, scope_names).fetchall()
+        """,
+            scope_names,
+        ).fetchall()
 
         matched_scopes = [Scope(**row_to_dict(row)) for row in scope_rows]
 
         if not matched_scopes:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No scopes found matching activity '{request.activity}'"
+                detail=f"No scopes found matching activity '{request.activity}'",
             )
 
         scope_ids = [s.id for s in matched_scopes]
 
         # Get certifiers for these scopes
-        certifier_rows = cursor.execute(f"""
+        certifier_rows = cursor.execute(
+            f"""
             SELECT
                 cb.id AS certifier_id,
                 cb.name AS certifier_name,
@@ -577,12 +603,16 @@ async def match_certifiers(request: MatchRequest) -> MatchResponse:
               AND l.scope_status = 'active'
               AND l.recognition_expiration_date > DATE('now')
             ORDER BY cb.name, s.name
-        """, scope_ids).fetchall()
+        """,
+            scope_ids,
+        ).fetchall()
 
         certifiers = [CertifierDetail(**row_to_dict(row)) for row in certifier_rows]
 
         # Collect CFR references
-        cfr_references = list(set(s.cfr_title_part_section for s in matched_scopes if s.cfr_title_part_section))
+        cfr_references = list(
+            set(s.cfr_title_part_section for s in matched_scopes if s.cfr_title_part_section)
+        )
 
         return MatchResponse(
             activity=request.activity,
@@ -599,4 +629,5 @@ async def match_certifiers(request: MatchRequest) -> MatchResponse:
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8001)

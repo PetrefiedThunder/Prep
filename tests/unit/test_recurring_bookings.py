@@ -56,7 +56,9 @@ async def _create_kitchen(session: AsyncSession, host: User) -> Kitchen:
 
 
 @pytest.mark.anyio
-async def test_invalid_rrule_raises_http_400(session_factory: async_sessionmaker[AsyncSession]) -> None:
+async def test_invalid_rrule_raises_http_400(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
     async with session_factory() as session:
         host = await _create_user(session, email="host@example.com")
         customer = await _create_user(session, email="guest@example.com")
@@ -115,13 +117,21 @@ async def test_recurring_schedule_honors_buffer(
         response = await create_recurring_booking(payload, BackgroundTasks(), session)
 
         bookings = (
-            await session.execute(
-                select(Booking).where(Booking.kitchen_id == kitchen.id).order_by(Booking.start_time)
+            (
+                await session.execute(
+                    select(Booking)
+                    .where(Booking.kitchen_id == kitchen.id)
+                    .order_by(Booking.start_time)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         assert response.skipped_occurrences >= 1
-        assert len(response.created_bookings) == len(bookings) - 1  # exclude the seeded conflicting booking
+        assert (
+            len(response.created_bookings) == len(bookings) - 1
+        )  # exclude the seeded conflicting booking
 
         template = (
             await session.execute(
@@ -131,4 +141,3 @@ async def test_recurring_schedule_honors_buffer(
             )
         ).scalar_one()
         assert template.buffer_minutes == 60
-

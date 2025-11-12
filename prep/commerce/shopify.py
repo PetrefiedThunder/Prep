@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
-from typing import Any, Iterable
+from typing import Any
 
 import httpx
 
@@ -66,11 +67,9 @@ class ShopifyConnector:
                     location_id=str(item.get("location_id") or "default"),
                     customer_name=item.get("customer", {}).get("first_name", "Guest"),
                     lines=models.coerce_order_lines(
-                        (
-                            line
-                            for line in item.get("line_items", [])
-                            if not line.get("requires_shipping") is False
-                        )
+                        line
+                        for line in item.get("line_items", [])
+                        if line.get("requires_shipping") is not False
                     ),
                 )
             )

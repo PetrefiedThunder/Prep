@@ -1,11 +1,9 @@
 from fastapi.testclient import TestClient
 
-from api.index import create_app
 from api.city.requirements import get_policy_event_stream
+from api.index import create_app
 
-client = TestClient(
-    create_app(include_full_router=False, include_legacy_mounts=False)
-)
+client = TestClient(create_app(include_full_router=False, include_legacy_mounts=False))
 
 
 def _reset_events() -> None:

@@ -8,14 +8,12 @@ import re
 import time
 from contextlib import suppress
 from pathlib import Path
-from typing import Dict, List
 
 # Regular expression matching section headings for common regulatory formats,
 # including FDA CFR style identifiers (e.g. ``Sec. 117.8`` or ``§ 117.4``) and
 # FDA Food Code identifiers (e.g. ``3-301.11``).
 from pdfminer.high_level import extract_text
 from pdfminer.pdfparser import PDFSyntaxError
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -40,7 +38,7 @@ _SECTION_HEADING_RE = re.compile(
 )
 
 
-def extract_reg_sections(text: str) -> List[Dict[str, str]]:
+def extract_reg_sections(text: str) -> list[dict[str, str]]:
     """Extract regulatory sections from *text*.
 
     Parameters
@@ -61,7 +59,7 @@ def extract_reg_sections(text: str) -> List[Dict[str, str]]:
         return []
 
     matches = list(_SECTION_HEADING_RE.finditer(text))
-    sections: List[Dict[str, str]] = []
+    sections: list[dict[str, str]] = []
 
     for index, match in enumerate(matches):
         start = match.end()
@@ -77,11 +75,13 @@ def extract_reg_sections(text: str) -> List[Dict[str, str]]:
             if match.group("fda_heading") is not None
             else match.group("food_heading")
         ).strip()
-        sections.append({
-            "section": section_id,
-            "heading": heading,
-            "body": body,
-        })
+        sections.append(
+            {
+                "section": section_id,
+                "heading": heading,
+                "body": body,
+            }
+        )
 
     return sections
 
@@ -165,8 +165,8 @@ def pdf_to_text(
             )
         return extracted_text
 
-    from pdf2image import convert_from_path  # type: ignore
     import pytesseract  # type: ignore
+    from pdf2image import convert_from_path  # type: ignore
 
     if pilot_mode:
         logger.warning(
@@ -195,8 +195,8 @@ def pdf_to_text(
             )
         return extracted_text
 
-    ocr_segments: List[str] = []
-    page_metrics: List[Dict[str, object]] = []
+    ocr_segments: list[str] = []
+    page_metrics: list[dict[str, object]] = []
     for index, image in enumerate(images):
         preprocess_start = time.perf_counter()
         processed_image = _prepare_for_ocr(image)
@@ -230,7 +230,7 @@ def pdf_to_text(
             ocr_segments.append(ocr_result)
 
         if pilot_mode:
-            metric_entry: Dict[str, object] = {
+            metric_entry: dict[str, object] = {
                 "page_index": index,
                 "preprocess_ms": round(preprocess_duration_ms, 2),
                 "ocr_characters": char_count,

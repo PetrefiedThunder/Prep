@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable
+from collections.abc import Iterable
 
 from libs.safe_import import safe_import
 
@@ -99,6 +99,7 @@ from .apis.insurance import (
     PolicyVerificationResult,
     StateFarmAPI,
 )
+
 _safe_import(
     ".prediction.engine",
     ["CompliancePredictor", "PredictionResult"],

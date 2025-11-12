@@ -6,20 +6,6 @@ from typing import Any
 
 from fastapi import HTTPException, Request
 
-from prep.platform.schemas import ErrorDetail, ErrorResponseEnvelope, resolve_request_id
-
-
-def http_error(
-"""Shared helpers for producing structured API error responses."""
-
-from __future__ import annotations
-
-from typing import Any, Mapping
-from uuid import uuid4
-
-from fastapi import HTTPException, Request
-from fastapi.responses import JSONResponse
-
 from prep.platform.schemas import ErrorDetail, ErrorResponse
 
 
@@ -61,17 +47,6 @@ def http_exception(
     status_code: int,
     code: str,
     message: str,
-    headers: dict[str, str] | None = None,
-    meta: dict[str, Any] | None = None,
-) -> HTTPException:
-    """Create an :class:`HTTPException` with the canonical error envelope."""
-
-    envelope = ErrorResponseEnvelope(
-        request_id=resolve_request_id(request),
-        error=ErrorDetail(code=code, message=message),
-        meta=meta,
-    )
-    return HTTPException(status_code=status_code, detail=envelope.model_dump(), headers=headers)
     target: str | None = None,
     metadata: Mapping[str, Any] | None = None,
     headers: Mapping[str, str] | None = None,
@@ -88,7 +63,9 @@ def http_exception(
     if headers:
         response_headers.update(headers)
 
-    return HTTPException(status_code=status_code, detail=envelope.model_dump(), headers=response_headers)
+    return HTTPException(
+        status_code=status_code, detail=envelope.model_dump(), headers=response_headers
+    )
 
 
 def json_error_response(

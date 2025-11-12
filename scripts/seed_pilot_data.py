@@ -1,7 +1,8 @@
 import os
 import random
-import requests
 import sys
+
+import requests
 
 BASE = os.getenv("API_BASE_URL", "http://localhost:8787")
 

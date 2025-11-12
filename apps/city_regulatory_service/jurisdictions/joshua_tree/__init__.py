@@ -1,4 +1,5 @@
 """Regulatory assets for the Joshua Tree unincorporated community."""
+
 from __future__ import annotations
 
 from pathlib import Path

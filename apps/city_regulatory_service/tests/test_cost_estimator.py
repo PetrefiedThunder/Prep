@@ -114,9 +114,7 @@ def _seed_requirement_data(session: Session) -> CityJurisdiction:
         required_documents=["application"],
         submission_channel="online",
         fee_details={
-            "components": [
-                {"label": "Application", "amount": 125.50, "frequency": "one-time"}
-            ]
+            "components": [{"label": "Application", "amount": 125.50, "frequency": "one-time"}]
         },
         source_url="https://example.com/business",
     )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from prep.data_pipeline.cdc import CDCStreamManager
 from prep.logistics import schemas
@@ -20,7 +20,7 @@ class LocalRouteOptimizer:
     async def optimize(self, request: schemas.RouteOptimizationRequest) -> list[schemas.RouteStop]:
         locations = request.stops.copy()
         origin = request.start_location
-        now = request.start_time or datetime.now(tz=timezone.utc)
+        now = request.start_time or datetime.now(tz=UTC)
         current_point = origin
         sequence: list[schemas.RouteStop] = []
         for index in range(1, len(locations) + 1):
@@ -60,9 +60,7 @@ class LocalRouteOptimizer:
             return None, 0.0
         return best_stop, best_distance
 
-    def _haversine(
-        self, origin: schemas.Coordinate, destination: schemas.Coordinate
-    ) -> float:
+    def _haversine(self, origin: schemas.Coordinate, destination: schemas.Coordinate) -> float:
         """Return distance in kilometres between two coordinates."""
 
         radius_km = 6371.0
@@ -70,10 +68,7 @@ class LocalRouteOptimizer:
         lat2 = math.radians(destination.latitude)
         dlat = lat2 - lat1
         dlon = math.radians(destination.longitude - origin.longitude)
-        a = (
-            math.sin(dlat / 2) ** 2
-            + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
-        )
+        a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         return radius_km * c
 

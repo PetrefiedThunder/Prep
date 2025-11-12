@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from collections.abc import Mapping
 from contextlib import contextmanager
 from dataclasses import asdict, is_dataclass
-from typing import Any, Mapping
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -127,9 +128,7 @@ def write_policy_decision(
         )
         active_session.add(record)
         active_session.flush()
-        LOGGER.debug(
-            "Recorded policy decision", extra={"policy_decision_id": str(record.id)}
-        )
+        LOGGER.debug("Recorded policy decision", extra={"policy_decision_id": str(record.id)})
         return record
 
 

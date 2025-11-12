@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional
+from typing import TYPE_CHECKING, Any
 
 from .audit import AuditService
 from .evidence_vault import EvidenceVault
@@ -33,16 +34,16 @@ class ComplianceResult:
     domain: ComplianceDomain
     is_compliant: bool
     score: float
-    issues: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    issues: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class EvidencePackage:
     """Evidence generated for audits."""
 
-    evidence_items: Dict[str, Any]
-    generated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    evidence_items: dict[str, Any]
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -52,8 +53,8 @@ class RegulatoryUpdate:
     domain: ComplianceDomain
     description: str
     effective_date: datetime
-    jurisdiction: Optional[str] = None
-    references: List[str] = field(default_factory=list)
+    jurisdiction: str | None = None
+    references: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -64,7 +65,7 @@ class UnifiedComplianceReport:
     assessment_date: datetime
     domain_results: Mapping[ComplianceDomain, Any]
     overall_risk_score: float
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class ComplianceEngine(ABC):
@@ -72,7 +73,7 @@ class ComplianceEngine(ABC):
 
     @abstractmethod
     async def validate_compliance(
-        self, entity_data: Dict[str, Any], jurisdiction: Optional[str]
+        self, entity_data: dict[str, Any], jurisdiction: str | None
     ) -> Any:
         """Validate entity data for a given jurisdiction."""
 
@@ -81,7 +82,7 @@ class ComplianceEngine(ABC):
         """Produce audit-ready evidence packages."""
 
     @abstractmethod
-    async def monitor_changes(self) -> List[RegulatoryUpdate]:
+    async def monitor_changes(self) -> list[RegulatoryUpdate]:
         """Return recent regulatory updates monitored by this engine."""
 
 
@@ -96,8 +97,8 @@ class OrchestrationEngine:
     ) -> None:
         from .data_pipeline import UnifiedDataPipeline
 
-        self.engines: Dict[ComplianceDomain, ComplianceEngine] = {}
-        self.data_pipeline: "UnifiedDataPipeline" = UnifiedDataPipeline()
+        self.engines: dict[ComplianceDomain, ComplianceEngine] = {}
+        self.data_pipeline: UnifiedDataPipeline = UnifiedDataPipeline()
         self.audit_trail = AuditService()
         self.evidence_vault = evidence_vault or EvidenceVault()
         self.schema_validator = schema_validator or SchemaValidator()
@@ -110,13 +111,13 @@ class OrchestrationEngine:
     async def orchestrate_compliance_check(
         self,
         domains: Iterable[ComplianceDomain],
-        entity_data: Dict[str, Any],
+        entity_data: dict[str, Any],
         *,
         evidence_requirements: Mapping[ComplianceDomain, Iterable[str]] | None = None,
     ) -> UnifiedComplianceReport:
         """Execute a compliance assessment across multiple domains."""
 
-        results: Dict[ComplianceDomain, Any] = {}
+        results: dict[ComplianceDomain, Any] = {}
         jurisdiction = entity_data.get("jurisdiction")
         entity_id = str(entity_data.get("id", "unknown"))
         evidence_requirements = evidence_requirements or {}
@@ -126,9 +127,7 @@ class OrchestrationEngine:
             if engine is None:
                 continue
 
-            normalized_jurisdiction = (
-                str(jurisdiction) if jurisdiction is not None else None
-            )
+            normalized_jurisdiction = str(jurisdiction) if jurisdiction is not None else None
             result = await engine.validate_compliance(entity_data, normalized_jurisdiction)
             try:
                 normalized = self.schema_validator.ensure_valid(domain, result)
@@ -162,7 +161,7 @@ class OrchestrationEngine:
 
         return UnifiedComplianceReport(
             entity_id=str(entity_data.get("id", "unknown")),
-            assessment_date=datetime.now(timezone.utc),
+            assessment_date=datetime.now(UTC),
             domain_results=results,
             overall_risk_score=self.calculate_aggregate_risk(results.values()),
         )
@@ -170,17 +169,17 @@ class OrchestrationEngine:
     def calculate_aggregate_risk(self, results: Iterable[Any]) -> float:
         """Calculate an aggregate risk score from heterogeneous engine outputs."""
 
-        risk_scores: List[float] = []
+        risk_scores: list[float] = []
         for result in results:
             if result is None:
                 continue
 
             if hasattr(result, "overall_compliance"):
-                compliance_value = getattr(result, "overall_compliance")
+                compliance_value = result.overall_compliance
                 if isinstance(compliance_value, (int, float)):
                     risk_scores.append(max(0.0, min(1.0, 1 - float(compliance_value))))
             if hasattr(result, "risk_level"):
-                level = str(getattr(result, "risk_level")).lower()
+                level = str(result.risk_level).lower()
                 mapping = {
                     "low": 0.25,
                     "moderate": 0.5,
@@ -190,8 +189,8 @@ class OrchestrationEngine:
                     "critical": 1.0,
                 }
                 risk_scores.append(mapping.get(level, 0.5))
-            if hasattr(result, "score") and isinstance(getattr(result, "score"), (int, float)):
-                risk_scores.append(max(0.0, min(1.0, 1 - float(getattr(result, "score")))))
+            if hasattr(result, "score") and isinstance(result.score, (int, float)):
+                risk_scores.append(max(0.0, min(1.0, 1 - float(result.score))))
 
         if not risk_scores:
             return 0.0

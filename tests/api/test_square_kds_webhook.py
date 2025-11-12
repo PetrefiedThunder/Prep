@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -52,7 +52,7 @@ def _make_app(monkeypatch: pytest.MonkeyPatch) -> tuple[Any, SchedulingService, 
 
 
 def test_prep_time_webhook_updates_schedule(monkeypatch: pytest.MonkeyPatch) -> None:
-    ready_at = datetime(2024, 5, 10, 12, 0, tzinfo=timezone.utc)
+    ready_at = datetime(2024, 5, 10, 12, 0, tzinfo=UTC)
     updated_at = ready_at - timedelta(minutes=15)
     payload = _build_payload(ready_at, updated_at)
     body = json.dumps(payload).encode()
@@ -83,7 +83,7 @@ def test_prep_time_webhook_updates_schedule(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_invalid_signature_returns_401(monkeypatch: pytest.MonkeyPatch) -> None:
-    ready_at = datetime(2024, 6, 1, 18, 30, tzinfo=timezone.utc)
+    ready_at = datetime(2024, 6, 1, 18, 30, tzinfo=UTC)
     updated_at = ready_at - timedelta(minutes=20)
     payload = _build_payload(ready_at, updated_at)
     body = json.dumps(payload).encode()

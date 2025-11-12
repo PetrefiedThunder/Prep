@@ -6,7 +6,7 @@ import logging
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
@@ -61,6 +61,7 @@ except Exception:  # pragma: no cover - fallback for minimal test environments
         source_url = Column(String)
         last_updated = Column(DateTime, default=datetime.utcnow)
         is_active = Column(Boolean, default=True)
+
 
 from .models.requirements import (
     FeeItem,
@@ -120,7 +121,9 @@ def _parse_fee_amount_to_cents(value: object) -> int | None:
     return cents if cents >= 0 else None
 
 
-def _infer_fee_metadata(schedule: str | None, renewal: str | None) -> tuple[str, str | None, bool, str | None]:
+def _infer_fee_metadata(
+    schedule: str | None, renewal: str | None
+) -> tuple[str, str | None, bool, str | None]:
     text_parts = [schedule or "", renewal or ""]
     joined = " ".join(part.lower() for part in text_parts)
 
@@ -163,9 +166,7 @@ def _build_requirement_record(
     if not applies_to:
         applies_to = ("all",)
 
-    required_documents_raw = [
-        str(item) for item in (requirement.required_documents or []) if item
-    ]
+    required_documents_raw = [str(item) for item in (requirement.required_documents or []) if item]
     required_documents = tuple(dict.fromkeys(required_documents_raw))
 
     fee_amount_cents = _parse_fee_amount_to_cents(requirement.fee_amount)
@@ -340,7 +341,9 @@ def estimate_costs(bundle: RequirementsBundle) -> CostEstimate:
 
     for fee in bundle.fee_schedule.fees:
         target_id = fee.requirement_id or "__unassigned__"
-        breakdown = per_requirement.setdefault(target_id, RequirementCostBreakdown(requirement_id=target_id))
+        breakdown = per_requirement.setdefault(
+            target_id, RequirementCostBreakdown(requirement_id=target_id)
+        )
         breakdown.add_fee_item(fee)
 
     total_one_time = bundle.fee_schedule.total_one_time_cents
@@ -365,4 +368,3 @@ __all__ = [
     "estimate_costs",
     "load_bundle",
 ]
-

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .health_departments import BaseAPIClient, RegulatoryAPIError
 
@@ -19,7 +19,7 @@ class EnvelopeSummary:
 
     envelope_id: str
     status: str
-    raw: Dict[str, Any]
+    raw: dict[str, Any]
 
 
 class DocuSignClient(BaseAPIClient):
@@ -32,7 +32,7 @@ class DocuSignClient(BaseAPIClient):
         account_id: str,
         *,
         base_url: str | None = None,
-        access_token: Optional[str] = None,
+        access_token: str | None = None,
         timeout: int = 30,
     ) -> None:
         super().__init__(timeout=timeout)
@@ -42,13 +42,13 @@ class DocuSignClient(BaseAPIClient):
         self.base_url = (base_url or self.DEFAULT_BASE_URL).rstrip("/")
         self.access_token = access_token
 
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         headers = {"Accept": "application/json"}
         if self.access_token:
             headers["Authorization"] = f"Bearer {self.access_token}"
         return headers
 
-    async def get_envelope(self, envelope_id: str) -> Dict[str, Any]:
+    async def get_envelope(self, envelope_id: str) -> dict[str, Any]:
         """Fetch the latest details for ``envelope_id``."""
 
         if not envelope_id:
@@ -83,9 +83,7 @@ class DocuSignClient(BaseAPIClient):
             payload = await self.get_envelope(envelope_id)
             status_raw = payload.get("status")
             if status_raw is None:
-                raise DocuSignAPIError(
-                    f"Envelope {envelope_id} response missing status"
-                )
+                raise DocuSignAPIError(f"Envelope {envelope_id} response missing status")
             status = str(status_raw).strip().lower()
 
             if status == "completed":
@@ -95,9 +93,7 @@ class DocuSignClient(BaseAPIClient):
                     raw=payload,
                 )
             if status in terminal_failures:
-                raise DocuSignAPIError(
-                    f"Envelope {envelope_id} entered terminal state: {status}"
-                )
+                raise DocuSignAPIError(f"Envelope {envelope_id} entered terminal state: {status}")
 
             await asyncio.sleep(interval)
 

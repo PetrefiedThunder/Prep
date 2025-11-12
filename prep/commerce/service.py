@@ -44,9 +44,7 @@ class OmnichannelFulfillmentService:
         )
         return orders
 
-    async def schedule_and_fulfill(
-        self, orders: list[models.Order]
-    ) -> list[models.ProductionSlot]:
+    async def schedule_and_fulfill(self, orders: list[models.Order]) -> list[models.ProductionSlot]:
         slots = self._scheduler.schedule(orders)
         await self._franchise_sync.sync(orders)
         await self._push_fulfillment_updates(orders)

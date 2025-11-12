@@ -5,7 +5,7 @@ import importlib.util
 import os
 import sys
 import types
-from typing import Generator, Iterator
+from collections.abc import Generator, Iterator
 
 import pytest
 
@@ -13,6 +13,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("SKIP_PREP_DB_INIT", "1")
 
 # Optional dependencies -----------------------------------------------------
+
 
 def _ensure_sqlalchemy_stub() -> None:
     if importlib.util.find_spec("sqlalchemy") is not None:
@@ -101,7 +102,10 @@ init_db = None  # type: ignore[assignment]
 
 if _sqlalchemy_spec is not None:  # pragma: no branch - skip when SQLAlchemy is stubbed
     try:  # pragma: no cover - dependency availability varies per environment
-        from prep.models.db import SessionLocal as _SessionLocal, init_db as _init_db  # type: ignore
+        from prep.models.db import (  # type: ignore
+            SessionLocal as _SessionLocal,
+            init_db as _init_db,
+        )
     except ModuleNotFoundError as exc:  # pragma: no cover - allow tests without SQLAlchemy
         if exc.name != "sqlalchemy":
             raise
@@ -122,8 +126,8 @@ if os.getenv("SKIP_DB_SETUP") == "1":
     init_db = None  # type: ignore[assignment]
     db_module = sys.modules.get("prep.models.db")
     if db_module is not None:
-        setattr(db_module, "init_db", lambda: None)
-        setattr(db_module, "SessionLocal", None)
+        db_module.init_db = lambda: None
+        db_module.SessionLocal = None
 if "aiohttp" not in sys.modules:
     try:
         import aiohttp as _aiohttp  # noqa: F401  # pragma: no cover - prefer real module
@@ -136,7 +140,7 @@ if "aiohttp" not in sys.modules:
         class ClientSession:  # noqa: D401 - simple stub
             """Placeholder aiohttp.ClientSession."""
 
-            async def __aenter__(self) -> "ClientSession":
+            async def __aenter__(self) -> ClientSession:
                 return self
 
             async def __aexit__(self, *exc_info: object) -> None:

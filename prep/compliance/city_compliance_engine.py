@@ -6,20 +6,19 @@ including health permits, business licenses, insurance requirements, and
 operational certifications.
 """
 
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional
 import logging
-import sys
 import os
+import sys
+from datetime import UTC, datetime
+from typing import Any
 
 # Add parent directory to path to import from prep package
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from prep.compliance.base_engine import (
     ComplianceEngine,
     ComplianceRule,
     ComplianceViolation,
-    ComplianceReport,
 )
 
 
@@ -83,8 +82,8 @@ class CityComplianceEngine(ComplianceEngine):
                     f"{self.city_name} Health Code",
                     "Food Service Establishment Regulations",
                 ],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
         )
         self.rule_versions["CITY-HEALTH-001"] = "1.0.0"
@@ -101,8 +100,8 @@ class CityComplianceEngine(ComplianceEngine):
                     f"{self.city_name} Business Code",
                     "Commercial Operations License",
                 ],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
         )
         self.rule_versions["CITY-BIZ-001"] = "1.0.0"
@@ -119,8 +118,8 @@ class CityComplianceEngine(ComplianceEngine):
                     f"{self.city_name} Insurance Requirements",
                     "Commercial General Liability Coverage",
                 ],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
         )
         self.rule_versions["CITY-INS-001"] = "1.0.0"
@@ -137,8 +136,8 @@ class CityComplianceEngine(ComplianceEngine):
                     f"{self.state} Workers Compensation Law",
                     f"{self.city_name} Employment Requirements",
                 ],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
         )
         self.rule_versions["CITY-INS-002"] = "1.0.0"
@@ -155,8 +154,8 @@ class CityComplianceEngine(ComplianceEngine):
                     f"{self.city_name} Food Safety Code",
                     "Food Handler Training Requirements",
                 ],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
         )
         self.rule_versions["CITY-CERT-001"] = "1.0.0"
@@ -173,8 +172,8 @@ class CityComplianceEngine(ComplianceEngine):
                     f"{self.city_name} Fire Code",
                     "Commercial Kitchen Fire Safety",
                 ],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
         )
         self.rule_versions["CITY-FIRE-001"] = "1.0.0"
@@ -191,8 +190,8 @@ class CityComplianceEngine(ComplianceEngine):
                     f"{self.city_name} Health Code",
                     "Food Safety Manager Requirements",
                 ],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
         )
         self.rule_versions["CITY-CERT-002"] = "1.0.0"
@@ -209,8 +208,8 @@ class CityComplianceEngine(ComplianceEngine):
                     f"{self.city_name} Environmental Code",
                     "Grease Trap Regulations",
                 ],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
         )
         self.rule_versions["CITY-ENV-001"] = "1.0.0"
@@ -227,8 +226,8 @@ class CityComplianceEngine(ComplianceEngine):
                     f"{self.city_name} Waste Management Code",
                     "Commercial Waste Disposal",
                 ],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
         )
         self.rule_versions["CITY-ENV-002"] = "1.0.0"
@@ -245,15 +244,17 @@ class CityComplianceEngine(ComplianceEngine):
                     f"{self.city_name} Administrative Code",
                     "Permit Renewal Requirements",
                 ],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
         )
         self.rule_versions["CITY-ADMIN-001"] = "1.0.0"
 
-        self.logger.info(f"Loaded {len(self.rules)} city compliance rules for {self.city_name}, {self.state}")
+        self.logger.info(
+            f"Loaded {len(self.rules)} city compliance rules for {self.city_name}, {self.state}"
+        )
 
-    def validate(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
+    def validate(self, data: dict[str, Any]) -> list[ComplianceViolation]:
         """
         Validate facility data against city compliance rules.
 
@@ -318,7 +319,7 @@ class CityComplianceEngine(ComplianceEngine):
             List of compliance violations
         """
         violations = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Check CITY-HEALTH-001: Valid Health Permit
         violations.extend(self._check_health_permit(data, now))
@@ -353,7 +354,9 @@ class CityComplianceEngine(ComplianceEngine):
         self.logger.info(f"Validation complete: {len(violations)} violations found")
         return violations
 
-    def _check_health_permit(self, data: Dict[str, Any], now: datetime) -> List[ComplianceViolation]:
+    def _check_health_permit(
+        self, data: dict[str, Any], now: datetime
+    ) -> list[ComplianceViolation]:
         """Check health permit compliance"""
         violations = []
         health_permit = data.get("health_permit")
@@ -374,7 +377,7 @@ class CityComplianceEngine(ComplianceEngine):
             # Check expiration
             exp_date_str = health_permit.get("expiration_date")
             if exp_date_str:
-                exp_date = datetime.fromisoformat(exp_date_str.replace('Z', '+00:00'))
+                exp_date = datetime.fromisoformat(exp_date_str.replace("Z", "+00:00"))
                 if exp_date < now:
                     violations.append(
                         ComplianceViolation(
@@ -411,7 +414,9 @@ class CityComplianceEngine(ComplianceEngine):
 
         return violations
 
-    def _check_business_license(self, data: Dict[str, Any], now: datetime) -> List[ComplianceViolation]:
+    def _check_business_license(
+        self, data: dict[str, Any], now: datetime
+    ) -> list[ComplianceViolation]:
         """Check business license compliance"""
         violations = []
         business_license = data.get("business_license")
@@ -432,7 +437,7 @@ class CityComplianceEngine(ComplianceEngine):
             # Check expiration
             exp_date_str = business_license.get("expiration_date")
             if exp_date_str:
-                exp_date = datetime.fromisoformat(exp_date_str.replace('Z', '+00:00'))
+                exp_date = datetime.fromisoformat(exp_date_str.replace("Z", "+00:00"))
                 if exp_date < now:
                     violations.append(
                         ComplianceViolation(
@@ -452,7 +457,9 @@ class CityComplianceEngine(ComplianceEngine):
 
         return violations
 
-    def _check_general_liability(self, data: Dict[str, Any], now: datetime) -> List[ComplianceViolation]:
+    def _check_general_liability(
+        self, data: dict[str, Any], now: datetime
+    ) -> list[ComplianceViolation]:
         """Check general liability insurance"""
         violations = []
         insurance_list = data.get("insurance", [])
@@ -496,7 +503,7 @@ class CityComplianceEngine(ComplianceEngine):
             # Check expiration
             exp_date_str = gl_policy.get("expiration_date")
             if exp_date_str:
-                exp_date = datetime.fromisoformat(exp_date_str.replace('Z', '+00:00'))
+                exp_date = datetime.fromisoformat(exp_date_str.replace("Z", "+00:00"))
                 if exp_date < now:
                     violations.append(
                         ComplianceViolation(
@@ -515,7 +522,7 @@ class CityComplianceEngine(ComplianceEngine):
 
         return violations
 
-    def _check_workers_comp(self, data: Dict[str, Any], now: datetime) -> List[ComplianceViolation]:
+    def _check_workers_comp(self, data: dict[str, Any], now: datetime) -> list[ComplianceViolation]:
         """Check workers compensation insurance"""
         violations = []
         employee_count = data.get("employee_count", 0)
@@ -548,7 +555,9 @@ class CityComplianceEngine(ComplianceEngine):
 
         return violations
 
-    def _check_food_handler_certs(self, data: Dict[str, Any], now: datetime) -> List[ComplianceViolation]:
+    def _check_food_handler_certs(
+        self, data: dict[str, Any], now: datetime
+    ) -> list[ComplianceViolation]:
         """Check food handler certifications"""
         violations = []
         certifications = data.get("certifications", [])
@@ -574,7 +583,7 @@ class CityComplianceEngine(ComplianceEngine):
             for cert in food_handler_certs:
                 exp_date_str = cert.get("expiration_date")
                 if exp_date_str:
-                    exp_date = datetime.fromisoformat(exp_date_str.replace('Z', '+00:00'))
+                    exp_date = datetime.fromisoformat(exp_date_str.replace("Z", "+00:00"))
                     if exp_date < now:
                         expired_certs.append(cert.get("holder_name", "Unknown"))
 
@@ -596,7 +605,7 @@ class CityComplianceEngine(ComplianceEngine):
 
         return violations
 
-    def _check_fire_safety(self, data: Dict[str, Any], now: datetime) -> List[ComplianceViolation]:
+    def _check_fire_safety(self, data: dict[str, Any], now: datetime) -> list[ComplianceViolation]:
         """Check fire safety inspection"""
         violations = []
         fire_safety = data.get("fire_safety")
@@ -631,7 +640,7 @@ class CityComplianceEngine(ComplianceEngine):
             # Check if inspection is overdue
             next_due_str = fire_safety.get("next_inspection_due")
             if next_due_str:
-                next_due = datetime.fromisoformat(next_due_str.replace('Z', '+00:00'))
+                next_due = datetime.fromisoformat(next_due_str.replace("Z", "+00:00"))
                 if next_due < now:
                     violations.append(
                         ComplianceViolation(
@@ -651,7 +660,9 @@ class CityComplianceEngine(ComplianceEngine):
 
         return violations
 
-    def _check_food_safety_manager(self, data: Dict[str, Any], now: datetime) -> List[ComplianceViolation]:
+    def _check_food_safety_manager(
+        self, data: dict[str, Any], now: datetime
+    ) -> list[ComplianceViolation]:
         """Check for certified food safety manager"""
         violations = []
         certifications = data.get("certifications", [])
@@ -676,7 +687,7 @@ class CityComplianceEngine(ComplianceEngine):
             cert = manager_certs[0]
             exp_date_str = cert.get("expiration_date")
             if exp_date_str:
-                exp_date = datetime.fromisoformat(exp_date_str.replace('Z', '+00:00'))
+                exp_date = datetime.fromisoformat(exp_date_str.replace("Z", "+00:00"))
                 if exp_date < now:
                     violations.append(
                         ComplianceViolation(
@@ -695,7 +706,7 @@ class CityComplianceEngine(ComplianceEngine):
 
         return violations
 
-    def _check_grease_trap(self, data: Dict[str, Any], now: datetime) -> List[ComplianceViolation]:
+    def _check_grease_trap(self, data: dict[str, Any], now: datetime) -> list[ComplianceViolation]:
         """Check grease trap compliance"""
         violations = []
         grease_trap = data.get("grease_trap")
@@ -729,7 +740,7 @@ class CityComplianceEngine(ComplianceEngine):
             # Check if cleaning is overdue (typically quarterly)
             last_cleaning_str = grease_trap.get("last_cleaning_date")
             if last_cleaning_str:
-                last_cleaning = datetime.fromisoformat(last_cleaning_str.replace('Z', '+00:00'))
+                last_cleaning = datetime.fromisoformat(last_cleaning_str.replace("Z", "+00:00"))
                 days_since_cleaning = (now - last_cleaning).days
                 if days_since_cleaning > 90:  # 90 days = quarterly
                     violations.append(
@@ -749,7 +760,9 @@ class CityComplianceEngine(ComplianceEngine):
 
         return violations
 
-    def _check_waste_disposal(self, data: Dict[str, Any], now: datetime) -> List[ComplianceViolation]:
+    def _check_waste_disposal(
+        self, data: dict[str, Any], now: datetime
+    ) -> list[ComplianceViolation]:
         """Check waste disposal compliance"""
         violations = []
         waste_mgmt = data.get("waste_management")
@@ -782,7 +795,9 @@ class CityComplianceEngine(ComplianceEngine):
 
         return violations
 
-    def _check_permit_renewals(self, data: Dict[str, Any], now: datetime) -> List[ComplianceViolation]:
+    def _check_permit_renewals(
+        self, data: dict[str, Any], now: datetime
+    ) -> list[ComplianceViolation]:
         """Check for permits nearing expiration"""
         violations = []
         expiring_soon = []
@@ -792,7 +807,7 @@ class CityComplianceEngine(ComplianceEngine):
         if health_permit:
             exp_date_str = health_permit.get("expiration_date")
             if exp_date_str:
-                exp_date = datetime.fromisoformat(exp_date_str.replace('Z', '+00:00'))
+                exp_date = datetime.fromisoformat(exp_date_str.replace("Z", "+00:00"))
                 days_until_exp = (exp_date - now).days
                 if 0 < days_until_exp <= 30:
                     expiring_soon.append(f"Health Permit ({days_until_exp} days)")
@@ -802,7 +817,7 @@ class CityComplianceEngine(ComplianceEngine):
         if business_license:
             exp_date_str = business_license.get("expiration_date")
             if exp_date_str:
-                exp_date = datetime.fromisoformat(exp_date_str.replace('Z', '+00:00'))
+                exp_date = datetime.fromisoformat(exp_date_str.replace("Z", "+00:00"))
                 days_until_exp = (exp_date - now).days
                 if 0 < days_until_exp <= 30:
                     expiring_soon.append(f"Business License ({days_until_exp} days)")
@@ -811,7 +826,7 @@ class CityComplianceEngine(ComplianceEngine):
         for policy in data.get("insurance", []):
             exp_date_str = policy.get("expiration_date")
             if exp_date_str:
-                exp_date = datetime.fromisoformat(exp_date_str.replace('Z', '+00:00'))
+                exp_date = datetime.fromisoformat(exp_date_str.replace("Z", "+00:00"))
                 days_until_exp = (exp_date - now).days
                 if 0 < days_until_exp <= 30:
                     policy_type = policy.get("type", "Unknown").replace("_", " ").title()

@@ -51,7 +51,9 @@ async def ensure_user(payload: UserSeed, session: AsyncSession = Depends(get_db)
     hashed_password = hash_password(payload.password)
 
     if user is None:
-        user = User(email=payload.email, full_name=payload.name, role=role, hashed_password=hashed_password)
+        user = User(
+            email=payload.email, full_name=payload.name, role=role, hashed_password=hashed_password
+        )
         session.add(user)
     else:
         user.full_name = payload.name
@@ -89,7 +91,9 @@ async def _fetch_mv_host_metrics_columns(session: AsyncSession) -> set[str]:
 
 
 @router.post("/host-metrics")
-async def seed_host_metrics(payload: HostMetricsSeed, session: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+async def seed_host_metrics(
+    payload: HostMetricsSeed, session: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
     """Upsert rows into the ``mv_host_metrics`` materialized view for deterministic tests."""
 
     columns = await _fetch_mv_host_metrics_columns(session)
@@ -113,7 +117,9 @@ async def seed_host_metrics(payload: HostMetricsSeed, session: AsyncSession = De
                 calculated_at = NOW()
             """
         )
-    elif {"total_revenue_cents", "completed_shifts", "incident_count", "calculated_at"}.issubset(columns):
+    elif {"total_revenue_cents", "completed_shifts", "incident_count", "calculated_at"}.issubset(
+        columns
+    ):
         params = {
             "host_id": str(payload.host_id),
             "total_revenue_cents": int(round(payload.revenue_last_30 * 100)),

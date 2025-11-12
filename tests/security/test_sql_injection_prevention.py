@@ -6,8 +6,6 @@ SECURITY: Verify that SQL queries are properly parameterized and validated.
 from __future__ import annotations
 
 import pytest
-from httpx import AsyncClient
-from fastapi import status
 
 
 @pytest.mark.asyncio
@@ -30,10 +28,11 @@ def test_table_whitelist_is_immutable() -> None:
     SECURITY: Ensures whitelist cannot be tampered with.
     """
     # Import to verify the code compiles correctly
-    import apps.federal_regulatory_service.main as fed_main
-
     # Check that ALLOWED_TABLES is defined in the health_check function's scope
     import inspect
+
+    import apps.federal_regulatory_service.main as fed_main
+
     source = inspect.getsource(fed_main.health_check)
 
     # Verify the whitelist is defined as a frozenset (immutable)
@@ -41,21 +40,24 @@ def test_table_whitelist_is_immutable() -> None:
     assert "frozenset" in source, "Table whitelist should be a frozenset (immutable)"
 
 
-@pytest.mark.parametrize("malicious_input", [
-    "users; DROP TABLE users; --",
-    "' OR '1'='1",
-    "1' UNION SELECT * FROM secrets--",
-    "../../../etc/passwd",
-    "'; DELETE FROM bookings WHERE '1'='1",
-])
+@pytest.mark.parametrize(
+    "malicious_input",
+    [
+        "users; DROP TABLE users; --",
+        "' OR '1'='1",
+        "1' UNION SELECT * FROM secrets--",
+        "../../../etc/passwd",
+        "'; DELETE FROM bookings WHERE '1'='1",
+    ],
+)
 def test_booking_endpoints_sanitize_input(malicious_input: str) -> None:
     """Verify booking endpoints reject malicious input patterns.
 
     SECURITY: Ensures user input cannot be used for SQL injection.
     """
-    from uuid import UUID
-    from prep.api.bookings import BookingCreate
     from pydantic import ValidationError
+
+    from prep.api.bookings import BookingCreate
 
     # Test that UUIDs are properly validated
     with pytest.raises((ValidationError, ValueError)):
@@ -63,7 +65,7 @@ def test_booking_endpoints_sanitize_input(malicious_input: str) -> None:
             user_id=malicious_input,  # Should fail UUID validation
             kitchen_id="550e8400-e29b-41d4-a716-446655440000",
             start_time="2025-01-01T10:00:00Z",
-            end_time="2025-01-01T12:00:00Z"
+            end_time="2025-01-01T12:00:00Z",
         )
 
 
@@ -73,6 +75,7 @@ def test_uuid_validation_prevents_injection() -> None:
     SECURITY: UUIDs are used as identifiers to prevent injection attacks.
     """
     from uuid import UUID
+
     import pytest
 
     # Valid UUID should work
@@ -100,6 +103,7 @@ def test_sqlalchemy_orm_prevents_raw_sql_injection() -> None:
     SECURITY: ORM queries are parameterized by default.
     """
     from sqlalchemy import select
+
     from prep.models import Booking
 
     # This query is safe because SQLAlchemy parameterizes it
@@ -110,8 +114,9 @@ def test_sqlalchemy_orm_prevents_raw_sql_injection() -> None:
     query_str = str(compiled)
 
     # Should use parameter placeholders, not direct string interpolation
-    assert "?" in query_str or ":" in query_str or "%s" in query_str or "%(id)" in query_str, \
+    assert "?" in query_str or ":" in query_str or "%s" in query_str or "%(id)" in query_str, (
         "SQLAlchemy queries should use parameter binding"
+    )
 
 
 def test_regulatory_scraper_validates_state_codes() -> None:
@@ -119,8 +124,9 @@ def test_regulatory_scraper_validates_state_codes() -> None:
 
     SECURITY: Ensures only valid US state codes are processed.
     """
-    from prep.api.admin_regulatory import ScrapeRequest
     from pydantic import ValidationError
+
+    from prep.api.admin_regulatory import ScrapeRequest
 
     # Valid request
     valid_request = ScrapeRequest(states=["CA", "NY", "TX"])

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable
+from collections.abc import Iterable
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,9 +60,7 @@ OPTIONAL_ROUTERS: Iterable[str] = (
 def _build_router(*, include_full: bool = True) -> APIRouter:
     """Aggregate the project's routers into a single API surface."""
 
-    router = APIRouter(
-        dependencies=[Depends(enforce_allowlists), Depends(require_active_session)]
-    )
+    router = APIRouter(dependencies=[Depends(enforce_allowlists), Depends(require_active_session)])
 
     if include_full:
         router.include_router(ledger_router)
@@ -136,7 +134,10 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
     # SECURITY FIX: Use specific origins instead of wildcard to prevent CSRF attacks
     # Configure allowed origins from environment variable
     import os
-    allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000").split(",")
+
+    allowed_origins = os.getenv(
+        "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000"
+    ).split(",")
 
     app.add_middleware(
         CORSMiddleware,

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import pytest
 
+from apps.city_regulatory_service.jurisdictions.common.fees import FeeItem, FeeSchedule
 from etl.validators import (
     FeeValidationError,
     RequirementValidationError,
     validate_fee_schedule,
     validate_requirements,
 )
-from apps.city_regulatory_service.jurisdictions.common.fees import FeeItem, FeeSchedule
 
 
 def _build_schedule() -> FeeSchedule:
@@ -48,7 +48,11 @@ def test_validate_fee_schedule_detects_totals_mismatch() -> None:
         validate_fee_schedule(
             {
                 "fees": [item.dict() for item in schedule.fees],
-                "totals": {"one_time_cents": 1, "recurring_annualized_cents": 0, "incremental_fee_count": 0},
+                "totals": {
+                    "one_time_cents": 1,
+                    "recurring_annualized_cents": 0,
+                    "incremental_fee_count": 0,
+                },
             }
         )
 
@@ -72,8 +76,6 @@ def test_validate_requirements_success() -> None:
 
 def test_validate_requirements_missing_severity() -> None:
     with pytest.raises(RequirementValidationError) as excinfo:
-        validate_requirements([
-            {"id": "req", "applies_to": ["food_business"], "severity": None}
-        ])
+        validate_requirements([{"id": "req", "applies_to": ["food_business"], "severity": None}])
 
     assert "missing severity" in str(excinfo.value)

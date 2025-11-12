@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
-from typing import Iterable, Tuple
 
 
 @dataclass(slots=True, frozen=True)
@@ -25,12 +25,12 @@ class FeeSchedule:
     program: str
     agency: str
     renewal_frequency: str
-    components: Tuple[FeeComponent, ...]
+    components: tuple[FeeComponent, ...]
     currency: str = "USD"
-    payment_methods: Tuple[str, ...] = ()
+    payment_methods: tuple[str, ...] = ()
     effective_date: date | None = None
     notes: str | None = None
-    references: Tuple[str, ...] = ()
+    references: tuple[str, ...] = ()
 
     def component_count(self) -> int:
         """Return the number of components included in the schedule."""
@@ -43,7 +43,7 @@ def _validate_currency(code: str) -> None:
         raise ValueError(f"Currency codes must be 3 upper-case letters, got '{code}'.")
 
 
-def _validate_components(components: Iterable[FeeComponent]) -> Tuple[FeeComponent, ...]:
+def _validate_components(components: Iterable[FeeComponent]) -> tuple[FeeComponent, ...]:
     validated: list[FeeComponent] = []
     for component in components:
         if not isinstance(component, FeeComponent):

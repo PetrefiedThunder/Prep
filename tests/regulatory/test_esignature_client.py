@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 
@@ -22,16 +22,16 @@ def _build_client() -> DocuSignClient:
 
 async def test_poll_envelope_until_completed(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _build_client()
-    responses: List[Dict[str, Any]] = [
+    responses: list[dict[str, Any]] = [
         {"status": "sent"},
         {"status": "delivered"},
         {"status": "completed", "envelopeId": "env-1"},
     ]
 
-    async def fake_get_envelope(envelope_id: str) -> Dict[str, Any]:
+    async def fake_get_envelope(envelope_id: str) -> dict[str, Any]:
         return responses.pop(0)
 
-    sleep_calls: List[int] = []
+    sleep_calls: list[int] = []
 
     async def fake_sleep(seconds: int) -> None:
         sleep_calls.append(seconds)
@@ -48,12 +48,12 @@ async def test_poll_envelope_until_completed(monkeypatch: pytest.MonkeyPatch) ->
 
 async def test_poll_envelope_raises_for_terminal_state(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _build_client()
-    responses: List[Dict[str, Any]] = [
+    responses: list[dict[str, Any]] = [
         {"status": "sent"},
         {"status": "voided"},
     ]
 
-    async def fake_get_envelope(envelope_id: str) -> Dict[str, Any]:
+    async def fake_get_envelope(envelope_id: str) -> dict[str, Any]:
         return responses.pop(0)
 
     async def fake_sleep(seconds: int) -> None:
@@ -75,7 +75,7 @@ async def test_poll_envelope_requires_positive_interval() -> None:
 async def test_poll_envelope_errors_when_status_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _build_client()
 
-    async def fake_get_envelope(envelope_id: str) -> Dict[str, Any]:
+    async def fake_get_envelope(envelope_id: str) -> dict[str, Any]:
         return {"envelopeId": envelope_id}
 
     async def fake_sleep(seconds: int) -> None:

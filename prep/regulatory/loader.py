@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -34,9 +35,7 @@ def _normalize_regdoc(payload: Mapping[str, Any]) -> dict[str, Any]:
         raise ValueError("RegDoc payload missing required 'sha256_hash'")
 
     normalized = {
-        key: payload[key]
-        for key in _REGDOC_FIELDS
-        if key in payload and payload[key] is not None
+        key: payload[key] for key in _REGDOC_FIELDS if key in payload and payload[key] is not None
     }
     normalized.setdefault("country_code", "US")
     if "state_province" not in normalized and "state" in normalized:
@@ -129,4 +128,3 @@ def load_regdoc(
 
 
 __all__ = ["load_regdoc"]
-

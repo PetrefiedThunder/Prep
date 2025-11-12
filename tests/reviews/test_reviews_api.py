@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
-from typing import Any, AsyncGenerator
+from fnmatch import fnmatch
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from fnmatch import fnmatch
 
 from prep.cache import RedisProtocol
 from prep.models.orm import (
@@ -17,7 +18,7 @@ from prep.models.orm import (
     ReviewStatus,
     User,
 )
-from prep.reviews.notifications import ReviewNotifier, ReviewNotificationTransport
+from prep.reviews.notifications import ReviewNotificationTransport, ReviewNotifier
 from prep.reviews.schemas import (
     HostResponseUpdate,
     ReviewFlagRequest,
@@ -134,7 +135,9 @@ async def _create_kitchen(session: AsyncSession, host: User) -> Kitchen:
     return kitchen
 
 
-async def _create_booking(session: AsyncSession, host: User, customer: User, kitchen: Kitchen) -> Booking:
+async def _create_booking(
+    session: AsyncSession, host: User, customer: User, kitchen: Kitchen
+) -> Booking:
     booking = Booking(
         id=uuid4(),
         host_id=host.id,
@@ -186,7 +189,11 @@ async def test_review_service_lifecycle(
         assert review.rating == 4.5
         assert review.status == ReviewStatus.APPROVED
 
-        photo = await service.add_photo(customer, review.id, ReviewPhotoCreate(url="https://cdn.example.com/photo.jpg", caption="Kitchen"))
+        photo = await service.add_photo(
+            customer,
+            review.id,
+            ReviewPhotoCreate(url="https://cdn.example.com/photo.jpg", caption="Kitchen"),
+        )
         assert photo.url.endswith("photo.jpg")
 
         updated_review = await service.host_response(
@@ -199,7 +206,11 @@ async def test_review_service_lifecycle(
         voted = await service.vote_review(voter, review.id, ReviewVoteRequest(helpful=True))
         assert voted.helpful_count == 1
 
-        flag = await service.flag_review(voter, review.id, ReviewFlagRequest(reason="language", notes="Potential guideline issue"))
+        flag = await service.flag_review(
+            voter,
+            review.id,
+            ReviewFlagRequest(reason="language", notes="Potential guideline issue"),
+        )
         assert flag.status.value == "open"
 
         moderation = await service.moderate_review(

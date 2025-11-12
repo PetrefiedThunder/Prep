@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -43,14 +42,14 @@ class User(BaseModel):
     id: UUID
     email: str
     full_name: str
-    roles: List[str] = Field(default_factory=list)
+    roles: list[str] = Field(default_factory=list)
 
 
 class TimeSeriesData(BaseModel):
     """Value mapped to a specific calendar date."""
 
     date: date
-    value: Union[int, float, Decimal]
+    value: int | float | Decimal
 
 
 class TimeSlotPopularity(BaseModel):
@@ -137,8 +136,8 @@ class HostOverview(BaseModel):
     occupancy_rate: float = Field(ge=0.0, le=100.0)
     response_rate: float = Field(ge=0.0, le=100.0)
     last_30_days_revenue: Decimal = Field(ge=Decimal("0"))
-    top_performing_kitchen: Optional[KitchenPerformance] = None
-    recent_bookings: List[RecentBooking] = Field(default_factory=list)
+    top_performing_kitchen: KitchenPerformance | None = None
+    recent_bookings: list[RecentBooking] = Field(default_factory=list)
 
 
 class BookingAnalytics(BaseModel):
@@ -148,9 +147,9 @@ class BookingAnalytics(BaseModel):
     confirmed_bookings: int = Field(ge=0)
     cancelled_bookings: int = Field(ge=0)
     conversion_rate: float = Field(ge=0.0, le=100.0)
-    booking_trends: List[TimeSeriesData] = Field(default_factory=list)
-    popular_time_slots: List[TimeSlotPopularity] = Field(default_factory=list)
-    cancellation_reasons: List[CancellationReason] = Field(default_factory=list)
+    booking_trends: list[TimeSeriesData] = Field(default_factory=list)
+    popular_time_slots: list[TimeSlotPopularity] = Field(default_factory=list)
+    cancellation_reasons: list[CancellationReason] = Field(default_factory=list)
     guest_retention_rate: float = Field(ge=0.0, le=100.0)
 
 
@@ -158,11 +157,11 @@ class RevenueAnalytics(BaseModel):
     """Revenue distribution and trend insights."""
 
     total_revenue: Decimal = Field(ge=Decimal("0"))
-    revenue_trends: List[TimeSeriesData] = Field(default_factory=list)
-    revenue_by_kitchen: List[KitchenRevenue] = Field(default_factory=list)
+    revenue_trends: list[TimeSeriesData] = Field(default_factory=list)
+    revenue_by_kitchen: list[KitchenRevenue] = Field(default_factory=list)
     average_booking_value: Decimal = Field(ge=Decimal("0"))
-    revenue_forecast: List[TimeSeriesData] = Field(default_factory=list)
-    payment_methods_breakdown: List[PaymentMethodBreakdown] = Field(default_factory=list)
+    revenue_forecast: list[TimeSeriesData] = Field(default_factory=list)
+    payment_methods_breakdown: list[PaymentMethodBreakdown] = Field(default_factory=list)
 
 
 class AdminOverview(BaseModel):
@@ -175,7 +174,7 @@ class AdminOverview(BaseModel):
     active_users: int = Field(ge=0)
     new_signups: int = Field(ge=0)
     platform_health: PlatformHealthMetrics
-    top_performing_regions: List[RegionPerformance] = Field(default_factory=list)
+    top_performing_regions: list[RegionPerformance] = Field(default_factory=list)
     pending_moderation: int = Field(ge=0)
 
 
@@ -199,8 +198,8 @@ class PlatformOverviewMetrics(BaseModel):
     total_bookings: int = Field(ge=0)
     total_revenue: Decimal = Field(ge=Decimal("0"))
     new_users_last_30_days: int = Field(ge=0)
-    bookings_trend: List[TimeSeriesData] = Field(default_factory=list)
-    revenue_trend: List[TimeSeriesData] = Field(default_factory=list)
+    bookings_trend: list[TimeSeriesData] = Field(default_factory=list)
+    revenue_trend: list[TimeSeriesData] = Field(default_factory=list)
 
 
 class GrowthChannelBreakdown(BaseModel):
@@ -214,10 +213,10 @@ class GrowthChannelBreakdown(BaseModel):
 class PlatformGrowthMetrics(BaseModel):
     """User and host acquisition metrics."""
 
-    user_signups: List[TimeSeriesData] = Field(default_factory=list)
-    host_signups: List[TimeSeriesData] = Field(default_factory=list)
-    conversion_rate: List[TimeSeriesData] = Field(default_factory=list)
-    acquisition_channels: List[GrowthChannelBreakdown] = Field(default_factory=list)
+    user_signups: list[TimeSeriesData] = Field(default_factory=list)
+    host_signups: list[TimeSeriesData] = Field(default_factory=list)
+    conversion_rate: list[TimeSeriesData] = Field(default_factory=list)
+    acquisition_channels: list[GrowthChannelBreakdown] = Field(default_factory=list)
 
 
 class ModerationQueueMetrics(BaseModel):
@@ -228,7 +227,7 @@ class ModerationQueueMetrics(BaseModel):
     escalated: int = Field(ge=0)
     sla_breaches: int = Field(ge=0)
     average_review_time_hours: float = Field(ge=0.0)
-    moderation_trend: List[TimeSeriesData] = Field(default_factory=list)
+    moderation_trend: list[TimeSeriesData] = Field(default_factory=list)
 
 
 class AdminTeamMemberPerformance(BaseModel):
@@ -246,8 +245,8 @@ class AdminPerformanceMetrics(BaseModel):
 
     total_resolved: int = Field(ge=0)
     backlog: int = Field(ge=0)
-    productivity_trend: List[TimeSeriesData] = Field(default_factory=list)
-    team: List[AdminTeamMemberPerformance] = Field(default_factory=list)
+    productivity_trend: list[TimeSeriesData] = Field(default_factory=list)
+    team: list[AdminTeamMemberPerformance] = Field(default_factory=list)
 
 
 class FinancialHealthMetrics(BaseModel):
@@ -261,5 +260,5 @@ class FinancialHealthMetrics(BaseModel):
     cash_on_hand: Decimal = Field(ge=Decimal("0"))
     burn_rate: Decimal = Field(ge=Decimal("0"))
     runway_months: float = Field(ge=0.0)
-    revenue_trend: List[TimeSeriesData] = Field(default_factory=list)
-    expense_trend: List[TimeSeriesData] = Field(default_factory=list)
+    revenue_trend: list[TimeSeriesData] = Field(default_factory=list)
+    expense_trend: list[TimeSeriesData] = Field(default_factory=list)

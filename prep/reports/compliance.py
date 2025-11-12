@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Iterable
 
 from fpdf import FPDF
 from sqlalchemy import select
@@ -26,22 +26,32 @@ async def generate_compliance_manifest(output_path: Path | None = None) -> Path:
 
     async with AsyncSessionLocal() as session:
         kitchens = (
-            await session.execute(
-                select(Kitchen)
-                .options(selectinload(Kitchen.sanitation_logs))
-                .order_by(Kitchen.name.asc())
+            (
+                await session.execute(
+                    select(Kitchen)
+                    .options(selectinload(Kitchen.sanitation_logs))
+                    .order_by(Kitchen.name.asc())
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         deliveries = (
-            await session.execute(
-                select(Booking)
-                .where(Booking.start_time >= datetime.now(UTC) - timedelta(days=30))
-                .order_by(Booking.start_time.desc())
+            (
+                await session.execute(
+                    select(Booking)
+                    .where(Booking.start_time >= datetime.now(UTC) - timedelta(days=30))
+                    .order_by(Booking.start_time.desc())
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         certificates = (
-            await session.execute(select(COIDocument).order_by(COIDocument.created_at.desc()))
-        ).scalars().all()
+            (await session.execute(select(COIDocument).order_by(COIDocument.created_at.desc())))
+            .scalars()
+            .all()
+        )
 
     pdf = _build_manifest_pdf(kitchens, deliveries, certificates)
     pdf.output(str(output_path))
@@ -76,7 +86,9 @@ def _render_kitchen_section(pdf: FPDF, kitchens: Iterable[Kitchen]) -> None:
     pdf.set_font("Helvetica", "", 10)
 
     for kitchen in kitchens:
-        header = f"{kitchen.name} — {kitchen.city or 'Unknown City'}, {kitchen.state or 'Unknown State'}"
+        header = (
+            f"{kitchen.name} — {kitchen.city or 'Unknown City'}, {kitchen.state or 'Unknown State'}"
+        )
         pdf.multi_cell(0, 6, header)
         pdf.multi_cell(
             0,

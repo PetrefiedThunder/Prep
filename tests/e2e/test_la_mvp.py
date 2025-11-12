@@ -1,8 +1,8 @@
 """End-to-end scaffolding test for LA MVP."""
+
 from __future__ import annotations
 
 import importlib
-
 
 SERVICE_MODULES = [
     "apps.api_gateway.app",

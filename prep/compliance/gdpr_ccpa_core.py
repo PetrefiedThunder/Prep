@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List
+from datetime import UTC, datetime
+from typing import Any
 
 from .base_engine import ComplianceEngine, ComplianceRule, ComplianceViolation
 
@@ -14,7 +14,7 @@ class GDPRCCPACore(ComplianceEngine):
         self.load_rules()
 
     def load_rules(self) -> None:  # type: ignore[override]
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self.rules = [
             ComplianceRule(
                 id="privacy_consent_1",
@@ -50,8 +50,7 @@ class GDPRCCPACore(ComplianceEngine):
                 id="privacy_data_breach_1",
                 name="Data Breach Notification",
                 description=(
-                    "Data breaches must be reported within 72 hours (GDPR) or as required"
-                    " (CCPA)"
+                    "Data breaches must be reported within 72 hours (GDPR) or as required (CCPA)"
                 ),
                 category="incident_response",
                 severity="critical",
@@ -71,8 +70,8 @@ class GDPRCCPACore(ComplianceEngine):
             ),
         ]
 
-    def validate(self, data: Dict[str, Any]) -> List[ComplianceViolation]:  # type: ignore[override]
-        violations: List[ComplianceViolation] = []
+    def validate(self, data: dict[str, Any]) -> list[ComplianceViolation]:  # type: ignore[override]
+        violations: list[ComplianceViolation] = []
 
         violations.extend(self._validate_consent(data))
         violations.extend(self._validate_data_minimization(data))
@@ -82,8 +81,8 @@ class GDPRCCPACore(ComplianceEngine):
 
         return violations
 
-    def _validate_consent(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_consent(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
 
         for user in data.get("users", []):
             consent_given = bool(user.get("consent_given", False))
@@ -103,7 +102,7 @@ class GDPRCCPACore(ComplianceEngine):
                             "user_id": user.get("id"),
                             "consent_given": consent_given,
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
             elif not consent_timestamp:
@@ -111,22 +110,20 @@ class GDPRCCPACore(ComplianceEngine):
                     ComplianceViolation(
                         rule_id="privacy_consent_1",
                         rule_name="Explicit Consent Required",
-                        message=(
-                            f"User {user.get('id')} consent is missing a recorded timestamp"
-                        ),
+                        message=(f"User {user.get('id')} consent is missing a recorded timestamp"),
                         severity="high",
                         context={
                             "user_id": user.get("id"),
                             "consent_timestamp": consent_timestamp,
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 
         return violations
 
-    def _validate_data_minimization(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_data_minimization(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
 
         collected_data = data.get("collected_data", {})
         purpose = data.get("data_purpose", "")
@@ -142,14 +139,14 @@ class GDPRCCPACore(ComplianceEngine):
                         "data_fields": list(collected_data.keys()),
                         "purpose_specified": bool(purpose),
                     },
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                 )
             )
 
         return violations
 
-    def _validate_right_to_delete(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_right_to_delete(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
 
         for request in data.get("deletion_requests", []):
             status = request.get("status", "pending")
@@ -170,14 +167,14 @@ class GDPRCCPACore(ComplianceEngine):
                             "status": status,
                             "processed_at": processed_at,
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 
         return violations
 
-    def _validate_data_breach_procedures(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_data_breach_procedures(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
 
         for breach in data.get("data_breaches", []):
             detected_at = breach.get("detected_at")
@@ -198,14 +195,14 @@ class GDPRCCPACore(ComplianceEngine):
                                 "notification_time": notified_at,
                                 "delay_seconds": time_diff,
                             },
-                            timestamp=datetime.now(timezone.utc),
+                            timestamp=datetime.now(UTC),
                         )
                     )
 
         return violations
 
-    def _validate_third_party_sharing(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_third_party_sharing(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
 
         for party in data.get("third_party_sharing", []):
             consent_obtained = bool(party.get("user_consent_obtained", False))
@@ -216,15 +213,13 @@ class GDPRCCPACore(ComplianceEngine):
                     ComplianceViolation(
                         rule_id="privacy_third_party_1",
                         rule_name="Third-Party Data Sharing",
-                        message=(
-                            f"Data shared with {party.get('name')} without user consent"
-                        ),
+                        message=(f"Data shared with {party.get('name')} without user consent"),
                         severity="high",
                         context={
                             "third_party": party.get("name"),
                             "consent_obtained": consent_obtained,
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 
@@ -241,7 +236,7 @@ class GDPRCCPACore(ComplianceEngine):
                             "third_party": party.get("name"),
                             "contract_in_place": contract_in_place,
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 

@@ -4,14 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import UTC, datetime
-from uuid import UUID, uuid4
-from typing import Any, Mapping
-from decimal import Decimal, ROUND_HALF_UP
-from uuid import UUID, uuid4
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import stripe
 from sqlalchemy import Select, and_, func, or_, select
@@ -20,11 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prep.auth.providers import IdentityProfile
 from prep.cache import RedisProtocol
-from prep.models.orm import Booking, ComplianceDocument, Kitchen, Review, User, UserRole
-from prep.platform import schemas
-from prep.platform.security import (
-    create_access_token,
-    hash_password,
 from prep.models.orm import (
     Booking,
     BusinessPermit,
@@ -38,38 +30,20 @@ from prep.models.orm import (
     PermitStatus,
     Review,
     User,
-    BusinessProfile,
-    BusinessReadinessSnapshot,
-    CheckoutPayment,
-    CheckoutPaymentStatus,
-    ComplianceDocument,
-    DocumentOCRStatus,
-    DocumentUpload,
-    DocumentUploadStatus,
-    Kitchen,
-    Permit,
-    PermitStatus,
-    Review,
-    User,
-    APIKey,
-    Booking,
-    ComplianceDocument,
-    IdentityProvider,
-    IdentityProviderType,
-    Kitchen,
+    UserRole,
+)
+from prep.platform import schemas
+from prep.platform.security import (
     RefreshToken,
     Review,
     User,
     UserIdentity,
     UserRole,
-)
-from prep.platform import schemas
-from prep.platform.security import (
     create_access_token,
-    generate_api_key,
-    generate_refresh_token,
     create_refresh_token,
+    generate_api_key,
     generate_api_key_secret,
+    generate_refresh_token,
     hash_api_key_secret,
     hash_password,
     hash_token,
@@ -157,14 +131,10 @@ class PlatformService:
 
         for requirement in requirements:
             relevant_docs = [
-                doc
-                for doc in documents
-                if doc.document_type in requirement["document_types"]
+                doc for doc in documents if doc.document_type in requirement["document_types"]
             ]
             relevant_permits = [
-                permit
-                for permit in permits
-                if permit.permit_type in requirement["permit_types"]
+                permit for permit in permits if permit.permit_type in requirement["permit_types"]
             ]
 
             doc_verified = any(doc.status == DocumentUploadStatus.VERIFIED for doc in relevant_docs)
@@ -173,7 +143,9 @@ class PlatformService:
                 for doc in relevant_docs
             )
             permit_active = any(permit.status == PermitStatus.ACTIVE for permit in relevant_permits)
-            permit_pending = any(permit.status == PermitStatus.PENDING for permit in relevant_permits)
+            permit_pending = any(
+                permit.status == PermitStatus.PENDING for permit in relevant_permits
+            )
 
             if permit_active or doc_verified:
                 status = "complete"
@@ -246,7 +218,9 @@ class PlatformService:
 
     async def register_user(self, payload: schemas.UserRegistrationRequest) -> User:
         logger.info("Registering new user", extra={"email": payload.email})
-        stmt: Select[tuple[User]] = select(User).where(func.lower(User.email) == payload.email.lower())
+        stmt: Select[tuple[User]] = select(User).where(
+            func.lower(User.email) == payload.email.lower()
+        )
         result = await self._session.execute(stmt)
         if result.scalar_one_or_none() is not None:
             raise PlatformError("Email address already registered", status_code=409)
@@ -272,8 +246,6 @@ class PlatformService:
         return user
 
     async def authenticate_user(
-        self, payload: schemas.UserLoginRequest
-    ) -> tuple[User, str, str, datetime]:
         self,
         payload: schemas.UserLoginRequest,
         *,
@@ -314,9 +286,7 @@ class PlatformService:
         )
         return user, token, refresh_token, expires_at
 
-    async def refresh_access_token(
-        self, refresh_token: str
-    ) -> tuple[User, str, str, datetime]:
+    async def refresh_access_token(self, refresh_token: str) -> tuple[User, str, str, datetime]:
         token_hash = hash_token(refresh_token)
         stmt = select(RefreshToken).where(RefreshToken.token_hash == token_hash)
         result = await self._session.execute(stmt)
@@ -552,7 +522,9 @@ class PlatformService:
         logger.info("Created kitchen", extra={"kitchen_id": str(kitchen.id)})
         return kitchen
 
-    async def update_kitchen(self, kitchen_id: UUID, payload: schemas.KitchenUpdateRequest) -> Kitchen:
+    async def update_kitchen(
+        self, kitchen_id: UUID, payload: schemas.KitchenUpdateRequest
+    ) -> Kitchen:
         kitchen = await self._session.get(Kitchen, kitchen_id)
         if kitchen is None:
             raise PlatformError("Kitchen not found", status_code=404)
@@ -615,9 +587,7 @@ class PlatformService:
         )
         return booking
 
-    async def create_payment_intent(
-        self, payload: schemas.PaymentIntentCreateRequest
-    ) -> str:
+    async def create_payment_intent(self, payload: schemas.PaymentIntentCreateRequest) -> str:
         if not self._settings.stripe_api_key:
             raise PlatformError("Stripe API key not configured", status_code=500)
 
@@ -744,9 +714,7 @@ class PlatformService:
             raise PlatformError("Permit not found", status_code=404)
         return permit
 
-    async def get_business_readiness(
-        self, business_id: UUID
-    ) -> schemas.BusinessReadinessResponse:
+    async def get_business_readiness(self, business_id: UUID) -> schemas.BusinessReadinessResponse:
         business = await self._session.get(BusinessProfile, business_id)
         if business is None:
             raise PlatformError("Business not found", status_code=404)
@@ -853,9 +821,7 @@ class PlatformService:
                     currency=currency,
                     metadata={
                         "business_id": str(payload.business_id),
-                        "booking_id": str(payload.booking_id)
-                        if payload.booking_id
-                        else None,
+                        "booking_id": str(payload.booking_id) if payload.booking_id else None,
                     },
                     automatic_payment_methods={"enabled": True},
                 )
@@ -926,16 +892,9 @@ class PlatformService:
         cursor: datetime | None = None,
         limit: int = 20,
     ) -> tuple[list[Review], datetime | None, int]:
-        total_stmt = select(func.count()).select_from(Review).where(
-            Review.kitchen_id == kitchen_id
-        )
+        total_stmt = select(func.count()).select_from(Review).where(Review.kitchen_id == kitchen_id)
         total = (await self._session.execute(total_stmt)).scalar_one()
 
-        kitchen_id: UUID,
-        *,
-        cursor: tuple[datetime, UUID] | None,
-        limit: int,
-    ) -> tuple[list[Review], str | None]:
         stmt = (
             select(Review)
             .where(Review.kitchen_id == kitchen_id)
@@ -980,11 +939,6 @@ class PlatformService:
             },
         )
         return items, next_cursor, total
-                "count": len(reviews),
-                "has_more": has_more,
-            },
-        )
-        return reviews, next_cursor
 
     async def create_compliance_document(
         self, payload: schemas.ComplianceDocumentCreateRequest
@@ -1056,9 +1010,7 @@ class PlatformService:
             raise PlatformError("Permit not found", status_code=404)
         return permit
 
-    async def get_business_readiness(
-        self, business_id: UUID
-    ) -> schemas.BusinessReadinessResponse:
+    async def get_business_readiness(self, business_id: UUID) -> schemas.BusinessReadinessResponse:
         business = await self._get_business_profile(business_id)
         readiness = await self._evaluate_business_readiness(business)
         await self._session.commit()
@@ -1077,9 +1029,7 @@ class PlatformService:
                 CheckoutPaymentStatus.SUCCEEDED,
                 CheckoutPaymentStatus.REQUIRES_ACTION,
             }:
-                raise PlatformError(
-                    "Only settled payments can be refunded", status_code=409
-                )
+                raise PlatformError("Only settled payments can be refunded", status_code=409)
 
             payment.status = CheckoutPaymentStatus.REFUND_REQUESTED
             payment.refund_reason = payload.refund_reason
@@ -1099,9 +1049,9 @@ class PlatformService:
         if total_minor_units <= 0:
             raise PlatformError("Checkout total must be greater than zero", status_code=400)
 
-        total_amount = (
-            Decimal(total_minor_units) / Decimal(100)
-        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        total_amount = (Decimal(total_minor_units) / Decimal(100)).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
 
         business: BusinessProfile | None = None
         if payload.business_id is not None:
@@ -1154,7 +1104,7 @@ class PlatformService:
         )
 
         return payment
-*** End Patch
+
     async def create_api_key(
         self, user_id: UUID, payload: schemas.APIKeyCreateRequest
     ) -> tuple[APIKey, str]:
@@ -1177,9 +1127,7 @@ class PlatformService:
             await self._session.commit()
         except IntegrityError as exc:
             await self._session.rollback()
-            logger.exception(
-                "Failed to create API key", extra={"user_id": str(user_id)}
-            )
+            logger.exception("Failed to create API key", extra={"user_id": str(user_id)})
             raise PlatformError("Unable to issue API key", status_code=500) from exc
 
         await self._session.refresh(api_key)
@@ -1247,8 +1195,7 @@ class PlatformService:
         refresh = RefreshToken(
             user_id=user.id,
             token_hash=hash_token(raw),
-            expires_at=datetime.now(UTC)
-            + timedelta(days=self._settings.refresh_token_ttl_days),
+            expires_at=datetime.now(UTC) + timedelta(days=self._settings.refresh_token_ttl_days),
         )
         self._session.add(refresh)
         if commit:

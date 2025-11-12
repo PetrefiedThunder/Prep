@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from collections.abc import AsyncGenerator, Iterator
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import AsyncGenerator, Iterator
 from uuid import uuid4
 
 import pytest
@@ -129,7 +129,7 @@ async def _post_booking(
 async def test_low_utilization_triggers_discount(app: FastAPI, client: AsyncClient) -> None:
     user_id, kitchen_id = await _seed_user_and_kitchen(app, utilization_rate=0.3)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     start = now.replace(hour=9, minute=0, second=0, microsecond=0)
     end = start + timedelta(hours=2)
 
@@ -151,7 +151,7 @@ async def test_low_utilization_triggers_discount(app: FastAPI, client: AsyncClie
 async def test_high_utilization_applies_no_discount(app: FastAPI, client: AsyncClient) -> None:
     user_id, kitchen_id = await _seed_user_and_kitchen(app, utilization_rate=0.85)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     start = now.replace(hour=10, minute=0, second=0, microsecond=0)
     end = start + timedelta(hours=3)
 

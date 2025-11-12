@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -24,7 +23,7 @@ router = APIRouter(prefix="/admin/regulatory", tags=["admin-regulatory"])
 class ScrapeRequest(BaseModel):
     """Request payload to trigger regulatory scraping."""
 
-    states: List[str] = Field(default_factory=list)
+    states: list[str] = Field(default_factory=list)
     country_code: str = Field(default="US", min_length=2, max_length=2)
 
 
@@ -32,7 +31,7 @@ class ScrapeRequest(BaseModel):
 async def get_state_regulatory_overview(
     db: AsyncSession = Depends(get_db),
     current_admin: User = Depends(get_current_admin),
-) -> Dict[str, object]:
+) -> dict[str, object]:
     """Return aggregated compliance metrics grouped by state.
 
     SECURITY: Admin-only endpoint - requires admin role.
@@ -46,7 +45,7 @@ async def get_state_regulatory_overview(
 async def get_scraping_status(
     db: AsyncSession = Depends(get_db),
     current_admin: User = Depends(get_current_admin),
-) -> Dict[str, Dict[str, str]]:
+) -> dict[str, dict[str, str]]:
     """Return the current scraping status for each state.
 
     SECURITY: Admin-only endpoint - requires admin role.
@@ -61,7 +60,7 @@ async def get_scraping_status(
 async def trigger_regulation_scraping(
     payload: ScrapeRequest,
     current_admin: User = Depends(get_current_admin),
-) -> Dict[str, object]:
+) -> dict[str, object]:
     """Schedule scraping for the requested states.
 
     SECURITY: Admin-only endpoint - requires admin role.
@@ -73,6 +72,8 @@ async def trigger_regulation_scraping(
         raise HTTPException(status_code=400, detail="At least one state must be provided")
 
     states = [state.upper() for state in payload.states]
-    logger.info("Regulatory scraping requested for states: %s by admin: %s", states, current_admin.id)
+    logger.info(
+        "Regulatory scraping requested for states: %s by admin: %s", states, current_admin.id
+    )
     # In production this would enqueue a background job. For now we acknowledge immediately.
     return {"scheduled": states}

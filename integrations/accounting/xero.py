@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from prep.accounting.schemas import InvoicePayload, PaymentRecord, VendorExpense
 from prep.accounting.service import GAAPLedgerService

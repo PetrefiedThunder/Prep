@@ -1,4 +1,5 @@
 """FastAPI webhook server for Prep integrations."""
+
 from __future__ import annotations
 
 """FastAPI application that verifies and routes Prep webhook events."""
@@ -13,7 +14,7 @@ import os
 import time
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, status
 
@@ -62,15 +63,15 @@ def get_settings() -> Settings:
 def compute_signature(secret: str, timestamp: str, body: bytes) -> str:
     """Compute the webhook signature using the configured secret."""
 
-    message = f"{timestamp}.".encode("utf-8") + body
+    message = f"{timestamp}.".encode() + body
     digest = hmac.new(secret.encode("utf-8"), msg=message, digestmod="sha256")
     return digest.hexdigest()
 
 
-def parse_signature_header(signature_header: str) -> Dict[str, str]:
+def parse_signature_header(signature_header: str) -> dict[str, str]:
     """Parse the Prep signature header into its components."""
 
-    parts: Dict[str, str] = {}
+    parts: dict[str, str] = {}
     for part in signature_header.split(","):
         if "=" not in part:
             continue
@@ -79,34 +80,45 @@ def parse_signature_header(signature_header: str) -> Dict[str, str]:
     return parts
 
 
-async def verify_webhook_request(request: Request, *, expected_event: str) -> Dict[str, Any]:
+async def verify_webhook_request(request: Request, *, expected_event: str) -> dict[str, Any]:
     """Validate the incoming webhook request and return its JSON payload."""
 
     try:
         settings = get_settings()
     except RuntimeError as exc:
         logger.error("Webhook settings are not configured: %s", exc)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Webhook server misconfigured") from exc
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Webhook server misconfigured"
+        ) from exc
 
     signature_header = request.headers.get(SIGNATURE_HEADER)
     if not signature_header:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing signature header")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Missing signature header"
+        )
 
     parts = parse_signature_header(signature_header)
     timestamp = parts.get(HEADER_TIMESTAMP_KEY)
     signature = parts.get(HEADER_SIGNATURE_KEY)
     if not timestamp or not signature:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature header")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature header"
+        )
 
     try:
         timestamp_int = int(timestamp)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature timestamp") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature timestamp"
+        ) from exc
 
     now = int(time.time())
     skew = abs(now - timestamp_int)
     if skew > settings.max_timestamp_skew_seconds:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Signature timestamp is outside the accepted window")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Signature timestamp is outside the accepted window",
+        )
 
     raw_body = await request.body()
 
@@ -117,7 +129,9 @@ async def verify_webhook_request(request: Request, *, expected_event: str) -> Di
     try:
         payload = json.loads(raw_body.decode("utf-8"))
     except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON payload") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON payload"
+        ) from exc
 
     event_type = payload.get("type")
     if event_type != expected_event:
@@ -129,7 +143,7 @@ async def verify_webhook_request(request: Request, *, expected_event: str) -> Di
 app = FastAPI(title="Prep Webhook Receiver", version="1.0.0")
 
 
-async def _handle_event(request: Request, event_type: str) -> Dict[str, Any]:
+async def _handle_event(request: Request, event_type: str) -> dict[str, Any]:
     payload = await verify_webhook_request(request, expected_event=event_type)
     event_id = payload.get("id", "unknown")
     logger.info("Received webhook %s (id=%s)", event_type, event_id)
@@ -137,21 +151,21 @@ async def _handle_event(request: Request, event_type: str) -> Dict[str, Any]:
 
 
 @app.post("/webhooks/fees.updated")
-async def fees_updated(request: Request) -> Dict[str, Any]:
+async def fees_updated(request: Request) -> dict[str, Any]:
     """Handle the fees.updated webhook."""
 
     return await _handle_event(request, "fees.updated")
 
 
 @app.post("/webhooks/requirements.updated")
-async def requirements_updated(request: Request) -> Dict[str, Any]:
+async def requirements_updated(request: Request) -> dict[str, Any]:
     """Handle the requirements.updated webhook."""
 
     return await _handle_event(request, "requirements.updated")
 
 
 @app.post("/webhooks/policy.decision")
-async def policy_decision(request: Request) -> Dict[str, Any]:
+async def policy_decision(request: Request) -> dict[str, Any]:
     """Handle the policy.decision webhook."""
 
     return await _handle_event(request, "policy.decision")
@@ -164,14 +178,15 @@ __all__ = [
     "parse_signature_header",
     "verify_webhook_request",
 ]
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
-from typing import Any, Awaitable, Callable, Mapping
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Header
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
+
 
 def _configure_logging() -> None:
     """Configure structured logging for the webhook receiver."""
@@ -277,7 +292,7 @@ def _verify_signature(
 ) -> None:
     """Validate the HMAC signature supplied with the webhook."""
 
-    message = f"{timestamp}.".encode("utf-8") + body
+    message = f"{timestamp}.".encode() + body
     expected = hmac.new(
         settings.secret.encode("utf-8"),
         message,
@@ -299,13 +314,13 @@ async def _handle_fees_updated(event: WebhookEnvelope, event_id: str) -> Mapping
 async def _handle_requirements_updated(
     event: WebhookEnvelope, event_id: str
 ) -> Mapping[str, Any] | None:
-    logger.info(
-        "Processed requirements update", extra={"event_id": event_id, "type": event.type}
-    )
+    logger.info("Processed requirements update", extra={"event_id": event_id, "type": event.type})
     return {"requirements": list((event.data or {}).keys())}
 
 
-async def _handle_policy_decision(event: WebhookEnvelope, event_id: str) -> Mapping[str, Any] | None:
+async def _handle_policy_decision(
+    event: WebhookEnvelope, event_id: str
+) -> Mapping[str, Any] | None:
     logger.info("Processed policy decision", extra={"event_id": event_id, "type": event.type})
     return {"decision": (event.data or {}).get("decision")}
 

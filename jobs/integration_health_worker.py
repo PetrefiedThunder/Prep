@@ -5,9 +5,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Iterable, Sequence
+from datetime import UTC, datetime
 
 import httpx
 
@@ -92,7 +92,7 @@ class IntegrationHealthMonitor:
         health = IntegrationHealth.HEALTHY if result.healthy else IntegrationHealth.DOWN
         if not result.healthy and result.status_code and 500 <= result.status_code < 600:
             health = IntegrationHealth.DEGRADED
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         payload = {
             "connected": result.healthy,
             "health": health.value,
@@ -116,7 +116,9 @@ class IntegrationHealthMonitor:
         )
 
 
-async def build_default_monitor(publisher: IntegrationEventPublisher | None = None) -> IntegrationHealthMonitor:
+async def build_default_monitor(
+    publisher: IntegrationEventPublisher | None = None,
+) -> IntegrationHealthMonitor:
     """Construct a monitor based on environment configuration."""
 
     settings = get_settings()
@@ -137,7 +139,9 @@ async def build_default_monitor(publisher: IntegrationEventPublisher | None = No
                 )
         if publisher is None:
             publisher = InMemoryIntegrationEventBus()
-    return IntegrationHealthMonitor(endpoints=endpoints, publisher=publisher, timeout_seconds=timeout)
+    return IntegrationHealthMonitor(
+        endpoints=endpoints, publisher=publisher, timeout_seconds=timeout
+    )
 
 
 async def main() -> None:  # pragma: no cover - manual execution entrypoint
@@ -145,7 +149,9 @@ async def main() -> None:  # pragma: no cover - manual execution entrypoint
     if not settings.integration_endpoints:
         logger.warning("No integration endpoints configured; exiting")
         return
-    logger.info("Starting integration health monitor", endpoints=len(settings.integration_endpoints))
+    logger.info(
+        "Starting integration health monitor", endpoints=len(settings.integration_endpoints)
+    )
     monitor = await build_default_monitor()
     await monitor.run_forever(interval_seconds=300)
 

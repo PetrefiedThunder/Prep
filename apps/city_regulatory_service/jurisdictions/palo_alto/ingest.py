@@ -1,7 +1,8 @@
 """Synthetic ingestion payloads for Palo Alto, California."""
+
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any
 
 from apps.city_regulatory_service.models import FacilityType, RegulationType
@@ -88,6 +89,7 @@ INSURANCE_REQUIREMENTS: list[dict[str, Any]] = [
     },
 ]
 
+
 def build_payload(verification_date: datetime | None = None) -> dict[str, Any]:
     """Return a DataIngestionRequest-compatible payload for Palo Alto."""
 
@@ -102,6 +104,7 @@ def build_payload(verification_date: datetime | None = None) -> dict[str, Any]:
         "insurance_requirements": INSURANCE_REQUIREMENTS,
         "opa_package": OPA_PACKAGE,
     }
+
 
 __all__ = [
     "JURISDICTION_INFO",

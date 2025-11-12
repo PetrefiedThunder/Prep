@@ -1,6 +1,7 @@
-from datetime import datetime, timedelta, timezone
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any, AsyncGenerator
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -89,7 +90,7 @@ async def _seed_data(session_factory: async_sessionmaker[AsyncSession]) -> UUID:
         )
         kitchen = Kitchen(id=uuid4(), host_id=host.id, name="Kitchen")
         integration = POSIntegration(kitchen_id=kitchen.id, provider="square", refresh_token="r1")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         booking = Booking(
             kitchen_id=kitchen.id,
             host_id=host.id,
@@ -133,8 +134,8 @@ async def test_run_pos_reconciliation_generates_report(
 
     stub_s3 = StubS3Client()
     cache = StubCache()
-    start = datetime.now(timezone.utc) - timedelta(hours=4)
-    end = datetime.now(timezone.utc)
+    start = datetime.now(UTC) - timedelta(hours=4)
+    end = datetime.now(UTC)
 
     report = await run_pos_reconciliation(
         start=start,

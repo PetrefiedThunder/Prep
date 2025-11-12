@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable, Optional, Tuple
+from collections.abc import Iterable
 
 from prep.settings import get_settings
 
@@ -37,8 +37,8 @@ def _normalize_county(value: str | None) -> str | None:
     return normalized or None
 
 
-def _build_county_keys(values: Iterable[str]) -> set[Tuple[str, Optional[str]]]:
-    keys: set[Tuple[str, Optional[str]]] = set()
+def _build_county_keys(values: Iterable[str]) -> set[tuple[str, str | None]]:
+    keys: set[tuple[str, str | None]] = set()
     for raw in values:
         if raw is None:
             continue

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
-
 from prep.utility.config_schema import BaseConfigSchema
 
 
@@ -25,9 +23,9 @@ class LSEImpactSimulator(BaseConfigSchema):
     def validate(self) -> bool:  # type: ignore[override]
         return super().validate()
 
-    def _run_validation(self) -> List[str]:  # type: ignore[override]
+    def _run_validation(self) -> list[str]:  # type: ignore[override]
         config = self.config
-        errors: List[str] = []
+        errors: list[str] = []
 
         for field, expected in self.EXPECTED_SCHEMA.items():
             value = config.get(field)

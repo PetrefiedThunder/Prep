@@ -66,7 +66,9 @@ def _require_role(user: User, roles: Collection[UserRole]) -> None:
     if _is_admin(user):
         return
     if user.role not in roles:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions"
+        )
 
 
 def _serialize_integration(record: Integration) -> IntegrationResponse:
@@ -85,7 +87,9 @@ def _serialize_integration(record: Integration) -> IntegrationResponse:
     )
 
 
-def _apply_visibility_filters(query: Select[tuple[Integration]], user: User) -> Select[tuple[Integration]]:
+def _apply_visibility_filters(
+    query: Select[tuple[Integration]], user: User
+) -> Select[tuple[Integration]]:
     if _is_admin(user):
         return query
     return query.where(Integration.user_id == user.id)
@@ -141,7 +145,10 @@ async def create_integration(
 
     owner_id = payload.user_id or current_user.id
     if not _is_admin(current_user) and owner_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot assign integrations to other users")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot assign integrations to other users",
+        )
 
     integration = Integration(
         user_id=owner_id,
@@ -208,5 +215,3 @@ async def delete_integration(
 
     await session.delete(integration)
     await session.commit()
-
-

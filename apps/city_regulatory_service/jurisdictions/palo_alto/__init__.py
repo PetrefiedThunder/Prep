@@ -1,4 +1,5 @@
 """Regulatory assets for Palo Alto, California."""
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,10 +14,10 @@ router = APIRouter(prefix="/regulatory", tags=["regulatory"])
 @router.get("/regulations/{state}")
 async def list_regulations(
     state: str,
-    city: Optional[str] = Query(default=None),
-    county: Optional[str] = Query(default=None),
+    city: str | None = Query(default=None),
+    county: str | None = Query(default=None),
     country_code: str = Query(default="US", min_length=2, max_length=2),
-    state_province: Optional[str] = Query(default=None),
+    state_province: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Return regulations for the provided jurisdiction."""
@@ -33,22 +31,23 @@ async def list_regulations(
         state_province=state_province,
     )
     return {"regulations": regulations}
+
+
 """FastAPI endpoints for regulatory data and compliance analysis."""
 
 from __future__ import annotations
 
 import logging
+import os
 import re
-from datetime import datetime, UTC
-from typing import Any, Dict, Iterable, List, Optional
+from collections.abc import Iterable
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
-import os
-
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER, BOOKING_PILOT_BANNER
 from prep.database.connection import AsyncSessionLocal, get_db
@@ -76,7 +75,7 @@ async def _service_request(
     path: str,
     *,
     json_body: Any | None = None,
-    params: Dict[str, Any] | None = None,
+    params: dict[str, Any] | None = None,
     error_detail: str,
 ) -> Any | None:
     """Best-effort helper to talk to auxiliary services."""
@@ -101,9 +100,9 @@ async def _service_request(
 class ScrapeRequest(BaseModel):
     """Request body for initiating a scraping job."""
 
-    states: List[str]
+    states: list[str]
     country_code: str = "US"
-    cities: Optional[List[str]] = None
+    cities: list[str] | None = None
     force_refresh: bool = False
 
 
@@ -113,16 +112,14 @@ class ComplianceCheckRequest(BaseModel):
     kitchen_id: str
     state: str
     city: str
-    county: Optional[str] = None
+    county: str | None = None
     country_code: str = "US"
-    state_province: Optional[str] = None
-    kitchen_data: Dict
+    state_province: str | None = None
+    kitchen_data: dict
 
 
 @router.post("/scrape")
-async def scrape_regulations(
-    request: ScrapeRequest, background_tasks: BackgroundTasks
-) -> Dict:
+async def scrape_regulations(request: ScrapeRequest, background_tasks: BackgroundTasks) -> dict:
     """Trigger regulatory data scraping."""
 
     background_tasks.add_task(
@@ -131,14 +128,17 @@ async def scrape_regulations(
         request.cities,
         request.country_code.upper(),
     )
-    return {"status": "started", "message": f"Scraping regulations for {len(request.states)} states"}
+    return {
+        "status": "started",
+        "message": f"Scraping regulations for {len(request.states)} states",
+    }
 
 
 @router.post("/compliance/check")
 async def check_compliance(
     request: ComplianceCheckRequest,
     db: AsyncSession = Depends(get_db),
-) -> Dict:
+) -> dict:
     """Check kitchen compliance with regulations."""
 
     analyzer = RegulatoryAnalyzer()
@@ -150,9 +150,7 @@ async def check_compliance(
         country_code=request.country_code.upper(),
         state_province=request.state_province,
     )
-    kitchen_zip = request.kitchen_data.get("postal_code") or request.kitchen_data.get(
-        "zip_code"
-    )
+    kitchen_zip = request.kitchen_data.get("postal_code") or request.kitchen_data.get("zip_code")
     if not kitchen_zip:
         address = request.kitchen_data.get("address")
         if isinstance(address, str):
@@ -217,12 +215,12 @@ async def check_compliance(
 @router.get("/regulations/{state}")
 async def get_regulations(
     state: str,
-    city: Optional[str] = None,
-    county: Optional[str] = None,
+    city: str | None = None,
+    county: str | None = None,
     country_code: str = Query(default="US", min_length=2, max_length=2),
-    state_province: Optional[str] = Query(default=None),
+    state_province: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-) -> Dict:
+) -> dict:
     """Get regulations for a specific state/city."""
 
     regulations = await get_regulations_for_jurisdiction(
@@ -246,10 +244,10 @@ async def get_regulations(
 @router.get("/insurance/{state}")
 async def get_insurance_requirements(
     state: str,
-    city: Optional[str] = None,
+    city: str | None = None,
     country_code: str = Query(default="US", min_length=2, max_length=2),
-    state_province: Optional[str] = Query(default=None),
-) -> Dict:
+    state_province: str | None = Query(default=None),
+) -> dict:
     """Get insurance requirements for a state/city."""
 
     async with RegulatoryScraper() as scraper:
@@ -271,7 +269,7 @@ async def get_insurance_requirements(
 
 async def run_scraping_task(
     states: Iterable[str],
-    cities: Optional[Iterable[Optional[str]]] = None,
+    cities: Iterable[str | None] | None = None,
     country_code: str = "US",
 ) -> None:
     """Background task for regulatory scraping."""
@@ -282,7 +280,7 @@ async def run_scraping_task(
             health_regs = await scraper.scrape_health_department(state)
             insurance_reqs = await scraper.scrape_insurance_requirements(state)
 
-            target_cities: Iterable[Optional[str]] = cities or [None]
+            target_cities: Iterable[str | None] = cities or [None]
             for city in target_cities:
                 zoning_regs = await scraper.scrape_zoning_regulations(city, state)
                 async with AsyncSessionLocal() as session:
@@ -307,11 +305,11 @@ async def run_scraping_task(
 async def get_regulations_for_jurisdiction(
     db: AsyncSession,
     state: str,
-    city: Optional[str] = None,
+    city: str | None = None,
     *,
     country_code: str = "US",
-    state_province: Optional[str] = None,
-) -> List[Dict]:
+    state_province: str | None = None,
+) -> list[dict]:
     """Get regulations from database for a jurisdiction."""
 
     normalized_country = (country_code or "US").upper()
@@ -342,12 +340,12 @@ async def get_regulations_for_jurisdiction(
 
 async def save_regulations_to_db(
     db: AsyncSession,
-    regulations: List[Dict],
+    regulations: list[dict],
     state: str,
-    city: Optional[str],
+    city: str | None,
     *,
     country_code: str = "US",
-    state_province: Optional[str] = None,
+    state_province: str | None = None,
 ) -> None:
     """Persist regulation entries to the database."""
 
@@ -430,12 +428,12 @@ async def save_regulations_to_db(
 
 async def save_insurance_requirements(
     db: AsyncSession,
-    requirements: Dict,
+    requirements: dict,
     state: str,
-    city: Optional[str],
+    city: str | None,
     *,
     country_code: str = "US",
-    state_province: Optional[str] = None,
+    state_province: str | None = None,
 ) -> None:
     """Persist insurance requirements to the database."""
 
@@ -481,9 +479,9 @@ async def save_insurance_requirements(
 @router.get("/reg/obligations")
 async def list_obligations(
     jurisdiction: str,
-    subject: Optional[str] = None,
-    type: Optional[str] = None,
-) -> Dict[str, Any]:
+    subject: str | None = None,
+    type: str | None = None,
+) -> dict[str, Any]:
     params = {"jurisdiction": jurisdiction}
     if subject:
         params["subject"] = subject
@@ -509,7 +507,7 @@ async def list_obligations(
 
 
 @router.post("/reg/evaluate")
-async def evaluate_booking(payload: Dict[str, Any]) -> Dict[str, Any]:
+async def evaluate_booking(payload: dict[str, Any]) -> dict[str, Any]:
     evaluation = await _service_request(
         "POST",
         POLICY_ENGINE_URL,
@@ -543,7 +541,7 @@ async def evaluate_booking(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @router.get("/reg/proof/{proof_id}")
-async def get_proof(proof_id: str) -> Dict[str, Any]:
+async def get_proof(proof_id: str) -> dict[str, Any]:
     record = await _service_request(
         "GET",
         PROVENANCE_LEDGER_URL,
@@ -557,7 +555,7 @@ async def get_proof(proof_id: str) -> Dict[str, Any]:
 
 
 @router.get("/reg/provenance/{hash_value}")
-async def get_provenance(hash_value: str) -> Dict[str, Any]:
+async def get_provenance(hash_value: str) -> dict[str, Any]:
     record = await _service_request(
         "GET",
         PROVENANCE_LEDGER_URL,

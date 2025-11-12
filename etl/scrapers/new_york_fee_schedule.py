@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from apps.city_regulatory_service.src.adapters import NewYorkCityAdapter
 

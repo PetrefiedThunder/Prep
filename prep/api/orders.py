@@ -13,7 +13,9 @@ from prep.settings import Settings, get_settings
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 
-async def _get_service(session: AsyncSession = Depends(get_db), settings: Settings = Depends(get_settings)) -> DeliveryService:
+async def _get_service(
+    session: AsyncSession = Depends(get_db), settings: Settings = Depends(get_settings)
+) -> DeliveryService:
     return DeliveryService(session, settings)
 
 

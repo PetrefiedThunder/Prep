@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Iterable
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -99,7 +100,7 @@ class OnfleetClient:
         for index, element in enumerate(route, start=1):
             eta_value = element.get("eta")
             eta = (
-                datetime.fromtimestamp(eta_value, tz=timezone.utc)
+                datetime.fromtimestamp(eta_value, tz=UTC)
                 if isinstance(eta_value, (int, float))
                 else None
             )
@@ -123,7 +124,7 @@ class OnfleetClient:
             raise OnfleetConfigurationError("Onfleet API key is required")
         import base64
 
-        token = f"{self.api_key}:".encode("utf-8")
+        token = f"{self.api_key}:".encode()
         return base64.b64encode(token).decode("ascii")
 
 

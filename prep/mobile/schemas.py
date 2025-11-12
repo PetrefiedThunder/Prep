@@ -276,4 +276,3 @@ class BandwidthEstimateResponse(BaseModel):
     estimated_kbps: float
     basis: str
     last_measurement_at: datetime
-

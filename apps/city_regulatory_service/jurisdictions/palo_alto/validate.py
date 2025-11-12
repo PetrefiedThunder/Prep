@@ -1,4 +1,5 @@
 """Utilities for validating Palo Alto permits with OPA."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
