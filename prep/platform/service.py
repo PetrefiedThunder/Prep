@@ -27,6 +27,7 @@ from prep.models.orm import (
     Kitchen,
     PaymentRecord,
     PaymentStatus,
+    Permit,
     PermitStatus,
     Review,
     User,
@@ -34,11 +35,6 @@ from prep.models.orm import (
 )
 from prep.platform import schemas
 from prep.platform.security import (
-    RefreshToken,
-    Review,
-    User,
-    UserIdentity,
-    UserRole,
     create_access_token,
     create_refresh_token,
     generate_api_key,
