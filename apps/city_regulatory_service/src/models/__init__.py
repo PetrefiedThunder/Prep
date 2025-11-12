@@ -29,17 +29,10 @@ from .requirements import (
     validate_fee_schedule,
 )
 
-# Import additional ORM entities from the shared regulatory module
-try:  # pragma: no cover - degrade gracefully when dependencies unavailable
-    from prep.regulatory.models import CityFeeSchedule
-except Exception:  # pragma: no cover - set placeholder for test environments
-    CityFeeSchedule = None
-
 __all__ = [
     "CityJurisdiction",
     "CityAgency",
     "CityRequirement",
-    "CityFeeSchedule",
     "CityRequirementLink",
     "CityComplianceTemplate",
     "CityETLRun",
@@ -54,5 +47,4 @@ __all__ = [
     "total_one_time_cents",
     "total_recurring_annualized_cents",
     "has_incremental",
-    "RequirementsBundle",
 ]

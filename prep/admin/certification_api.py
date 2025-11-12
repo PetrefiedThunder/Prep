@@ -310,11 +310,22 @@ async def list_pending_certifications(
 
     # current_admin dependency retained for parity with protected endpoints
     _ = current_admin
-    return api.get_pending_certifications(
+    return await api.list_pending_certifications(
         kitchen_id=kitchen_id,
         submitted_after=submitted_after,
         limit=limit,
         offset=offset,
+    )
+
+
+async def get_current_admin() -> AdminUser:
+    """Stub dependency returning the authenticated admin user."""
+
+    return AdminUser(
+        id=uuid4(),
+        email="admin@example.com",
+        full_name="Prep Admin",
+        permissions=["certifications:verify"],
     )
 
 

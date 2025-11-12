@@ -251,12 +251,11 @@ async def health_check() -> HealthResponse:
                     logger.warning(f"Skipping invalid table name: {table}")
                     continue
                 try:
-                    # Safe to use string formatting since table is validated against whitelist
-                    count = cursor.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # noqa: S608
-                    record_counts[table] = count
+                    result = cursor.execute(query).fetchone()
+                    record_counts[table_name] = result[0] if result else 0
                 except Exception as e:
-                    logger.error(f"Error counting {table}: {e}")
-                    record_counts[table] = -1
+                    logger.error(f"Error counting {table_name}: {e}")
+                    record_counts[table_name] = -1
 
     return HealthResponse(
         status="ok" if db_exists else "degraded",

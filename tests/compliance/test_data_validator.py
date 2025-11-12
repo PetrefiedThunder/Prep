@@ -54,7 +54,11 @@ def test_validate_kitchen_data_returns_no_errors_for_valid_payload() -> None:
             },
         ],
         "equipment": [
-            {"type": "refrigerator", "commercial_grade": True, "nsf_certified": True},
+            {
+                "type": "refrigerator",
+                "commercial_grade": True,
+                "nsf_certified": True,
+            },
             {
                 "type": "handwashing_station",
                 "commercial_grade": True,

@@ -7,7 +7,7 @@ from uuid import UUID
 
 import boto3
 from botocore.client import BaseClient
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,22 +32,6 @@ async def get_platform_service(
     settings: Settings = Depends(get_settings),
 ) -> PlatformService:
     return PlatformService(session, cache, settings)
-
-
-def get_docusign_client(
-    request: Request, settings: Settings = Depends(get_settings)
-) -> DocuSignClient:
-    if not settings.docusign_account_id or not settings.docusign_access_token:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "code": "platform.docusign_configuration_missing",
-                "message": "DocuSign configuration is missing",
-            },
-        )
-    return DocuSignClient(
-        account_id=settings.docusign_account_id, access_token=settings.docusign_access_token
-    )
 
 
 def _extract_request_metadata(request: Request) -> tuple[str | None, str | None, str | None]:
@@ -604,7 +588,7 @@ async def create_checkout(
 
 
 @router.post(
-    "/payments/checkout",
+    "/payments/checkout-payment",
     response_model=schemas.CheckoutPaymentResponse,
     status_code=status.HTTP_201_CREATED,
 )

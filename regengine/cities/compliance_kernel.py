@@ -13,14 +13,6 @@ from typing import Any
 import yaml
 
 
-def parse_datetime_safe(dt_str: str) -> datetime:
-    """Parse ISO format datetime and ensure it's timezone-aware (UTC)."""
-    dt = datetime.fromisoformat(dt_str)
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
-    return dt
-
-
 class ComplianceResult(str, Enum):
     """Compliance decision outcomes."""
 
@@ -157,18 +149,15 @@ class MunicipalComplianceKernel:
         required_permits = self.config.get("permit_kinds", [])
         kitchen_permits = kitchen_data.get("permits", [])
 
-        now = datetime.now(UTC)
-        active_permit_types = set()
-        for p in kitchen_permits:
-            if p.get("status") != "active":
-                continue
-            expires_at_str = p.get("expires_at")
-            if not expires_at_str:
-                active_permit_types.add(p["kind"])
-                continue
-            expires_at = parse_datetime_safe(expires_at_str)
-            if expires_at > now:
-                active_permit_types.add(p["kind"])
+        active_permit_types = {
+            p["kind"]
+            for p in kitchen_permits
+            if p.get("status") == "active"
+            and (
+                not p.get("expires_at")
+                or datetime.fromisoformat(p["expires_at"]) > datetime.now(UTC)
+            )
+        }
 
         for permit_type in required_permits:
             if permit_type not in active_permit_types:
@@ -255,8 +244,8 @@ class MunicipalComplianceKernel:
         if not quiet_hours:
             return
 
-        booking_start = parse_datetime_safe(booking_data["start"])
-        booking_end = parse_datetime_safe(booking_data["end"])
+        booking_start = datetime.fromisoformat(booking_data["start"])
+        booking_end = datetime.fromisoformat(booking_data["end"])
 
         quiet_start = datetime.strptime(quiet_hours["start"], "%H:%M").time()
         quiet_end = datetime.strptime(quiet_hours["end"], "%H:%M").time()
@@ -278,7 +267,6 @@ class MunicipalComplianceKernel:
         self, start: datetime, end: datetime, quiet_start: time, quiet_end: time
     ) -> bool:
         """Check if datetime range overlaps quiet hours."""
-        # Simplified - assumes quiet hours don't span midnight
         booking_start_time = start.time()
         booking_end_time = end.time()
 
@@ -321,7 +309,7 @@ class MunicipalComplianceKernel:
         """Check seasonal restrictions."""
         restrictions = self.config.get("seasonal_restrictions", [])
 
-        booking_date = parse_datetime_safe(booking_data["start"]).date()
+        booking_date = datetime.fromisoformat(booking_data["start"]).date()
         product_type = booking_data.get("product_type")
 
         for restriction in restrictions:

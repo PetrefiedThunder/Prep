@@ -50,10 +50,14 @@ class DOLRegComplianceEngine(IterableValidationMixin, BaseConfigSchema):
         self.is_valid = not errors
         return errors
 
-    def generate_report(self) -> str:
+    def generate_report(self) -> str:  # type: ignore[override]
         """Generate a compliance report."""
-        if not self.records:
-            raise ValueError("No records validated")
+        if not self.records and not self.validation_errors:
+            if not self._validated:
+                raise ValueError("No records validated")
+
+        if not self._validated and not self.validation_errors:
+            raise ValueError("Validation has not been run")
 
         summary = f"Records checked: {len(self.records)}, Compliant: {self.is_valid}"
 

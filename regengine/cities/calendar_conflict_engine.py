@@ -10,14 +10,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 
-def parse_datetime_safe(dt_str: str) -> datetime:
-    """Parse ISO format datetime and ensure it's timezone-aware (UTC)."""
-    dt = datetime.fromisoformat(dt_str)
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
-    return dt
-
-
 @dataclass
 class ConflictWindow:
     """A time window that blocks bookings."""
@@ -156,8 +148,8 @@ class CalendarConflictEngine:
     ):
         """Check for overlapping existing bookings."""
         for booking in bookings:
-            booking_start = parse_datetime_safe(booking["starts_at"])
-            booking_end = parse_datetime_safe(booking["ends_at"])
+            booking_start = datetime.fromisoformat(booking["starts_at"])
+            booking_end = datetime.fromisoformat(booking["ends_at"])
 
             if self._overlaps(requested_start, requested_end, booking_start, booking_end):
                 result.add_conflict(
@@ -183,7 +175,7 @@ class CalendarConflictEngine:
             if inspection.get("status") not in ["scheduled", "pending"]:
                 continue
 
-            inspection_time = parse_datetime_safe(inspection["scheduled_for"])
+            inspection_time = datetime.fromisoformat(inspection["scheduled_for"])
 
             # Apply buffer before and after
             buffer_start = inspection_time - timedelta(hours=buffer_hours)
@@ -210,8 +202,8 @@ class CalendarConflictEngine:
     ):
         """Check for maintenance window conflicts."""
         for window in windows:
-            window_start = parse_datetime_safe(window["starts_at"])
-            window_end = parse_datetime_safe(window["ends_at"])
+            window_start = datetime.fromisoformat(window["starts_at"])
+            window_end = datetime.fromisoformat(window["ends_at"])
 
             if self._overlaps(requested_start, requested_end, window_start, window_end):
                 result.add_conflict(
@@ -233,8 +225,8 @@ class CalendarConflictEngine:
     ):
         """Check for blackout period conflicts."""
         for blackout in blackouts:
-            blackout_start = parse_datetime_safe(blackout["starts_at"])
-            blackout_end = parse_datetime_safe(blackout["ends_at"])
+            blackout_start = datetime.fromisoformat(blackout["starts_at"])
+            blackout_end = datetime.fromisoformat(blackout["ends_at"])
 
             if self._overlaps(requested_start, requested_end, blackout_start, blackout_end):
                 result.add_conflict(
