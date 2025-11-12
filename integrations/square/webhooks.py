@@ -5,9 +5,10 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Mapping
+from datetime import UTC, datetime
+from typing import Any
 
 
 class SquareWebhookVerificationError(Exception):
@@ -46,9 +47,7 @@ class SquareWebhookVerifier:
         """Compute the HMAC signature for the provided payload."""
 
         message = (self._notification_url + body.decode("utf-8")).encode("utf-8")
-        digest = hmac.new(
-            self._signature_key.encode("utf-8"), message, hashlib.sha1
-        ).digest()
+        digest = hmac.new(self._signature_key.encode("utf-8"), message, hashlib.sha1).digest()
         return base64.b64encode(digest).decode("utf-8")
 
     def verify(self, body: bytes, header_signature: str | None) -> None:
@@ -75,8 +74,8 @@ def _coerce_datetime(value: str | None) -> datetime:
         value = value.replace("Z", "+00:00")
     dt = datetime.fromisoformat(value)
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def parse_prep_time_update(payload: Mapping[str, Any]) -> PrepTimeUpdate:

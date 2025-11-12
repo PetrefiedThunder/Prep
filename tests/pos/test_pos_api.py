@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta, timezone
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import AsyncGenerator
 from uuid import UUID, uuid4
 
 import pytest
@@ -96,7 +96,7 @@ async def _seed_records(app: FastAPI) -> tuple[UUID, UUID]:
             kitchen_id=kitchen_id,
             provider="toast",
         )
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         booking = Booking(
             kitchen_id=kitchen_id,
             host_id=host.id,
@@ -128,7 +128,16 @@ async def _seed_records(app: FastAPI) -> tuple[UUID, UUID]:
             closed_at=now - timedelta(hours=2),
         )
         session.add_all(
-            [host, customer, kitchen, square_integration, toast_integration, booking, transaction, order]
+            [
+                host,
+                customer,
+                kitchen,
+                square_integration,
+                toast_integration,
+                booking,
+                transaction,
+                order,
+            ]
         )
         await session.commit()
     return kitchen_id, toast_integration_id
@@ -136,7 +145,9 @@ async def _seed_records(app: FastAPI) -> tuple[UUID, UUID]:
 
 async def test_get_pos_analytics_returns_metrics(app: FastAPI, client: AsyncClient) -> None:
     kitchen_id, _ = await _seed_records(app)
-    response = await client.get(f"/api/v1/analytics/pos", params={"kitchen_id": str(kitchen_id), "hours": 24})
+    response = await client.get(
+        "/api/v1/analytics/pos", params={"kitchen_id": str(kitchen_id), "hours": 24}
+    )
     assert response.status_code == 200
     payload = response.json()
     assert payload["kitchen_id"] == str(kitchen_id)
@@ -153,7 +164,7 @@ async def test_toast_webhook_persists_order(app: FastAPI, client: AsyncClient) -
         "orderGuid": "order-2",
         "status": "CLOSED",
         "orderNumber": "21",
-        "closedDate": datetime.now(timezone.utc).isoformat(),
+        "closedDate": datetime.now(UTC).isoformat(),
         "check": {"totals": {"grandTotal": {"amount": "1750"}, "currencyCode": "USD"}},
     }
     response = await client.post(
@@ -165,7 +176,9 @@ async def test_toast_webhook_persists_order(app: FastAPI, client: AsyncClient) -
     session_factory: async_sessionmaker[AsyncSession] = app.state.session_factory
     async with session_factory() as session:
         result = await session.execute(
-            select(POSOrder).where(POSOrder.external_id == "order-2", POSOrder.kitchen_id == kitchen_id)
+            select(POSOrder).where(
+                POSOrder.external_id == "order-2", POSOrder.kitchen_id == kitchen_id
+            )
         )
         order = result.scalar_one()
         assert order.total_amount == Decimal("17.50")

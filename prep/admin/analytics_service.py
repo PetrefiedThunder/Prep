@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Iterable, Mapping, Protocol
+from typing import Protocol
 from uuid import UUID
 
 from prep.models.admin import (
@@ -59,7 +60,9 @@ class AnalyticsService:
         start_date: datetime | None,
         end_date: datetime | None,
     ) -> BookingStatistics:
-        return await self.repository.fetch_booking_statistics(start_date=start_date, end_date=end_date)
+        return await self.repository.fetch_booking_statistics(
+            start_date=start_date, end_date=end_date
+        )
 
     async def get_revenue_analytics(
         self,
@@ -67,7 +70,9 @@ class AnalyticsService:
         start_date: datetime | None,
         end_date: datetime | None,
     ) -> RevenueAnalytics:
-        return await self.repository.fetch_revenue_analytics(start_date=start_date, end_date=end_date)
+        return await self.repository.fetch_revenue_analytics(
+            start_date=start_date, end_date=end_date
+        )
 
     async def get_platform_overview(self) -> PlatformOverview:
         return await self.repository.fetch_platform_overview()
@@ -76,7 +81,7 @@ class AnalyticsService:
 class PostgresAnalyticsRepository:
     """Analytics repository backed by an async PostgreSQL connection."""
 
-    def __init__(self, connection: "AsyncPGConnection") -> None:
+    def __init__(self, connection: AsyncPGConnection) -> None:
         self._connection = connection
 
     async def fetch_host_metrics(self, host_id: UUID) -> HostPerformanceMetrics:
@@ -312,7 +317,8 @@ class PostgresAnalyticsRepository:
             revenue_this_month=revenue_this_month,
             month_over_month_growth=growth,
             revenue_trend=[
-                TimeSeriesPoint(period=row["period"], value=Decimal(row["revenue"])) for row in trend_rows
+                TimeSeriesPoint(period=row["period"], value=Decimal(row["revenue"]))
+                for row in trend_rows
             ],
             top_hosts=[
                 HostPerformanceMetrics(
@@ -456,8 +462,6 @@ class StaticAnalyticsRepository:
 class AsyncPGConnection(Protocol):
     """Subset of asyncpg connection methods used by the repository."""
 
-    async def fetchrow(self, query: str, *args) -> Mapping[str, object] | None:
-        ...
+    async def fetchrow(self, query: str, *args) -> Mapping[str, object] | None: ...
 
-    async def fetch(self, query: str, *args) -> Iterable[Mapping[str, object]]:
-        ...
+    async def fetch(self, query: str, *args) -> Iterable[Mapping[str, object]]: ...

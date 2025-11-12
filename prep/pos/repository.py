@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import Iterable
 from uuid import UUID
 
-from sqlalchemy import func, select
-from sqlalchemy import insert as sa_insert
+from sqlalchemy import func, insert as sa_insert, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -80,8 +79,7 @@ class POSIntegrationRepository:
             )
             .on_conflict_do_update(
                 index_elements=[POSTransaction.provider, POSTransaction.external_id],
-                set_
-                ={
+                set_={
                     "integration_id": integration.id,
                     "kitchen_id": integration.kitchen_id,
                     "location_id": transaction.location_id,
@@ -118,8 +116,7 @@ class POSIntegrationRepository:
             )
             .on_conflict_do_update(
                 index_elements=[POSOrder.provider, POSOrder.external_id],
-                set_
-                ={
+                set_={
                     "integration_id": integration.id,
                     "order_number": event.order_number,
                     "status": event.status,

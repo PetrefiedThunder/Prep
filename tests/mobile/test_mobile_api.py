@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatch
-from typing import AsyncGenerator
 from uuid import uuid4
 
 import pytest
@@ -22,7 +22,6 @@ from prep.models.orm import (
     User,
     UserMatchingPreference,
 )
-
 
 pytestmark = pytest.mark.anyio("asyncio")
 
@@ -44,13 +43,13 @@ async def app() -> AsyncGenerator[FastAPI, None]:
             if not entry:
                 return None
             expires, value = entry
-            if expires is not None and expires < datetime.now(timezone.utc).timestamp():
+            if expires is not None and expires < datetime.now(UTC).timestamp():
                 self._store.pop(key, None)
                 return None
             return value
 
         async def setex(self, key: str, ttl: int, value: str) -> None:
-            expires_at = datetime.now(timezone.utc).timestamp() + ttl if ttl else None
+            expires_at = datetime.now(UTC).timestamp() + ttl if ttl else None
             self._store[key] = (expires_at, value)
 
         async def delete(self, *keys: str) -> int:
@@ -62,7 +61,7 @@ async def app() -> AsyncGenerator[FastAPI, None]:
             return removed
 
         async def keys(self, pattern: str) -> list[str]:
-            now = datetime.now(timezone.utc).timestamp()
+            now = datetime.now(UTC).timestamp()
             matches: list[str] = []
             for key, (expires, _) in list(self._store.items()):
                 if expires is not None and expires < now:
@@ -153,7 +152,7 @@ async def _seed_data(app: FastAPI) -> dict[str, User | Kitchen]:
         )
         session.add(profile)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         booking = Booking(
             host_id=host.id,
             customer_id=user.id,
@@ -254,7 +253,7 @@ async def test_mobile_api_flow(app: FastAPI, client: AsyncClient) -> None:
                 {
                     "action_type": "booking-note",
                     "payload": {"notes": "Arriving early"},
-                    "recorded_at": datetime.now(timezone.utc).isoformat(),
+                    "recorded_at": datetime.now(UTC).isoformat(),
                 }
             ]
         },
@@ -277,8 +276,8 @@ async def test_mobile_api_flow(app: FastAPI, client: AsyncClient) -> None:
 
     quick_booking_payload = {
         "kitchen_id": str(seeded["kitchen"].id),
-        "start_time": (datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
-        "end_time": (datetime.now(timezone.utc) + timedelta(days=2, hours=2)).isoformat(),
+        "start_time": (datetime.now(UTC) + timedelta(days=2)).isoformat(),
+        "end_time": (datetime.now(UTC) + timedelta(days=2, hours=2)).isoformat(),
         "guests": 4,
         "notes": "Mobile booking",
     }
@@ -341,7 +340,7 @@ async def test_mobile_api_flow(app: FastAPI, client: AsyncClient) -> None:
         json={
             "issue_type": "latency",
             "description": "App felt slow",
-            "occurred_at": datetime.now(timezone.utc).isoformat(),
+            "occurred_at": datetime.now(UTC).isoformat(),
         },
         headers=headers,
     )
@@ -350,4 +349,3 @@ async def test_mobile_api_flow(app: FastAPI, client: AsyncClient) -> None:
     bandwidth = await client.get("/api/v2/mobile/bandwidth/estimate", headers=headers)
     assert bandwidth.status_code == 200
     assert bandwidth.json()["estimated_kbps"] > 0
-

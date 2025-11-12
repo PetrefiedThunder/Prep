@@ -2,23 +2,23 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import Any, Dict, Union
+from typing import Any
 
 import httpx
 
 from ...client import Client
 from ...models.requirement_estimate_request import RequirementEstimateRequest
 from ...models.requirement_estimate_response import RequirementEstimateResponse
-from ...types import UNSET, Response, Unset, UnexpectedStatus
+from ...types import UNSET, Response, UnexpectedStatus, Unset
 
 
 def _get_kwargs(
     *,
     client: Client,
     json_body: RequirementEstimateRequest,
-    idempotency_key: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
-) -> Dict[str, Any]:
+    idempotency_key: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
+) -> dict[str, Any]:
     headers = client.get_headers()
     if not isinstance(idempotency_key, Unset) and idempotency_key is not UNSET:
         headers["Idempotency-Key"] = idempotency_key
@@ -37,7 +37,9 @@ def _get_kwargs(
     }
 
 
-def _parse_response(*, client: Client, response: httpx.Response) -> Optional[RequirementEstimateResponse]:
+def _parse_response(
+    *, client: Client, response: httpx.Response
+) -> Optional[RequirementEstimateResponse]:
     if response.status_code == HTTPStatus.OK:
         return RequirementEstimateResponse.model_validate(response.json())
     if client.raise_on_unexpected_status:
@@ -45,7 +47,9 @@ def _parse_response(*, client: Client, response: httpx.Response) -> Optional[Req
     return None
 
 
-def _build_response(*, client: Client, response: httpx.Response) -> Response[RequirementEstimateResponse]:
+def _build_response(
+    *, client: Client, response: httpx.Response
+) -> Response[RequirementEstimateResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -58,8 +62,8 @@ def sync_detailed(
     *,
     client: Client,
     json_body: RequirementEstimateRequest,
-    idempotency_key: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
+    idempotency_key: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
 ) -> Response[RequirementEstimateResponse]:
     """Estimate the filings and fees required for a business scenario."""
 
@@ -84,8 +88,8 @@ def sync(
     *,
     client: Client,
     json_body: RequirementEstimateRequest,
-    idempotency_key: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
+    idempotency_key: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
 ) -> Optional[RequirementEstimateResponse]:
     """Estimate the filings and fees required for a business scenario."""
 
@@ -101,8 +105,8 @@ async def asyncio_detailed(
     *,
     client: Client,
     json_body: RequirementEstimateRequest,
-    idempotency_key: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
+    idempotency_key: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
 ) -> Response[RequirementEstimateResponse]:
     """Estimate the filings and fees required for a business scenario."""
 
@@ -127,8 +131,8 @@ async def asyncio(
     *,
     client: Client,
     json_body: RequirementEstimateRequest,
-    idempotency_key: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
+    idempotency_key: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
 ) -> Optional[RequirementEstimateResponse]:
     """Estimate the filings and fees required for a business scenario."""
 

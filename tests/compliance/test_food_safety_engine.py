@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
 from prep.compliance.food_safety_compliance_engine import FoodSafetyComplianceEngine
 
-UTC = timezone.utc
+UTC = UTC
 
 
 def iso(days_offset: int) -> str:
@@ -19,7 +19,7 @@ def iso(days_offset: int) -> str:
     return value.isoformat().replace("+00:00", "Z")
 
 
-def build_green_path_payload() -> Dict[str, Any]:
+def build_green_path_payload() -> dict[str, Any]:
     """Return a fully compliant kitchen payload."""
 
     return {
@@ -121,7 +121,9 @@ def test_low_inspection_score_triggers_critical_violation(
     payload["inspection_history"][0]["overall_score"] = 60
 
     report = engine.generate_report(payload)
-    assert any(v.rule_id == "fs_inspect_2" and v.severity == "critical" for v in report.violations_found)
+    assert any(
+        v.rule_id == "fs_inspect_2" and v.severity == "critical" for v in report.violations_found
+    )
 
 
 def test_missing_handwashing_station_is_critical(engine: FoodSafetyComplianceEngine) -> None:
@@ -137,12 +139,18 @@ def test_missing_or_expired_insurance_is_blocking(engine: FoodSafetyComplianceEn
     payload["insurance"]["expiration_date"] = iso(-10)
 
     report = engine.generate_report(payload)
-    assert any(v.rule_id == "fs_prep_1" and v.severity == "critical" for v in report.violations_found)
+    assert any(
+        v.rule_id == "fs_prep_1" and v.severity == "critical" for v in report.violations_found
+    )
 
 
 def test_invalid_dates_emit_data_validation_violation(engine: FoodSafetyComplianceEngine) -> None:
-    payload: Dict[str, Any] = {
-        "license_info": {"license_number": "INVALID", "status": "active", "expiration_date": "not-a-date"}
+    payload: dict[str, Any] = {
+        "license_info": {
+            "license_number": "INVALID",
+            "status": "active",
+            "expiration_date": "not-a-date",
+        }
     }
 
     violations = engine.validate(payload)
@@ -160,4 +168,6 @@ def test_engine_is_idempotent(engine: FoodSafetyComplianceEngine) -> None:
     second = engine.generate_report(payload)
 
     assert first.overall_compliance_score == second.overall_compliance_score
-    assert [v.rule_id for v in first.violations_found] == [v.rule_id for v in second.violations_found]
+    assert [v.rule_id for v in first.violations_found] == [
+        v.rule_id for v in second.violations_found
+    ]

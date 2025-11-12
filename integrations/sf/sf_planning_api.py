@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
 class ZoningLookupResult:
-    zoning_use_district: Optional[str]
+    zoning_use_district: str | None
     kitchen_use_allowed: bool
     manual_review_required: bool
     message: str

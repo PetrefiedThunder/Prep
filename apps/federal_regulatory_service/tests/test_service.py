@@ -2,10 +2,11 @@
 Integration tests for Federal Regulatory Service API endpoints.
 """
 
+import sys
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
-from pathlib import Path
-import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -217,11 +218,7 @@ class TestAuthorityChainEndpoint:
     def test_get_authority_chain(self):
         """Test getting authority chain for valid certifier and scope."""
         response = client.get(
-            "/federal/authority-chain",
-            params={
-                "certifier_name": "NSF",
-                "scope_name": "Human Food"
-            }
+            "/federal/authority-chain", params={"certifier_name": "NSF", "scope_name": "Human Food"}
         )
 
         if response.status_code == 200:
@@ -237,10 +234,7 @@ class TestAuthorityChainEndpoint:
         """Test authority chain with non-existent combination."""
         response = client.get(
             "/federal/authority-chain",
-            params={
-                "certifier_name": "NonExistentCertifier",
-                "scope_name": "NonExistentScope"
-            }
+            params={"certifier_name": "NonExistentCertifier", "scope_name": "NonExistentScope"},
         )
         assert response.status_code == 404
 
@@ -252,10 +246,7 @@ class TestMatchEndpoint:
         """Test matching for PCHF activity."""
         response = client.post(
             "/federal/match",
-            json={
-                "activity": "preventive_controls_human_food",
-                "jurisdiction": "CA-Los Angeles"
-            }
+            json={"activity": "preventive_controls_human_food", "jurisdiction": "CA-Los Angeles"},
         )
         assert response.status_code == 200
 
@@ -269,12 +260,7 @@ class TestMatchEndpoint:
 
     def test_match_seafood_activity(self):
         """Test matching for seafood HACCP activity."""
-        response = client.post(
-            "/federal/match",
-            json={
-                "activity": "seafood_haccp"
-            }
-        )
+        response = client.post("/federal/match", json={"activity": "seafood_haccp"})
         assert response.status_code == 200
 
         match = response.json()
@@ -286,12 +272,7 @@ class TestMatchEndpoint:
 
     def test_match_produce_activity(self):
         """Test matching for produce safety."""
-        response = client.post(
-            "/federal/match",
-            json={
-                "activity": "produce_safety"
-            }
-        )
+        response = client.post("/federal/match", json={"activity": "produce_safety"})
         assert response.status_code == 200
 
         match = response.json()
@@ -300,20 +281,12 @@ class TestMatchEndpoint:
 
     def test_match_unknown_activity(self):
         """Test matching with unknown activity type."""
-        response = client.post(
-            "/federal/match",
-            json={
-                "activity": "totally_unknown_activity"
-            }
-        )
+        response = client.post("/federal/match", json={"activity": "totally_unknown_activity"})
         assert response.status_code == 400
 
     def test_match_missing_activity(self):
         """Test match endpoint without required activity field."""
-        response = client.post(
-            "/federal/match",
-            json={}
-        )
+        response = client.post("/federal/match", json={})
         assert response.status_code == 422  # Validation error
 
 

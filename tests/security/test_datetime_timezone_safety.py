@@ -38,7 +38,9 @@ def test_jwt_token_uses_utc_timezone() -> None:
     exp_datetime = datetime.fromtimestamp(exp_timestamp, tz=UTC)
 
     assert exp_datetime > now, "Token expiration must be in the future"
-    assert exp_datetime < now + timedelta(hours=1), "Token should expire within reasonable timeframe"
+    assert exp_datetime < now + timedelta(hours=1), (
+        "Token should expire within reasonable timeframe"
+    )
 
 
 def test_jwt_token_expiration_enforcement() -> None:
@@ -65,7 +67,6 @@ def test_booking_compliance_check_uses_utc() -> None:
 
     SECURITY: Ensures compliance checks work correctly across timezones.
     """
-    from datetime import timezone
     from prep.api.bookings import datetime  # noqa: F401
 
     # This test verifies that the bookings module imports datetime correctly
@@ -90,11 +91,13 @@ def test_compliance_check_age_boundary_conditions(days_old: int) -> None:
     time_diff = now - old_check
 
     if days_old > 30:
-        assert time_diff > timedelta(days=30), \
+        assert time_diff > timedelta(days=30), (
             f"Checks older than 30 days should trigger refresh (days={days_old})"
+        )
     else:
-        assert time_diff <= timedelta(days=30), \
+        assert time_diff <= timedelta(days=30), (
             f"Checks 30 days or newer should not trigger refresh (days={days_old})"
+        )
 
 
 def test_utc_datetime_comparison_consistency() -> None:

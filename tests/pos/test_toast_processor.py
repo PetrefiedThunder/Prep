@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -35,5 +35,5 @@ def test_normalize_order_extracts_fields() -> None:
     assert event.total_amount == Decimal("45.99")
     assert event.currency == "USD"
     assert event.guest_count == 3
-    assert event.opened_at == datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
-    assert event.closed_at == datetime(2024, 1, 1, 12, 15, tzinfo=timezone.utc)
+    assert event.opened_at == datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
+    assert event.closed_at == datetime(2024, 1, 1, 12, 15, tzinfo=UTC)

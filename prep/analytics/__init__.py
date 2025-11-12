@@ -3,9 +3,9 @@
 from .advanced_api import get_advanced_analytics_service, router as advanced_router
 from .dashboard_api import (
     AnalyticsDashboardService,
-    get_dashboard_service,
     get_current_admin,
     get_current_user,
+    get_dashboard_service,
     router,
 )
 from .realtime_engine import AnalyticsRepository, Booking, RealtimeAnalyticsEngine, Review

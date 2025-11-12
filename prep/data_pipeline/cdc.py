@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 
 class SchemaMismatchError(RuntimeError):
@@ -15,9 +15,9 @@ class SchemaRegistry:
     """In-memory schema registry mirroring our managed service contract."""
 
     def __init__(self) -> None:
-        self._schemas: Dict[str, Dict[str, Any]] = {}
+        self._schemas: dict[str, dict[str, Any]] = {}
 
-    def register(self, name: str, schema: Dict[str, Any]) -> int:
+    def register(self, name: str, schema: dict[str, Any]) -> int:
         existing = self._schemas.get(name)
         if existing and existing != schema:
             raise SchemaMismatchError(
@@ -27,7 +27,7 @@ class SchemaRegistry:
             self._schemas[name] = schema
         return len(self._schemas)
 
-    def get(self, name: str) -> Dict[str, Any]:
+    def get(self, name: str) -> dict[str, Any]:
         if name not in self._schemas:
             raise KeyError(name)
         return self._schemas[name]
@@ -36,7 +36,7 @@ class SchemaRegistry:
 @dataclass(slots=True)
 class CDCEvent:
     name: str
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     schema_version: int
 
 
@@ -99,9 +99,7 @@ class CDCStreamManager:
         self._bigquery = bigquery
         self._snowflake = snowflake
 
-    async def publish(
-        self, name: str, payload: Dict[str, Any], schema: Dict[str, Any]
-    ) -> None:
+    async def publish(self, name: str, payload: dict[str, Any], schema: dict[str, Any]) -> None:
         version = self._registry.register(name, schema)
         event = CDCEvent(name=name, payload=payload, schema_version=version)
         await asyncio.gather(
@@ -118,7 +116,7 @@ class CDCStreamManager:
         return self._snowflake
 
 
-def build_cdc_stream(settings: "Settings") -> CDCStreamManager:
+def build_cdc_stream(settings: Settings) -> CDCStreamManager:
     """Factory used by DI frameworks to bootstrap CDC streaming."""
 
     registry = SchemaRegistry()

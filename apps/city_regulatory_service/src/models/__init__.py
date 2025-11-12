@@ -27,19 +27,13 @@ from .requirements import (
     total_one_time_cents,
     total_recurring_annualized_cents,
     validate_fee_schedule,
-# Import ORM entities from the shared regulatory module
-from prep.regulatory.models import (
-    CityAgency,
-    CityComplianceTemplate,
-    CityFeeSchedule,
-    CityETLRun,
-    CityJurisdiction,
-    CityRequirement,
-    CityRequirementLink,
 )
 
-# Domain-level models that power estimators and API responses
-from .requirements import FeeItem, FeeSchedule, RequirementsBundle
+# Import additional ORM entities from the shared regulatory module
+try:  # pragma: no cover - degrade gracefully when dependencies unavailable
+    from prep.regulatory.models import CityFeeSchedule
+except Exception:  # pragma: no cover - set placeholder for test environments
+    CityFeeSchedule = None
 
 __all__ = [
     "CityJurisdiction",

@@ -1,16 +1,17 @@
 import json
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, List
+from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 
 class GDPRCCPACore:
     """Core utilities for GDPR and CCPA privacy compliance."""
 
     def __init__(self) -> None:
-        self.config: Dict[str, Any] = {}
-        self.records: List[Dict[str, Any]] = []
+        self.config: dict[str, Any] = {}
+        self.records: list[dict[str, Any]] = []
         self.is_valid: bool = False
-        self.errors: List[str] = []
+        self.errors: list[str] = []
 
     def load_config(self, config_path: str) -> None:
         """Load privacy compliance settings from file.
@@ -20,7 +21,7 @@ class GDPRCCPACore:
         is raised if the configuration is missing or malformed.
         """
 
-        with open(config_path, "r", encoding="utf-8") as handle:
+        with open(config_path, encoding="utf-8") as handle:
             config = json.load(handle)
 
         allowed_regions = config.get("allowed_regions")
@@ -32,7 +33,7 @@ class GDPRCCPACore:
 
         self.config = config
 
-    def validate(self, records: Iterable[Dict[str, Any]]) -> bool:
+    def validate(self, records: Iterable[dict[str, Any]]) -> bool:
         """Validate data handling practices."""
 
         if not self.config:
@@ -41,9 +42,9 @@ class GDPRCCPACore:
         records_list = list(records)
         allowed_regions = {region for region in self.config["allowed_regions"]}
         retention = timedelta(days=int(self.config["data_retention_days"]))
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
-        errors: List[str] = []
+        errors: list[str] = []
         for index, record in enumerate(records_list):
             if not record.get("consent"):
                 errors.append(f"Record {index} missing consent")
@@ -61,7 +62,7 @@ class GDPRCCPACore:
                     f"{last_updated_str!r} - {exc}"
                 )
                 continue
-            except Exception as exc:
+            except Exception:
                 # Unexpected error - log and re-raise
                 import logging
 
@@ -70,14 +71,14 @@ class GDPRCCPACore:
                     "Unexpected error validating record %d",
                     index,
                     exc_info=True,
-                    extra={"record": record}
+                    extra={"record": record},
                 )
                 raise
 
             if last_updated.tzinfo is None:
-                last_updated = last_updated.replace(tzinfo=timezone.utc)
+                last_updated = last_updated.replace(tzinfo=UTC)
             else:
-                last_updated = last_updated.astimezone(timezone.utc)
+                last_updated = last_updated.astimezone(UTC)
 
             if now - last_updated > retention:
                 errors.append(f"Record {index} exceeded retention period")
@@ -96,9 +97,7 @@ class GDPRCCPACore:
             raise ValueError("No records validated")
 
         status = "passed" if self.is_valid else "failed"
-        summary = (
-            f"Validation {status}. Records checked: {len(self.records)}."
-        )
+        summary = f"Validation {status}. Records checked: {len(self.records)}."
         if self.errors:
             details = "\n".join(self.errors)
             return f"{summary}\nIssues:\n{details}"

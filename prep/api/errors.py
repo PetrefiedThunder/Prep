@@ -1,20 +1,9 @@
-"""Utilities for producing standardized API error responses."""
-
-from __future__ import annotations
-
-from typing import Any
-
-from fastapi import HTTPException, Request
-
-from prep.platform.schemas import ErrorDetail, ErrorResponseEnvelope, resolve_request_id
-
-
-def http_error(
 """Shared helpers for producing structured API error responses."""
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 from uuid import uuid4
 
 from fastapi import HTTPException, Request
@@ -72,6 +61,14 @@ def http_exception(
         meta=meta,
     )
     return HTTPException(status_code=status_code, detail=envelope.model_dump(), headers=headers)
+
+
+def http_exception_alt(
+    request: Request,
+    *,
+    status_code: int,
+    code: str,
+    message: str,
     target: str | None = None,
     metadata: Mapping[str, Any] | None = None,
     headers: Mapping[str, str] | None = None,
@@ -88,7 +85,9 @@ def http_exception(
     if headers:
         response_headers.update(headers)
 
-    return HTTPException(status_code=status_code, detail=envelope.model_dump(), headers=response_headers)
+    return HTTPException(
+        status_code=status_code, detail=envelope.model_dump(), headers=response_headers
+    )
 
 
 def json_error_response(

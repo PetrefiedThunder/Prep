@@ -8,22 +8,22 @@ building on the federal regulatory engine.
 from __future__ import annotations
 
 import logging
-from contextlib import contextmanager
+from collections.abc import Generator
 from datetime import datetime
-from typing import Any, Generator, Optional
+from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from prep.models.db import SessionLocal
 from apps.city_regulatory_service.src.etl import CITY_ADAPTERS, CityETLOrchestrator
 from apps.city_regulatory_service.src.models import (
     CityAgency,
     CityJurisdiction,
     CityRequirement,
 )
+from prep.models.db import SessionLocal
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -41,6 +41,7 @@ app = FastAPI(
 # Database Connection Management
 # ============================================================================
 
+
 def get_db() -> Generator[Session, None, None]:
     """Dependency for database sessions."""
     db = SessionLocal()
@@ -54,6 +55,7 @@ def get_db() -> Generator[Session, None, None]:
 # Pydantic Models
 # ============================================================================
 
+
 class JurisdictionResponse(BaseModel):
     """Jurisdiction information."""
 
@@ -62,12 +64,12 @@ class JurisdictionResponse(BaseModel):
     id: str
     city: str
     state: str
-    county: Optional[str] = None
-    population: Optional[int] = None
-    food_code_version: Optional[str] = None
-    portal_url: Optional[str] = None
-    business_license_url: Optional[str] = None
-    health_department_url: Optional[str] = None
+    county: str | None = None
+    population: int | None = None
+    food_code_version: str | None = None
+    portal_url: str | None = None
+    business_license_url: str | None = None
+    health_department_url: str | None = None
 
 
 class AgencyResponse(BaseModel):
@@ -78,9 +80,9 @@ class AgencyResponse(BaseModel):
     id: str
     name: str
     agency_type: str
-    contact_email: Optional[str] = None
-    contact_phone: Optional[str] = None
-    portal_link: Optional[str] = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    portal_link: str | None = None
 
 
 class RequirementResponse(BaseModel):
@@ -98,10 +100,10 @@ class RequirementResponse(BaseModel):
     applies_to: list[str]
     required_documents: list[str]
     submission_channel: str
-    application_url: Optional[str] = None
+    application_url: str | None = None
     inspection_required: bool
     renewal_frequency: str
-    fee_amount: Optional[float] = None
+    fee_amount: float | None = None
     fee_schedule: str
     source_url: str
     last_updated: datetime
@@ -120,24 +122,30 @@ class ComplianceQueryRequest(BaseModel):
     """Request for compliance requirements query."""
 
     jurisdiction: str = Field(..., description="City name (e.g., 'San Francisco', 'New York')")
-    business_type: Optional[str] = Field(None, description="Business type filter (e.g., 'restaurant', 'food_truck')")
-    requirement_type: Optional[str] = Field(None, description="Requirement type filter (e.g., 'business_license', 'health_permit')")
+    business_type: str | None = Field(
+        None, description="Business type filter (e.g., 'restaurant', 'food_truck')"
+    )
+    requirement_type: str | None = Field(
+        None, description="Requirement type filter (e.g., 'business_license', 'health_permit')"
+    )
 
 
 class ComplianceQueryResponse(BaseModel):
     """Response with compliance requirements."""
 
     jurisdiction: str
-    business_type: Optional[str]
+    business_type: str | None
     requirement_count: int
     requirements: list[RequirementResponse]
-    estimated_total_cost: Optional[float] = None
+    estimated_total_cost: float | None = None
 
 
 class ETLRunRequest(BaseModel):
     """Request to trigger ETL run."""
 
-    city: Optional[str] = Field(None, description="Specific city to run ETL for, or None for all cities")
+    city: str | None = Field(
+        None, description="Specific city to run ETL for, or None for all cities"
+    )
 
 
 class ETLRunResponse(BaseModel):
@@ -161,6 +169,7 @@ class HealthResponse(BaseModel):
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
 
 def format_requirement_response(
     req: CityRequirement,
@@ -193,6 +202,7 @@ def format_requirement_response(
 # ============================================================================
 # API Endpoints
 # ============================================================================
+
 
 @app.get("/healthz", response_model=HealthResponse)
 async def health_check(db: Session = Depends(get_db)) -> HealthResponse:
@@ -281,9 +291,9 @@ async def list_agencies(
 
 @app.get("/compliance/requirements", response_model=list[RequirementResponse])
 async def list_requirements(
-    jurisdiction: Optional[str] = Query(None, description="Filter by city name"),
-    business_type: Optional[str] = Query(None, description="Filter by business type"),
-    requirement_type: Optional[str] = Query(None, description="Filter by requirement type"),
+    jurisdiction: str | None = Query(None, description="Filter by city name"),
+    business_type: str | None = Query(None, description="Filter by business type"),
+    requirement_type: str | None = Query(None, description="Filter by requirement type"),
     db: Session = Depends(get_db),
 ) -> list[RequirementResponse]:
     """
@@ -291,18 +301,21 @@ async def list_requirements(
 
     Supports filtering by jurisdiction, business type, and requirement type.
     """
-    query = db.query(
-        CityRequirement,
-        CityJurisdiction,
-        CityAgency,
-    ).join(
-        CityJurisdiction,
-        CityRequirement.jurisdiction_id == CityJurisdiction.id,
-    ).join(
-        CityAgency,
-        CityRequirement.agency_id == CityAgency.id,
-    ).filter(
-        CityRequirement.is_active == True
+    query = (
+        db.query(
+            CityRequirement,
+            CityJurisdiction,
+            CityAgency,
+        )
+        .join(
+            CityJurisdiction,
+            CityRequirement.jurisdiction_id == CityJurisdiction.id,
+        )
+        .join(
+            CityAgency,
+            CityRequirement.agency_id == CityAgency.id,
+        )
+        .filter(CityRequirement.is_active == True)
     )
 
     if jurisdiction:
@@ -322,10 +335,7 @@ async def list_requirements(
                 filtered_results.append((req, juris, agency))
         results = filtered_results
 
-    return [
-        format_requirement_response(req, juris, agency)
-        for req, juris, agency in results
-    ]
+    return [format_requirement_response(req, juris, agency) for req, juris, agency in results]
 
 
 @app.post("/compliance/query", response_model=ComplianceQueryResponse)
@@ -352,19 +362,24 @@ async def query_compliance_requirements(
         )
 
     # Build query
-    query = db.query(
-        CityRequirement,
-        CityJurisdiction,
-        CityAgency,
-    ).join(
-        CityJurisdiction,
-        CityRequirement.jurisdiction_id == CityJurisdiction.id,
-    ).join(
-        CityAgency,
-        CityRequirement.agency_id == CityAgency.id,
-    ).filter(
-        CityRequirement.jurisdiction_id == jurisdiction.id,
-        CityRequirement.is_active == True,
+    query = (
+        db.query(
+            CityRequirement,
+            CityJurisdiction,
+            CityAgency,
+        )
+        .join(
+            CityJurisdiction,
+            CityRequirement.jurisdiction_id == CityJurisdiction.id,
+        )
+        .join(
+            CityAgency,
+            CityRequirement.agency_id == CityAgency.id,
+        )
+        .filter(
+            CityRequirement.jurisdiction_id == jurisdiction.id,
+            CityRequirement.is_active == True,
+        )
     )
 
     if request.requirement_type:
@@ -377,7 +392,10 @@ async def query_compliance_requirements(
         filtered_results = []
         for req, juris, agency in results:
             applies_to = req.applies_to or []
-            if request.business_type.lower() in [bt.lower() for bt in applies_to] or "all" in applies_to:
+            if (
+                request.business_type.lower() in [bt.lower() for bt in applies_to]
+                or "all" in applies_to
+            ):
                 filtered_results.append((req, juris, agency))
         results = filtered_results
 
@@ -388,8 +406,7 @@ async def query_compliance_requirements(
             total_cost += float(req.fee_amount)
 
     requirements = [
-        format_requirement_response(req, juris, agency)
-        for req, juris, agency in results
+        format_requirement_response(req, juris, agency) for req, juris, agency in results
     ]
 
     return ComplianceQueryResponse(
@@ -506,4 +523,5 @@ async def trigger_etl(
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8002)

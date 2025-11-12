@@ -1,17 +1,18 @@
 """Socrata -> Supabase ETL script for PrepChef pilot counties."""
+
 from __future__ import annotations
 
 import argparse
 import json
 import logging
 import os
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, List
 
 import backoff
 import httpx
 import pandas as pd
-from supabase import create_client, Client
+from supabase import Client, create_client
 
 from etl.scrapers import load_san_bernardino_requirements
 
@@ -32,11 +33,12 @@ def _parse_slugs(raw: str) -> list[str]:
         return []
     return [_normalize_slug(part) for part in raw.split(",") if part.strip()]
 
+
 def configure_logging(verbose: bool = False) -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
-    handlers: List[logging.Handler] = [
+    handlers: list[logging.Handler] = [
         logging.FileHandler(LOG_FILE, encoding="utf-8"),
-        logging.StreamHandler()
+        logging.StreamHandler(),
     ]
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
@@ -224,7 +226,9 @@ def main() -> None:
                     limit=args.limit,
                 )
                 inserted = upsert_staging(supabase, source["id"], df, county_id, ingestion_run_id)
-                normalized = normalize_and_upsert(supabase, source["id"], county_id, ingestion_run_id)
+                normalized = normalize_and_upsert(
+                    supabase, source["id"], county_id, ingestion_run_id
+                )
                 status = "success"
             except Exception as exc:  # noqa: BLE001 - top-level ETL guard
                 LOGGER.exception("Failed to sync %s: %s", dataset_id, exc)
@@ -242,9 +246,11 @@ def main() -> None:
                 )
 
         should_run_sb_loader = False
-        if normalized_slug in {"san_bernardino", "san_bernardino_county"}:
-            should_run_sb_loader = True
-        elif _SAN_BERNARDINO_COUNTY_ID and county_id == _SAN_BERNARDINO_COUNTY_ID:
+        if (
+            normalized_slug in {"san_bernardino", "san_bernardino_county"}
+            or _SAN_BERNARDINO_COUNTY_ID
+            and county_id == _SAN_BERNARDINO_COUNTY_ID
+        ):
             should_run_sb_loader = True
 
         if should_run_sb_loader:
@@ -256,9 +262,7 @@ def main() -> None:
                     summary.get("inserted", 0),
                 )
             except Exception as exc:  # noqa: BLE001 - nightly sync safety net
-                LOGGER.exception(
-                    "Failed to load San Bernardino County requirements: %s", exc
-                )
+                LOGGER.exception("Failed to load San Bernardino County requirements: %s", exc)
 
 
 if __name__ == "__main__":

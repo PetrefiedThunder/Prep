@@ -8,7 +8,6 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Iterable, Sequence
 from uuid import UUID
 
 import boto3
@@ -215,12 +214,8 @@ async def run_pos_reconciliation(
         kitchen_ids = set(booking_totals) | set(transaction_totals) | set(order_totals)
         entries: list[ReconciliationEntry] = []
         for kitchen_id in kitchen_ids:
-            booking_total, booking_count = booking_totals.get(
-                kitchen_id, (Decimal("0"), 0)
-            )
-            txn_total, txn_count = transaction_totals.get(
-                kitchen_id, (Decimal("0"), 0)
-            )
+            booking_total, booking_count = booking_totals.get(kitchen_id, (Decimal("0"), 0))
+            txn_total, txn_count = transaction_totals.get(kitchen_id, (Decimal("0"), 0))
             order_total, order_count = order_totals.get(kitchen_id, (Decimal("0"), 0))
             entries.append(
                 ReconciliationEntry(
@@ -247,7 +242,9 @@ async def run_pos_reconciliation(
         report.s3_object_key = key
 
         analytics_service = POSAnalyticsService(session, analytics_cache)
-        await analytics_service.refresh_cache(kitchen_ids=list(kitchen_ids), start=start_dt, end=end_dt)
+        await analytics_service.refresh_cache(
+            kitchen_ids=list(kitchen_ids), start=start_dt, end=end_dt
+        )
 
     if created_s3_client and hasattr(s3_client, "close"):
         try:

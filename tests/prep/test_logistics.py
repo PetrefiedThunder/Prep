@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from prep.data_pipeline.cdc import build_cdc_stream
+from prep.logistics import schemas
 from prep.logistics.onfleet import OnfleetClient
 from prep.logistics.service import LogisticsService
-from prep.logistics import schemas
 from prep.settings import Settings
 
 
@@ -22,7 +22,7 @@ async def test_logistics_service_falls_back_to_local_solver() -> None:
     request = schemas.RouteOptimizationRequest(
         vehicle_id="vehicle-1",
         start_location=schemas.Coordinate(latitude=40.7128, longitude=-74.0060),
-        start_time=datetime(2024, 1, 1, 12, tzinfo=timezone.utc),
+        start_time=datetime(2024, 1, 1, 12, tzinfo=UTC),
         stops=[
             schemas.Stop(
                 id="1",

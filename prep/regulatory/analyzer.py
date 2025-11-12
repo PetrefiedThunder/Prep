@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Sequence
+from typing import Any
 
 
 class ComplianceLevel(str, Enum):
@@ -23,19 +24,19 @@ class ComplianceAnalysis:
 
     overall_compliance: ComplianceLevel
     risk_score: int
-    missing_requirements: List[str]
-    recommendations: List[str]
+    missing_requirements: list[str]
+    recommendations: list[str]
     last_analyzed: datetime
     kitchen_id: str = "unknown"
     state: str | None = None
     city: str | None = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class RegulatoryAnalyzer:
     """Naive regulatory analyzer that evaluates a kitchen against basic rules."""
 
-    REQUIRED_FIELDS: Dict[str, str] = {
+    REQUIRED_FIELDS: dict[str, str] = {
         "health_permit_number": "Active health permit",
         "last_inspection_date": "Recent health inspection on file",
         "insurance": "Valid liability insurance",
@@ -45,18 +46,18 @@ class RegulatoryAnalyzer:
 
     async def analyze_kitchen_compliance(
         self,
-        kitchen_data: Dict[str, Any],
-        regulations: Sequence[Dict[str, Any]] | None = None,
+        kitchen_data: dict[str, Any],
+        regulations: Sequence[dict[str, Any]] | None = None,
         *,
         pilot_mode: bool = False,
     ) -> ComplianceAnalysis:
         """Compute a compliance snapshot for a kitchen."""
 
         regulations = regulations or []
-        missing_requirements: List[str] = []
-        recommendations: List[str] = []
-        metadata: Dict[str, Any] = {}
-        warnings: List[str] = []
+        missing_requirements: list[str] = []
+        recommendations: list[str] = []
+        metadata: dict[str, Any] = {}
+        warnings: list[str] = []
 
         def _record_issue(
             message: str,
@@ -95,9 +96,7 @@ class RegulatoryAnalyzer:
                 document_gap=True,
             )
         elif kitchen_data.get("delivery_only"):
-            has_delivery_permit = any(
-                slug in self.DELIVERY_PERMIT_SLUGS for slug in permit_types
-            )
+            has_delivery_permit = any(slug in self.DELIVERY_PERMIT_SLUGS for slug in permit_types)
             if not has_delivery_permit:
                 _record_issue(
                     "Delivery-only kitchens must provide ghost kitchen permit",
@@ -106,7 +105,7 @@ class RegulatoryAnalyzer:
                 )
 
         sanitation_logs = kitchen_data.get("sanitation_logs") or []
-        latest_log: Dict[str, Any] | None = None
+        latest_log: dict[str, Any] | None = None
         if sanitation_logs:
             sorted_logs = sorted(
                 sanitation_logs,
@@ -131,7 +130,9 @@ class RegulatoryAnalyzer:
                     document_gap=False,
                 )
             if latest_log.get("follow_up_required"):
-                recommendations.append("Resolve outstanding sanitation follow-up items and document completion.")
+                recommendations.append(
+                    "Resolve outstanding sanitation follow-up items and document completion."
+                )
         else:
             _record_issue(
                 "Sanitation logs missing",
@@ -160,9 +161,7 @@ class RegulatoryAnalyzer:
             )
         else:
             overall = (
-                ComplianceLevel.COMPLIANT
-                if kitchen_data.get("state")
-                else ComplianceLevel.UNKNOWN
+                ComplianceLevel.COMPLIANT if kitchen_data.get("state") else ComplianceLevel.UNKNOWN
             )
 
         return ComplianceAnalysis(

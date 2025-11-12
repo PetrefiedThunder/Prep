@@ -208,5 +208,3 @@ def get_city_fees_summary(
 
 
 __all__ = ["router"]
-
-

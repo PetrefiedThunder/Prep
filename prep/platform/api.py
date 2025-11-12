@@ -7,21 +7,15 @@ from uuid import UUID
 
 import boto3
 from botocore.client import BaseClient
-from fastapi import APIRouter, Depends, Query, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from docusign_client import DocuSignClient
-from prep.api.errors import http_error
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docusign_client import DocuSignClient
-from prep.api.errors import http_exception
+from prep.api.errors import http_error, http_exception
+from prep.auth import get_current_admin, get_current_user
 from prep.cache import RedisProtocol, get_redis
 from prep.database import get_db
-from prep.auth import get_current_user
-from prep.auth import get_current_admin
 from prep.models.orm import User
 from prep.platform import schemas
 from prep.platform.contracts_service import SubleaseContractService
@@ -44,10 +38,18 @@ def get_docusign_client(
     request: Request, settings: Settings = Depends(get_settings)
 ) -> DocuSignClient:
     if not settings.docusign_account_id or not settings.docusign_access_token:
-        raise http_error(
-            request,
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            code="platform.docusign_configuration_missing",
+            detail={
+                "code": "platform.docusign_configuration_missing",
+                "message": "DocuSign configuration is missing",
+            },
+        )
+    return DocuSignClient(
+        account_id=settings.docusign_account_id, access_token=settings.docusign_access_token
+    )
+
+
 def _extract_request_metadata(request: Request) -> tuple[str | None, str | None, str | None]:
     client_ip = request.client.host if request.client else None
     device_id = request.headers.get("X-Device-Id")
@@ -116,7 +118,9 @@ def _parse_review_cursor(request: Request, cursor: str | None) -> tuple[datetime
     return timestamp, review_id
 
 
-@router.post("/users/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/users/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED
+)
 async def register_user(
     payload: schemas.UserRegistrationRequest,
     request: Request,
@@ -150,7 +154,6 @@ async def login_user(
         access_token=token,
         refresh_token=refresh_token,
         expires_at=expires_at,
-        refresh_token=refresh_token,
         refresh_expires_at=refresh_expires,
         user=schemas.serialize_user(user),
     )
@@ -223,6 +226,8 @@ async def rotate_api_key(
         raise _handle_service_error(exc)
     serialized = schemas.serialize_api_key(api_key)
     return schemas.APIKeyWithSecretResponse(**serialized.model_dump(), secret=secret)
+
+
 @auth_router.post("/token", response_model=schemas.TokenPairResponse)
 async def issue_access_token(
     request: Request,
@@ -332,7 +337,9 @@ async def revoke_api_key(
     return schemas.serialize_api_key(api_key)
 
 
-@router.post("/kitchens", response_model=schemas.KitchenResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/kitchens", response_model=schemas.KitchenResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_kitchen(
     payload: schemas.KitchenCreateRequest,
     request: Request,
@@ -359,7 +366,9 @@ async def update_kitchen(
     return schemas.serialize_kitchen(kitchen)
 
 
-@router.post("/bookings", response_model=schemas.BookingResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/bookings", response_model=schemas.BookingResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_booking(
     payload: schemas.BookingCreateRequest,
     request: Request,
@@ -428,6 +437,8 @@ async def list_reviews(
             total=total,
         ),
     )
+
+
 @router.get("/reviews/kitchens/{kitchen_id}", response_model=schemas.ReviewListResponse)
 async def list_reviews(
     kitchen_id: UUID,
@@ -459,7 +470,9 @@ async def list_reviews(
     )
 
 
-@router.post("/documents", response_model=schemas.DocumentUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/documents", response_model=schemas.DocumentUploadResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_document_upload(
     payload: schemas.DocumentUploadCreateRequest,
     service: PlatformService = Depends(get_platform_service),
@@ -588,6 +601,9 @@ async def create_checkout(
         receipt_url=record.receipt_url,
         refunded_amount_cents=record.refunded_amount_cents,
     )
+
+
+@router.post(
     "/payments/checkout",
     response_model=schemas.CheckoutPaymentResponse,
     status_code=status.HTTP_201_CREATED,
@@ -656,7 +672,9 @@ async def get_sublease_contract_status(
 
 
 @router.post(
-    "/compliance", response_model=schemas.ComplianceDocumentResponse, status_code=status.HTTP_201_CREATED
+    "/compliance",
+    response_model=schemas.ComplianceDocumentResponse,
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_compliance_document(
     payload: schemas.ComplianceDocumentCreateRequest,

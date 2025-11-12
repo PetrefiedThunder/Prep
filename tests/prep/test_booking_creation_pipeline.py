@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 from uuid import uuid4
@@ -19,7 +19,9 @@ async def test_conflict_detection_includes_buffer() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(engine, expire_on_commit=False)
+    session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
+        engine, expire_on_commit=False
+    )
 
     try:
         async with session_factory() as session:
@@ -32,7 +34,7 @@ async def test_conflict_detection_includes_buffer() -> None:
             session.add(kitchen)
             await session.flush()
 
-            base_start = datetime(2024, 1, 5, 10, 0, tzinfo=timezone.utc)
+            base_start = datetime(2024, 1, 5, 10, 0, tzinfo=UTC)
             base_end = base_start + timedelta(hours=4)
 
             booking = Booking(

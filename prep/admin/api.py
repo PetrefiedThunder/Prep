@@ -123,9 +123,6 @@ def _build_certification_summary(document: CertificationDocument) -> Certificati
     )
 
 
-async def _get_kitchen_or_404(
-    request: Request, db: AsyncSession, kitchen_id: UUID
-) -> Kitchen:
 def _parse_entity_cursor(
     request: Request,
     cursor: str | None,
@@ -162,15 +159,9 @@ async def _get_kitchen_or_404(request: Request, db: AsyncSession, kitchen_id: UU
     )
     kitchen = result.unique().scalar_one_or_none()
     if kitchen is None:
-        raise http_error(
-            request,
+        raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            code="admin.kitchen_not_found",
-        raise http_exception(
-            request,
-            status_code=status.HTTP_404_NOT_FOUND,
-            code="admin.kitchens.not_found",
-            message="Kitchen not found",
+            detail={"code": "admin.kitchens.not_found", "message": "Kitchen not found"},
         )
     return kitchen
 
@@ -217,9 +208,7 @@ async def get_pending_kitchens(
         .order_by(Kitchen.submitted_at.desc())
     )
     if cursor is not None:
-        query = query.where(Kitchen.submitted_at < cursor)
-        .order_by(Kitchen.submitted_at.desc(), Kitchen.id.desc())
-    )
+        query = query.where(Kitchen.submitted_at < cursor).order_by(Kitchen.submitted_at.desc(), Kitchen.id.desc())
 
     parsed_cursor = _parse_entity_cursor(
         request,
@@ -247,11 +236,7 @@ async def get_pending_kitchens(
         kitchens = kitchens[:limit]
 
     items = [_build_kitchen_summary(kitchen) for kitchen in kitchens]
-    pagination = PaginationMeta(
-        limit=limit,
-        cursor=cursor,
-        next_cursor=next_cursor,
-        total=total,
+
     next_cursor = None
     if items:
         tail = kitchens[-1]
@@ -296,15 +281,12 @@ async def moderate_kitchen(
     kitchen = await _get_kitchen_or_404(request, db, kitchen_id)
 
     if kitchen.moderation_status != ModerationStatus.PENDING:
-        raise http_error(
-            request,
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            code="admin.kitchen_already_moderated",
-        raise http_exception(
-            request,
-            status_code=status.HTTP_400_BAD_REQUEST,
-            code="admin.kitchens.already_moderated",
-            message="Kitchen already moderated",
+            detail={
+                "code": "admin.kitchens.already_moderated",
+                "message": "Kitchen already moderated"
+            }
         )
 
     now = datetime.now(UTC)
@@ -421,9 +403,9 @@ async def get_pending_certifications(
         .order_by(CertificationDocument.submitted_at.asc())
     )
     if cursor is not None:
-        query = query.where(CertificationDocument.submitted_at > cursor)
-        .order_by(CertificationDocument.submitted_at.asc(), CertificationDocument.id.asc())
-    )
+        query = query.where(CertificationDocument.submitted_at > cursor).order_by(
+            CertificationDocument.submitted_at.asc(), CertificationDocument.id.asc()
+        )
 
     parsed_cursor = _parse_entity_cursor(
         request,
@@ -454,11 +436,7 @@ async def get_pending_certifications(
         documents = documents[:limit]
 
     items = [_build_certification_summary(doc) for doc in documents]
-    pagination = PaginationMeta(
-        limit=limit,
-        cursor=cursor,
-        next_cursor=next_cursor,
-        total=total,
+
     next_cursor = None
     if items:
         tail = documents[-1]

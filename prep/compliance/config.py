@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Dict, Optional
 import os
+from dataclasses import dataclass
+from typing import Any
 
 import yaml
 
@@ -18,7 +18,7 @@ class ComplianceConfig:
     storage_path: str
     retention_days: int
     enable_simulations: bool
-    custom_rules_path: Optional[str] = None
+    custom_rules_path: str | None = None
 
 
 class ComplianceConfigManager:
@@ -26,12 +26,12 @@ class ComplianceConfigManager:
 
     def __init__(self, config_path: str = "config/compliance.yaml") -> None:
         self.config_path = config_path
-        self.config: Optional[ComplianceConfig] = None
+        self.config: ComplianceConfig | None = None
         self.load_config()
 
     def load_config(self) -> None:
         if os.path.exists(self.config_path):
-            with open(self.config_path, "r", encoding="utf-8") as handle:
+            with open(self.config_path, encoding="utf-8") as handle:
                 config_data = yaml.safe_load(handle) or {}
             self.config = ComplianceConfig(**config_data)
         else:
@@ -67,7 +67,7 @@ class ComplianceConfigManager:
         with open(self.config_path, "w", encoding="utf-8") as handle:
             yaml.safe_dump(config_dict, handle)
 
-    def get_engine_config(self, engine_name: str) -> Dict[str, Any]:
+    def get_engine_config(self, engine_name: str) -> dict[str, Any]:
         if not self.config:
             raise ValueError("Configuration not loaded")
         return {

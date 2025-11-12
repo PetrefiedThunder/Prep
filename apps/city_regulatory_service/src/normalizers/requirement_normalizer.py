@@ -8,7 +8,7 @@ using a shared jurisdictional ontology and requirement taxonomy.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any
 
 # ============================================================================
@@ -105,6 +105,7 @@ BUSINESS_TYPES = [
 # Normalized Data Structure
 # ============================================================================
 
+
 @dataclass
 class NormalizedRequirement:
     """Normalized city regulatory requirement."""
@@ -144,6 +145,7 @@ class NormalizedRequirement:
 # ============================================================================
 # Normalization Functions
 # ============================================================================
+
 
 class RequirementNormalizer:
     """Normalizes raw city requirement data into standardized format."""
@@ -305,9 +307,7 @@ class RequirementNormalizer:
 
         # Normalize core fields
         normalized_type = cls.normalize_requirement_type(requirement_label)
-        renewal_frequency = cls.normalize_renewal_frequency(
-            raw_data.get("renewal_cycle", "")
-        )
+        renewal_frequency = cls.normalize_renewal_frequency(raw_data.get("renewal_cycle", ""))
         submission_channel = cls.normalize_submission_channel(
             raw_data.get("submission_channel", "")
         )
@@ -338,7 +338,9 @@ class RequirementNormalizer:
             required_documents = [str(required_documents)]
 
         return NormalizedRequirement(
-            requirement_id=raw_data.get("requirement_id", f"{jurisdiction.lower().replace(' ', '_')}_{normalized_type}"),
+            requirement_id=raw_data.get(
+                "requirement_id", f"{jurisdiction.lower().replace(' ', '_')}_{normalized_type}"
+            ),
             jurisdiction=jurisdiction,
             normalized_type=normalized_type,
             requirement_label=requirement_label,

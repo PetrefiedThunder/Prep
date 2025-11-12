@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
-_SAN_FRANCISCO_CONFIG: Dict[str, Any] = {
+_SAN_FRANCISCO_CONFIG: dict[str, Any] = {
     "state": "CA",
     "health_code": "§6.15 Shared Kitchen Facilities",
     "health_dept_url": "https://www.sfdph.org/dph/EH/Food/",
@@ -118,7 +118,7 @@ _SAN_FRANCISCO_CONFIG: Dict[str, Any] = {
 }
 
 
-def safe_load(stream: Any) -> Dict[str, Any]:
+def safe_load(stream: Any) -> dict[str, Any]:
     """Return the San Francisco configuration for callers expecting PyYAML."""
 
     if hasattr(stream, "read"):
@@ -126,7 +126,9 @@ def safe_load(stream: Any) -> Dict[str, Any]:
     return _SAN_FRANCISCO_CONFIG.copy()
 
 
-def dump(data: Any, *args: Any, **kwargs: Any) -> str:  # pragma: no cover - provided for completeness
+def dump(
+    data: Any, *args: Any, **kwargs: Any
+) -> str:  # pragma: no cover - provided for completeness
     raise NotImplementedError("dump is not implemented in the lightweight yaml stub")
 
 

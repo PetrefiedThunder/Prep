@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -17,7 +17,9 @@ def _write_records(path: Path, records: list[dict[str, object]]) -> None:
     path.write_text(json.dumps(records), encoding="utf-8")
 
 
-def test_main_generates_metrics_with_mocked_upstream(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_generates_metrics_with_mocked_upstream(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     dataset_path = tmp_path / "dataset.json"
     records = [
         {"value": 1, "notes": "ok"},
@@ -25,7 +27,7 @@ def test_main_generates_metrics_with_mocked_upstream(tmp_path: Path, monkeypatch
     ]
     _write_records(dataset_path, records)
 
-    ingestion_timestamp = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    ingestion_timestamp = datetime(2024, 1, 1, tzinfo=UTC)
     os.utime(dataset_path, (ingestion_timestamp.timestamp(), ingestion_timestamp.timestamp()))
 
     reference_timestamp = ingestion_timestamp - timedelta(hours=12)
@@ -85,7 +87,7 @@ def test_collect_dataset_metrics_captures_upstream_failures(
     dataset_path = tmp_path / "error_dataset.json"
     _write_records(dataset_path, [{"code": "A"}])
 
-    ingestion_timestamp = datetime(2024, 2, 1, tzinfo=timezone.utc)
+    ingestion_timestamp = datetime(2024, 2, 1, tzinfo=UTC)
     os.utime(dataset_path, (ingestion_timestamp.timestamp(), ingestion_timestamp.timestamp()))
 
     @dataclass

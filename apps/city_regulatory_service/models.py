@@ -20,6 +20,7 @@ Base = declarative_base()
 
 class RegulationType(str, Enum):
     """Types of city-level regulations"""
+
     HEALTH_PERMIT = "health_permit"
     BUSINESS_LICENSE = "business_license"
     FOOD_HANDLER_CERT = "food_handler_certification"
@@ -39,6 +40,7 @@ class RegulationType(str, Enum):
 
 class FacilityType(str, Enum):
     """Types of food service facilities"""
+
     COMMERCIAL_KITCHEN = "commercial_kitchen"
     GHOST_KITCHEN = "ghost_kitchen"
     RESTAURANT = "restaurant"
@@ -51,6 +53,7 @@ class FacilityType(str, Enum):
 
 class ComplianceStatus(str, Enum):
     """Compliance status values"""
+
     COMPLIANT = "compliant"
     NON_COMPLIANT = "non_compliant"
     PENDING_REVIEW = "pending_review"
@@ -63,8 +66,10 @@ class ComplianceStatus(str, Enum):
 # DATABASE MODELS
 # ============================================================================
 
+
 class CityJurisdiction(Base):
     """City jurisdiction information and regulatory contacts"""
+
     __tablename__ = "city_jurisdictions"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -98,6 +103,7 @@ class CityJurisdiction(Base):
 
 class CityRegulation(Base):
     """City-specific regulatory requirements"""
+
     __tablename__ = "city_regulations"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -154,6 +160,7 @@ class CityRegulation(Base):
 
 class CityInsuranceRequirement(Base):
     """Insurance requirements by city and facility type"""
+
     __tablename__ = "city_insurance_requirements"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -190,6 +197,7 @@ class CityInsuranceRequirement(Base):
 
 class CityPermitApplication(Base):
     """Permit application processes and timelines"""
+
     __tablename__ = "city_permit_applications"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -226,6 +234,7 @@ class CityPermitApplication(Base):
 
 class FacilityComplianceStatus(Base):
     """Compliance status tracking for facilities in each city"""
+
     __tablename__ = "facility_compliance_status"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -262,8 +271,10 @@ class FacilityComplianceStatus(Base):
 # PYDANTIC MODELS (API Schemas)
 # ============================================================================
 
+
 class CityJurisdictionSchema(BaseModel):
     """API schema for city jurisdiction"""
+
     id: str
     city_name: str
     state: str
@@ -294,6 +305,7 @@ class CityJurisdictionSchema(BaseModel):
 
 class CityRegulationSchema(BaseModel):
     """API schema for city regulation"""
+
     id: str
     city_id: str
     regulation_type: str
@@ -339,6 +351,7 @@ class CityRegulationSchema(BaseModel):
 
 class CityInsuranceRequirementSchema(BaseModel):
     """API schema for insurance requirements"""
+
     id: str
     city_id: str
     insurance_type: str
@@ -369,6 +382,7 @@ class CityInsuranceRequirementSchema(BaseModel):
 
 class ComplianceCheckRequest(BaseModel):
     """Request to check compliance for a facility"""
+
     facility_id: str
     city_name: str
     state: str
@@ -381,6 +395,7 @@ class ComplianceCheckRequest(BaseModel):
 
 class ComplianceCheckResponse(BaseModel):
     """Response from compliance check"""
+
     facility_id: str
     city_name: str
     state: str
@@ -405,6 +420,7 @@ class ComplianceCheckResponse(BaseModel):
 
 class RegulationSummary(BaseModel):
     """Summary of regulations for a city"""
+
     city_name: str
     state: str
     total_regulations: int
@@ -416,6 +432,7 @@ class RegulationSummary(BaseModel):
 
 class DataIngestionRequest(BaseModel):
     """Request to ingest new regulatory data"""
+
     city_name: str
     state: str
     regulations: list[dict[str, Any]]
@@ -427,6 +444,7 @@ class DataIngestionRequest(BaseModel):
 
 class DataIngestionResponse(BaseModel):
     """Response from data ingestion"""
+
     success: bool
     city_id: str
     regulations_imported: int

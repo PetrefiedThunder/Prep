@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from prep.integrations.event_bus import InMemoryIntegrationEventBus
 from prep.integrations.models import IntegrationEvent
@@ -28,7 +28,7 @@ def test_integration_status_store_updates() -> None:
                 "connected": True,
                 "auth_status": "connected",
                 "health": "healthy",
-                "last_sync_at": datetime.now(timezone.utc).isoformat(),
+                "last_sync_at": datetime.now(UTC).isoformat(),
             },
         )
 

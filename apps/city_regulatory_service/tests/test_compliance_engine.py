@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 # Add paths to import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from prep.compliance.city_compliance_engine import CityComplianceEngine
 
@@ -24,9 +24,7 @@ class TestCityComplianceEngine:
     def engine(self):
         """Create a test engine instance"""
         return CityComplianceEngine(
-            city_name="San Francisco",
-            state="CA",
-            facility_type="commercial_kitchen"
+            city_name="San Francisco", state="CA", facility_type="commercial_kitchen"
         )
 
     @pytest.fixture
@@ -194,7 +192,9 @@ class TestCityComplianceEngine:
         engine.load_rules()
         data = compliant_facility_data.copy()
         # Remove workers comp but keep employees
-        data["insurance"] = [ins for ins in data["insurance"] if ins["type"] != "workers_compensation"]
+        data["insurance"] = [
+            ins for ins in data["insurance"] if ins["type"] != "workers_compensation"
+        ]
 
         violations = engine.validate(data)
 
@@ -207,7 +207,9 @@ class TestCityComplianceEngine:
         engine.load_rules()
         data = compliant_facility_data.copy()
         data["employee_count"] = 0
-        data["insurance"] = [ins for ins in data["insurance"] if ins["type"] != "workers_compensation"]
+        data["insurance"] = [
+            ins for ins in data["insurance"] if ins["type"] != "workers_compensation"
+        ]
 
         violations = engine.validate(data)
 

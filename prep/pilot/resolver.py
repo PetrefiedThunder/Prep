@@ -38,9 +38,7 @@ def resolve_pilot_membership(
     }
 
     matched_zip = pilot_zip_map.get(normalized_zip) if normalized_zip else None
-    matched_county = (
-        pilot_county_map.get(normalized_county) if normalized_county else None
-    )
+    matched_county = pilot_county_map.get(normalized_county) if normalized_county else None
 
     return PilotResolution(matched_zip=matched_zip, matched_county=matched_county)
 

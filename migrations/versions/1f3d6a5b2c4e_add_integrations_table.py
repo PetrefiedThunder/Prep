@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
-
 
 revision = "1f3d6a5b2c4e"
 down_revision = "9d92f4b9c4ce"
@@ -16,7 +15,12 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "integrations",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("uuid_generate_v4()")),
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("uuid_generate_v4()"),
+        ),
         sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("kitchen_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("service_type", sa.String(length=120), nullable=False),
@@ -24,8 +28,15 @@ def upgrade() -> None:
         sa.Column("auth_method", sa.String(length=50), nullable=False),
         sa.Column("sync_frequency", sa.String(length=50), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False, server_default="active"),
-        sa.Column("metadata", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'::jsonb")),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "metadata",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default=sa.text("'{}'::jsonb"),
+        ),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),

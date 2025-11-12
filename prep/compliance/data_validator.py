@@ -2,19 +2,20 @@ from __future__ import annotations
 
 """Schema validation and sanitisation helpers for compliance engines."""
 
-from datetime import datetime
 import re
-from typing import Any, Dict, List, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from datetime import datetime
+from typing import Any
 
 
 class DataValidator:
     """Utilities for validating and sanitizing compliance data."""
 
     @staticmethod
-    def validate_kitchen_data(data: Dict[str, Any]) -> List[str]:
+    def validate_kitchen_data(data: dict[str, Any]) -> list[str]:
         """Validate critical fields for kitchen compliance data."""
 
-        errors: List[str] = []
+        errors: list[str] = []
 
         acronyms = {"id": "ID", "nsf": "NSF", "fips": "FIPS"}
 
@@ -31,19 +32,27 @@ class DataValidator:
                     words.append(part.capitalize())
             return " ".join(words)
 
-        def _section_label(name: str, index: int | None = None, *, custom: str | None = None) -> str:
+        def _section_label(
+            name: str, index: int | None = None, *, custom: str | None = None
+        ) -> str:
             label = _titleize(custom or name)
             if index is not None:
                 label = f"{label} {index}"
             return label
 
-        def _message(name: str, message: str, index: int | None = None, *, custom: str | None = None) -> None:
+        def _message(
+            name: str, message: str, index: int | None = None, *, custom: str | None = None
+        ) -> None:
             errors.append(f"{_section_label(name, index, custom=custom)}: {message}.")
 
-        def _field_required(name: str, field: str, index: int | None = None, *, custom: str | None = None) -> None:
+        def _field_required(
+            name: str, field: str, index: int | None = None, *, custom: str | None = None
+        ) -> None:
             _message(name, f"{_titleize(field)} is required", index, custom=custom)
 
-        def _invalid_date(name: str, field: str, index: int | None = None, *, custom: str | None = None) -> None:
+        def _invalid_date(
+            name: str, field: str, index: int | None = None, *, custom: str | None = None
+        ) -> None:
             _message(
                 name,
                 f"{_titleize(field)} has an invalid date format (expected ISO-8601)",
@@ -63,7 +72,9 @@ class DataValidator:
         ) -> None:
             _message(name, f"Expected {expected}", index, custom=custom)
 
-        def _expect_mapping(value: Any, field_name: str, *, label: str | None = None) -> Mapping[str, Any]:
+        def _expect_mapping(
+            value: Any, field_name: str, *, label: str | None = None
+        ) -> Mapping[str, Any]:
             if value in (None, ""):
                 return {}
             if not isinstance(value, Mapping):
@@ -101,9 +112,7 @@ class DataValidator:
         )
         for index, inspection in enumerate(inspection_history, start=1):
             if not isinstance(inspection, Mapping):
-                _expected_entry_type(
-                    "inspection_history", "an object", index, custom="Inspection"
-                )
+                _expected_entry_type("inspection_history", "an object", index, custom="Inspection")
                 continue
             inspection_date = inspection.get("inspection_date")
             if not inspection_date:
@@ -121,13 +130,9 @@ class DataValidator:
                     custom="Inspection",
                 )
             if inspection.get("overall_score") is None:
-                _field_required(
-                    "inspection_history", "overall_score", index, custom="Inspection"
-                )
+                _field_required("inspection_history", "overall_score", index, custom="Inspection")
             if "violations" not in inspection:
-                _field_required(
-                    "inspection_history", "violations", index, custom="Inspection"
-                )
+                _field_required("inspection_history", "violations", index, custom="Inspection")
             if "establishment_closed" not in inspection:
                 _field_required(
                     "inspection_history",
@@ -141,38 +146,24 @@ class DataValidator:
         )
         for index, certification in enumerate(certifications, start=1):
             if not isinstance(certification, Mapping):
-                _expected_entry_type(
-                    "certifications", "an object", index, custom="Certification"
-                )
+                _expected_entry_type("certifications", "an object", index, custom="Certification")
                 continue
             if not certification.get("type"):
-                _field_required(
-                    "certifications", "type", index, custom="Certification"
-                )
+                _field_required("certifications", "type", index, custom="Certification")
             if not certification.get("status"):
-                _field_required(
-                    "certifications", "status", index, custom="Certification"
-                )
+                _field_required("certifications", "status", index, custom="Certification")
 
-        equipment = _expect_sequence(
-            data.get("equipment"), "equipment", label="Equipment"
-        )
+        equipment = _expect_sequence(data.get("equipment"), "equipment", label="Equipment")
         for index, item in enumerate(equipment, start=1):
             if not isinstance(item, Mapping):
-                _expected_entry_type(
-                    "equipment", "an object", index, custom="Equipment"
-                )
+                _expected_entry_type("equipment", "an object", index, custom="Equipment")
                 continue
             if not item.get("type"):
                 _field_required("equipment", "type", index, custom="Equipment")
             if "commercial_grade" not in item:
-                _field_required(
-                    "equipment", "commercial_grade", index, custom="Equipment"
-                )
+                _field_required("equipment", "commercial_grade", index, custom="Equipment")
             if "nsf_certified" not in item:
-                _field_required(
-                    "equipment", "nsf_certified", index, custom="Equipment"
-                )
+                _field_required("equipment", "nsf_certified", index, custom="Equipment")
 
         recipes = _expect_sequence(data.get("recipes"), "recipes", label="Recipes")
         for recipe_index, recipe in enumerate(recipes, start=1):
@@ -211,7 +202,11 @@ class DataValidator:
                         _expected_type("allergens_summary", "an object", custom=f"Allergen {name}")
                         continue
                     if "recipes" not in entry:
-                        _message("allergens_summary", "Recipes count is required", custom=f"Allergen {name}")
+                        _message(
+                            "allergens_summary",
+                            "Recipes count is required",
+                            custom=f"Allergen {name}",
+                        )
                     if "undeclared" not in entry:
                         _message(
                             "allergens_summary",
@@ -219,9 +214,7 @@ class DataValidator:
                             custom=f"Allergen {name}",
                         )
 
-        insurance = _expect_mapping(
-            data.get("insurance"), "insurance", label="Insurance"
-        )
+        insurance = _expect_mapping(data.get("insurance"), "insurance", label="Insurance")
         if insurance:
             if not insurance.get("policy_number"):
                 _field_required("insurance", "policy_number", custom="Insurance")
@@ -257,15 +250,11 @@ class DataValidator:
         )
         for index, log in enumerate(cleaning_logs, start=1):
             if not isinstance(log, Mapping):
-                _expected_entry_type(
-                    "cleaning_logs", "an object", index, custom="Cleaning Log"
-                )
+                _expected_entry_type("cleaning_logs", "an object", index, custom="Cleaning Log")
                 continue
             date_value = log.get("date")
             if date_value and not DataValidator.validate_date_string(str(date_value)):
-                _invalid_date(
-                    "cleaning_logs", "date", index, custom="Cleaning Log"
-                )
+                _invalid_date("cleaning_logs", "date", index, custom="Cleaning Log")
 
         return sorted(set(errors))
 
@@ -280,10 +269,10 @@ class DataValidator:
         return True
 
     @staticmethod
-    def sanitize_kitchen_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    def sanitize_kitchen_data(data: dict[str, Any]) -> dict[str, Any]:
         """Return a sanitized copy of the provided kitchen data."""
 
-        sanitized: Dict[str, Any] = {}
+        sanitized: dict[str, Any] = {}
         allowed_fields = {
             "license_info",
             "inspection_history",

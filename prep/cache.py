@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import fnmatch
 import logging
 import time
 from typing import Any, Protocol
-
-import fnmatch
 
 try:  # pragma: no cover - optional dependency import guard
     from redis.asyncio import Redis  # type: ignore
@@ -18,23 +17,19 @@ logger = logging.getLogger(__name__)
 
 from prep.settings import get_settings
 
-_CACHE_CLIENT: "RedisProtocol" | None = None
+_CACHE_CLIENT: RedisProtocol | None = None
 
 
 class RedisProtocol(Protocol):
     """Protocol describing the Redis operations used by the service."""
 
-    async def get(self, key: str) -> Any:
-        ...
+    async def get(self, key: str) -> Any: ...
 
-    async def setex(self, key: str, ttl: int, value: Any) -> None:
-        ...
+    async def setex(self, key: str, ttl: int, value: Any) -> None: ...
 
-    async def delete(self, *keys: str) -> int:
-        ...
+    async def delete(self, *keys: str) -> int: ...
 
-    async def keys(self, pattern: str) -> list[str]:
-        ...
+    async def keys(self, pattern: str) -> list[str]: ...
 
 
 class _MemoryRedis:
@@ -108,4 +103,3 @@ async def get_redis() -> RedisProtocol:
 
 
 __all__ = ["get_redis", "RedisProtocol"]
-

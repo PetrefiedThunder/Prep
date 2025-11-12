@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter, Request, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
@@ -50,7 +50,7 @@ class MetricsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:  # type: ignore[override]
         start = time.perf_counter()
         path_template = _resolve_path_template(request)
-        labels: Dict[str, Any] = {
+        labels: dict[str, Any] = {
             "app": self._app_name,
             "method": request.method,
             "path": path_template,

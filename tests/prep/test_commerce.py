@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -20,8 +20,8 @@ async def test_omnichannel_service_schedules_and_syncs(monkeypatch) -> None:
     shopify_order = models.Order(
         id="shopify-1",
         source=models.OrderSource.SHOPIFY,
-        created_at=datetime(2024, 1, 1, 10, tzinfo=timezone.utc),
-        due_at=datetime(2024, 1, 1, 12, tzinfo=timezone.utc),
+        created_at=datetime(2024, 1, 1, 10, tzinfo=UTC),
+        due_at=datetime(2024, 1, 1, 12, tzinfo=UTC),
         location_id="location-a",
         customer_name="Alice",
         lines=[models.OrderLine(sku="SKU-1", quantity=5)],
@@ -29,8 +29,8 @@ async def test_omnichannel_service_schedules_and_syncs(monkeypatch) -> None:
     tiktok_order = models.Order(
         id="tiktok-1",
         source=models.OrderSource.TIKTOK,
-        created_at=datetime(2024, 1, 1, 11, tzinfo=timezone.utc),
-        due_at=datetime(2024, 1, 1, 13, tzinfo=timezone.utc),
+        created_at=datetime(2024, 1, 1, 11, tzinfo=UTC),
+        due_at=datetime(2024, 1, 1, 13, tzinfo=UTC),
         location_id="location-b",
         customer_name="Bob",
         lines=[models.OrderLine(sku="SKU-2", quantity=3)],

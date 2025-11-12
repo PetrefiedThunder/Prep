@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -61,7 +61,7 @@ def _configure_notification_settings(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_expiry_check_sends_notifications(monkeypatch: pytest.MonkeyPatch, caplog):
     _configure_notification_settings(monkeypatch)
 
-    now = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    now = datetime(2024, 1, 1, tzinfo=UTC)
     expiring_soon = _FakeDocument("soon.pdf", "soon", now + timedelta(days=10))
     expiring_later = _FakeDocument("later.pdf", "later", now + timedelta(days=40))
     expiring_very_soon = _FakeDocument("very-soon.pdf", "verysoon", now + timedelta(days=3))
@@ -94,17 +94,20 @@ def test_expiry_check_sends_notifications(monkeypatch: pytest.MonkeyPatch, caplo
     assert len(email.messages) == 2
     assert any("COI expiry check completed" in record.message for record in caplog.records)
 
+
 @pytest.mark.anyio
 async def test_run_expiry_check_async(monkeypatch: pytest.MonkeyPatch):
     _configure_notification_settings(monkeypatch)
 
-    now = datetime(2024, 5, 1, tzinfo=timezone.utc)
+    now = datetime(2024, 5, 1, tzinfo=UTC)
     document = _FakeDocument("async.pdf", "async", now + timedelta(days=2))
 
     monkeypatch.setattr(
         expiry_check,
         "_query_expiring_documents",
-        lambda session, start, cutoff: [doc for doc in [document] if doc.expiry_date and start <= doc.expiry_date <= cutoff],
+        lambda session, start, cutoff: [
+            doc for doc in [document] if doc.expiry_date and start <= doc.expiry_date <= cutoff
+        ],
     )
 
     sms = CaptureSMS()

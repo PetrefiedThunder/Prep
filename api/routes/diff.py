@@ -1,9 +1,11 @@
 """City compliance diff endpoints exposed via the API gateway."""
+
 from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Response
 
@@ -213,8 +215,12 @@ def get_city_diff(
         payload = _city_payload(version, city)
     except KeyError as exc:  # pragma: no cover - FastAPI handles conversion
         if exc.args and exc.args[0] == version:
-            raise HTTPException(status_code=404, detail=f"Unknown diff version '{version}'") from exc
-        raise HTTPException(status_code=404, detail=f"City '{city}' not found in diff version '{version}'") from exc
+            raise HTTPException(
+                status_code=404, detail=f"Unknown diff version '{version}'"
+            ) from exc
+        raise HTTPException(
+            status_code=404, detail=f"City '{city}' not found in diff version '{version}'"
+        ) from exc
 
     etag = _etag_for_payload(payload)
     if if_none_match and if_none_match.strip('"') == etag:

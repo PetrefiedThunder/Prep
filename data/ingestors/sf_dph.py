@@ -21,9 +21,7 @@ def make_fee_schedule() -> FeeSchedule:
             "Fees mirror the Environmental Health Branch publication for the 2024-2025 "
             "fiscal year and include standard inspection charges."
         ),
-        references=(
-            "https://www.sfdph.org/dph/files/EHSdocs/ehsFood/2024-food-fees.pdf",
-        ),
+        references=("https://www.sfdph.org/dph/files/EHSdocs/ehsFood/2024-food-fees.pdf",),
         components=(
             FeeComponent(
                 name="Base permit fee (0-2000 sq ft)",

@@ -5,8 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -31,7 +32,9 @@ def _load_seed(path: Path) -> list[dict[str, Any]]:
         raise FileNotFoundError(f"Seed file not found: {path}")
 
     if path.suffix.lower() != ".json":
-        raise ValueError(f"Unsupported seed format for {path}; expected a JSON array of requirement rows")
+        raise ValueError(
+            f"Unsupported seed format for {path}; expected a JSON array of requirement rows"
+        )
 
     with path.open("r", encoding="utf-8") as seed_file:
         data = json.load(seed_file)

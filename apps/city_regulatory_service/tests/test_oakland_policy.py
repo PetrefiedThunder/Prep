@@ -1,4 +1,5 @@
 """Tests for the Oakland jurisdiction Rego policy."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -52,7 +53,8 @@ def test_policy_parses_expiry_before_comparison() -> None:
 
 
 @pytest.mark.parametrize(
-    "delta_days", [30, -30],
+    "delta_days",
+    [30, -30],
     ids=["not_expired", "expired"],
 )
 def test_allow_rule_handles_rfc3339_expiry_without_type_errors(delta_days: int) -> None:

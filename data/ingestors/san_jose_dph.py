@@ -1,4 +1,5 @@
 """San Jose Department of Public Health fee schedule."""
+
 """Fee schedule for Santa Clara County Department of Environmental Health (San Jose)."""
 
 from __future__ import annotations
@@ -73,11 +74,11 @@ def make_fee_schedule() -> FeeSchedule:
         FeeItem(name="Change of Ownership", amount_cents=12800),
     ]
     return FeeSchedule(jurisdiction="san_jose", paperwork=paperwork, fees=fees)
+
+
 from __future__ import annotations
 
 from apps.city_regulatory_service.jurisdictions.common.fees import (
-    FeeItem,
-    FeeSchedule,
     make_fee_schedule as build_schedule,
 )
 

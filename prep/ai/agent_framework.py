@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 @dataclass
@@ -12,8 +12,8 @@ class SafetyResult:
     """Result of a safety layer evaluation."""
 
     approved: bool
-    reason: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    reason: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -21,9 +21,9 @@ class ValidationResult:
     """Result of validating an agent response."""
 
     valid: bool
-    issues: Optional[str] = None
+    issues: str | None = None
     requires_review: bool = False
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -31,24 +31,24 @@ class AgentResponse:
     """Primary content returned by an AI agent."""
 
     content: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class SafeAgentResponse:
     """Response wrapper that captures safety and validation status."""
 
-    content: Optional[AgentResponse] = None
+    content: AgentResponse | None = None
     safety_checks_passed: bool = False
     validation_checks_passed: bool = False
     requires_human_review: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class SafetyLayer:
     """Minimal safety layer to demonstrate policy enforcement."""
 
-    async def validate_task(self, task: str, context: Dict[str, Any]) -> SafetyResult:
+    async def validate_task(self, task: str, context: dict[str, Any]) -> SafetyResult:
         if "restricted" in task.lower():
             return SafetyResult(approved=False, reason="Task references restricted content")
         return SafetyResult(approved=True, metadata={"context_keys": list(context.keys())})
@@ -61,14 +61,16 @@ class ValidationLayer:
         if not response.content:
             return ValidationResult(valid=False, issues="Empty response content")
         if "placeholder" in response.content.lower():
-            return ValidationResult(valid=False, issues="Placeholder content detected", requires_review=True)
+            return ValidationResult(
+                valid=False, issues="Placeholder content detected", requires_review=True
+            )
         return ValidationResult(valid=True)
 
 
 class LLMClient:
     """Simplified LLM client placeholder."""
 
-    async def generate_response(self, prompt: str, context: Dict[str, Any]) -> AgentResponse:
+    async def generate_response(self, prompt: str, context: dict[str, Any]) -> AgentResponse:
         enriched_context = ", ".join(f"{k}={v}" for k, v in sorted(context.items()))
         content = f"Task: {prompt}. Context: {enriched_context}".strip()
         return AgentResponse(content=content, metadata={"model": "prep-synthetic-llm"})
@@ -81,11 +83,11 @@ class AIAgent(ABC):
         self.llm_client = LLMClient()
 
     @abstractmethod
-    async def execute_task(self, task_description: str, context: Dict[str, Any]) -> AgentResponse:
+    async def execute_task(self, task_description: str, context: dict[str, Any]) -> AgentResponse:
         """Execute a domain-specific task and return an agent response."""
         raise NotImplementedError
 
-    async def safe_execute(self, task: str, context: Dict[str, Any]) -> SafeAgentResponse:
+    async def safe_execute(self, task: str, context: dict[str, Any]) -> SafeAgentResponse:
         """Execute an agent task with safety and validation gates applied."""
 
         safety_result = await self.safety_layer.validate_task(task, context)
@@ -114,7 +116,7 @@ class AIAgent(ABC):
 class PrepChefAgent(AIAgent):
     """Commercial kitchen compliance assistant."""
 
-    async def execute_task(self, task_description: str, context: Dict[str, Any]) -> AgentResponse:
+    async def execute_task(self, task_description: str, context: dict[str, Any]) -> AgentResponse:
         domain_context = {"module": "kitchen_compliance", **context}
         return await self.llm_client.generate_response(task_description, domain_context)
 
@@ -122,7 +124,7 @@ class PrepChefAgent(AIAgent):
 class AutoProjectionBot(AIAgent):
     """Financial forecasting and GAAP compliance assistant."""
 
-    async def execute_task(self, task_description: str, context: Dict[str, Any]) -> AgentResponse:
+    async def execute_task(self, task_description: str, context: dict[str, Any]) -> AgentResponse:
         financial_context = {"module": "financial_compliance", **context}
         return await self.llm_client.generate_response(task_description, financial_context)
 

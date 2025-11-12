@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, UTC
 import logging
-from typing import Any, Dict, Iterable, List, Optional
+from collections.abc import Iterable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 import aiohttp
 
@@ -23,9 +24,9 @@ class InspectionRecord:
     permit_number: str
     inspection_date: datetime
     result: str
-    violation_points: Optional[int]
+    violation_points: int | None
     jurisdiction: str
-    raw: Dict[str, Any]
+    raw: dict[str, Any]
 
 
 class BaseAPIClient:
@@ -35,7 +36,11 @@ class BaseAPIClient:
         self._timeout = aiohttp.ClientTimeout(total=timeout)
 
     async def _fetch_json(
-        self, url: str, *, params: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None
+        self,
+        url: str,
+        *,
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> Any:
         """Perform a GET request and return parsed JSON, raising errors for non-200 responses."""
 
@@ -58,8 +63,8 @@ class BaseAPIClient:
         self,
         url: str,
         *,
-        payload: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
+        payload: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> Any:
         """Perform a POST request returning parsed JSON."""
 
@@ -86,7 +91,9 @@ class CaliforniaHealthDepartmentAPI(BaseAPIClient):
     LICENSE_RESOURCE_ID = "7e6c-dm7j"
     INSPECTION_RESOURCE_ID = "bbg6-2f3t"
 
-    async def get_business_licenses(self, business_type: str = "food establishment", limit: int = 100) -> List[Dict[str, Any]]:
+    async def get_business_licenses(
+        self, business_type: str = "food establishment", limit: int = 100
+    ) -> list[dict[str, Any]]:
         """Fetch licensed food establishments from the California open data portal."""
 
         params = {
@@ -98,29 +105,31 @@ class CaliforniaHealthDepartmentAPI(BaseAPIClient):
         records = data.get("result", {}).get("records", [])
         return [self._transform_license(record) for record in records]
 
-    async def get_inspection_records(self, permit_number: str, limit: int = 25) -> List[InspectionRecord]:
+    async def get_inspection_records(
+        self, permit_number: str, limit: int = 25
+    ) -> list[InspectionRecord]:
         """Return inspection history for a specific California permit number."""
 
         params = {
             "resource_id": self.INSPECTION_RESOURCE_ID,
             "limit": limit,
-            "filters": f"{{\"permit_number\": \"{permit_number}\"}}",
+            "filters": f'{{"permit_number": "{permit_number}"}}',
         }
         data = await self._fetch_json(f"{self.BASE_URL}/datastore_search", params=params)
         records = data.get("result", {}).get("records", [])
-        inspections: List[InspectionRecord] = []
+        inspections: list[InspectionRecord] = []
         for record in records:
             transformed = self._transform_inspection(record)
             if transformed:
                 inspections.append(transformed)
         return inspections
 
-    def parse_license_data(self, data: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def parse_license_data(self, data: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
         """Normalize raw license data into a consistent schema."""
 
         return [self._transform_license(record) for record in data]
 
-    def _transform_license(self, record: Dict[str, Any]) -> Dict[str, Any]:
+    def _transform_license(self, record: dict[str, Any]) -> dict[str, Any]:
         jurisdiction = record.get("facility_city") or record.get("city") or "CA"
         return {
             "name": record.get("facility_name") or record.get("business_name"),
@@ -132,7 +141,7 @@ class CaliforniaHealthDepartmentAPI(BaseAPIClient):
             "raw": record,
         }
 
-    def _transform_inspection(self, record: Dict[str, Any]) -> Optional[InspectionRecord]:
+    def _transform_inspection(self, record: dict[str, Any]) -> InspectionRecord | None:
         permit_number = record.get("permit_number") or record.get("permit")
         date_text = record.get("inspection_date") or record.get("activity_date")
         if not permit_number or not date_text:
@@ -142,13 +151,15 @@ class CaliforniaHealthDepartmentAPI(BaseAPIClient):
             permit_number=permit_number,
             inspection_date=self._parse_datetime(date_text) or datetime.now(UTC),
             result=record.get("inspection_result") or record.get("pe_description", "unknown"),
-            violation_points=self._parse_int(record.get("points_deducted") or record.get("inspection_score")),
+            violation_points=self._parse_int(
+                record.get("points_deducted") or record.get("inspection_score")
+            ),
             jurisdiction=record.get("facility_city") or record.get("city") or "CA",
             raw=record,
         )
 
     @staticmethod
-    def _parse_datetime(value: Optional[str]) -> Optional[datetime]:
+    def _parse_datetime(value: str | None) -> datetime | None:
         if not value:
             return None
         for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d", "%m/%d/%Y"):
@@ -160,7 +171,7 @@ class CaliforniaHealthDepartmentAPI(BaseAPIClient):
         return None
 
     @staticmethod
-    def _parse_int(value: Any) -> Optional[int]:
+    def _parse_int(value: Any) -> int | None:
         try:
             return int(value)
         except (TypeError, ValueError):
@@ -173,30 +184,36 @@ class NewYorkHealthDepartmentAPI(BaseAPIClient):
     BASE_URL = "https://health.data.ny.gov"
     DATASET_ID = "43nn-pn8j"
 
-    async def get_restaurant_inspections(self, county: Optional[str] = None, limit: int = 100) -> List[InspectionRecord]:
+    async def get_restaurant_inspections(
+        self, county: str | None = None, limit: int = 100
+    ) -> list[InspectionRecord]:
         """Fetch restaurant inspection data from the New York open data portal."""
 
-        params: Dict[str, Any] = {"$limit": limit, "$order": "inspection_date DESC"}
+        params: dict[str, Any] = {"$limit": limit, "$order": "inspection_date DESC"}
         if county:
             params["county"] = county
-        data = await self._fetch_json(f"{self.BASE_URL}/resource/{self.DATASET_ID}.json", params=params)
-        inspections: List[InspectionRecord] = []
+        data = await self._fetch_json(
+            f"{self.BASE_URL}/resource/{self.DATASET_ID}.json", params=params
+        )
+        inspections: list[InspectionRecord] = []
         for item in data:
             transformed = self._transform_record(item)
             if transformed:
                 inspections.append(transformed)
         return inspections
 
-    async def get_facility_details(self, camis: str) -> Dict[str, Any]:
+    async def get_facility_details(self, camis: str) -> dict[str, Any]:
         """Return detailed information for a single facility identified by CAMIS number."""
 
         params = {"camis": camis, "$limit": 1}
-        data = await self._fetch_json(f"{self.BASE_URL}/resource/{self.DATASET_ID}.json", params=params)
+        data = await self._fetch_json(
+            f"{self.BASE_URL}/resource/{self.DATASET_ID}.json", params=params
+        )
         if not data:
             raise RegulatoryAPIError(f"No facility found for CAMIS {camis}")
         return data[0]
 
-    def _transform_record(self, record: Dict[str, Any]) -> Optional[InspectionRecord]:
+    def _transform_record(self, record: dict[str, Any]) -> InspectionRecord | None:
         camis = record.get("camis")
         inspection_date = record.get("inspection_date")
         if not camis or not inspection_date:
@@ -212,7 +229,7 @@ class NewYorkHealthDepartmentAPI(BaseAPIClient):
         )
 
     @staticmethod
-    def _parse_datetime(value: str) -> Optional[datetime]:
+    def _parse_datetime(value: str) -> datetime | None:
         for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d", "%m/%d/%Y"):
             try:
                 return datetime.strptime(value, fmt)
@@ -222,7 +239,7 @@ class NewYorkHealthDepartmentAPI(BaseAPIClient):
         return None
 
     @staticmethod
-    def _parse_int(value: Any) -> Optional[int]:
+    def _parse_int(value: Any) -> int | None:
         try:
             return int(value)
         except (TypeError, ValueError):

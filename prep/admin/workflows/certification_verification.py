@@ -11,8 +11,8 @@ from prep.models.pydantic_exports import (
     CertificationDetail,
     CertificationDocument,
     CertificationVerificationRequest,
-    PendingCertificationSummary,
     PendingCertificationsResponse,
+    PendingCertificationSummary,
     VerificationAction,
     VerificationEvent,
     VerificationResult,
@@ -101,7 +101,9 @@ class CertificationVerificationWorkflow:
         self._certifications: dict[UUID, CertificationDocument] = {
             cert.id: cert.model_copy(deep=True) for cert in source
         }
-        self._kitchens: MutableMapping[UUID, dict[str, str]] = kitchen_directory or default_directory
+        self._kitchens: MutableMapping[UUID, dict[str, str]] = (
+            kitchen_directory or default_directory
+        )
         self._kitchen_statuses: dict[UUID, str] = defaultdict(lambda: "pending")
         self._events: list[VerificationEvent] = []
         self._notifications: list[dict[str, str]] = []
@@ -123,9 +125,7 @@ class CertificationVerificationWorkflow:
 
         pending_statuses = {"pending", "renewal_requested"}
         documents = [
-            cert
-            for cert in self._certifications.values()
-            if cert.status in pending_statuses
+            cert for cert in self._certifications.values() if cert.status in pending_statuses
         ]
 
         if kitchen_id is not None:
@@ -327,9 +327,7 @@ class CertificationVerificationWorkflow:
         """Recalculate the aggregate certification status for a kitchen."""
 
         statuses = {
-            cert.status
-            for cert in self._certifications.values()
-            if cert.kitchen_id == kitchen_id
+            cert.status for cert in self._certifications.values() if cert.kitchen_id == kitchen_id
         }
         if not statuses:
             aggregate = "pending"

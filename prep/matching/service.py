@@ -66,9 +66,7 @@ class MatchingService:
     # ------------------------------------------------------------------
     # Preference management
     # ------------------------------------------------------------------
-    async def set_preferences(
-        self, user: User, payload: PreferenceSettings
-    ) -> UserPreferenceModel:
+    async def set_preferences(self, user: User, payload: PreferenceSettings) -> UserPreferenceModel:
         """Persist matching preferences for a user."""
 
         normalized = self._normalize_preferences(payload)
@@ -113,9 +111,7 @@ class MatchingService:
     # ------------------------------------------------------------------
     # Matching logic
     # ------------------------------------------------------------------
-    async def match_kitchens(
-        self, user: User, request: KitchenMatchRequest
-    ) -> MatchResponse:
+    async def match_kitchens(self, user: User, request: KitchenMatchRequest) -> MatchResponse:
         """Compute kitchen recommendations for the given user."""
 
         stored = await self.get_preferences(user.id)
@@ -204,7 +200,11 @@ class MatchingService:
 
         stmt = (
             select(Kitchen, KitchenMatchingProfile)
-            .join(KitchenMatchingProfile, KitchenMatchingProfile.kitchen_id == Kitchen.id, isouter=True)
+            .join(
+                KitchenMatchingProfile,
+                KitchenMatchingProfile.kitchen_id == Kitchen.id,
+                isouter=True,
+            )
             .where(Kitchen.published.is_(True))
             .where(Kitchen.moderation_status == "approved")
         )
@@ -225,7 +225,9 @@ class MatchingService:
         result = await self.session.execute(stmt)
         candidates = result.all()
         if not candidates:
-            return MatchResponse(matches=[], generated_at=datetime.now(UTC), preferences=preferences)
+            return MatchResponse(
+                matches=[], generated_at=datetime.now(UTC), preferences=preferences
+            )
 
         kitchen_ids = [kitchen.id for kitchen, _ in candidates]
         metrics = await self._load_booking_metrics(kitchen_ids)
@@ -294,7 +296,9 @@ class MatchingService:
     ) -> PreferenceSettings:
         """Combine persisted preferences with request overrides."""
 
-        stored_payload = PreferenceSettings(**stored.model_dump()) if stored else PreferenceSettings()
+        stored_payload = (
+            PreferenceSettings(**stored.model_dump()) if stored else PreferenceSettings()
+        )
         if override is None:
             return stored_payload
 
@@ -340,9 +344,7 @@ class MatchingService:
                 Booking.kitchen_id,
                 func.count(Booking.id).label("total"),
                 func.count(func.distinct(Booking.customer_id)).label("unique_customers"),
-                func.sum(
-                    case((Booking.start_time >= window, 1), else_=0)
-                ).label("recent"),
+                func.sum(case((Booking.start_time >= window, 1), else_=0)).label("recent"),
             )
             .where(Booking.kitchen_id.in_(kitchen_ids))
             .where(Booking.status == BookingStatus.COMPLETED)
@@ -456,7 +458,9 @@ class MatchingService:
             reasons.append(
                 MatchReason(
                     criterion="location",
-                    summary="Preferred location alignment" if ratio else "Outside preferred markets",
+                    summary="Preferred location alignment"
+                    if ratio
+                    else "Outside preferred markets",
                     weight=weight,
                     contribution=contribution,
                 )
@@ -477,7 +481,9 @@ class MatchingService:
             reasons.append(
                 MatchReason(
                     criterion="price",
-                    summary="Within preferred price range" if ratio else "Outside preferred price range",
+                    summary="Within preferred price range"
+                    if ratio
+                    else "Outside preferred price range",
                     weight=weight,
                     contribution=contribution,
                 )
@@ -526,7 +532,9 @@ class MatchingService:
         reasons.append(
             MatchReason(
                 criterion="rating",
-                summary="High customer satisfaction" if rating_score else "Insufficient rating data",
+                summary="High customer satisfaction"
+                if rating_score
+                else "Insufficient rating data",
                 weight=rating_weight,
                 contribution=rating_score * rating_weight,
             )
@@ -550,7 +558,9 @@ class MatchingService:
             reasons=reasons,
             cuisines=[*(profile.cuisines if profile and profile.cuisines else [])],
             equipment=[*(profile.equipment if profile and profile.equipment else [])],
-            certifications=[*(profile.certifications if profile and profile.certifications else [])],
+            certifications=[
+                *(profile.certifications if profile and profile.certifications else [])
+            ],
             availability=[*(profile.availability if profile and profile.availability else [])],
             external_rating=external_rating,
             popularity_index=popularity_score,

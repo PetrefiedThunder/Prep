@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -13,13 +13,13 @@ _ENV_FILE_ENV = "CODEX_ENV_FILE"
 _DEFAULT_ENV_FILE = Path(".env.codex")
 
 
-def _parse_env_file(path: Path) -> Dict[str, str]:
+def _parse_env_file(path: Path) -> dict[str, str]:
     """Parse a simple ``KEY=VALUE`` style environment file."""
 
     if not path.exists() or not path.is_file():
         return {}
 
-    values: Dict[str, str] = {}
+    values: dict[str, str] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#") or "=" not in stripped:
@@ -33,19 +33,11 @@ class Settings(BaseModel):
     """Runtime configuration for the Codex backend."""
 
     environment: str = Field(default="development", alias="CODEX_ENVIRONMENT")
-    database_url: str = Field(
-        default="sqlite+aiosqlite:///./codex.db", alias="CODEX_DATABASE_URL"
-    )
+    database_url: str = Field(default="sqlite+aiosqlite:///./codex.db", alias="CODEX_DATABASE_URL")
     database_pool_size: int = Field(default=10, ge=1, alias="CODEX_DATABASE_POOL_SIZE")
-    database_max_overflow: int = Field(
-        default=20, ge=0, alias="CODEX_DATABASE_MAX_OVERFLOW"
-    )
-    database_pool_timeout: int = Field(
-        default=30, ge=1, alias="CODEX_DATABASE_POOL_TIMEOUT"
-    )
-    database_pool_recycle: int = Field(
-        default=1800, ge=1, alias="CODEX_DATABASE_POOL_RECYCLE"
-    )
+    database_max_overflow: int = Field(default=20, ge=0, alias="CODEX_DATABASE_MAX_OVERFLOW")
+    database_pool_timeout: int = Field(default=30, ge=1, alias="CODEX_DATABASE_POOL_TIMEOUT")
+    database_pool_recycle: int = Field(default=1800, ge=1, alias="CODEX_DATABASE_POOL_RECYCLE")
     database_echo: bool = Field(default=False, alias="CODEX_DATABASE_ECHO")
 
     model_config = {
@@ -76,14 +68,14 @@ class Settings(BaseModel):
         return self.environment == "development"
 
 
-def _collect_environment(env_file: Path | None) -> Dict[str, Any]:
-    env: Dict[str, Any] = {}
+def _collect_environment(env_file: Path | None) -> dict[str, Any]:
+    env: dict[str, Any] = {}
     env.update(_parse_env_file(env_file or _DEFAULT_ENV_FILE))
     env.update(os.environ)
     return env
 
 
-def load_settings(*, env_file: Path | None = None, env: Dict[str, Any] | None = None) -> Settings:
+def load_settings(*, env_file: Path | None = None, env: dict[str, Any] | None = None) -> Settings:
     """Load configuration from environment variables."""
 
     raw_env = _collect_environment(env_file)

@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import logging
 from collections import Counter, defaultdict
+from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import Any, Sequence
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ValidationError
@@ -153,7 +154,11 @@ class RatingIntegrationService:
                 limit=limit,
             )
         except ExternalAPIError as exc:
-            logger.info("Falling back to local Yelp search results", exc_info=None, extra={"reason": str(exc)})
+            logger.info(
+                "Falling back to local Yelp search results",
+                exc_info=None,
+                extra={"reason": str(exc)},
+            )
             response = await self._fallback_business_search(
                 provider="yelp",
                 term=term,
@@ -225,7 +230,9 @@ class RatingIntegrationService:
             return cached
 
         try:
-            response = await self.google_client.search_places(query=query, location=location, limit=limit)
+            response = await self.google_client.search_places(
+                query=query, location=location, limit=limit
+            )
         except ExternalAPIError as exc:
             logger.info("Falling back to local Google Places search", extra={"reason": str(exc)})
             response = await self._fallback_business_search(
@@ -365,7 +372,9 @@ class RatingIntegrationService:
         await self._set_cached_model(cache_key, response)
         return response
 
-    async def get_rating_map(self, kitchen_ids: Sequence[UUID]) -> dict[UUID, KitchenRatingResponse]:
+    async def get_rating_map(
+        self, kitchen_ids: Sequence[UUID]
+    ) -> dict[UUID, KitchenRatingResponse]:
         if not kitchen_ids:
             return {}
 
@@ -416,7 +425,9 @@ class RatingIntegrationService:
         for kitchen_id in kitchen_ids:
             internal_avg, internal_count = averages.get(kitchen_id, (None, 0))
             sources = buckets.get(kitchen_id, [])
-            normalized_score = self._calculate_normalized_score(internal_avg, internal_count, sources)
+            normalized_score = self._calculate_normalized_score(
+                internal_avg, internal_count, sources
+            )
             response = KitchenRatingResponse(
                 kitchen_id=kitchen_id,
                 internal_average=internal_avg,
@@ -448,7 +459,7 @@ class RatingIntegrationService:
                 rating_count=row.rating_count,
                 normalized_rating=row.normalized_rating,
                 captured_at=row.captured_at,
-            metadata=row.context or {},
+                metadata=row.context or {},
             )
             for row in rows
         ]
@@ -491,7 +502,13 @@ class RatingIntegrationService:
         neutral_ratio = max(0.0, 1.0 - positive_ratio - negative_ratio)
 
         keywords = [token for token, _ in Counter(tokens).most_common(10)]
-        label = "positive" if average_score >= 0.25 else "negative" if average_score <= -0.25 else "neutral"
+        label = (
+            "positive"
+            if average_score >= 0.25
+            else "negative"
+            if average_score <= -0.25
+            else "neutral"
+        )
 
         response = SentimentAnalysisResponse(
             kitchen_id=payload.kitchen_id,
@@ -521,7 +538,9 @@ class RatingIntegrationService:
         self.session.add(entry)
         await self.session.commit()
 
-        cache_key = self._cache_key("sentiment", "latest", kitchen_id=str(payload.kitchen_id), source=payload.source)
+        cache_key = self._cache_key(
+            "sentiment", "latest", kitchen_id=str(payload.kitchen_id), source=payload.source
+        )
         await self._set_cached_model(cache_key, response, ttl=self.SENTIMENT_TTL_SECONDS)
         return response
 
@@ -638,9 +657,13 @@ class RatingIntegrationService:
                 )
             )
         context = {"fallback": True, "total_kitchens": len(kitchens)}
-        return ExternalBusinessSearchResponse(businesses=businesses, total=len(businesses), context=context)
+        return ExternalBusinessSearchResponse(
+            businesses=businesses, total=len(businesses), context=context
+        )
 
-    async def _fallback_business_details(self, provider: str, external_id: str) -> ExternalBusinessDetails:
+    async def _fallback_business_details(
+        self, provider: str, external_id: str
+    ) -> ExternalBusinessDetails:
         rating = await self._lookup_rating_by_external_id(provider, external_id)
         if rating is None:
             raise ExternalAPIError(provider, f"No cached business found for {external_id}")
@@ -655,7 +678,8 @@ class RatingIntegrationService:
             source=provider,
             url=rating.url,
             phone=metadata.get("phone"),
-            address=[line for line in metadata.get("address", [])] or [kitchen.city or "", kitchen.state or ""],
+            address=[line for line in metadata.get("address", [])]
+            or [kitchen.city or "", kitchen.state or ""],
             city=kitchen.city,
             state=kitchen.state,
             postal_code=metadata.get("postal_code"),
@@ -675,7 +699,9 @@ class RatingIntegrationService:
             attributes=metadata.get("attributes", {}),
         )
 
-    async def _fallback_reviews(self, provider: str, external_id: str) -> ExternalReviewListResponse:
+    async def _fallback_reviews(
+        self, provider: str, external_id: str
+    ) -> ExternalReviewListResponse:
         rating = await self._lookup_rating_by_external_id(provider, external_id)
         if rating is None:
             raise ExternalAPIError(provider, f"No cached reviews found for {external_id}")
@@ -818,7 +844,9 @@ class RatingIntegrationService:
             logger.debug("Failed to deserialize cache entry", extra={"key": key})
             return None
 
-    async def _set_cached_model(self, key: str, instance: BaseModel, ttl: int | None = None) -> None:
+    async def _set_cached_model(
+        self, key: str, instance: BaseModel, ttl: int | None = None
+    ) -> None:
         ttl = ttl or self.CACHE_TTL_SECONDS
         await self.redis.setex(key, ttl, instance.model_dump_json())
 

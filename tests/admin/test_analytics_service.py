@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Iterable, Mapping
 from uuid import UUID
 
 import pytest
@@ -200,8 +200,11 @@ def test_postgres_repository_shapes_results() -> None:
     )
 
     repository = PostgresAnalyticsRepository(connection)
+
     async def run() -> None:
-        host_metrics = await repository.fetch_host_metrics(UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+        host_metrics = await repository.fetch_host_metrics(
+            UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+        )
 
         assert host_metrics.total_revenue == Decimal("40000.00")
         assert connection.queries  # ensure queries executed
@@ -328,7 +331,9 @@ def test_analytics_routes_use_database_backend_when_fixtures_disabled(
     get_settings.cache_clear()
 
 
-def test_get_analytics_service_respects_use_fixtures_toggle(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_analytics_service_respects_use_fixtures_toggle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     import prep.admin.analytics_api as analytics_api
 
     analytics_api._pool = None

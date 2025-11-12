@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Dict, Iterable, List
+from collections.abc import Iterable
 
 from .models import (
     IntegrationEvent,
@@ -17,7 +17,7 @@ class IntegrationStatusStore:
     """Thread-safe, asyncio-aware cache of integration status."""
 
     def __init__(self) -> None:
-        self._statuses: Dict[str, IntegrationStatus] = {}
+        self._statuses: dict[str, IntegrationStatus] = {}
         self._lock = asyncio.Lock()
 
     async def apply_event(self, event: IntegrationEvent) -> IntegrationStatus:
@@ -41,18 +41,26 @@ class IntegrationStatusStore:
         async with self._lock:
             self._statuses = {status.id: status for status in statuses}
 
-    async def list_statuses(self) -> List[IntegrationStatus]:
+    async def list_statuses(self) -> list[IntegrationStatus]:
         async with self._lock:
             return [status.model_copy() for status in self._statuses.values()]
 
     async def health_snapshot(self) -> IntegrationHealthSnapshot:
         async with self._lock:
             total = len(self._statuses)
-            healthy = sum(1 for status in self._statuses.values() if status.health is IntegrationHealth.HEALTHY)
-            degraded = sum(
-                1 for status in self._statuses.values() if status.health is IntegrationHealth.DEGRADED
+            healthy = sum(
+                1
+                for status in self._statuses.values()
+                if status.health is IntegrationHealth.HEALTHY
             )
-            down = sum(1 for status in self._statuses.values() if status.health is IntegrationHealth.DOWN)
+            degraded = sum(
+                1
+                for status in self._statuses.values()
+                if status.health is IntegrationHealth.DEGRADED
+            )
+            down = sum(
+                1 for status in self._statuses.values() if status.health is IntegrationHealth.DOWN
+            )
         return IntegrationHealthSnapshot(total=total, healthy=healthy, degraded=degraded, down=down)
 
 

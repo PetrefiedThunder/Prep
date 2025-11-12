@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
-from typing import Dict, List, Optional
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import case, func, select, text
 from sqlalchemy.engine import RowMapping
@@ -18,9 +17,9 @@ async def _fetch_regulation_rows(
     db: AsyncSession,
     state: str,
     *,
-    city: Optional[str] = None,
-    county: Optional[str] = None,
-) -> List[RowMapping]:
+    city: str | None = None,
+    county: str | None = None,
+) -> list[RowMapping]:
     """Fetch regulatory updates filtered by the provided jurisdiction metadata."""
 
     query_lines = [
@@ -28,7 +27,7 @@ async def _fetch_regulation_rows(
         "FROM regulatory_updates",
         "WHERE state = :state",
     ]
-    params: Dict[str, object] = {"state": state}
+    params: dict[str, object] = {"state": state}
 
     if city is not None:
         query_lines.append("  AND (city IS NULL OR city = :city)")
@@ -48,13 +47,13 @@ async def _fetch_regulation_rows(
 
 async def get_regulations_for_jurisdiction(
     db: AsyncSession,
-    state: Optional[str],
-    city: Optional[str] = None,
+    state: str | None,
+    city: str | None = None,
     *,
-    county: Optional[str] = None,
+    county: str | None = None,
     country_code: str = "US",
-    state_province: Optional[str] = None,
-) -> List[Dict[str, str]]:
+    state_province: str | None = None,
+) -> list[dict[str, str]]:
     """Return regulatory updates for the given jurisdiction."""
 
     if not state:
@@ -64,7 +63,7 @@ async def get_regulations_for_jurisdiction(
     province = state_province or (state.upper() if state else None)
     state_upper = state.upper()
 
-    rows: List[RowMapping] = []
+    rows: list[RowMapping] = []
     if city:
         rows = await _fetch_regulation_rows(db, state_upper, city=city)
 
@@ -74,11 +73,13 @@ async def get_regulations_for_jurisdiction(
     if not rows:
         rows = await _fetch_regulation_rows(db, state_upper)
 
-    regulations: List[Dict[str, str]] = []
+    regulations: list[dict[str, str]] = []
     for row in rows:
         regulations.append(
             {
-                "title": f"{row.get('regulation_type', 'Regulation Update')}" if row.get("regulation_type") else "Regulation Update",
+                "title": f"{row.get('regulation_type', 'Regulation Update')}"
+                if row.get("regulation_type")
+                else "Regulation Update",
                 "description": row.get("change_description", "Updated regulatory guidance."),
                 "jurisdiction": _format_jurisdiction(row),
                 "regulation_type": row.get("regulation_type", "general"),
@@ -110,7 +111,7 @@ async def get_regulations_for_jurisdiction(
     return regulations
 
 
-async def summarize_state_compliance(db: AsyncSession) -> Dict[str, object]:
+async def summarize_state_compliance(db: AsyncSession) -> dict[str, object]:
     """Aggregate compliance stats grouped by state."""
 
     status_case = case(
@@ -136,7 +137,7 @@ async def summarize_state_compliance(db: AsyncSession) -> Dict[str, object]:
     result = await db.execute(stmt)
     rows = result.mappings().all()
 
-    states: List[Dict[str, object]] = []
+    states: list[dict[str, object]] = []
     total_kitchens = 0
     compliant_kitchens = 0
     non_compliant_kitchens = 0
@@ -168,7 +169,7 @@ async def summarize_state_compliance(db: AsyncSession) -> Dict[str, object]:
     }
 
 
-async def get_regulatory_alerts(db: AsyncSession) -> List[Dict[str, str]]:
+async def get_regulatory_alerts(db: AsyncSession) -> list[dict[str, str]]:
     """Return regulatory alerts with upcoming effective dates."""
 
     window_start = datetime.now(UTC)
@@ -185,7 +186,7 @@ async def get_regulatory_alerts(db: AsyncSession) -> List[Dict[str, str]]:
     result = await db.execute(stmt, {"start": window_start, "end": window_end})
     rows = result.mappings().all()
 
-    alerts: List[Dict[str, str]] = []
+    alerts: list[dict[str, str]] = []
     for row in rows:
         message = row.get("change_description") or "Regulatory update"
         alerts.append(
@@ -199,7 +200,7 @@ async def get_regulatory_alerts(db: AsyncSession) -> List[Dict[str, str]]:
     return alerts
 
 
-async def get_scraping_status_snapshot(db: AsyncSession) -> Dict[str, str]:
+async def get_scraping_status_snapshot(db: AsyncSession) -> dict[str, str]:
     """Return a best-effort scraping status per state."""
 
     stmt = text(
@@ -212,7 +213,7 @@ async def get_scraping_status_snapshot(db: AsyncSession) -> Dict[str, str]:
     result = await db.execute(stmt)
     rows = result.mappings().all()
 
-    status: Dict[str, str] = {}
+    status: dict[str, str] = {}
     now = datetime.now(UTC)
     for row in rows:
         last_run = row.get("last_run")
@@ -242,9 +243,7 @@ def _format_jurisdiction(row: RowMapping) -> str:
     return "United States"
 
 
-def _format_fallback_jurisdiction(
-    state: Optional[str], city: Optional[str], county: Optional[str]
-) -> str:
+def _format_fallback_jurisdiction(state: str | None, city: str | None, county: str | None) -> str:
     if city and state:
         return f"{city}, {state.upper()}"
     if county and state:
@@ -254,7 +253,7 @@ def _format_fallback_jurisdiction(
     return "United States"
 
 
-def _format_date(value) -> Optional[str]:
+def _format_date(value) -> str | None:
     if value is None:
         return None
     if isinstance(value, datetime):

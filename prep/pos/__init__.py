@@ -1,6 +1,6 @@
 """Point of sale integrations."""
 
-from .oracle_simphony import OracleSimphonyClient, FranchiseSyncService
+from .oracle_simphony import FranchiseSyncService, OracleSimphonyClient
 
 __all__ = ["OracleSimphonyClient", "FranchiseSyncService"]
 """POS integration utilities for Prep."""

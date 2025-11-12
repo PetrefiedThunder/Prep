@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import argparse
 import os
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Sequence
 
 import httpx
 
-from prep.sf_audit.reporting import build_audit_report, build_slack_payload, load_pytest_report, write_audit_report
+from prep.sf_audit.reporting import (
+    build_audit_report,
+    build_slack_payload,
+    load_pytest_report,
+    write_audit_report,
+)
 from prep.storage.secure_s3 import DEFAULT_KMS_ALIAS, upload_encrypted_json
 
 
@@ -28,8 +33,12 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default=Path("reports"),
         help="Directory where the condensed audit report should be written",
     )
-    parser.add_argument("--s3-bucket", type=str, default=None, help="Optional S3 bucket for archival")
-    parser.add_argument("--s3-key", type=str, default=None, help="Optional S3 key for archival upload")
+    parser.add_argument(
+        "--s3-bucket", type=str, default=None, help="Optional S3 bucket for archival"
+    )
+    parser.add_argument(
+        "--s3-key", type=str, default=None, help="Optional S3 key for archival upload"
+    )
     parser.add_argument(
         "--kms-alias",
         type=str,

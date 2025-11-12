@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -22,6 +21,8 @@ class CertificationDocumentStatus(str, Enum):
 
 class CertificationDocument(BaseModel):
     """Metadata describing a certification document under review."""
+
+
 class VerificationAction(str, Enum):
     """Possible actions an admin can take when reviewing a certification."""
 
@@ -42,11 +43,11 @@ class CertificationDocument(BaseModel):
     uploaded_at: datetime
     uploaded_by: UUID
     status: CertificationDocumentStatus = CertificationDocumentStatus.PENDING
-    verified_at: Optional[datetime] = None
-    verified_by: Optional[UUID] = None
-    rejection_reason: Optional[str] = None
-    expiration_date: Optional[datetime] = None
-    internal_notes: Optional[str] = None
+    verified_at: datetime | None = None
+    verified_by: UUID | None = None
+    rejection_reason: str | None = None
+    expiration_date: datetime | None = None
+    internal_notes: str | None = None
 
 
 class VerificationAction(str, Enum):
@@ -61,13 +62,14 @@ class CertificationVerificationRequest(BaseModel):
     """Payload submitted by admins when verifying certification documents."""
 
     action: VerificationAction
-    notes: Optional[str] = None
-    expiration_date: Optional[datetime] = None
-    internal_notes: Optional[str] = None
+    notes: str | None = None
+    expiration_date: datetime | None = None
+    internal_notes: str | None = None
 
 
 class PendingCertificationSummary(BaseModel):
     """Summary information for certifications in the moderation queue."""
+
     status: str
     verified_at: datetime | None = None
     verified_by: UUID | None = None
@@ -86,13 +88,13 @@ class PendingCertificationSummary(BaseModel):
     document_type: str
     uploaded_at: datetime
     days_pending: int = Field(ge=0)
-    file_preview_url: Optional[str] = None
+    file_preview_url: str | None = None
 
 
 class PendingCertificationsResponse(BaseModel):
     """Envelope returned by the pending certifications endpoint."""
 
-    certifications: List[PendingCertificationSummary] = Field(default_factory=list)
+    certifications: list[PendingCertificationSummary] = Field(default_factory=list)
     file_preview_url: str | None = None
 
 
@@ -119,7 +121,7 @@ class VerificationAuditEvent(BaseModel):
     certification_id: UUID
     admin_id: UUID
     action: VerificationAction
-    notes: Optional[str] = None
+    notes: str | None = None
     occurred_at: datetime
 
 
@@ -132,8 +134,9 @@ class CertificationDetail(BaseModel):
     host_id: UUID
     host_name: str
     host_email: str
-    status_history: List[VerificationAuditEvent] = Field(default_factory=list)
-    available_actions: List[VerificationAction] = Field(default_factory=list)
+    status_history: list[VerificationAuditEvent] = Field(default_factory=list)
+    available_actions: list[VerificationAction] = Field(default_factory=list)
+
 
 class VerificationEvent(BaseModel):
     """Historical audit entry for certification verification actions."""

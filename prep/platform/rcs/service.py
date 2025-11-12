@@ -5,18 +5,19 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any
 from urllib.parse import parse_qs
 
-from .models import ChangeType, ConfigChange, ConfigEntry, ConfigRecord
+from .models import ChangeType, ConfigChange, ConfigEntry
 from .storage import ConfigStore
 
-JSON = Dict[str, Any]
-Scope = Dict[str, Any]
-ReceiveCallable = Callable[[], Awaitable[Dict[str, Any]]]
-SendCallable = Callable[[Dict[str, Any]], Awaitable[None]]
+JSON = dict[str, Any]
+Scope = dict[str, Any]
+ReceiveCallable = Callable[[], Awaitable[dict[str, Any]]]
+SendCallable = Callable[[dict[str, Any]], Awaitable[None]]
 
 
 class HTTPError(Exception):
@@ -67,7 +68,7 @@ class RCSApp:
         except HTTPError as exc:
             await self._send_json(send, {"detail": exc.detail}, status_code=exc.status_code)
 
-    async def _handle_list(self, query: Dict[str, list[str]], send: SendCallable) -> None:
+    async def _handle_list(self, query: dict[str, list[str]], send: SendCallable) -> None:
         prefix = query.get("prefix", [None])[0]
         records = await self.store.list(prefix=prefix)
         payload = [record.model_dump() for record in records]
@@ -93,7 +94,7 @@ class RCSApp:
         await self._send_json(send, None, status_code=204)
 
     async def _handle_stream(
-        self, query: Dict[str, list[str]], receive: ReceiveCallable, send: SendCallable
+        self, query: dict[str, list[str]], receive: ReceiveCallable, send: SendCallable
     ) -> None:
         prefix = query.get("prefix", [None])[0]
 
@@ -114,7 +115,7 @@ class RCSApp:
         snapshot = await self.store.list(prefix=prefix)
         snapshot_payload = {
             "type": "snapshot",
-            "emitted_at": datetime.now(timezone.utc).isoformat(),
+            "emitted_at": datetime.now(UTC).isoformat(),
             "configs": [record.model_dump() for record in snapshot],
         }
         await send(
@@ -199,12 +200,12 @@ class RCSApp:
         await send({"type": "http.response.body", "body": body})
 
 
-def _encode_sse(payload: Dict[str, Any]) -> bytes:
-    return f"data: {json.dumps(payload, default=_json_default)}\n\n".encode("utf-8")
+def _encode_sse(payload: dict[str, Any]) -> bytes:
+    return f"data: {json.dumps(payload, default=_json_default)}\n\n".encode()
 
 
-def _change_to_payload(change: ConfigChange) -> Dict[str, Any]:
-    base: Dict[str, Any] = {
+def _change_to_payload(change: ConfigChange) -> dict[str, Any]:
+    base: dict[str, Any] = {
         "type": change.type.value,
         "key": change.key,
         "version": change.version,
@@ -232,7 +233,7 @@ async def _drain_request(receive: ReceiveCallable) -> None:
             break
 
 
-def create_app(store: Optional[ConfigStore] = None) -> RCSApp:
+def create_app(store: ConfigStore | None = None) -> RCSApp:
     return RCSApp(store=store or ConfigStore())
 
 

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Iterable, Protocol, Sequence
+from typing import Protocol
 
 
 @dataclass(slots=True)
@@ -14,7 +15,7 @@ class UtilizationMetrics:
     active_bookings: int = 0
     cancellation_rate: float = 0.0
 
-    def clamp(self) -> "UtilizationMetrics":
+    def clamp(self) -> UtilizationMetrics:
         """Return a metrics instance with values normalized to sane ranges."""
 
         rate = min(max(self.utilization_rate, 0.0), 1.0)
@@ -70,7 +71,7 @@ class DynamicPricingRuleEngine:
     def __init__(self, rules: Sequence[PricingRule] | None = None) -> None:
         self._rules: list[PricingRule] = list(rules or [])
 
-    def with_rule(self, rule: PricingRule) -> "DynamicPricingRuleEngine":
+    def with_rule(self, rule: PricingRule) -> DynamicPricingRuleEngine:
         """Return a new engine with ``rule`` appended to the rule list."""
 
         return DynamicPricingRuleEngine([*self._rules, rule])
@@ -88,15 +89,13 @@ class DynamicPricingRuleEngine:
         discount = min(discount, 1.0)
         return PricingDecision(discount=discount, applied_rules=applied)
 
-    def extend(self, rules: Iterable[PricingRule]) -> "DynamicPricingRuleEngine":
+    def extend(self, rules: Iterable[PricingRule]) -> DynamicPricingRuleEngine:
         """Return a new engine with rules from ``rules`` appended."""
 
         return DynamicPricingRuleEngine([*self._rules, *rules])
 
 
-_DEFAULT_ENGINE = DynamicPricingRuleEngine(
-    [UnderUtilizationRule(threshold=0.5, discount=0.15)]
-)
+_DEFAULT_ENGINE = DynamicPricingRuleEngine([UnderUtilizationRule(threshold=0.5, discount=0.15)])
 
 
 def build_default_engine() -> DynamicPricingRuleEngine:

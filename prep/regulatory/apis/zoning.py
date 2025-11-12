@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .health_departments import BaseAPIClient, RegulatoryAPIError
 
@@ -18,11 +18,11 @@ class ZoningResult:
     """Structured zoning response."""
 
     address: str
-    zoning_district: Optional[str]
-    land_use: Optional[str]
+    zoning_district: str | None
+    land_use: str | None
     jurisdiction: str
-    notes: Optional[str]
-    raw: Dict[str, Any]
+    notes: str | None
+    raw: dict[str, Any]
 
 
 class SFPlanningAPI(BaseAPIClient):
@@ -41,7 +41,7 @@ class SFPlanningAPI(BaseAPIClient):
             raise ZoningAPIError(f"No zoning data found for {address} in San Francisco")
         return self._transform(address, data[0], jurisdiction="San Francisco, CA")
 
-    def _transform(self, address: str, payload: Dict[str, Any], jurisdiction: str) -> ZoningResult:
+    def _transform(self, address: str, payload: dict[str, Any], jurisdiction: str) -> ZoningResult:
         return ZoningResult(
             address=address,
             zoning_district=payload.get("zoning_district"),
@@ -68,7 +68,7 @@ class NYCPlanningAPI(BaseAPIClient):
             raise ZoningAPIError(f"No zoning data found for {address} in New York City")
         return self._transform(address, data[0], jurisdiction="New York, NY")
 
-    def _transform(self, address: str, payload: Dict[str, Any], jurisdiction: str) -> ZoningResult:
+    def _transform(self, address: str, payload: dict[str, Any], jurisdiction: str) -> ZoningResult:
         return ZoningResult(
             address=address,
             zoning_district=payload.get("zoning_district"),
@@ -95,7 +95,7 @@ class ChicagoZoningAPI(BaseAPIClient):
             raise ZoningAPIError(f"No zoning data found for {address} in Chicago")
         return self._transform(address, data[0], jurisdiction="Chicago, IL")
 
-    def _transform(self, address: str, payload: Dict[str, Any], jurisdiction: str) -> ZoningResult:
+    def _transform(self, address: str, payload: dict[str, Any], jurisdiction: str) -> ZoningResult:
         return ZoningResult(
             address=address,
             zoning_district=payload.get("zoning_classification"),
@@ -110,7 +110,7 @@ class MunicipalZoningAPI:
     """Aggregates municipal zoning providers with simple routing by address."""
 
     def __init__(self) -> None:
-        self.apis: Dict[str, BaseAPIClient] = {
+        self.apis: dict[str, BaseAPIClient] = {
             "san_francisco": SFPlanningAPI(),
             "new_york": NYCPlanningAPI(),
             "chicago": ChicagoZoningAPI(),
@@ -124,7 +124,7 @@ class MunicipalZoningAPI:
         return await client.get_zoning(address)
 
     @staticmethod
-    def extract_city_from_address(address: str) -> Optional[str]:
+    def extract_city_from_address(address: str) -> str | None:
         normalized = address.lower()
         if "san francisco" in normalized:
             return "san_francisco"

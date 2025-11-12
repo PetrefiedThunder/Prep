@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from .config import ComplianceConfigManager
 from .coordinator import ComplianceCoordinator
 
 
-def _load_data(path: str | None) -> Dict[str, Any]:
+def _load_data(path: str | None) -> dict[str, Any]:
     if not path:
         return {}
     data_path = Path(path)
@@ -24,8 +24,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Prep Compliance Engine")
     parser.add_argument("--audit", action="store_true", help="Run comprehensive compliance audit")
     parser.add_argument("--data", type=str, help="Path to JSON data file")
-    parser.add_argument("--config", type=str, default="config/compliance.yaml", help="Path to config file")
-    parser.add_argument("--output", type=str, default="compliance_report.json", help="Output file path")
+    parser.add_argument(
+        "--config", type=str, default="config/compliance.yaml", help="Path to config file"
+    )
+    parser.add_argument(
+        "--output", type=str, default="compliance_report.json", help="Output file path"
+    )
     args = parser.parse_args()
 
     config_manager = ComplianceConfigManager(args.config)
@@ -41,7 +45,7 @@ def main() -> None:
         recommendations = coordinator.get_priority_recommendations(reports)
 
         output_payload = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "executive_summary": summary,
             "priority_recommendations": recommendations,
             "detailed_reports": {

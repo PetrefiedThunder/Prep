@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, Iterator, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import requests
 
@@ -24,7 +25,7 @@ class _AuthState:
     expires_at: datetime
 
     def is_expired(self, *, now: datetime | None = None) -> bool:
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         return now >= self.expires_at
 
 
@@ -55,13 +56,11 @@ class SevenShiftsClient:
         end: datetime,
         location_id: str | None = None,
         per_page: int = 50,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return all shifts between ``start`` and ``end`` inclusive."""
 
         return list(
-            self.iter_schedules(
-                start=start, end=end, location_id=location_id, per_page=per_page
-            )
+            self.iter_schedules(start=start, end=end, location_id=location_id, per_page=per_page)
         )
 
     def iter_schedules(
@@ -71,10 +70,10 @@ class SevenShiftsClient:
         end: datetime,
         location_id: str | None = None,
         per_page: int = 50,
-    ) -> Iterator[Dict[str, Any]]:
+    ) -> Iterator[dict[str, Any]]:
         """Yield schedules using cursor-based pagination."""
 
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "start": self._format_datetime(start),
             "end": self._format_datetime(end),
             "per_page": per_page,
@@ -82,7 +81,7 @@ class SevenShiftsClient:
         if location_id:
             params["location_id"] = location_id
 
-        cursor: Optional[str] = None
+        cursor: str | None = None
 
         while True:
             query = dict(params)
@@ -108,7 +107,7 @@ class SevenShiftsClient:
             return
 
         token, expires_in = self._authenticate()
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=max(0, expires_in - 30))
+        expires_at = datetime.now(UTC) + timedelta(seconds=max(0, expires_in - 30))
         self._auth = _AuthState(token=token, expires_at=expires_at)
 
     def _authenticate(self) -> tuple[str, int]:
@@ -192,20 +191,20 @@ class SevenShiftsClient:
     @staticmethod
     def _format_datetime(value: datetime) -> str:
         if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
+            value = value.replace(tzinfo=UTC)
         else:
-            value = value.astimezone(timezone.utc)
+            value = value.astimezone(UTC)
         return value.isoformat().replace("+00:00", "Z")
 
     @staticmethod
-    def _parse_json(response: requests.Response) -> Dict[str, Any]:
+    def _parse_json(response: requests.Response) -> dict[str, Any]:
         try:
             return response.json()
         except ValueError as exc:  # pragma: no cover - defensive
             raise SevenShiftsError("SevenShifts returned invalid JSON") from exc
 
     @staticmethod
-    def _extract_items(payload: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
+    def _extract_items(payload: dict[str, Any]) -> Iterable[dict[str, Any]]:
         if "data" in payload and isinstance(payload["data"], list):
             return payload["data"]
         if "shifts" in payload and isinstance(payload["shifts"], list):
@@ -213,7 +212,7 @@ class SevenShiftsClient:
         return []
 
     @staticmethod
-    def _next_cursor(payload: Dict[str, Any]) -> Optional[str]:
+    def _next_cursor(payload: dict[str, Any]) -> str | None:
         pagination = payload.get("pagination") or {}
         cursor = pagination.get("next_cursor") or pagination.get("next")
         if cursor:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import psycopg
 
@@ -31,8 +31,8 @@ def main() -> int:
     if isinstance(latest, str):
         latest = datetime.fromisoformat(latest)
 
-    latest = latest.replace(tzinfo=timezone.utc) if latest.tzinfo is None else latest.astimezone(timezone.utc)
-    age = datetime.now(timezone.utc) - latest
+    latest = latest.replace(tzinfo=UTC) if latest.tzinfo is None else latest.astimezone(UTC)
+    age = datetime.now(UTC) - latest
     print("Latest manifest:", latest.isoformat(), "age_hours=", age.total_seconds() / 3600)
     return 0 if age <= timedelta(hours=args.max_age_hours) else 2
 

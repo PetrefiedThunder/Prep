@@ -2,27 +2,27 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import httpx
 
 from ...client import Client
 from ...models.requirement_collection import RequirementCollection
-from ...types import UNSET, Response, Unset, UnexpectedStatus
+from ...types import UNSET, Response, UnexpectedStatus, Unset
 
 
 def _get_kwargs(
     city: str,
     *,
     client: Client,
-    registration_status: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
-) -> Dict[str, Any]:
+    registration_status: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
+) -> dict[str, Any]:
     headers = client.get_headers()
     if not isinstance(prep_version, Unset) and prep_version is not UNSET:
         headers["Prep-Version"] = prep_version
 
-    params: Dict[str, Any] = {}
+    params: dict[str, Any] = {}
     if (
         not isinstance(registration_status, Unset)
         and registration_status is not UNSET
@@ -40,7 +40,7 @@ def _get_kwargs(
     }
 
 
-def _parse_response(*, client: Client, response: httpx.Response) -> Optional[RequirementCollection]:
+def _parse_response(*, client: Client, response: httpx.Response) -> RequirementCollection | None:
     if response.status_code == HTTPStatus.OK:
         return RequirementCollection.model_validate(response.json())
     if client.raise_on_unexpected_status:
@@ -61,8 +61,8 @@ def sync_detailed(
     city: str,
     *,
     client: Client,
-    registration_status: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
+    registration_status: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
 ) -> Response[RequirementCollection]:
     """Retrieve compliance requirements for a city."""
 
@@ -87,9 +87,9 @@ def sync(
     city: str,
     *,
     client: Client,
-    registration_status: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
-) -> Optional[RequirementCollection]:
+    registration_status: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
+) -> RequirementCollection | None:
     """Retrieve compliance requirements for a city."""
 
     return sync_detailed(
@@ -104,8 +104,8 @@ async def asyncio_detailed(
     city: str,
     *,
     client: Client,
-    registration_status: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
+    registration_status: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
 ) -> Response[RequirementCollection]:
     """Retrieve compliance requirements for a city."""
 
@@ -130,9 +130,9 @@ async def asyncio(
     city: str,
     *,
     client: Client,
-    registration_status: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
-) -> Optional[RequirementCollection]:
+    registration_status: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
+) -> RequirementCollection | None:
     """Retrieve compliance requirements for a city."""
 
     return (

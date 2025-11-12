@@ -10,14 +10,15 @@ AWS credentials are expected to be configured in the environment (via
 script uses the default AWS region unless overridden by standard boto3
 configuration.
 """
+
 from __future__ import annotations
 
 import argparse
 import csv
 import io
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Dict, Iterable
 
 import boto3
 from botocore.client import BaseClient
@@ -35,7 +36,7 @@ class MetricsObject:
 
 def parse_encryption_context(
     context_pairs: Iterable[str] | None,
-) -> Dict[str, str] | None:
+) -> dict[str, str] | None:
     """Convert ``key=value`` pairs into a dictionary.
 
     Parameters
@@ -53,7 +54,7 @@ def parse_encryption_context(
     if not context_pairs:
         return None
 
-    context: Dict[str, str] = {}
+    context: dict[str, str] = {}
     for pair in context_pairs:
         if "=" not in pair:
             raise ValueError(
@@ -85,7 +86,9 @@ def find_latest_metrics_object(
             if not obj.get("Key", "").lower().endswith(".csv"):
                 continue
             if latest_obj is None or obj["LastModified"] > latest_obj.last_modified:
-                latest_obj = MetricsObject(bucket=bucket, key=obj["Key"], last_modified=obj["LastModified"])
+                latest_obj = MetricsObject(
+                    bucket=bucket, key=obj["Key"], last_modified=obj["LastModified"]
+                )
 
     if latest_obj is None:
         raise FileNotFoundError(
@@ -102,7 +105,9 @@ def download_object(s3_client: BaseClient, metrics_object: MetricsObject) -> byt
     return response["Body"].read()
 
 
-def decrypt_csv(kms_client: BaseClient, ciphertext: bytes, encryption_context: Dict[str, str] | None) -> str:
+def decrypt_csv(
+    kms_client: BaseClient, ciphertext: bytes, encryption_context: dict[str, str] | None
+) -> str:
     """Decrypt ciphertext using AWS KMS and return the decoded CSV text."""
 
     decrypt_kwargs = {"CiphertextBlob": ciphertext}
@@ -128,7 +133,9 @@ def print_first_rows(csv_text: str, limit: int = 5) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--bucket", required=True, help="S3 bucket that stores encrypted metrics CSV files.")
+    parser.add_argument(
+        "--bucket", required=True, help="S3 bucket that stores encrypted metrics CSV files."
+    )
     parser.add_argument(
         "--prefix",
         default=None,

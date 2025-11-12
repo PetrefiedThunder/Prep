@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 import types
 from collections.abc import Iterator
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 if "aiohttp" not in sys.modules:
     aiohttp_stub = types.ModuleType("aiohttp")
@@ -237,4 +237,3 @@ class TestLoadBundle:
         assert estimate.total_one_time_cents == 12550
         assert estimate.total_recurring_annualized_cents == 45000
         assert estimate.incremental_fee_count == 0
-

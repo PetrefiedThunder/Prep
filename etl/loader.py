@@ -31,18 +31,12 @@ def _normalize_row(row: Mapping[str, Any]) -> dict[str, Any]:
     if not sha_hash:
         raise ValueError("RegDoc payload missing required 'sha256_hash'")
 
-    normalized = {
-        key: row[key]
-        for key in _REGDOC_FIELDS
-        if key in row and row[key] is not None
-    }
+    normalized = {key: row[key] for key in _REGDOC_FIELDS if key in row and row[key] is not None}
     normalized.setdefault("raw_payload", dict(row))
     return normalized
 
 
-def load_regdocs(
-    session: Session, rows: Iterable[Mapping[str, Any]]
-) -> dict[str, int]:
+def load_regdocs(session: Session, rows: Iterable[Mapping[str, Any]]) -> dict[str, int]:
     """Perform an UPSERT of :class:`RegDoc` records by ``sha256_hash``.
 
     Args:
@@ -82,6 +76,8 @@ def load_regdocs(
             updated += 1
 
     return {"inserted": inserted, "updated": updated, "skipped": skipped}
+
+
 _OPTIONAL_FIELDS = {"effective_date", "citation_url"}
 
 

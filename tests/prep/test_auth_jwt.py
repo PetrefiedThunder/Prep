@@ -67,4 +67,3 @@ def test_decode_jwt_rejects_unsupported_algorithm() -> None:
         _decode_jwt(token, settings)
 
     assert exc.value.status_code == status.HTTP_401_UNAUTHORIZED
-

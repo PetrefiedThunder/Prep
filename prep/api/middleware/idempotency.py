@@ -1,47 +1,10 @@
-"""Middleware enforcing API idempotency semantics for mutating requests."""
-
-from __future__ import annotations
-
-import base64
-import hashlib
-import json
-from collections.abc import Awaitable, Callable
-from typing import Any
-
-from fastapi import Request, Response, status
-from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
-
-from prep.cache import get_redis
-from prep.platform.schemas import ErrorDetail, ErrorResponseEnvelope, resolve_request_id
-
-_CACHE_PREFIX = "idempotency"
-_DEFAULT_TTL_SECONDS = 24 * 60 * 60
-
-
-class IdempotencyMiddleware(BaseHTTPMiddleware):
-    """Validate `Idempotency-Key` headers and replay cached responses."""
-
-    def __init__(
-        self,
-        app: ASGIApp,
-        *,
-        ttl_seconds: int = _DEFAULT_TTL_SECONDS,
-    ) -> None:
-        super().__init__(app)
-        self._ttl_seconds = ttl_seconds
-
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
-        if request.method not in {"POST", "PUT"}:
 """Middleware enforcing idempotency semantics for mutating requests."""
 
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import Request, Response, status
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -60,7 +23,9 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._ttl_seconds = ttl_seconds
 
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         if request.method not in _MUTATING_METHODS:
             return await call_next(request)
 
@@ -200,12 +165,6 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             headers=headers,
             media_type=cached.get("media_type"),
         )
-            return json_error_response(
-                request,
-                status_code=status.HTTP_400_BAD_REQUEST,
-                code="api.idempotency.missing_key",
-                message="Idempotency-Key header is required for POST and PUT requests",
-            )
 
         request.state.idempotency_key = idempotency_key
 

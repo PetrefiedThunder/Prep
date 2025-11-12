@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, Mapping, MutableMapping, Sequence
+from typing import Any
 
 from .orchestration import ComplianceDomain
 
@@ -25,7 +26,7 @@ class SchemaValidator:
 
     def __init__(self, base_path: Path | None = None) -> None:
         root = (base_path or Path(__file__).resolve().parents[2]).resolve()
-        self._schemas: Dict[ComplianceDomain, Dict[str, Any]] = {}
+        self._schemas: dict[ComplianceDomain, dict[str, Any]] = {}
         schema_map = {
             ComplianceDomain.GDPR_CCPA: root / "schemas/privacy/compliance_result.schema.json",
             ComplianceDomain.AML_KYC: root / "schemas/aml/compliance_result.schema.json",
@@ -49,7 +50,9 @@ class SchemaValidator:
             raise SchemaValidationError(domain, errors)
         return normalized
 
-    def _normalize_payload(self, domain: ComplianceDomain, payload: Any) -> MutableMapping[str, Any]:
+    def _normalize_payload(
+        self, domain: ComplianceDomain, payload: Any
+    ) -> MutableMapping[str, Any]:
         if is_dataclass(payload):
             data: MutableMapping[str, Any] = asdict(payload)  # type: ignore[assignment]
         elif isinstance(payload, Mapping):
@@ -94,9 +97,7 @@ class SchemaValidator:
                 return
             min_items = schema.get("minItems")
             if isinstance(min_items, int) and len(value) < min_items:
-                errors.append(
-                    self._format_error(path, f"must contain at least {min_items} items")
-                )
+                errors.append(self._format_error(path, f"must contain at least {min_items} items"))
             item_schema = schema.get("items")
             if isinstance(item_schema, Mapping):
                 for index, item in enumerate(value):

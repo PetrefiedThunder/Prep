@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.types import CHAR, TypeDecorator
@@ -20,7 +20,7 @@ class GUID(TypeDecorator[uuid.UUID]):
             return dialect.type_descriptor(PG_UUID(as_uuid=True))
         return dialect.type_descriptor(CHAR(36))
 
-    def process_bind_param(self, value: Optional[Any], dialect):  # type: ignore[override]
+    def process_bind_param(self, value: Any | None, dialect):  # type: ignore[override]
         if value is None:
             return None
         if isinstance(value, uuid.UUID):
@@ -28,7 +28,7 @@ class GUID(TypeDecorator[uuid.UUID]):
         parsed = uuid.UUID(str(value))
         return parsed if dialect.name == "postgresql" else str(parsed)
 
-    def process_result_value(self, value: Optional[Any], dialect):  # type: ignore[override]
+    def process_result_value(self, value: Any | None, dialect):  # type: ignore[override]
         if value is None:
             return None
         if isinstance(value, uuid.UUID):

@@ -3,35 +3,37 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from difflib import Differ
-from typing import Dict, Iterable, List, Optional, Sequence
 
 
 @dataclass(slots=True)
 class Change:
     """Represents a detected change in a regulation artifact."""
 
-    regulation_id: Optional[str]
+    regulation_id: str | None
     change_type: str
     old_text: str
     new_text: str
     timestamp: datetime
-    diff: Optional[List[str]] = None
+    diff: list[str] | None = None
 
 
 class RegulatoryChangeDetector:
     """Detect changes between versions of regulation collections."""
 
     def __init__(self) -> None:
-        self.previous_versions: Dict[str, tuple[str, Sequence[Dict[str, str]]]] = {}
+        self.previous_versions: dict[str, tuple[str, Sequence[dict[str, str]]]] = {}
 
-    async def detect_changes(self, new_regulations: Sequence[Dict[str, str]], jurisdiction: str) -> List[Change]:
+    async def detect_changes(
+        self, new_regulations: Sequence[dict[str, str]], jurisdiction: str
+    ) -> list[Change]:
         """Detect changes between previously stored regulations and the provided list."""
 
         current_hash = self.hash_regulations(new_regulations)
-        changes: List[Change] = []
+        changes: list[Change] = []
         if jurisdiction in self.previous_versions:
             old_hash, old_regulations = self.previous_versions[jurisdiction]
             if current_hash != old_hash:
@@ -40,12 +42,12 @@ class RegulatoryChangeDetector:
         return changes
 
     def compare_regulations(
-        self, old: Sequence[Dict[str, str]], new: Sequence[Dict[str, str]]
-    ) -> List[Change]:
+        self, old: Sequence[dict[str, str]], new: Sequence[dict[str, str]]
+    ) -> list[Change]:
         """Compare regulation sequences and return detected textual changes."""
 
         differ = Differ()
-        changes: List[Change] = []
+        changes: list[Change] = []
         for index, (old_reg, new_reg) in enumerate(zip(old, new)):
             old_text = old_reg.get("text", "")
             new_text = new_reg.get("text", "")
@@ -87,7 +89,7 @@ class RegulatoryChangeDetector:
                 )
         return changes
 
-    def hash_regulations(self, regulations: Iterable[Dict[str, str]]) -> str:
+    def hash_regulations(self, regulations: Iterable[dict[str, str]]) -> str:
         """Generate a stable hash for a collection of regulations."""
 
         digest = hashlib.sha256()

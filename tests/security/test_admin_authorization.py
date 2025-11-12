@@ -18,21 +18,21 @@ async def test_admin_regulatory_endpoints_require_auth(async_client: AsyncClient
     """
     # Test GET /admin/regulatory/states
     response = await async_client.get("/admin/regulatory/states")
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED, \
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED, (
         "Admin endpoint should reject requests without authentication"
+    )
 
     # Test GET /admin/regulatory/scraping-status
     response = await async_client.get("/admin/regulatory/scraping-status")
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED, \
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED, (
         "Admin endpoint should reject requests without authentication"
+    )
 
     # Test POST /admin/regulatory/scrape
-    response = await async_client.post(
-        "/admin/regulatory/scrape",
-        json={"states": ["CA", "NY"]}
-    )
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED, \
+    response = await async_client.post("/admin/regulatory/scrape", json={"states": ["CA", "NY"]})
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED, (
         "Admin endpoint should reject requests without authentication"
+    )
 
 
 @pytest.mark.asyncio
@@ -48,16 +48,16 @@ async def test_admin_regulatory_endpoints_require_admin_role(
 
     # Test that customer role is rejected
     response = await async_client.get("/admin/regulatory/states", headers=headers)
-    assert response.status_code == status.HTTP_403_FORBIDDEN, \
+    assert response.status_code == status.HTTP_403_FORBIDDEN, (
         "Admin endpoint should reject non-admin users"
+    )
 
     response = await async_client.post(
-        "/admin/regulatory/scrape",
-        json={"states": ["CA"]},
-        headers=headers
+        "/admin/regulatory/scrape", json={"states": ["CA"]}, headers=headers
     )
-    assert response.status_code == status.HTTP_403_FORBIDDEN, \
+    assert response.status_code == status.HTTP_403_FORBIDDEN, (
         "Admin endpoint should reject non-admin users"
+    )
 
 
 @pytest.mark.asyncio
@@ -73,12 +73,14 @@ async def test_admin_regulatory_endpoints_allow_admin_access(
 
     # Test GET requests work with admin token
     response = await async_client.get("/admin/regulatory/states", headers=headers)
-    assert response.status_code in (status.HTTP_200_OK, status.HTTP_500_INTERNAL_SERVER_ERROR), \
+    assert response.status_code in (status.HTTP_200_OK, status.HTTP_500_INTERNAL_SERVER_ERROR), (
         "Admin endpoint should accept valid admin tokens"
+    )
 
     response = await async_client.get("/admin/regulatory/scraping-status", headers=headers)
-    assert response.status_code in (status.HTTP_200_OK, status.HTTP_500_INTERNAL_SERVER_ERROR), \
+    assert response.status_code in (status.HTTP_200_OK, status.HTTP_500_INTERNAL_SERVER_ERROR), (
         "Admin endpoint should accept valid admin tokens"
+    )
 
 
 @pytest.mark.asyncio
@@ -94,18 +96,14 @@ async def test_admin_scrape_validates_input(
 
     # Test empty states list
     response = await async_client.post(
-        "/admin/regulatory/scrape",
-        json={"states": []},
-        headers=headers
+        "/admin/regulatory/scrape", json={"states": []}, headers=headers
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert "at least one state" in response.json()["detail"].lower()
 
     # Test valid request
     response = await async_client.post(
-        "/admin/regulatory/scrape",
-        json={"states": ["CA", "NY"]},
-        headers=headers
+        "/admin/regulatory/scrape", json={"states": ["CA", "NY"]}, headers=headers
     )
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
