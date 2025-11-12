@@ -267,7 +267,6 @@ class MunicipalComplianceKernel:
         self, start: datetime, end: datetime, quiet_start: time, quiet_end: time
     ) -> bool:
         """Check if datetime range overlaps quiet hours."""
-        # Simplified - assumes quiet hours don't span midnight
         booking_start_time = start.time()
         booking_end_time = end.time()
 

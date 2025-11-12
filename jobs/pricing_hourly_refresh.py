@@ -30,7 +30,11 @@ except ModuleNotFoundError:  # pragma: no cover
     SessionLocal = None  # type: ignore
     Kitchen = Any  # type: ignore
 
-from apps.pricing import UtilizationMetrics, build_default_engine
+try:  # pragma: no cover - optional dependency
+    from apps.pricing import UtilizationMetrics, build_default_engine  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    UtilizationMetrics = Any  # type: ignore
+    build_default_engine = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +329,3 @@ __all__ = [
     "run_pricing_refresh_async",
     "SCHEDULE_CRON",
 ]
-
-
-__all__ = ["PricingRefreshSummary", "refresh_pricing"]
