@@ -59,7 +59,7 @@ export default async function (app: FastifyInstance) {
   }
 
   const stripe = new Stripe(stripeSecretKey, {
-    apiVersion: '2024-12-18.acacia'
+    apiVersion: '2025-10-29.clover'
   });
 
   const db = new Pool({
@@ -85,8 +85,9 @@ export default async function (app: FastifyInstance) {
 
     try {
       // Verify webhook signature
+      const rawBody = (req.body as any).raw || JSON.stringify(req.body);
       event = stripe.webhooks.constructEvent(
-        req.rawBody as Buffer | string,
+        rawBody,
         sig,
         webhookSecret
       );

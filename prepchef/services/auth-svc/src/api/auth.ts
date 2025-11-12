@@ -3,7 +3,8 @@ import '@fastify/jwt';
 import { compare, hash } from 'bcryptjs';
 import { z } from 'zod';
 import { env } from '@prep/config';
-import type { UserRole } from '@prisma/client';
+
+type UserRole = 'admin' | 'host' | 'renter';
 
 const refreshTokens = new Map<string, string>();
 

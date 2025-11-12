@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { hash } from 'bcryptjs';
-import { type UserRole } from '@prisma/client';
 import { env } from '@prep/config';
 import { getPrismaClient, tryConnect, type DatabaseClient } from '@prep/database';
 import { log } from '@prep/logger';
+
+type UserRole = 'admin' | 'host' | 'renter';
 
 export interface UserRecord {
   id: string;

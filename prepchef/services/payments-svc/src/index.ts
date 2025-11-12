@@ -152,8 +152,9 @@ export async function createApp() {
   await app.register(async function webhookRoutes(instance) {
     instance.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
       try {
-        const parsed = body.length > 0 ? JSON.parse(body) : {};
-        done(null, { raw: body, parsed } satisfies RawStripeBody);
+        const bodyStr = typeof body === 'string' ? body : body.toString();
+        const parsed = bodyStr.length > 0 ? JSON.parse(bodyStr) : {};
+        done(null, { raw: bodyStr, parsed } satisfies RawStripeBody);
       } catch (err) {
         const error = err as Error;
         error.message = 'Invalid JSON payload';
@@ -242,5 +243,5 @@ export async function createApp() {
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 0) || Math.floor(Math.random() * 1000) + 3000;
-  createApp().then(app => app.listen({ port }).then(() => log.info('payments-svc listening', port)));
+  createApp().then(app => app.listen({ port }).then(() => log.info('payments-svc listening', { port })));
 }
