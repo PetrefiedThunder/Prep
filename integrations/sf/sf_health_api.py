@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Optional
 
 
 @dataclass
@@ -19,7 +18,9 @@ class HealthPermitRecord:
 class SanFranciscoHealthAPI:
     """Mockable client for SF health permit lookups."""
 
-    def lookup_permit(self, permit_number: str, facility_type: str, address: str) -> Optional[HealthPermitRecord]:
+    def lookup_permit(
+        self, permit_number: str, facility_type: str, address: str
+    ) -> HealthPermitRecord | None:
         permit_number = permit_number.strip()
         if not permit_number:
             return None

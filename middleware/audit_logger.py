@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from fastapi import Request
@@ -127,6 +127,6 @@ async def _insert_audit_record(
             "metadata": metadata,
             "ip_address": ip_address,
             "user_agent": user_agent,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
         },
     )

@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 import re
 import uuid
-from datetime import datetime, UTC
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -34,7 +34,7 @@ router = APIRouter(prefix="/kitchens", tags=["kitchens"])
 _ZIP_PATTERN = re.compile(r"\b\d{5}(?:-\d{4})?\b")
 
 
-def _extract_zip_code(address: str | None) -> Optional[str]:
+def _extract_zip_code(address: str | None) -> str | None:
     """Extract a postal code from a free-form address string."""
 
     if not address:
@@ -45,7 +45,7 @@ def _extract_zip_code(address: str | None) -> Optional[str]:
     return None
 
 
-def _collect_location_context(kitchen: Kitchen) -> Dict[str, Optional[str]]:
+def _collect_location_context(kitchen: Kitchen) -> dict[str, str | None]:
     """Collect location-derived metadata used for pilot feature flags."""
 
     insurance_info = kitchen.insurance_info if isinstance(kitchen.insurance_info, dict) else {}
@@ -66,18 +66,18 @@ class KitchenCreate(BaseModel):
     address: str
     description: str
     pricing: dict[str, Any]
-    equipment: List[str] = Field(default_factory=list)
-    state: Optional[str] = None
-    city: Optional[str] = None
-    postal_code: Optional[str] = None
-    county: Optional[str] = None
-    host_id: Optional[str] = None
-    health_permit_number: Optional[str] = None
-    last_inspection_date: Optional[datetime] = None
-    insurance_info: Optional[dict[str, Any]] = None
-    zoning_type: Optional[str] = None
+    equipment: list[str] = Field(default_factory=list)
+    state: str | None = None
+    city: str | None = None
+    postal_code: str | None = None
+    county: str | None = None
+    host_id: str | None = None
+    health_permit_number: str | None = None
+    last_inspection_date: datetime | None = None
+    insurance_info: dict[str, Any] | None = None
+    zoning_type: str | None = None
     delivery_only: bool = False
-    permit_types: List[str] = Field(default_factory=list)
+    permit_types: list[str] = Field(default_factory=list)
 
 
 class KitchenResponse(KitchenCreate):
@@ -85,9 +85,9 @@ class KitchenResponse(KitchenCreate):
 
     id: str
     host_id: str
-    compliance_status: Optional[str] = None
-    risk_score: Optional[int] = None
-    last_compliance_check: Optional[datetime] = None
+    compliance_status: str | None = None
+    risk_score: int | None = None
+    last_compliance_check: datetime | None = None
     created_at: datetime
 
 
@@ -97,19 +97,19 @@ class KitchenComplianceResponse(BaseModel):
     kitchen_id: str
     compliance_level: str
     risk_score: int
-    missing_requirements: List[str]
-    recommendations: List[str]
+    missing_requirements: list[str]
+    recommendations: list[str]
     last_analyzed: str
-    city: Optional[str] = None
-    state: Optional[str] = None
-    county: Optional[str] = None
-    postal_code: Optional[str] = None
-    booking_restrictions_banner: Optional[str] = None
+    city: str | None = None
+    state: str | None = None
+    county: str | None = None
+    postal_code: str | None = None
+    booking_restrictions_banner: str | None = None
     delivery_only: bool = False
-    permit_types: List[str] = Field(default_factory=list)
-    last_sanitation_log: Optional[datetime] = None
-    subscription_status: Optional[str] = None
-    trial_ends_at: Optional[str] = None
+    permit_types: list[str] = Field(default_factory=list)
+    last_sanitation_log: datetime | None = None
+    subscription_status: str | None = None
+    trial_ends_at: str | None = None
     is_pilot_user: bool = False
     pilot_mode: bool = False
     override_allowed: bool = False
@@ -118,10 +118,10 @@ class KitchenComplianceResponse(BaseModel):
 class SanitationLogCreate(BaseModel):
     """Payload describing a sanitation inspection entry."""
 
-    logged_at: Optional[datetime] = None
+    logged_at: datetime | None = None
     status: str = Field(default="passed", pattern="^[a-zA-Z_]+$")
-    inspector_name: Optional[str] = None
-    notes: Optional[str] = None
+    inspector_name: str | None = None
+    notes: str | None = None
     follow_up_required: bool = False
 
 
@@ -193,13 +193,13 @@ async def create_kitchen(
     try:
         host_id = uuid.UUID(kitchen_data.host_id) if kitchen_data.host_id else uuid.uuid4()
     except ValueError as exc:  # pragma: no cover - validation guard
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid host ID") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid host ID"
+        ) from exc
 
     state_value = kitchen_data.state.upper() if kitchen_data.state else None
     city_value = kitchen_data.city.strip() if kitchen_data.city else None
-    postal_code_value = (
-        kitchen_data.postal_code.strip() if kitchen_data.postal_code else None
-    )
+    postal_code_value = kitchen_data.postal_code.strip() if kitchen_data.postal_code else None
     if postal_code_value:
         digits_only = "".join(ch for ch in postal_code_value if ch.isdigit())
         if len(digits_only) == 5:
@@ -256,12 +256,12 @@ async def get_kitchen(kitchen_id: str, db: AsyncSession = Depends(get_db)) -> Ki
     return _serialize_kitchen(kitchen)
 
 
-@router.get("/", response_model=List[KitchenResponse])
+@router.get("/", response_model=list[KitchenResponse])
 async def list_kitchens(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-) -> List[KitchenResponse]:
+) -> list[KitchenResponse]:
     """List kitchens with pagination support."""
 
     result = await db.execute(select(Kitchen).offset(skip).limit(limit))
@@ -270,11 +270,11 @@ async def list_kitchens(
     return [_serialize_kitchen(kitchen) for kitchen in kitchens]
 
 
-@router.get("/{kitchen_id}/sanitation", response_model=List[SanitationLogResponse])
+@router.get("/{kitchen_id}/sanitation", response_model=list[SanitationLogResponse])
 async def list_sanitation_logs(
     kitchen_id: str,
     db: AsyncSession = Depends(get_db),
-) -> List[SanitationLogResponse]:
+) -> list[SanitationLogResponse]:
     """Return sanitation logs for a specific kitchen."""
 
     kitchen = await _get_kitchen_or_404(db, kitchen_id)
@@ -428,18 +428,20 @@ async def get_kitchen_compliance(
     )
 
 
-@router.get("/search/compliant", response_model=List[KitchenResponse])
+@router.get("/search/compliant", response_model=list[KitchenResponse])
 async def search_compliant_kitchens(
     state: str,
-    city: Optional[str] = Query(default=None),
+    city: str | None = Query(default=None),
     min_compliance_level: str = Query("partial_compliance"),
     db: AsyncSession = Depends(get_db),
-) -> List[KitchenResponse]:
+) -> list[KitchenResponse]:
     """Search for kitchens that meet a minimum compliance level."""
 
     allowed_levels = {"compliant", "partial_compliance", "non_compliant", "unknown"}
     if min_compliance_level not in allowed_levels:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid compliance level filter")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid compliance level filter"
+        )
 
     state_filter = state.upper()
     filters = [func.upper(Kitchen.state) == state_filter]
@@ -484,7 +486,9 @@ async def _get_kitchen_or_404(db: AsyncSession, kitchen_id: str) -> Kitchen:
     try:
         kitchen_uuid = uuid.UUID(kitchen_id)
     except ValueError as exc:  # pragma: no cover - validation guard
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid kitchen ID") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid kitchen ID"
+        ) from exc
 
     result = await db.execute(
         select(Kitchen).options(selectinload(Kitchen.host)).where(Kitchen.id == kitchen_uuid)

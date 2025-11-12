@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Dict
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -123,7 +122,7 @@ class TaxComputationResult(BaseModel):
     taxable_amount: Decimal
     tax_amount: Decimal
     currency: str
-    breakdown: Dict[str, Decimal]
+    breakdown: dict[str, Decimal]
 
 
 class LedgerExport(BaseModel):

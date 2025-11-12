@@ -5,9 +5,10 @@ from __future__ import annotations
 import calendar
 import json
 import logging
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any, Sequence
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -20,6 +21,15 @@ from sqlalchemy.orm import aliased
 from prep.auth import get_current_admin, get_current_user
 from prep.cache import get_redis
 from prep.database import get_db
+from prep.models.orm import (
+    Booking,
+    BookingStatus,
+    Kitchen,
+    KitchenModerationEvent,
+    OperationalExpense,
+    Review,
+    User as UserORM,
+)
 from prep.models.pydantic_exports import (
     AdminPerformanceMetrics,
     AdminTeamMemberPerformance,
@@ -36,18 +46,9 @@ from prep.models.pydantic_exports import (
     RecentBooking,
     RegionPerformance,
     RevenueAnalytics,
+    Timeframe,
     TimeSeriesData,
     TimeSlotPopularity,
-    Timeframe,
-)
-from prep.models.orm import (
-    Booking,
-    BookingStatus,
-    Kitchen,
-    KitchenModerationEvent,
-    OperationalExpense,
-    Review,
-    User as UserORM,
 )
 
 logger = logging.getLogger(__name__)
@@ -147,7 +148,9 @@ class AnalyticsDashboardService:
         except Exception:  # pragma: no cover - defensive logging
             logger.exception("Failed to persist analytics cache", extra={"cache_key": key})
 
-    async def _get_cached_list(self, key: str, model_type: type[BaseModel]) -> list[BaseModel] | None:
+    async def _get_cached_list(
+        self, key: str, model_type: type[BaseModel]
+    ) -> list[BaseModel] | None:
         try:
             raw = await self._redis.get(key)
         except Exception:  # pragma: no cover - defensive logging
@@ -198,7 +201,9 @@ class AnalyticsDashboardService:
         await self._set_cache(cache_key, overview, HOST_CACHE_TTL_SECONDS)
         return overview
 
-    async def get_host_booking_analytics(self, host_id: UUID, timeframe: Timeframe) -> BookingAnalytics:
+    async def get_host_booking_analytics(
+        self, host_id: UUID, timeframe: Timeframe
+    ) -> BookingAnalytics:
         cache_key = f"analytics:host:{host_id}:bookings:{timeframe.value}"
         cached = await self._get_cached(cache_key, BookingAnalytics)
         if cached:
@@ -215,7 +220,9 @@ class AnalyticsDashboardService:
         await self._set_cache(cache_key, analytics, HOST_CACHE_TTL_SECONDS)
         return analytics
 
-    async def get_host_revenue_analytics(self, host_id: UUID, timeframe: Timeframe) -> RevenueAnalytics:
+    async def get_host_revenue_analytics(
+        self, host_id: UUID, timeframe: Timeframe
+    ) -> RevenueAnalytics:
         cache_key = f"analytics:host:{host_id}:revenue:{timeframe.value}"
         cached = await self._get_cached(cache_key, RevenueAnalytics)
         if cached:
@@ -241,7 +248,9 @@ class AnalyticsDashboardService:
         try:
             performances = await self._build_kitchen_performance(host_id)
         except SQLAlchemyError as exc:
-            logger.exception("Failed to compute kitchen comparison", extra={"host_id": str(host_id)})
+            logger.exception(
+                "Failed to compute kitchen comparison", extra={"host_id": str(host_id)}
+            )
             raise HTTPException(status_code=500, detail="Unable to load kitchen analytics") from exc
         await self._set_cached_list(cache_key, HOST_CACHE_TTL_SECONDS, performances)
         return performances
@@ -255,7 +264,9 @@ class AnalyticsDashboardService:
             overview = await self._build_platform_overview()
         except SQLAlchemyError as exc:
             logger.exception("Failed to compute platform overview")
-            raise HTTPException(status_code=500, detail="Unable to load platform analytics") from exc
+            raise HTTPException(
+                status_code=500, detail="Unable to load platform analytics"
+            ) from exc
         await self._set_cache(cache_key, overview, PLATFORM_CACHE_TTL_SECONDS)
         return overview
 
@@ -267,8 +278,12 @@ class AnalyticsDashboardService:
         try:
             analytics = await self._build_revenue_analytics(host_id=None, timeframe=timeframe)
         except SQLAlchemyError as exc:
-            logger.exception("Failed to compute platform revenue", extra={"timeframe": timeframe.value})
-            raise HTTPException(status_code=500, detail="Unable to load platform revenue analytics") from exc
+            logger.exception(
+                "Failed to compute platform revenue", extra={"timeframe": timeframe.value}
+            )
+            raise HTTPException(
+                status_code=500, detail="Unable to load platform revenue analytics"
+            ) from exc
         await self._set_cache(cache_key, analytics, PLATFORM_CACHE_TTL_SECONDS)
         return analytics
 
@@ -294,7 +309,9 @@ class AnalyticsDashboardService:
             regions = await self._build_region_performance()
         except SQLAlchemyError as exc:
             logger.exception("Failed to compute regional performance")
-            raise HTTPException(status_code=500, detail="Unable to load regional analytics") from exc
+            raise HTTPException(
+                status_code=500, detail="Unable to load regional analytics"
+            ) from exc
         await self._set_cached_list(cache_key, PLATFORM_CACHE_TTL_SECONDS, regions)
         return regions
 
@@ -307,7 +324,9 @@ class AnalyticsDashboardService:
             metrics = await self._build_moderation_metrics()
         except SQLAlchemyError as exc:
             logger.exception("Failed to compute moderation metrics")
-            raise HTTPException(status_code=500, detail="Unable to load moderation analytics") from exc
+            raise HTTPException(
+                status_code=500, detail="Unable to load moderation analytics"
+            ) from exc
         await self._set_cache(cache_key, metrics, ADMIN_CACHE_TTL_SECONDS)
         return metrics
 
@@ -320,7 +339,9 @@ class AnalyticsDashboardService:
             metrics = await self._build_admin_performance()
         except SQLAlchemyError as exc:
             logger.exception("Failed to compute admin performance metrics")
-            raise HTTPException(status_code=500, detail="Unable to load admin performance analytics") from exc
+            raise HTTPException(
+                status_code=500, detail="Unable to load admin performance analytics"
+            ) from exc
         await self._set_cache(cache_key, metrics, ADMIN_CACHE_TTL_SECONDS)
         return metrics
 
@@ -333,7 +354,9 @@ class AnalyticsDashboardService:
             metrics = await self._build_financial_health()
         except SQLAlchemyError as exc:
             logger.exception("Failed to compute financial health metrics")
-            raise HTTPException(status_code=500, detail="Unable to load financial analytics") from exc
+            raise HTTPException(
+                status_code=500, detail="Unable to load financial analytics"
+            ) from exc
         await self._set_cache(cache_key, metrics, ADMIN_CACHE_TTL_SECONDS)
         return metrics
 
@@ -352,18 +375,28 @@ class AnalyticsDashboardService:
         active_kitchens = _safe_int(active_kitchens)
 
         revenue_case = case(
-            (Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]), Booking.total_amount),
+            (
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]),
+                Booking.total_amount,
+            ),
             else_=0,
         )
         occupied_hours_case = case(
-            (Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]),
-             func.extract("epoch", Booking.end_time - Booking.start_time) / 3600.0),
+            (
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]),
+                func.extract("epoch", Booking.end_time - Booking.start_time) / 3600.0,
+            ),
             else_=0,
         )
         booking_counts = await self._session.execute(
             select(
                 func.count(Booking.id),
-                func.sum(case((Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]), 1), else_=0)),
+                func.sum(
+                    case(
+                        (Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]), 1),
+                        else_=0,
+                    )
+                ),
                 func.sum(case((Booking.status == BookingStatus.CANCELLED, 1), else_=0)),
                 func.coalesce(func.sum(revenue_case), 0),
                 func.coalesce(func.avg(Review.rating), 0),
@@ -432,7 +465,9 @@ class AnalyticsDashboardService:
                 bookings=_safe_int(row[2]),
                 revenue=_safe_decimal(row[3]),
                 rating=float(row[4] or 0.0),
-                occupancy_rate=min(100.0, float(row[5] or 0.0) / (30 * 12) * 100) if row[5] else 0.0,
+                occupancy_rate=min(100.0, float(row[5] or 0.0) / (30 * 12) * 100)
+                if row[5]
+                else 0.0,
             )
             for row in top_rows
         ]
@@ -492,11 +527,17 @@ class AnalyticsDashboardService:
         try:
             performances = await self._build_kitchen_performance(host_id)
         except SQLAlchemyError as exc:
-            logger.exception("Failed to compute kitchen comparison", extra={"host_id": str(host_id)})
+            logger.exception(
+                "Failed to compute kitchen comparison", extra={"host_id": str(host_id)}
+            )
             raise HTTPException(status_code=500, detail="Unable to load kitchen analytics") from exc
         try:
             payload = [item.model_dump() for item in performances]
-            await self._redis.setex(cache_key, HOST_CACHE_TTL_SECONDS, AnalyticsDashboardService._encode_payload(payload))
+            await self._redis.setex(
+                cache_key,
+                HOST_CACHE_TTL_SECONDS,
+                AnalyticsDashboardService._encode_payload(payload),
+            )
         except Exception:  # pragma: no cover - fallback logging
             logger.exception("Failed to cache kitchen comparison", extra={"host_id": str(host_id)})
         return performances
@@ -518,7 +559,9 @@ class AnalyticsDashboardService:
             overview = await self._build_platform_overview()
         except SQLAlchemyError as exc:
             logger.exception("Failed to compute platform overview")
-            raise HTTPException(status_code=500, detail="Unable to load platform analytics") from exc
+            raise HTTPException(
+                status_code=500, detail="Unable to load platform analytics"
+            ) from exc
         await self._set_cache(cache_key, overview, PLATFORM_CACHE_TTL_SECONDS)
         return overview
 
@@ -530,8 +573,12 @@ class AnalyticsDashboardService:
         try:
             analytics = await self._build_revenue_analytics(host_id=None, timeframe=timeframe)
         except SQLAlchemyError as exc:
-            logger.exception("Failed to compute platform revenue", extra={"timeframe": timeframe.value})
-            raise HTTPException(status_code=500, detail="Unable to load platform revenue analytics") from exc
+            logger.exception(
+                "Failed to compute platform revenue", extra={"timeframe": timeframe.value}
+            )
+            raise HTTPException(
+                status_code=500, detail="Unable to load platform revenue analytics"
+            ) from exc
         await self._set_cache(cache_key, analytics, PLATFORM_CACHE_TTL_SECONDS)
         return analytics
 
@@ -557,10 +604,16 @@ class AnalyticsDashboardService:
             regions = await self._build_region_performance()
         except SQLAlchemyError as exc:
             logger.exception("Failed to compute regional performance")
-            raise HTTPException(status_code=500, detail="Unable to load regional analytics") from exc
+            raise HTTPException(
+                status_code=500, detail="Unable to load regional analytics"
+            ) from exc
         try:
             payload = [item.model_dump() for item in regions]
-            await self._redis.setex(cache_key, PLATFORM_CACHE_TTL_SECONDS, AnalyticsDashboardService._encode_payload(payload))
+            await self._redis.setex(
+                cache_key,
+                PLATFORM_CACHE_TTL_SECONDS,
+                AnalyticsDashboardService._encode_payload(payload),
+            )
         except Exception:  # pragma: no cover - defensive logging
             logger.exception("Failed to cache regional analytics")
         return regions
@@ -574,7 +627,9 @@ class AnalyticsDashboardService:
             metrics = await self._build_moderation_metrics()
         except SQLAlchemyError as exc:
             logger.exception("Failed to compute moderation metrics")
-            raise HTTPException(status_code=500, detail="Unable to load moderation analytics") from exc
+            raise HTTPException(
+                status_code=500, detail="Unable to load moderation analytics"
+            ) from exc
         await self._set_cache(cache_key, metrics, ADMIN_CACHE_TTL_SECONDS)
         return metrics
 
@@ -587,7 +642,9 @@ class AnalyticsDashboardService:
             metrics = await self._build_admin_performance()
         except SQLAlchemyError as exc:
             logger.exception("Failed to compute admin performance metrics")
-            raise HTTPException(status_code=500, detail="Unable to load admin performance analytics") from exc
+            raise HTTPException(
+                status_code=500, detail="Unable to load admin performance analytics"
+            ) from exc
         await self._set_cache(cache_key, metrics, ADMIN_CACHE_TTL_SECONDS)
         return metrics
 
@@ -600,16 +657,24 @@ class AnalyticsDashboardService:
             metrics = await self._build_financial_health()
         except SQLAlchemyError as exc:
             logger.exception("Failed to compute financial health metrics")
-            raise HTTPException(status_code=500, detail="Unable to load financial analytics") from exc
+            raise HTTPException(
+                status_code=500, detail="Unable to load financial analytics"
+            ) from exc
         await self._set_cache(cache_key, metrics, ADMIN_CACHE_TTL_SECONDS)
         return metrics
 
-    async def _build_host_booking_analytics(self, host_id: UUID, timeframe: Timeframe) -> BookingAnalytics:
+    async def _build_host_booking_analytics(
+        self, host_id: UUID, timeframe: Timeframe
+    ) -> BookingAnalytics:
         now = datetime.now(tz=UTC)
         start = _timeframe_start(timeframe, now=now)
 
         total_case = func.count(Booking.id)
-        confirmed_case = func.sum(case((Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]), 1), else_=0))
+        confirmed_case = func.sum(
+            case(
+                (Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]), 1), else_=0
+            )
+        )
         cancelled_case = func.sum(case((Booking.status == BookingStatus.CANCELLED, 1), else_=0))
 
         counts_row = await self._session.execute(
@@ -638,10 +703,12 @@ class AnalyticsDashboardService:
         trend_rows = await self._session.execute(trend_stmt)
         booking_trends = []
         for bucket_value, count in trend_rows:
-            bucket_dt: datetime = bucket_value if isinstance(bucket_value, datetime) else datetime.combine(bucket_value, datetime.min.time(), tzinfo=UTC)
-            booking_trends.append(
-                TimeSeriesData(date=bucket_dt.date(), value=_safe_int(count))
+            bucket_dt: datetime = (
+                bucket_value
+                if isinstance(bucket_value, datetime)
+                else datetime.combine(bucket_value, datetime.min.time(), tzinfo=UTC)
             )
+            booking_trends.append(TimeSeriesData(date=bucket_dt.date(), value=_safe_int(count)))
 
         time_slot_stmt = (
             select(func.to_char(Booking.start_time, "HH24:MI"), func.count(Booking.id))
@@ -673,8 +740,7 @@ class AnalyticsDashboardService:
         )
         cancellation_rows = await self._session.execute(cancellation_stmt)
         cancellation_reasons = [
-            CancellationReason(reason=row[0], count=_safe_int(row[1]))
-            for row in cancellation_rows
+            CancellationReason(reason=row[0], count=_safe_int(row[1])) for row in cancellation_rows
         ]
 
         repeat_subquery = (
@@ -684,7 +750,9 @@ class AnalyticsDashboardService:
             .having(func.count(Booking.id) > 1)
             .subquery()
         )
-        repeat_count_row = await self._session.execute(select(func.count()).select_from(repeat_subquery))
+        repeat_count_row = await self._session.execute(
+            select(func.count()).select_from(repeat_subquery)
+        )
         repeat_customers = repeat_count_row.scalar() or 0
         total_customers_row = await self._session.execute(
             select(func.count(func.distinct(Booking.customer_id))).where(Booking.host_id == host_id)
@@ -709,7 +777,9 @@ class AnalyticsDashboardService:
             guest_retention_rate=guest_retention_rate,
         )
 
-    async def _build_revenue_analytics(self, *, host_id: UUID | None, timeframe: Timeframe) -> RevenueAnalytics:
+    async def _build_revenue_analytics(
+        self, *, host_id: UUID | None, timeframe: Timeframe
+    ) -> RevenueAnalytics:
         now = datetime.now(tz=UTC)
         start = _timeframe_start(timeframe, now=now)
 
@@ -718,11 +788,16 @@ class AnalyticsDashboardService:
             filters.append(Booking.host_id == host_id)
 
         revenue_case = case(
-            (Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]), Booking.total_amount),
+            (
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]),
+                Booking.total_amount,
+            ),
             else_=0,
         )
 
-        total_row = await self._session.execute(select(func.coalesce(func.sum(revenue_case), 0), func.count(Booking.id)).where(*filters))
+        total_row = await self._session.execute(
+            select(func.coalesce(func.sum(revenue_case), 0), func.count(Booking.id)).where(*filters)
+        )
         total_revenue, booking_count = total_row.one()
 
         granularity = "day"
@@ -743,7 +818,11 @@ class AnalyticsDashboardService:
         trend_rows = await self._session.execute(trend_stmt)
         revenue_trends = []
         for bucket_value, value in trend_rows:
-            bucket_dt: datetime = bucket_value if isinstance(bucket_value, datetime) else datetime.combine(bucket_value, datetime.min.time(), tzinfo=UTC)
+            bucket_dt: datetime = (
+                bucket_value
+                if isinstance(bucket_value, datetime)
+                else datetime.combine(bucket_value, datetime.min.time(), tzinfo=UTC)
+            )
             revenue_trends.append(TimeSeriesData(date=bucket_dt.date(), value=_safe_decimal(value)))
 
         kitchen_stmt = (
@@ -792,7 +871,9 @@ class AnalyticsDashboardService:
         monthly_rows = await self._session.execute(monthly_stmt)
         monthly_points: list[tuple[datetime, Decimal]] = [
             (
-                bucket if isinstance(bucket, datetime) else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC),
+                bucket
+                if isinstance(bucket, datetime)
+                else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC),
                 _safe_decimal(value),
             )
             for bucket, value in monthly_rows
@@ -811,7 +892,9 @@ class AnalyticsDashboardService:
         payment_breakdown = [
             PaymentMethodBreakdown(
                 method=method,
-                percentage=float((amount / total_revenue_value) * 100) if total_revenue_value else 0.0,
+                percentage=float((amount / total_revenue_value) * 100)
+                if total_revenue_value
+                else 0.0,
             )
             for method, amount in method_totals.items()
         ]
@@ -825,7 +908,9 @@ class AnalyticsDashboardService:
             payment_methods_breakdown=payment_breakdown,
         )
 
-    def _build_forecast(self, monthly_points: Sequence[tuple[datetime, Decimal]]) -> list[TimeSeriesData]:
+    def _build_forecast(
+        self, monthly_points: Sequence[tuple[datetime, Decimal]]
+    ) -> list[TimeSeriesData]:
         if not monthly_points:
             return []
         values = [point[1] for point in monthly_points]
@@ -833,7 +918,9 @@ class AnalyticsDashboardService:
         for previous, current in zip(values, values[1:]):
             if previous != 0:
                 growth_rates.append((current - previous) / previous)
-        average_growth = sum(growth_rates, Decimal("0")) / len(growth_rates) if growth_rates else Decimal("0.05")
+        average_growth = (
+            sum(growth_rates, Decimal("0")) / len(growth_rates) if growth_rates else Decimal("0.05")
+        )
         last_date = monthly_points[-1][0]
         last_value = values[-1]
         forecast: list[TimeSeriesData] = []
@@ -841,17 +928,26 @@ class AnalyticsDashboardService:
         for offset in range(1, FORECAST_MONTHS + 1):
             current_value = current_value * (Decimal("1") + average_growth)
             forecast_date = _add_months(last_date, offset)
-            forecast.append(TimeSeriesData(date=forecast_date.date(), value=current_value.quantize(Decimal("0.01"))))
+            forecast.append(
+                TimeSeriesData(
+                    date=forecast_date.date(), value=current_value.quantize(Decimal("0.01"))
+                )
+            )
         return forecast
 
     async def _build_kitchen_performance(self, host_id: UUID) -> list[KitchenPerformance]:
         revenue_case = case(
-            (Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]), Booking.total_amount),
+            (
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]),
+                Booking.total_amount,
+            ),
             else_=0,
         )
         occupancy_case = case(
-            (Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]),
-             func.extract("epoch", Booking.end_time - Booking.start_time) / 3600.0),
+            (
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]),
+                func.extract("epoch", Booking.end_time - Booking.start_time) / 3600.0,
+            ),
             else_=0,
         )
         stmt = (
@@ -877,7 +973,9 @@ class AnalyticsDashboardService:
                 bookings=_safe_int(row[2]),
                 revenue=_safe_decimal(row[3]),
                 rating=float(row[4] or 0.0),
-                occupancy_rate=min(100.0, float(row[5] or 0.0) / (30 * 12) * 100) if row[5] else 0.0,
+                occupancy_rate=min(100.0, float(row[5] or 0.0) / (30 * 12) * 100)
+                if row[5]
+                else 0.0,
             )
             for row in rows
         ]
@@ -901,12 +999,17 @@ class AnalyticsDashboardService:
         total_hosts = host_counts_row.scalar() or 0
 
         kitchen_counts_row = await self._session.execute(
-            select(func.count(Kitchen.id), func.sum(case((Kitchen.published.is_(True), 1), else_=0)))
+            select(
+                func.count(Kitchen.id), func.sum(case((Kitchen.published.is_(True), 1), else_=0))
+            )
         )
         total_kitchens, active_kitchens = kitchen_counts_row.one()
 
         revenue_case = case(
-            (Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]), Booking.total_amount),
+            (
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]),
+                Booking.total_amount,
+            ),
             else_=0,
         )
         bookings_row = await self._session.execute(
@@ -933,7 +1036,11 @@ class AnalyticsDashboardService:
         )
         bookings_trend = [
             TimeSeriesData(
-                date=(bucket if isinstance(bucket, datetime) else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)).date(),
+                date=(
+                    bucket
+                    if isinstance(bucket, datetime)
+                    else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)
+                ).date(),
                 value=_safe_int(count),
             )
             for bucket, count in bookings_trend_rows
@@ -950,7 +1057,11 @@ class AnalyticsDashboardService:
         )
         revenue_trend = [
             TimeSeriesData(
-                date=(bucket if isinstance(bucket, datetime) else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)).date(),
+                date=(
+                    bucket
+                    if isinstance(bucket, datetime)
+                    else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)
+                ).date(),
                 value=_safe_decimal(amount),
             )
             for bucket, amount in revenue_trend_rows
@@ -983,7 +1094,11 @@ class AnalyticsDashboardService:
         )
         user_signups = [
             TimeSeriesData(
-                date=(bucket if isinstance(bucket, datetime) else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)).date(),
+                date=(
+                    bucket
+                    if isinstance(bucket, datetime)
+                    else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)
+                ).date(),
                 value=_safe_int(count),
             )
             for bucket, count in user_signup_rows
@@ -1000,7 +1115,11 @@ class AnalyticsDashboardService:
         )
         host_signups = [
             TimeSeriesData(
-                date=(bucket if isinstance(bucket, datetime) else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)).date(),
+                date=(
+                    bucket
+                    if isinstance(bucket, datetime)
+                    else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)
+                ).date(),
                 value=_safe_int(count),
             )
             for bucket, count in host_signup_rows
@@ -1016,7 +1135,11 @@ class AnalyticsDashboardService:
             .order_by("bucket")
         )
         bookings_by_week = {
-            (bucket if isinstance(bucket, datetime) else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)).date(): _safe_int(count)
+            (
+                bucket
+                if isinstance(bucket, datetime)
+                else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)
+            ).date(): _safe_int(count)
             for bucket, count in bookings_rows
         }
 
@@ -1027,7 +1150,24 @@ class AnalyticsDashboardService:
             conversion_series.append(TimeSeriesData(date=signup.date, value=conversion))
 
         channel_rows = await self._session.execute(
-            select(Booking.source, func.count(Booking.id), func.coalesce(func.sum(case((Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]), Booking.total_amount), else_=0)), 0))
+            select(
+                Booking.source,
+                func.count(Booking.id),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                Booking.status.in_(
+                                    [BookingStatus.CONFIRMED, BookingStatus.COMPLETED]
+                                ),
+                                Booking.total_amount,
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ),
+            )
             .where(Booking.created_at >= twelve_weeks_ago)
             .group_by(Booking.source)
         )
@@ -1059,7 +1199,10 @@ class AnalyticsDashboardService:
         sixty_days_ago = now - timedelta(days=60)
 
         revenue_case = case(
-            (Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]), Booking.total_amount),
+            (
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]),
+                Booking.total_amount,
+            ),
             else_=0,
         )
 
@@ -1073,7 +1216,9 @@ class AnalyticsDashboardService:
             .where(Kitchen.published.is_(True), Booking.start_time >= thirty_days_ago)
             .group_by(Kitchen.state)
         )
-        current_stats = {row[0] or "Unknown": (row[1], _safe_decimal(row[2])) for row in current_rows}
+        current_stats = {
+            row[0] or "Unknown": (row[1], _safe_decimal(row[2])) for row in current_rows
+        }
 
         previous_rows = await self._session.execute(
             select(
@@ -1164,7 +1309,11 @@ class AnalyticsDashboardService:
         )
         moderation_trend = [
             TimeSeriesData(
-                date=(bucket if isinstance(bucket, datetime) else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)).date(),
+                date=(
+                    bucket
+                    if isinstance(bucket, datetime)
+                    else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)
+                ).date(),
                 value=_safe_int(count),
             )
             for bucket, count in moderation_trend_rows
@@ -1182,8 +1331,12 @@ class AnalyticsDashboardService:
     async def _build_admin_performance(self) -> AdminPerformanceMetrics:
         thirty_days_ago = datetime.now(tz=UTC) - timedelta(days=30)
 
-        resolved_case = case((KitchenModerationEvent.action.in_(["approved", "rejected"]), 1), else_=0)
-        changes_requested_case = case((KitchenModerationEvent.action == "changes_requested", 1), else_=0)
+        resolved_case = case(
+            (KitchenModerationEvent.action.in_(["approved", "rejected"]), 1), else_=0
+        )
+        changes_requested_case = case(
+            (KitchenModerationEvent.action == "changes_requested", 1), else_=0
+        )
 
         performance_rows = await self._session.execute(
             select(
@@ -1214,7 +1367,9 @@ class AnalyticsDashboardService:
             total_changes_requested += _safe_int(changes_requested)
             quality_score = 100.0
             if resolved_count:
-                quality_score = max(0.0, 100.0 - (_safe_float(changes_requested) / resolved_count) * 100)
+                quality_score = max(
+                    0.0, 100.0 - (_safe_float(changes_requested) / resolved_count) * 100
+                )
             team.append(
                 AdminTeamMemberPerformance(
                     admin_id=admin_id,
@@ -1241,7 +1396,11 @@ class AnalyticsDashboardService:
         )
         productivity_trend = [
             TimeSeriesData(
-                date=(bucket if isinstance(bucket, datetime) else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)).date(),
+                date=(
+                    bucket
+                    if isinstance(bucket, datetime)
+                    else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)
+                ).date(),
                 value=_safe_int(count),
             )
             for bucket, count in trend_rows
@@ -1259,15 +1418,24 @@ class AnalyticsDashboardService:
         six_months_ago = now - timedelta(days=180)
 
         revenue_case = case(
-            (Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]), Booking.total_amount),
+            (
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]),
+                Booking.total_amount,
+            ),
             else_=0,
         )
         payout_case = case(
-            (Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]), Booking.host_payout_amount),
+            (
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]),
+                Booking.host_payout_amount,
+            ),
             else_=0,
         )
         platform_fee_case = case(
-            (Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]), Booking.platform_fee),
+            (
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]),
+                Booking.platform_fee,
+            ),
             else_=0,
         )
 
@@ -1308,7 +1476,11 @@ class AnalyticsDashboardService:
         )
         expense_trend = [
             TimeSeriesData(
-                date=(bucket if isinstance(bucket, datetime) else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)).date(),
+                date=(
+                    bucket
+                    if isinstance(bucket, datetime)
+                    else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)
+                ).date(),
                 value=_safe_decimal(amount),
             )
             for bucket, amount in monthly_expense_rows
@@ -1325,7 +1497,11 @@ class AnalyticsDashboardService:
         )
         revenue_trend = [
             TimeSeriesData(
-                date=(bucket if isinstance(bucket, datetime) else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)).date(),
+                date=(
+                    bucket
+                    if isinstance(bucket, datetime)
+                    else datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)
+                ).date(),
                 value=_safe_decimal(amount),
             )
             for bucket, amount in monthly_revenue_rows
@@ -1333,7 +1509,9 @@ class AnalyticsDashboardService:
 
         average_monthly_expense = Decimal("0")
         if expense_trend:
-            average_monthly_expense = sum((point.value for point in expense_trend), Decimal("0")) / len(expense_trend)
+            average_monthly_expense = sum(
+                (point.value for point in expense_trend), Decimal("0")
+            ) / len(expense_trend)
 
         burn_rate = average_monthly_expense
         runway_months = float(cash_on_hand / burn_rate) if burn_rate else float("inf")
@@ -1366,13 +1544,18 @@ def _ensure_host_access(user: UserORM, host_id: UUID) -> None:
 
     if user.is_admin or user.id == host_id:
         return
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this host analytics view")
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Not authorized to access this host analytics view",
+    )
 
 
 @router.get("/host/{host_id}/overview", response_model=HostOverview)
 async def get_host_overview(
     host_id: UUID,
-    timeframe: Timeframe = Query(Timeframe.MONTH, description="Timeframe for cached analytics context"),
+    timeframe: Timeframe = Query(
+        Timeframe.MONTH, description="Timeframe for cached analytics context"
+    ),
     current_user: UserORM = Depends(get_current_user),
     service: AnalyticsDashboardService = Depends(get_dashboard_service),
 ) -> HostOverview:
@@ -1500,4 +1683,3 @@ async def get_admin_financial(
 
 
 __all__ = ["router", "AnalyticsDashboardService", "get_dashboard_service"]
-

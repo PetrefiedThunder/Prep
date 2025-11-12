@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from collections.abc import Mapping, MutableMapping
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, Mapping, MutableMapping
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -34,8 +35,8 @@ class IntegrationEvent(BaseModel):
     source: str = Field(..., description="Emitter of the event (service name or worker)")
     event_type: str = Field(..., alias="eventType")
     status: str = Field(..., description="High-level status payload")
-    payload: Dict[str, Any] = Field(default_factory=dict)
-    occurred_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    payload: dict[str, Any] = Field(default_factory=dict)
+    occurred_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = {
         "populate_by_name": True,
@@ -50,19 +51,21 @@ class IntegrationStatus(BaseModel):
     name: str
     description: str | None = None
     connected: bool = False
-    auth_status: IntegrationAuthStatus = Field(default=IntegrationAuthStatus.PENDING, alias="authStatus")
+    auth_status: IntegrationAuthStatus = Field(
+        default=IntegrationAuthStatus.PENDING, alias="authStatus"
+    )
     last_sync_at: datetime | None = Field(default=None, alias="lastSyncAt")
     health: IntegrationHealth = IntegrationHealth.DEGRADED
     last_event_at: datetime | None = Field(default=None, alias="lastEventAt")
     issues: str | None = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     model_config = {
         "populate_by_name": True,
         "extra": "ignore",
     }
 
-    def as_frontend_payload(self) -> Dict[str, Any]:
+    def as_frontend_payload(self) -> dict[str, Any]:
         """Return a JSON-ready representation for the frontend."""
 
         return {
@@ -117,7 +120,7 @@ class IntegrationHealthSnapshot(BaseModel):
     healthy: int
     degraded: int
     down: int
-    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), alias="lastUpdated")
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(UTC), alias="lastUpdated")
 
     model_config = {
         "populate_by_name": True,
@@ -135,8 +138,8 @@ def _coerce_datetime(value: Any) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 __all__ = [

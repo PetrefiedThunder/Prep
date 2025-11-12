@@ -5,8 +5,8 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from codex import config, database
 from codex.models import Base, Booking, BookingStatus, Kitchen, User, UserRole
@@ -61,9 +61,7 @@ async def test_engine_roundtrip(monkeypatch):
 
     async with session_factory() as session:
         assert isinstance(session, AsyncSession)
-        result = await session.execute(
-            select(Kitchen).options(selectinload(Kitchen.owner))
-        )
+        result = await session.execute(select(Kitchen).options(selectinload(Kitchen.owner)))
         kitchen = result.scalar_one()
         assert kitchen.owner.email == "host@example.com"
 

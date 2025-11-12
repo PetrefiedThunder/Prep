@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
-from typing import Any, AsyncGenerator
 from fnmatch import fnmatch
-from uuid import UUID, uuid4
+from typing import Any
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -188,7 +189,9 @@ async def _leave_review(
 
 
 @pytest.mark.anyio
-async def test_matching_flow(session_factory: async_sessionmaker[AsyncSession], redis: InMemoryRedis) -> None:
+async def test_matching_flow(
+    session_factory: async_sessionmaker[AsyncSession], redis: InMemoryRedis
+) -> None:
     async with session_factory() as session:
         service = MatchingService(session, redis)
 
@@ -264,7 +267,9 @@ async def test_matching_flow(session_factory: async_sessionmaker[AsyncSession], 
 
 
 @pytest.mark.anyio
-async def test_external_rating_sync(session_factory: async_sessionmaker[AsyncSession], redis: InMemoryRedis) -> None:
+async def test_external_rating_sync(
+    session_factory: async_sessionmaker[AsyncSession], redis: InMemoryRedis
+) -> None:
     async with session_factory() as session:
         service = MatchingService(session, redis)
 

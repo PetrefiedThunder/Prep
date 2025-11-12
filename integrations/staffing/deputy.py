@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, Iterator, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import requests
 
@@ -24,7 +25,7 @@ class _AuthState:
     expires_at: datetime
 
     def is_expired(self, *, now: datetime | None = None) -> bool:
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         return now >= self.expires_at
 
 
@@ -57,13 +58,11 @@ class DeputyClient:
         end: datetime,
         location_id: str | None = None,
         page_size: int = 200,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return roster entries between ``start`` and ``end`` inclusive."""
 
         return list(
-            self.iter_shifts(
-                start=start, end=end, location_id=location_id, page_size=page_size
-            )
+            self.iter_shifts(start=start, end=end, location_id=location_id, page_size=page_size)
         )
 
     def iter_shifts(
@@ -73,8 +72,8 @@ class DeputyClient:
         end: datetime,
         location_id: str | None = None,
         page_size: int = 200,
-    ) -> Iterator[Dict[str, Any]]:
-        params: Dict[str, Any] = {
+    ) -> Iterator[dict[str, Any]]:
+        params: dict[str, Any] = {
             "start": self._format_datetime(start),
             "end": self._format_datetime(end),
             "page_size": page_size,
@@ -104,7 +103,7 @@ class DeputyClient:
             return
 
         token, expires_in = self._authenticate()
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=max(0, expires_in - 30))
+        expires_at = datetime.now(UTC) + timedelta(seconds=max(0, expires_in - 30))
         self._auth = _AuthState(token=token, expires_at=expires_at)
 
     def _authenticate(self) -> tuple[str, int]:
@@ -187,14 +186,14 @@ class DeputyClient:
         return f"{self.base_url}{path}"
 
     @staticmethod
-    def _parse_json(response: requests.Response) -> Dict[str, Any]:
+    def _parse_json(response: requests.Response) -> dict[str, Any]:
         try:
             return response.json()
         except ValueError as exc:  # pragma: no cover - defensive
             raise DeputyError("Deputy returned invalid JSON") from exc
 
     @staticmethod
-    def _extract_items(payload: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
+    def _extract_items(payload: dict[str, Any]) -> Iterable[dict[str, Any]]:
         if "data" in payload and isinstance(payload["data"], list):
             return payload["data"]
         if "results" in payload and isinstance(payload["results"], list):
@@ -203,11 +202,11 @@ class DeputyClient:
 
     @staticmethod
     def _next_offset(
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         current_offset: int,
         returned: int,
         page_size: int,
-    ) -> Optional[int]:
+    ) -> int | None:
         pagination = payload.get("pagination") or payload.get("meta") or {}
         if "next_offset" in pagination:
             return int(pagination["next_offset"])
@@ -220,9 +219,9 @@ class DeputyClient:
     @staticmethod
     def _format_datetime(value: datetime) -> str:
         if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
+            value = value.replace(tzinfo=UTC)
         else:
-            value = value.astimezone(timezone.utc)
+            value = value.astimezone(UTC)
         return value.isoformat().replace("+00:00", "Z")
 
 

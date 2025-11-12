@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
-from typing import Iterable
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -282,7 +282,9 @@ def _serialize_moderation_events(events: Iterable[KitchenModerationEvent]) -> li
     return serialized
 
 
-def _serialize_certifications(documents: Iterable[CertificationDocument]) -> list[CertificationDetail]:
+def _serialize_certifications(
+    documents: Iterable[CertificationDocument],
+) -> list[CertificationDetail]:
     serialized: list[CertificationDetail] = []
     for document in documents:
         serialized.append(
@@ -407,7 +409,9 @@ def _resolve_moderation_transition(action: str) -> tuple[str, str]:
     try:
         return mapping[action]
     except KeyError as exc:  # pragma: no cover - guarded by validation
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported action") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported action"
+        ) from exc
 
 
 @router.post("/kitchens/{kitchen_id}/moderate", response_model=ModerationResponse)
@@ -469,7 +473,9 @@ async def get_kitchen_stats(
     published = await _count(Kitchen.published.is_(True))
 
     avg_stmt = (
-        select(func.avg(func.extract("epoch", KitchenModerationEvent.created_at - Kitchen.created_at)))
+        select(
+            func.avg(func.extract("epoch", KitchenModerationEvent.created_at - Kitchen.created_at))
+        )
         .join(Kitchen, KitchenModerationEvent.kitchen_id == Kitchen.id)
         .where(KitchenModerationEvent.action.in_(["approve", "reject"]))
     )
@@ -554,10 +560,14 @@ def _map_certification_action(action: str) -> str:
     try:
         return mapping[action]
     except KeyError as exc:  # pragma: no cover - guarded by validation
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported action") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported action"
+        ) from exc
 
 
-@router.post("/certifications/{certification_id}/verify", response_model=CertificationActionResponse)
+@router.post(
+    "/certifications/{certification_id}/verify", response_model=CertificationActionResponse
+)
 async def process_certification(
     certification_id: UUID,
     payload: CertificationActionRequest,
@@ -586,7 +596,9 @@ async def process_certification(
 
     kitchen = await db.get(Kitchen, document.kitchen_id)
     if kitchen:
-        kitchen.certification_status = "verified" if payload.action == "verify" else kitchen.certification_status
+        kitchen.certification_status = (
+            "verified" if payload.action == "verify" else kitchen.certification_status
+        )
 
     await db.commit()
     return CertificationActionResponse(
@@ -607,17 +619,27 @@ async def get_certification_stats(
 
     status_counts = dict(
         await db.execute(
-            select(CertificationDocument.status, func.count()).group_by(CertificationDocument.status)
+            select(CertificationDocument.status, func.count()).group_by(
+                CertificationDocument.status
+            )
         )
     )
-    pending = int(status_counts.get("pending", 0) + status_counts.get("submitted", 0) + status_counts.get("renewal_requested", 0))
+    pending = int(
+        status_counts.get("pending", 0)
+        + status_counts.get("submitted", 0)
+        + status_counts.get("renewal_requested", 0)
+    )
     verified = int(status_counts.get("verified", 0))
     rejected = int(status_counts.get("rejected", 0))
 
-    soon_stmt = select(func.count()).select_from(CertificationDocument).where(
-        and_(
-            CertificationDocument.expires_at.isnot(None),
-            CertificationDocument.expires_at <= datetime.now(UTC) + timedelta(days=30),
+    soon_stmt = (
+        select(func.count())
+        .select_from(CertificationDocument)
+        .where(
+            and_(
+                CertificationDocument.expires_at.isnot(None),
+                CertificationDocument.expires_at <= datetime.now(UTC) + timedelta(days=30),
+            )
         )
     )
     expiring_soon = int(await db.scalar(soon_stmt) or 0)
@@ -706,7 +728,9 @@ async def suspend_user(
 
     await db.commit()
     processed_at = datetime.now(UTC)
-    return SuspendUserResponse(user_id=user.id, suspended=True, processed_at=processed_at, reason=payload.reason)
+    return SuspendUserResponse(
+        user_id=user.id, suspended=True, processed_at=processed_at, reason=payload.reason
+    )
 
 
 @router.get("/users/stats", response_model=UserStats)
@@ -717,9 +741,13 @@ async def get_user_stats(
     """Return aggregate statistics for platform users."""
 
     total_users = int(await db.scalar(select(func.count()).select_from(User)) or 0)
-    suspended = int(await db.scalar(select(func.count()).select_from(User).where(User.is_suspended.is_(True))) or 0)
-    admins = int(await db.scalar(select(func.count()).select_from(User).where(User.is_admin.is_(True))) or 0)
+    suspended = int(
+        await db.scalar(select(func.count()).select_from(User).where(User.is_suspended.is_(True)))
+        or 0
+    )
+    admins = int(
+        await db.scalar(select(func.count()).select_from(User).where(User.is_admin.is_(True))) or 0
+    )
     active = total_users - suspended
 
     return UserStats(total=total_users, active=active, suspended=suspended, admins=admins)
-

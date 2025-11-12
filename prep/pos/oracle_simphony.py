@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Dict, Iterable
 
 import httpx
 
@@ -55,7 +55,7 @@ class FranchiseSyncService:
         self._client = client
 
     async def sync(self, orders: Iterable[models.Order]) -> dict[str, int]:
-        bucket: Dict[str, list[models.Order]] = {}
+        bucket: dict[str, list[models.Order]] = {}
         for order in orders:
             bucket.setdefault(order.location_id, []).append(order)
         results: dict[str, int] = {}

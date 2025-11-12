@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 from prep.models.guid import GUID
-
 
 revision = "c9d8c21d3f4b"
 down_revision = "b3f7f1a2e123"
@@ -59,9 +58,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("fee_schedule_id", GUID(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["fee_schedule_id"], ["fee_schedules.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["fee_schedule_id"], ["fee_schedules.id"], ondelete="SET NULL"),
         sa.UniqueConstraint(
             "jurisdiction",
             "external_id",

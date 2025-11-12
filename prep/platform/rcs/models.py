@@ -1,9 +1,10 @@
 """Pydantic models for the Realtime Configuration Service."""
+
 from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -23,13 +24,13 @@ class ConfigRollout(BaseModel):
         default=RolloutStrategy.ALL,
         description="Rollout strategy used to apply the configuration entry.",
     )
-    percent: Optional[float] = Field(
+    percent: float | None = Field(
         default=None,
         ge=0.0,
         le=100.0,
         description="Optional percentage of traffic to target when using percentage-based rollouts.",
     )
-    metrics_guard: Optional[str] = Field(
+    metrics_guard: str | None = Field(
         default=None,
         description="Optional expression describing the metric guard that should be satisfied during rollout.",
     )
@@ -39,20 +40,22 @@ class ConfigEntry(BaseModel):
     """A configuration entry supplied by clients of the RCS."""
 
     key: str = Field(..., description="Unique identifier for the configuration entry.")
-    state: str = Field(..., description="Desired state for the configuration entry (e.g. 'on', 'off').")
-    targeting: Dict[str, Any] = Field(
+    state: str = Field(
+        ..., description="Desired state for the configuration entry (e.g. 'on', 'off')."
+    )
+    targeting: dict[str, Any] = Field(
         default_factory=dict,
         description="Targeting metadata (tenant, geography, role, etc.) that constrains the entry.",
     )
-    rollout: Optional[ConfigRollout] = Field(
+    rollout: ConfigRollout | None = Field(
         default=None,
         description="Rollout metadata describing how to apply this entry incrementally.",
     )
-    fallback: Optional[str] = Field(
+    fallback: str | None = Field(
         default=None,
         description="Fallback state to apply when metric guards or other protections trigger.",
     )
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Arbitrary metadata stored alongside the entry.",
     )
@@ -77,7 +80,7 @@ class ConfigChange(BaseModel):
 
     type: ChangeType
     key: str
-    record: Optional[ConfigRecord] = None
+    record: ConfigRecord | None = None
     version: int
     emitted_at: datetime
 

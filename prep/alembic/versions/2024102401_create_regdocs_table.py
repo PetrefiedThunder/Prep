@@ -1,7 +1,7 @@
 """create regdocs table
 
 Revision ID: 9b4fe8edcf5d
-Revises: 
+Revises:
 Create Date: 2024-10-24 00:00:00.000000
 """
 

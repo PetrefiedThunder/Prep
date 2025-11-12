@@ -24,7 +24,7 @@ class StubResponse:
         if 400 <= self.status < 600:
             raise RuntimeError(f"HTTP {self.status}")
 
-    async def __aenter__(self) -> "StubResponse":
+    async def __aenter__(self) -> StubResponse:
         return self
 
     async def __aexit__(self, *exc_info) -> None:
@@ -109,7 +109,13 @@ async def test_fetch_retries_with_backoff(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_failure_after_max_attempts():
-    responses = [StubResponse(500), StubResponse(503), StubResponse(502), StubResponse(501), StubResponse(500)]
+    responses = [
+        StubResponse(500),
+        StubResponse(503),
+        StubResponse(502),
+        StubResponse(501),
+        StubResponse(500),
+    ]
     session = StubSession(responses)
     s3 = StubS3()
 

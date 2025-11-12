@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from apps.scheduling.service import SchedulingService
 from integrations.square.webhooks import PrepTimeUpdate
@@ -25,7 +25,7 @@ def _update(
 
 def test_ingest_creates_window() -> None:
     service = SchedulingService()
-    ready_at = datetime(2024, 5, 11, 16, 0, tzinfo=timezone.utc)
+    ready_at = datetime(2024, 5, 11, 16, 0, tzinfo=UTC)
     update = _update(
         location_id="loc-1",
         order_id="order-1",
@@ -45,7 +45,7 @@ def test_ingest_creates_window() -> None:
 
 def test_overlapping_windows_are_merged() -> None:
     service = SchedulingService()
-    ready_at = datetime(2024, 5, 11, 17, 0, tzinfo=timezone.utc)
+    ready_at = datetime(2024, 5, 11, 17, 0, tzinfo=UTC)
     first = _update(
         location_id="loc-1",
         order_id="order-1",

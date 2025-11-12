@@ -10,7 +10,7 @@ __all__ = ["util_func"]
 _NO_DEFAULT = object()
 
 
-def util_func(config: Dict[str, Any], key: str, default: Any = _NO_DEFAULT) -> Any:
+def util_func(config: dict[str, Any], key: str, default: Any = _NO_DEFAULT) -> Any:
     """Retrieve ``key`` from ``config``.
 
     The ``key`` may represent a dotted path to nested dictionaries. If any

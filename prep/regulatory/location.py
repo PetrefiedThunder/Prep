@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Optional
-
-_KNOWN_ZIP_CODES: Dict[str, Dict[str, Optional[str]]] = {
+_KNOWN_ZIP_CODES: dict[str, dict[str, str | None]] = {
     "92252": {
         "state": "CA",
         "county": "San Bernardino County",
@@ -28,7 +26,7 @@ def _normalize_postal_code(postal_code: str | None) -> str | None:
     return stripped.upper()
 
 
-def resolve_by_zip(postal_code: str | None) -> Dict[str, Optional[str]]:
+def resolve_by_zip(postal_code: str | None) -> dict[str, str | None]:
     """Resolve jurisdiction metadata for a postal code.
 
     Parameters

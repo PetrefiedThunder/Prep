@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
@@ -50,7 +49,7 @@ class AdminUser(BaseModel):
     id: UUID
     email: str
     full_name: str
-    permissions: List[str] = Field(default_factory=list)
+    permissions: list[str] = Field(default_factory=list)
 
 
 class PendingKitchen(BaseModel):
@@ -63,7 +62,7 @@ class PendingKitchen(BaseModel):
     host_email: str
     location: str
     submitted_at: datetime
-    photos: List[str] = Field(default_factory=list)
+    photos: list[str] = Field(default_factory=list)
     certification_status: CertificationStatus
     certification_type: str
     trust_score: float = Field(ge=0.0, le=5.0)
@@ -75,15 +74,15 @@ class PendingKitchen(BaseModel):
 class ModerationFilters(BaseModel):
     """Filter controls accepted by the moderation queue endpoint."""
 
-    status: Optional[str] = None
-    certification_status: Optional[CertificationStatus] = None
-    certification_type: Optional[str] = None
-    min_trust_score: Optional[float] = Field(default=None, ge=0.0, le=5.0)
-    submission_date_from: Optional[datetime] = None
-    submission_date_to: Optional[datetime] = None
+    status: str | None = None
+    certification_status: CertificationStatus | None = None
+    certification_type: str | None = None
+    min_trust_score: float | None = Field(default=None, ge=0.0, le=5.0)
+    submission_date_from: datetime | None = None
+    submission_date_to: datetime | None = None
 
     @model_validator(mode="after")
-    def _validate_date_range(self) -> "ModerationFilters":
+    def _validate_date_range(self) -> ModerationFilters:
         """Ensure that the provided date window is sensible."""
 
         if (
@@ -107,7 +106,7 @@ class Pagination(BaseModel):
 class PendingKitchensResponse(BaseModel):
     """Envelope returned by the moderation queue endpoint."""
 
-    kitchens: List[PendingKitchen] = Field(default_factory=list)
+    kitchens: list[PendingKitchen] = Field(default_factory=list)
     total_count: int = Field(ge=0)
     has_more: bool
 
@@ -116,8 +115,8 @@ class ModerationRequest(BaseModel):
     """Request payload for the moderation endpoint."""
 
     action: ModerationAction
-    reason: Optional[str] = None
-    notes: Optional[str] = None
+    reason: str | None = None
+    notes: str | None = None
 
 
 class ModerationResult(BaseModel):
@@ -125,8 +124,8 @@ class ModerationResult(BaseModel):
 
     kitchen_id: UUID
     action: ModerationAction
-    reason: Optional[str] = None
-    notes: Optional[str] = None
+    reason: str | None = None
+    notes: str | None = None
     new_status: CertificationStatus
     processed_at: datetime
 
@@ -171,7 +170,7 @@ class HostPerformanceMetrics(BaseModel):
     total_revenue: Decimal = Field(ge=Decimal("0"))
     average_rating: float = Field(ge=0.0, le=5.0)
     bookings_last_30_days: int = Field(ge=0)
-    top_kitchens: List[KitchenPerformanceSummary] = Field(default_factory=list)
+    top_kitchens: list[KitchenPerformanceSummary] = Field(default_factory=list)
 
 
 class BookingStatistics(BaseModel):
@@ -191,5 +190,5 @@ class RevenueAnalytics(BaseModel):
     total_revenue: Decimal = Field(ge=Decimal("0"))
     revenue_this_month: Decimal = Field(ge=Decimal("0"))
     month_over_month_growth: float
-    revenue_trend: List[TimeSeriesPoint] = Field(default_factory=list)
-    top_hosts: List[HostPerformanceMetrics] = Field(default_factory=list)
+    revenue_trend: list[TimeSeriesPoint] = Field(default_factory=list)
+    top_hosts: list[HostPerformanceMetrics] = Field(default_factory=list)

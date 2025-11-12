@@ -1,6 +1,5 @@
 """Tests for city ingestion adapters."""
 
-
 from apps.city_regulatory_service.src.adapters import (
     NewYorkCityAdapter,
     SanFranciscoAdapter,
@@ -41,10 +40,7 @@ class TestSanFranciscoAdapter:
         assert len(requirements) > 0
 
         # Find food permit
-        food_permit = next(
-            (r for r in requirements if "Food" in r["requirement_label"]),
-            None
-        )
+        food_permit = next((r for r in requirements if "Food" in r["requirement_label"]), None)
         assert food_permit is not None
         assert food_permit["inspection_required"] is True
 
@@ -112,10 +108,7 @@ class TestNewYorkCityAdapter:
         """Test mobile food vending requirements."""
         requirements = NewYorkCityAdapter.get_health_permit_requirements()
 
-        mobile_req = next(
-            (r for r in requirements if "Mobile" in r["requirement_label"]),
-            None
-        )
+        mobile_req = next((r for r in requirements if "Mobile" in r["requirement_label"]), None)
 
         if mobile_req:
             assert "food truck" in mobile_req["applies_to"]

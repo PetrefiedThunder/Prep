@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -17,7 +17,7 @@ def fresh_record(**overrides):
     base = {
         "user_id": 1,
         "region": "EU",
-        "last_updated": datetime.now(timezone.utc).isoformat(),
+        "last_updated": datetime.now(UTC).isoformat(),
         "consent": True,
     }
     base.update(overrides)
@@ -57,14 +57,14 @@ def test_validate_generator_utc(tmp_path):
     assert core.validate(gen()) is True
     assert core.records == [record]
     parsed = datetime.fromisoformat(core.records[0]["last_updated"])
-    assert parsed.tzinfo == timezone.utc
+    assert parsed.tzinfo == UTC
 
 
 def test_retention_enforced(tmp_path):
     config_path = make_config(tmp_path, {"allowed_regions": ["EU"], "data_retention_days": 1})
     core = GDPRCCPACore()
     core.load_config(str(config_path))
-    stale = fresh_record(last_updated=(datetime.now(timezone.utc) - timedelta(days=5)).isoformat())
+    stale = fresh_record(last_updated=(datetime.now(UTC) - timedelta(days=5)).isoformat())
     assert core.validate([stale]) is False
     assert "exceeded retention" in core.generate_report()
 

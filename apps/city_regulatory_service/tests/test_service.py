@@ -11,13 +11,13 @@ This test suite covers:
 
 import os
 import sys
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
 # Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from database import get_engine, get_session, init_database
 from models import (
@@ -134,7 +134,7 @@ class TestRegulationEndpoints:
         """Test filtering regulations by type"""
         response = client.get(
             "/city/San Francisco/CA/regulations",
-            params={"regulation_type": RegulationType.HEALTH_PERMIT.value}
+            params={"regulation_type": RegulationType.HEALTH_PERMIT.value},
         )
         assert response.status_code == 200
         data = response.json()
@@ -145,7 +145,7 @@ class TestRegulationEndpoints:
         """Test filtering regulations by facility type"""
         response = client.get(
             "/city/San Francisco/CA/regulations",
-            params={"facility_type": FacilityType.COMMERCIAL_KITCHEN.value}
+            params={"facility_type": FacilityType.COMMERCIAL_KITCHEN.value},
         )
         assert response.status_code == 200
         data = response.json()
@@ -179,8 +179,7 @@ class TestInsuranceEndpoints:
     def test_get_insurance_mandatory_only(self):
         """Test filtering mandatory insurance"""
         response = client.get(
-            "/city/San Francisco/CA/insurance-requirements",
-            params={"mandatory_only": True}
+            "/city/San Francisco/CA/insurance-requirements", params={"mandatory_only": True}
         )
         assert response.status_code == 200
         data = response.json()
@@ -191,7 +190,7 @@ class TestInsuranceEndpoints:
         """Test filtering insurance by facility type"""
         response = client.get(
             "/city/San Francisco/CA/insurance-requirements",
-            params={"facility_type": FacilityType.GHOST_KITCHEN.value}
+            params={"facility_type": FacilityType.GHOST_KITCHEN.value},
         )
         assert response.status_code == 200
         data = response.json()
@@ -235,19 +234,16 @@ class TestComplianceCheck:
                     "type": RegulationType.INSURANCE.value,
                     "number": "INS-33333",
                     "expiration_date": (datetime.now(UTC) + timedelta(days=365)).isoformat(),
-                }
+                },
             ],
             "current_insurance": [
                 {"type": "general_liability", "coverage_amount": 1000000},
                 {"type": "workers_compensation", "coverage_amount": 500000},
                 {"type": "product_liability", "coverage_amount": 1000000},
-            ]
+            ],
         }
 
-        response = client.post(
-            "/city/San Francisco/CA/compliance-check",
-            json=compliance_request
-        )
+        response = client.post("/city/San Francisco/CA/compliance-check", json=compliance_request)
         assert response.status_code == 200
         data = response.json()
         assert data["facility_id"] == "test-facility-1"
@@ -265,13 +261,10 @@ class TestComplianceCheck:
             "facility_type": FacilityType.COMMERCIAL_KITCHEN.value,
             "employee_count": 5,
             "current_permits": [],  # No permits
-            "current_insurance": []  # No insurance
+            "current_insurance": [],  # No insurance
         }
 
-        response = client.post(
-            "/city/San Francisco/CA/compliance-check",
-            json=compliance_request
-        )
+        response = client.post("/city/San Francisco/CA/compliance-check", json=compliance_request)
         assert response.status_code == 200
         data = response.json()
         assert data["overall_compliant"] == False
@@ -321,7 +314,7 @@ class TestDataIngestion:
                     ],
                     "is_mandatory": True,
                 }
-            ]
+            ],
         }
 
         response = client.post("/city/data/ingest", json=ingestion_request)
@@ -351,7 +344,7 @@ class TestDataIngestion:
                     "applicable_facility_types": [FacilityType.RESTAURANT.value],
                     "is_active": True,
                 }
-            ]
+            ],
         }
 
         response1 = client.post("/city/data/ingest", json=ingestion_request)

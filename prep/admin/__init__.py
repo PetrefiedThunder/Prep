@@ -16,7 +16,7 @@ try:  # pragma: no cover - degraded environments without certification API
         certification_router as _certification_router,
         get_certification_verification_api,
     )
-except SyntaxError as exc:  # pragma: no cover - legacy modules with syntax errors
+except SyntaxError:  # pragma: no cover - legacy modules with syntax errors
     certification_router = APIRouter()
 
     def get_certification_verification_api() -> None:

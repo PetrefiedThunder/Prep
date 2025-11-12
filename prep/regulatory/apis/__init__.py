@@ -1,5 +1,6 @@
 """External API integrations for regulatory intelligence."""
 
+from .esignature import DocuSignAPIError, DocuSignClient, EnvelopeSummary
 from .health_departments import (
     BaseAPIClient,
     CaliforniaHealthDepartmentAPI,
@@ -7,7 +8,6 @@ from .health_departments import (
     NewYorkHealthDepartmentAPI,
     RegulatoryAPIError,
 )
-from .esignature import DocuSignAPIError, DocuSignClient, EnvelopeSummary
 from .insurance import (
     AllStateAPI,
     InsuranceAPIError,
@@ -20,9 +20,9 @@ from .zoning import (
     ChicagoZoningAPI,
     MunicipalZoningAPI,
     NYCPlanningAPI,
+    SFPlanningAPI,
     ZoningAPIError,
     ZoningResult,
-    SFPlanningAPI,
 )
 
 __all__ = [

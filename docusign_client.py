@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Tuple
 
 import requests
 
@@ -35,7 +34,7 @@ class DocuSignClient:
     base_url: str
     account_id: str
     access_token: str
-    session: Optional[requests.Session] = None
+    session: requests.Session | None = None
 
     def __post_init__(self) -> None:
         if self.session is None:
@@ -46,12 +45,12 @@ class DocuSignClient:
         *,
         template_id: str,
         signer_email: str,
-        signer_name: Optional[str] = None,
+        signer_name: str | None = None,
         return_url: str,
         role_name: str = "signer",
-        client_user_id: Optional[str] = None,
-        ping_url: Optional[str] = None,
-    ) -> Tuple[str, str]:
+        client_user_id: str | None = None,
+        ping_url: str | None = None,
+    ) -> tuple[str, str]:
         """Send a template-based envelope and return the envelope ID and signing URL.
 
         Parameters
@@ -135,8 +134,7 @@ class DocuSignClient:
         response = self.session.get(url, headers=headers)
         if not response.ok:
             raise DocuSignError(
-                "DocuSign API request failed with status "
-                f"{response.status_code}: {response.text}"
+                f"DocuSign API request failed with status {response.status_code}: {response.text}"
             )
         return response.content
 
@@ -150,7 +148,7 @@ class DocuSignClient:
         signer_email: str,
         signer_name: str,
         role_name: str,
-        client_user_id: Optional[str],
+        client_user_id: str | None,
     ) -> str:
         url = f"{self.base_url}/v2.1/accounts/{self.account_id}/envelopes"
         payload = {
@@ -179,8 +177,8 @@ class DocuSignClient:
         signer_email: str,
         signer_name: str,
         return_url: str,
-        client_user_id: Optional[str],
-        ping_url: Optional[str],
+        client_user_id: str | None,
+        ping_url: str | None,
     ) -> str:
         url = (
             f"{self.base_url}/v2.1/accounts/{self.account_id}/envelopes/"
@@ -209,7 +207,7 @@ class DocuSignClient:
         role_name: str,
         signer_email: str,
         signer_name: str,
-        client_user_id: Optional[str],
+        client_user_id: str | None,
     ) -> dict:
         role = {
             "roleName": role_name,
@@ -231,12 +229,10 @@ class DocuSignClient:
         response = self.session.request(method, url, headers=headers, **kwargs)
         if not response.ok:
             raise DocuSignError(
-                "DocuSign API request failed with status "
-                f"{response.status_code}: {response.text}"
+                f"DocuSign API request failed with status {response.status_code}: {response.text}"
             )
 
         try:
             return response.json()
         except ValueError as exc:  # pragma: no cover - network failure scenario
             raise DocuSignError("DocuSign API returned non-JSON response") from exc
-

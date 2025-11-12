@@ -1,4 +1,5 @@
 """Joshua Tree Department of Public Health fee schedule."""
+
 """Fee schedule for San Bernardino County Environmental Health (Joshua Tree)."""
 
 from __future__ import annotations
@@ -22,9 +23,7 @@ def make_fee_schedule() -> FeeSchedule:
             "Joshua Tree kitchens are regulated by San Bernardino County; the schedule "
             "covers standard annual permits and common supplemental charges."
         ),
-        references=(
-            "https://wp.sbcounty.gov/dph/ehs/fees/2024-food-program-fees.pdf",
-        ),
+        references=("https://wp.sbcounty.gov/dph/ehs/fees/2024-food-program-fees.pdf",),
         components=(
             FeeComponent(
                 name="Annual health permit",
@@ -67,16 +66,20 @@ def make_fee_schedule() -> FeeSchedule:
         "San Bernardino County Health Permit",
     ]
     fees = [
-        FeeItem(name="County Health Permit", amount_cents=24800, kind="recurring", cadence="annual"),
-        FeeItem(name="Well Water Testing", amount_cents=9500, kind="recurring", cadence="semiannual"),
+        FeeItem(
+            name="County Health Permit", amount_cents=24800, kind="recurring", cadence="annual"
+        ),
+        FeeItem(
+            name="Well Water Testing", amount_cents=9500, kind="recurring", cadence="semiannual"
+        ),
         FeeItem(name="Site Inspection", amount_cents=7800),
     ]
     return FeeSchedule(jurisdiction="joshua_tree", paperwork=paperwork, fees=fees)
+
+
 from __future__ import annotations
 
 from apps.city_regulatory_service.jurisdictions.common.fees import (
-    FeeItem,
-    FeeSchedule,
     make_fee_schedule as build_schedule,
 )
 

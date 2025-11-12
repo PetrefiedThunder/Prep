@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Optional
 from uuid import UUID
 
 from botocore.client import BaseClient
@@ -47,8 +46,8 @@ class SubleaseContractService:
         *,
         booking_id: UUID,
         signer_email: str,
-        signer_name: Optional[str],
-        return_url: Optional[str],
+        signer_name: str | None,
+        return_url: str | None,
     ) -> SubleaseContractSendResult:
         booking = await self._session.get(Booking, booking_id)
         if booking is None:
@@ -59,7 +58,9 @@ class SubleaseContractService:
             raise PlatformError("DocuSign template not configured", status_code=500)
 
         destination_url = return_url or str(self._settings.docusign_return_url)
-        ping_url = str(self._settings.docusign_ping_url) if self._settings.docusign_ping_url else None
+        ping_url = (
+            str(self._settings.docusign_ping_url) if self._settings.docusign_ping_url else None
+        )
 
         try:
             envelope_id, sign_url = await asyncio.to_thread(
@@ -111,7 +112,9 @@ class SubleaseContractService:
                 self._docusign.get_envelope_status, contract.envelope_id
             )
         except DocuSignError as exc:  # pragma: no cover - network failure path
-            raise PlatformError("Failed to fetch DocuSign envelope status", status_code=502) from exc
+            raise PlatformError(
+                "Failed to fetch DocuSign envelope status", status_code=502
+            ) from exc
 
         contract.status = self._map_status(status_value)
         contract.last_checked_at = datetime.now(UTC)

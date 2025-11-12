@@ -83,7 +83,9 @@ def _map_priority_to_severity(priority: Any) -> str | None:
     if priority in (None, ""):
         return None
     text = str(priority).strip().lower()
-    return _PRIORITY_TO_SEVERITY.get(text, text if text in {"blocking", "conditional", "advisory"} else None)
+    return _PRIORITY_TO_SEVERITY.get(
+        text, text if text in {"blocking", "conditional", "advisory"} else None
+    )
 
 
 def _normalize_applies_to(raw: Any) -> list[str]:
@@ -167,9 +169,7 @@ def _build_fee_items(requirement: CityRequirement) -> list[FeeItem]:
 
     for component in _iter_fee_components(requirement.fee_details):
         amount_cents = _to_cents(
-            component.get("amount")
-            or component.get("amount_cents")
-            or component.get("value")
+            component.get("amount") or component.get("amount_cents") or component.get("value")
         )
         if amount_cents is None:
             continue
@@ -211,7 +211,9 @@ def _build_fee_items(requirement: CityRequirement) -> list[FeeItem]:
 
     interval, is_one_time = _infer_interval(requirement.fee_schedule)
     incremental = _detect_incremental(requirement.fee_schedule)
-    notes = requirement.fee_schedule if requirement.fee_schedule not in (None, "", "unknown") else None
+    notes = (
+        requirement.fee_schedule if requirement.fee_schedule not in (None, "", "unknown") else None
+    )
 
     if is_one_time:
         items.append(

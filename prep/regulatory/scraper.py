@@ -3,20 +3,19 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, UTC
 import logging
 import os
 import re
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 from functools import wraps
-from typing import Any, Awaitable, Callable, Dict, List, Optional, TypeVar
-
-from typing_extensions import ParamSpec
-from typing import Any, Dict, List, Optional
+from typing import Any, TypeVar
 from urllib.parse import urlparse
 
 import aiohttp
 from aiobotocore.session import get_session
 from bs4 import BeautifulSoup
+from typing_extensions import ParamSpec
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +34,7 @@ class ServerSideError(RuntimeError):
         self.body = body
 
 
-def _extract_status(exc: BaseException) -> Optional[int]:
+def _extract_status(exc: BaseException) -> int | None:
     """Return an HTTP status code from a raised exception if available."""
 
     for attribute in ("status", "status_code"):
@@ -57,7 +56,9 @@ def _extract_status(exc: BaseException) -> Optional[int]:
     return None
 
 
-def with_backoff(*, retries: int, base_delay: float) -> Callable[[Callable[_P, Awaitable[_R]]], Callable[_P, Awaitable[_R]]]:
+def with_backoff(
+    *, retries: int, base_delay: float
+) -> Callable[[Callable[_P, Awaitable[_R]]], Callable[_P, Awaitable[_R]]]:
     """Retry an async callable on retryable HTTP errors with exponential backoff."""
 
     def decorator(func: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
@@ -102,15 +103,15 @@ class RegulatoryScraper:
         self,
         *,
         s3_bucket: str = "kitchenshare-etl-raw",
-        s3_client_kwargs: Optional[Dict[str, Any]] = None,
+        s3_client_kwargs: dict[str, Any] | None = None,
     ) -> None:
-        self.session: Optional[aiohttp.ClientSession] = None
+        self.session: aiohttp.ClientSession | None = None
         self.logger = logger
         self._s3_bucket = s3_bucket
         self._s3_client_kwargs = s3_client_kwargs or {}
         self._aws_session = get_session()
 
-    async def __aenter__(self) -> "RegulatoryScraper":
+    async def __aenter__(self) -> RegulatoryScraper:
         self.session = aiohttp.ClientSession()
         return self
 
@@ -119,7 +120,7 @@ class RegulatoryScraper:
             await self.session.close()
             self.session = None
 
-    async def scrape_health_department(self, state: str, city: Optional[str] = None) -> List[Dict]:
+    async def scrape_health_department(self, state: str, city: str | None = None) -> list[dict]:
         """Scrape health department regulations for a state/city."""
 
         base_urls = {
@@ -130,22 +131,26 @@ class RegulatoryScraper:
             "IL": "https://dph.illinois.gov/topics-services/food-safety.html",
         }
 
-        regulations: List[Dict] = []
+        regulations: list[dict] = []
         if not self.session:
-            raise RuntimeError("RegulatoryScraper session is not initialized. Use as async context manager.")
+            raise RuntimeError(
+                "RegulatoryScraper session is not initialized. Use as async context manager."
+            )
 
         if state in base_urls:
             try:
                 content = await self._fetch_health_department_page(base_urls[state])
             except ServerSideError as exc:
                 self.logger.error(
-                    "Health department request for %s failed with status %s after retries", state, exc.status
+                    "Health department request for %s failed with status %s after retries",
+                    state,
+                    exc.status,
                 )
             except aiohttp.ClientResponseError as exc:
                 self.logger.warning(
                     "Health department request for %s returned status %s", state, exc.status
                 )
-            except aiohttp.ClientError as exc:  # pragma: no cover - network errors aren't deterministic
+            except aiohttp.ClientError:  # pragma: no cover - network errors aren't deterministic
                 source_url = base_urls[state]
                 async with self.session.get(source_url) as response:
                     if response.status == 200:
@@ -157,7 +162,9 @@ class RegulatoryScraper:
                         )
                     else:
                         self.logger.warning(
-                            "Health department request for %s returned status %s", state, response.status
+                            "Health department request for %s returned status %s",
+                            state,
+                            response.status,
                         )
             except Exception as exc:  # pragma: no cover - network errors aren't deterministic
                 self.logger.error("Error scraping %s health department: %s", state, exc)
@@ -206,12 +213,12 @@ class RegulatoryScraper:
             return payload.decode("utf-8", errors="replace")
 
     async def parse_health_regulations(
-        self, html: str, state: str, city: Optional[str], source_url: str
-    ) -> List[Dict]:
+        self, html: str, state: str, city: str | None, source_url: str
+    ) -> list[dict]:
         """Parse health regulations from HTML content."""
 
         soup = BeautifulSoup(html, "html.parser")
-        regulations: List[Dict] = []
+        regulations: list[dict] = []
 
         patterns = [
             r"permits? required",
@@ -249,7 +256,7 @@ class RegulatoryScraper:
 
     async def scrape_insurance_requirements(
         self, state: str, business_type: str = "commercial_kitchen"
-    ) -> Dict:
+    ) -> dict:
         """Scrape insurance requirements for commercial kitchen rentals."""
 
         # Mock insurance data - in production, this would scrape from insurance providers
@@ -308,10 +315,10 @@ class RegulatoryScraper:
         requirements.setdefault("state_province", state.upper())
         return requirements
 
-    async def scrape_zoning_regulations(self, city: Optional[str], state: str) -> List[Dict]:
+    async def scrape_zoning_regulations(self, city: str | None, state: str) -> list[dict]:
         """Scrape zoning regulations for commercial kitchen operations."""
 
-        zoning_data: List[Dict] = []
+        zoning_data: list[dict] = []
 
         zoning_issues = [
             "Commercial kitchen operations in residential zones",
@@ -345,13 +352,16 @@ class RegulatoryScraper:
 
         return zoning_data
 
-
     @with_backoff(retries=5, base_delay=1.5)
-    async def _fetch_health_department_page(self, url: str, *, params: Optional[Dict[str, Any]] = None) -> str:
+    async def _fetch_health_department_page(
+        self, url: str, *, params: dict[str, Any] | None = None
+    ) -> str:
         """Retrieve a health department page, retrying on transient server failures."""
 
         if not self.session:
-            raise RuntimeError("RegulatoryScraper session is not initialized. Use as async context manager.")
+            raise RuntimeError(
+                "RegulatoryScraper session is not initialized. Use as async context manager."
+            )
 
         async with self.session.get(url, params=params) as response:
             body = await response.text()

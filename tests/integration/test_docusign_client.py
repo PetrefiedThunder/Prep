@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List
+from typing import Any
 
 import pytest
 
@@ -20,7 +21,7 @@ class _FakeClock:
     """Utility used to simulate ``time.monotonic`` and ``time.sleep``."""
 
     value: float = 0.0
-    sleeps: List[float] | None = None
+    sleeps: list[float] | None = None
 
     def monotonic(self) -> float:
         return self.value
@@ -34,20 +35,20 @@ class _FakeClock:
 class _StubDocuSignClient:
     """Test double for :class:`DocuSignClient` requests."""
 
-    def __init__(self, responses: Iterable[Dict[str, Any]]) -> None:
+    def __init__(self, responses: Iterable[dict[str, Any]]) -> None:
         self.base_url = "https://demo.docusign.net/restapi"
         self.account_id = "123456"
         self._responses = list(responses)
         self._call_count = 0
-        self.calls: List[str] = []
-        self.sent_payloads: List[Dict[str, Any]] = []
+        self.calls: list[str] = []
+        self.sent_payloads: list[dict[str, Any]] = []
 
     def send_template(self, **kwargs: Any) -> tuple[str, str]:
         self.calls.append("send_template")
         self.sent_payloads.append(kwargs)
         return ("env-123", "https://sign.docusign.com/embedded")
 
-    def _request(self, method: str, url: str, **kwargs: Any) -> Dict[str, Any]:
+    def _request(self, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
         self.calls.append(method.lower())
         index = min(self._call_count, len(self._responses) - 1)
         self._call_count += 1

@@ -1,6 +1,6 @@
 """Integration domain helpers and event bus plumbing."""
 
-from .models import IntegrationEvent, IntegrationStatus, IntegrationHealthSnapshot
+from .models import IntegrationEvent, IntegrationHealthSnapshot, IntegrationStatus
 from .state import integration_status_store
 
 __all__ = [

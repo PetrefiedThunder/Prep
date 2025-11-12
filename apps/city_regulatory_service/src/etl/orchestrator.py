@@ -8,7 +8,7 @@ into the Prep regulatory engine.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -59,9 +59,7 @@ class CityETLOrchestrator:
             CityJurisdiction instance
         """
         jurisdiction = (
-            self.db_session.query(CityJurisdiction)
-            .filter_by(city=city, state=state)
-            .first()
+            self.db_session.query(CityJurisdiction).filter_by(city=city, state=state).first()
         )
 
         if not jurisdiction:

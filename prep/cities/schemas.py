@@ -50,7 +50,9 @@ class CityKitchenHighlight(BaseModel):
     score: float = Field(ge=0.0, le=1.0)
     confidence: float = Field(ge=0.0, le=1.0)
     hourly_rate: float | None = None
-    converted_hourly_rate: float | None = Field(default=None, description="Rate in the requested currency")
+    converted_hourly_rate: float | None = Field(
+        default=None, description="Rate in the requested currency"
+    )
     currency: str = Field(description="Currency code for converted values")
     popularity_index: float | None = Field(default=None, ge=0.0, le=1.0)
     demand_forecast: float | None = Field(default=None, ge=0.0, le=1.0)

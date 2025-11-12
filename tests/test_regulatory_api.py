@@ -4,14 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import importlib
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
-from typing import Any, ClassVar, Generator, Tuple
-from typing import Generator
-from datetime import datetime, timedelta
-from types import SimpleNamespace
 from collections.abc import Generator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from types import SimpleNamespace
+from typing import Any, ClassVar
 
 import pytest
 from fastapi.testclient import TestClient
@@ -30,7 +27,6 @@ from prep.models.orm import (
     User,
     UserRole,
 )
-from prep.models.orm import COIDocument
 from prep.regulatory.ingest_state import store_status
 
 
@@ -95,7 +91,7 @@ class StubStorageClient:
 
 
 @pytest.fixture()
-def packet_client() -> Generator[Tuple[TestClient, Any, StubStorageClient, StubHTML], None, None]:
+def packet_client() -> Generator[tuple[TestClient, Any, StubStorageClient, StubHTML], None, None]:
     module = importlib.reload(compliance_main)
     storage = StubStorageClient()
     StubHTML.last_rendered = None
@@ -127,7 +123,7 @@ def _seed_booking_with_documents(session: Session) -> str:
         state="TX",
         compliance_status="compliant",
         health_permit_number="HP-12345",
-        last_inspection_date=datetime.now(timezone.utc) - timedelta(days=35),
+        last_inspection_date=datetime.now(UTC) - timedelta(days=35),
         insurance_info={"policy_number": "PN-456"},
         zoning_type="commercial",
     )
@@ -135,7 +131,7 @@ def _seed_booking_with_documents(session: Session) -> str:
     session.add_all([host, customer, kitchen])
     session.flush()
 
-    start_time = datetime.now(timezone.utc) + timedelta(days=14)
+    start_time = datetime.now(UTC) + timedelta(days=14)
     end_time = start_time + timedelta(hours=6)
 
     booking = Booking(
@@ -159,7 +155,7 @@ def _seed_booking_with_documents(session: Session) -> str:
             document_type="Health Permit",
             document_url="https://cdn.prep.local/health-permit.pdf",
             verification_status=ComplianceDocumentStatus.APPROVED,
-            submitted_at=datetime.now(timezone.utc) - timedelta(days=20),
+            submitted_at=datetime.now(UTC) - timedelta(days=20),
             notes="City of Austin Health Department",
         ),
         ComplianceDocument(
@@ -168,7 +164,7 @@ def _seed_booking_with_documents(session: Session) -> str:
             document_type="Fire Inspection",
             document_url="https://cdn.prep.local/fire-inspection.pdf",
             verification_status=ComplianceDocumentStatus.PENDING,
-            submitted_at=datetime.now(timezone.utc) - timedelta(days=10),
+            submitted_at=datetime.now(UTC) - timedelta(days=10),
             notes="Awaiting fire marshal sign-off",
         ),
     ]
@@ -212,9 +208,7 @@ def _mock_coi(monkeypatch: pytest.MonkeyPatch, text: str) -> None:
     )
 
 
-def test_upload_coi_persists_metadata(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_upload_coi_persists_metadata(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     _mock_coi(
         monkeypatch,
         (
@@ -256,11 +250,7 @@ def test_upload_coi_marks_expired_documents_invalid(
 ) -> None:
     _mock_coi(
         monkeypatch,
-        (
-            "Policy Number: OLD-01\n"
-            "Named Insured: Legacy Prep\n"
-            "Expiration Date: January 1, 2000\n"
-        ),
+        ("Policy Number: OLD-01\nNamed Insured: Legacy Prep\nExpiration Date: January 1, 2000\n"),
     )
     response = client.post(
         "/coi",
@@ -364,7 +354,7 @@ def test_trigger_monitoring_run(client: TestClient) -> None:
 
 
 def test_generate_compliance_packet_creates_pdf_and_metadata(
-    packet_client: Tuple[TestClient, Any, StubStorageClient, StubHTML],
+    packet_client: tuple[TestClient, Any, StubStorageClient, StubHTML],
     db_session: Session,
 ) -> None:
     client, _, storage, html_renderer = packet_client
@@ -403,7 +393,7 @@ def test_generate_compliance_packet_creates_pdf_and_metadata(
 
 
 def test_generate_compliance_packet_handles_missing_booking(
-    packet_client: Tuple[TestClient, Any, StubStorageClient, StubHTML],
+    packet_client: tuple[TestClient, Any, StubStorageClient, StubHTML],
 ) -> None:
     client, _, storage, _ = packet_client
 
@@ -417,6 +407,8 @@ def test_generate_compliance_packet_handles_missing_booking(
     )
     assert response.status_code == 404
     assert not storage.put_calls
+
+
 def test_etl_status_endpoint_returns_cached_state(client: TestClient) -> None:
     now = datetime.now(UTC)
     asyncio.run(

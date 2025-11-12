@@ -1,43 +1,36 @@
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import html
 import logging
 import os
-from dataclasses import asdict
-from datetime import date, datetime, time, timezone
-from enum import Enum
-import asyncio
-from typing import Any, Dict, List, Optional
-from uuid import UUID
-import hashlib
-import os
 from collections.abc import Generator
 from dataclasses import asdict
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time
 from enum import Enum
 from typing import Any
+from uuid import UUID
 
 import boto3
-
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from prep.compliance.coi_validation import COIValidationResult, validate_coi
+from prep.compliance import COIExtractionError, validate_coi
+from prep.compliance.coi_validation import validate_coi
 from prep.compliance.data_validator import DataValidator
 from prep.compliance.food_safety_compliance_engine import (
     DataIntelligenceAPIClient,
     FoodSafetyComplianceEngine,
 )
-from prep.compliance import COIExtractionError, validate_coi
 from prep.inventory.connectors import ApicbaseConnector
 from prep.inventory.errors import ConnectorError
 from prep.models.db import SessionLocal
 from prep.models.orm import (
     Booking,
     COIDocument,
-    ComplianceDocument,
     ComplianceDocumentStatus,
     User,
 )
@@ -49,12 +42,11 @@ except Exception:  # pragma: no cover - defer failure until endpoint invocation
 
 
 HTMLRenderer = WeasyPrintHTML
-from prep.models.orm import COIDocument
-from prep.regulatory.ingest_state import fetch_status
 from apps.compliance_service.sf.router import (
     booking_router as sf_booking_router,
     router as sf_compliance_router,
 )
+from prep.regulatory.ingest_state import fetch_status
 
 
 class KitchenPayload(BaseModel):
@@ -252,13 +244,13 @@ class PacketKitchenInfo(BaseModel):
 
     id: str
     name: str
-    compliance_status: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    health_permit_number: Optional[str] = None
-    last_inspection_date: Optional[datetime] = None
-    zoning_type: Optional[str] = None
-    insurance_policy_number: Optional[str] = None
+    compliance_status: str | None = None
+    city: str | None = None
+    state: str | None = None
+    health_permit_number: str | None = None
+    last_inspection_date: datetime | None = None
+    zoning_type: str | None = None
+    insurance_policy_number: str | None = None
 
 
 class PacketDocumentInfo(BaseModel):
@@ -269,7 +261,7 @@ class PacketDocumentInfo(BaseModel):
     status: str
     url: str
     submitted_at: datetime
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class CompliancePacket(BaseModel):
@@ -280,7 +272,7 @@ class CompliancePacket(BaseModel):
     kitchen: PacketKitchenInfo
     host: PacketParticipant
     customer: PacketParticipant
-    documents: List[PacketDocumentInfo]
+    documents: list[PacketDocumentInfo]
 
 
 class CompliancePacketResponse(BaseModel):
@@ -289,6 +281,8 @@ class CompliancePacketResponse(BaseModel):
     packet_url: str
     expires_in: int
     metadata: CompliancePacket
+
+
 class EtlRunStatus(BaseModel):
     """Latest ETL run metadata exposed to observability dashboards."""
 
@@ -353,6 +347,7 @@ class HistoryResponse(BaseModel):
     items: list[ComplianceHistoryEntry]
     total: int
 
+
 _history: list[ComplianceHistoryEntry] = [
     ComplianceHistoryEntry(
         id="hist-001",
@@ -412,7 +407,7 @@ def _participant_from_user(user: User) -> PacketParticipant:
     )
 
 
-def _extract_policy_number(kitchen: Any) -> Optional[str]:
+def _extract_policy_number(kitchen: Any) -> str | None:
     insurance_info = getattr(kitchen, "insurance_info", None)
     if isinstance(insurance_info, dict):
         value = insurance_info.get("policy_number")
@@ -452,7 +447,7 @@ def _build_compliance_packet_metadata(booking: Booking) -> CompliancePacket:
     ]
 
     metadata = CompliancePacket(
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         booking=PacketBookingInfo(
             id=str(booking.id),
             status=booking.status.value,
@@ -480,13 +475,13 @@ def _build_compliance_packet_metadata(booking: Booking) -> CompliancePacket:
     return metadata
 
 
-def _format_datetime(value: Optional[datetime]) -> str:
+def _format_datetime(value: datetime | None) -> str:
     if value is None:
         return "Not provided"
-    return value.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M %Z")
+    return value.astimezone(UTC).strftime("%Y-%m-%d %H:%M %Z")
 
 
-def _escape(value: Optional[str]) -> str:
+def _escape(value: str | None) -> str:
     if value is None or value == "":
         return "—"
     return html.escape(value)
@@ -494,21 +489,15 @@ def _escape(value: Optional[str]) -> str:
 
 def _build_packet_html(metadata: CompliancePacket) -> str:
     documents_rows = "".join(
-        """
+        f"""
         <tr>
-            <td>{document_type}</td>
-            <td>{status}</td>
-            <td>{submitted}</td>
-            <td>{url}</td>
-            <td>{notes}</td>
+            <td>{_escape(item.document_type)}</td>
+            <td>{_escape(item.status)}</td>
+            <td>{_escape(_format_datetime(item.submitted_at))}</td>
+            <td>{_escape(item.url)}</td>
+            <td>{_escape(item.notes)}</td>
         </tr>
-        """.format(
-            document_type=_escape(item.document_type),
-            status=_escape(item.status),
-            submitted=_escape(_format_datetime(item.submitted_at)),
-            url=_escape(item.url),
-            notes=_escape(item.notes),
-        )
+        """
         for item in metadata.documents
     )
 
@@ -604,8 +593,9 @@ def _render_packet_pdf(metadata: CompliancePacket) -> bytes:
 
 
 def _build_packet_key(metadata: CompliancePacket) -> str:
-    timestamp = metadata.generated_at.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = metadata.generated_at.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
     return f"compliance/packets/{metadata.booking.id}/packet-{timestamp}.pdf"
+
 
 def _compute_status_snapshot() -> RegulatoryStatus:
     now = datetime.now(UTC)
@@ -703,8 +693,6 @@ def health_check() -> dict[str, Any]:
 async def upload_coi(
     file: UploadFile = File(...),
     session: Session = Depends(_get_session),
-) -> Dict[str, Any]:
-    """Accept a COI PDF upload, run OCR extraction, and persist metadata."""
 ) -> dict[str, Any]:
     """Accept a COI PDF upload, validate it, and persist metadata."""
 
@@ -749,9 +737,9 @@ async def upload_coi(
         expiry_datetime = datetime.combine(
             expiry_date_obj,
             time.min,
-            tzinfo=timezone.utc,
+            tzinfo=UTC,
         )
-        is_valid = expiry_date_obj >= datetime.now(timezone.utc).date()
+        is_valid = expiry_date_obj >= datetime.now(UTC).date()
         validation_errors = None if is_valid else "COI document has expired."
 
         document = COIDocument(
@@ -840,7 +828,7 @@ async def run_compliance_check(
     async with _state_lock:
         _history.append(
             ComplianceHistoryEntry(
-                id=f"hist-{len(_history)+1:03d}",
+                id=f"hist-{len(_history) + 1:03d}",
                 occurred_at=executed_at,
                 actor=role,
                 description=f"{role.value.title()} initiated a {request.scope} compliance check.",
@@ -850,7 +838,9 @@ async def run_compliance_check(
 
 
 @app.get("/api/v1/regulatory/documents", response_model=list[RegulatoryDocument])
-async def list_regulatory_documents(role: Role = Depends(get_current_role)) -> list[RegulatoryDocument]:
+async def list_regulatory_documents(
+    role: Role = Depends(get_current_role),
+) -> list[RegulatoryDocument]:
     """List regulatory documents filtered based on the caller's role."""
 
     _require_role(role, [Role.ADMIN, Role.HOST, Role.RENTER, Role.GOVERNMENT])
@@ -884,7 +874,7 @@ async def submit_regulatory_document(
                 _documents[index] = updated_doc
                 _history.append(
                     ComplianceHistoryEntry(
-                        id=f"hist-{len(_history)+1:03d}",
+                        id=f"hist-{len(_history) + 1:03d}",
                         occurred_at=updated_doc.submitted_at,
                         actor=role,
                         description=(
@@ -964,7 +954,7 @@ async def create_monitoring_alert(
 
     _require_role(role, [Role.ADMIN])
     new_alert = MonitoringAlert(
-        id=f"alert-{len(_alerts)+1:03d}",
+        id=f"alert-{len(_alerts) + 1:03d}",
         created_at=datetime.now(UTC),
         severity=request.severity,
         message=request.message,
@@ -1014,7 +1004,7 @@ async def trigger_monitoring_run(
         )
         _history.append(
             ComplianceHistoryEntry(
-                id=f"hist-{len(_history)+1:03d}",
+                id=f"hist-{len(_history) + 1:03d}",
                 occurred_at=now,
                 actor=role,
                 description=f"Manual monitoring run triggered: {request.reason}",

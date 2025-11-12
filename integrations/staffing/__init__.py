@@ -1,7 +1,7 @@
 """Staffing integration clients."""
 
-from .seven_shifts import SevenShiftsClient, SevenShiftsError
 from .deputy import DeputyClient, DeputyError
+from .seven_shifts import SevenShiftsClient, SevenShiftsError
 
 __all__ = [
     "SevenShiftsClient",

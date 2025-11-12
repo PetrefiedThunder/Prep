@@ -52,7 +52,9 @@ class _PoolBackedAnalyticsRepository(AnalyticsRepository):
     ) -> BookingStatistics:
         async with self._pool.acquire() as connection:
             repository = PostgresAnalyticsRepository(connection)
-            return await repository.fetch_booking_statistics(start_date=start_date, end_date=end_date)
+            return await repository.fetch_booking_statistics(
+                start_date=start_date, end_date=end_date
+            )
 
     async def fetch_revenue_analytics(
         self,
@@ -62,7 +64,9 @@ class _PoolBackedAnalyticsRepository(AnalyticsRepository):
     ) -> RevenueAnalytics:
         async with self._pool.acquire() as connection:
             repository = PostgresAnalyticsRepository(connection)
-            return await repository.fetch_revenue_analytics(start_date=start_date, end_date=end_date)
+            return await repository.fetch_revenue_analytics(
+                start_date=start_date, end_date=end_date
+            )
 
     async def fetch_platform_overview(self) -> PlatformOverview:
         async with self._pool.acquire() as connection:
@@ -143,8 +147,12 @@ async def get_host_dashboard(
 
 @router.get("/bookings", response_model=BookingStatistics)
 async def get_booking_statistics(
-    start_date: Annotated[datetime | None, Query(description="Filter bookings created after this timestamp")] = None,
-    end_date: Annotated[datetime | None, Query(description="Filter bookings created before this timestamp")] = None,
+    start_date: Annotated[
+        datetime | None, Query(description="Filter bookings created after this timestamp")
+    ] = None,
+    end_date: Annotated[
+        datetime | None, Query(description="Filter bookings created before this timestamp")
+    ] = None,
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ) -> BookingStatistics:
     """Return booking analytics for an optional date range."""
@@ -154,8 +162,12 @@ async def get_booking_statistics(
 
 @router.get("/revenue", response_model=RevenueAnalytics)
 async def get_revenue_analytics(
-    start_date: Annotated[datetime | None, Query(description="Include revenue generated after this timestamp")] = None,
-    end_date: Annotated[datetime | None, Query(description="Include revenue generated before this timestamp")] = None,
+    start_date: Annotated[
+        datetime | None, Query(description="Include revenue generated after this timestamp")
+    ] = None,
+    end_date: Annotated[
+        datetime | None, Query(description="Include revenue generated before this timestamp")
+    ] = None,
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ) -> RevenueAnalytics:
     """Return revenue analytics including trend data."""

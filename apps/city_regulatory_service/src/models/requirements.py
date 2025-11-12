@@ -155,7 +155,9 @@ def validate_fee_schedule(schedule: FeeSchedule) -> FeeValidationResult:
             issues.append(f"Recurring fee '{fee.name}' missing cadence")
 
     incremental_count = schedule.incremental_fee_count
-    return FeeValidationResult(is_valid=not issues, issues=issues, incremental_fee_count=incremental_count)
+    return FeeValidationResult(
+        is_valid=not issues, issues=issues, incremental_fee_count=incremental_count
+    )
 
 
 def make_fee_schedule(
@@ -341,9 +343,7 @@ class FeeSchedule(BaseModel):
     jurisdiction_id: str | None = Field(
         None, description="Identifier of the jurisdiction the schedule belongs to"
     )
-    jurisdiction_name: str | None = Field(
-        None, description="Display name of the jurisdiction"
-    )
+    jurisdiction_name: str | None = Field(None, description="Display name of the jurisdiction")
     state: str | None = Field(None, description="State/region for the jurisdiction")
     paperwork: list[str] = Field(default_factory=list, description="Paperwork checklist")
     items: list[FeeItem] = Field(
@@ -399,9 +399,7 @@ class RequirementsBundle(BaseModel):
 
         requirement_id: str = Field(..., description="Normalized requirement identifier")
         label: str = Field(..., description="Display name for the requirement")
-        agency: str | None = Field(
-            None, description="Agency responsible for the requirement"
-        )
+        agency: str | None = Field(None, description="Agency responsible for the requirement")
         fee_schedule: FeeSchedule = Field(
             default_factory=FeeSchedule,
             description="Fee schedule specific to the requirement",

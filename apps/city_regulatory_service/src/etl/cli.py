@@ -15,9 +15,7 @@ from apps.city_regulatory_service.src.etl import CITY_ADAPTERS, CityETLOrchestra
 logger = logging.getLogger(__name__)
 
 
-def _canonicalize_city(
-    city: str, adapters: Mapping[str, type]
-) -> tuple[str, str | None]:
+def _canonicalize_city(city: str, adapters: Mapping[str, type]) -> tuple[str, str | None]:
     """Return the canonical adapter key for ``city`` if available."""
 
     normalized = city.strip()
@@ -75,9 +73,7 @@ def run_ingestion(
         Mapping of city name to ETL statistics or error metadata.
     """
 
-    requested_cities = (
-        _ensure_unique(list(cities)) if cities else list(adapters.keys())
-    )
+    requested_cities = _ensure_unique(list(cities)) if cities else list(adapters.keys())
 
     results: dict[str, dict[str, Any]] = {}
     factory = session_factory or _default_session_factory()
@@ -160,9 +156,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 processed = data.get("processed", 0)
                 inserted = data.get("inserted", 0)
                 updated = data.get("updated", 0)
-                print(
-                    f"  processed={processed} inserted={inserted} updated={updated}"
-                )
+                print(f"  processed={processed} inserted={inserted} updated={updated}")
                 if data.get("errors"):
                     print(f"  errors: {data['errors']}")
             elif status == "skipped":
@@ -170,12 +164,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             else:
                 print(f"  error: {data.get('error', 'unknown error')}")
 
-    has_failures = any(
-        entry.get("status") in {"failed"} for entry in results.values()
-    )
+    has_failures = any(entry.get("status") in {"failed"} for entry in results.values())
     return 1 if has_failures else 0
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI hook
     raise SystemExit(main())
-

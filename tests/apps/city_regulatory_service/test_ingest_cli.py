@@ -1,20 +1,19 @@
 from __future__ import annotations
 
-from typing import Any
-
 import sys
 import types
 import uuid
 from datetime import datetime
+from typing import Any
 
 import pytest
 from sqlalchemy import (
+    JSON,
     Boolean,
     Column,
     DateTime,
     ForeignKey,
     Integer,
-    JSON,
     String,
     Text,
     create_engine,
@@ -162,10 +161,11 @@ _prep_reg_models.__all__ = [
 ]
 sys.modules["prep.regulatory.models"] = _prep_reg_models
 
+from apps.city_regulatory_service.src.etl import (
+    cli as ingest_cli,  # noqa: E402
+    orchestrator as orchestrator_module,  # noqa: E402
+)
 from prep.regulatory.models import CityJurisdiction, CityRequirement  # noqa: E402
-
-from apps.city_regulatory_service.src.etl import cli as ingest_cli  # noqa: E402
-from apps.city_regulatory_service.src.etl import orchestrator as orchestrator_module  # noqa: E402
 
 
 class _StubAdapter:
@@ -207,7 +207,9 @@ def session_factory() -> sessionmaker[Session]:
     return sessionmaker(bind=engine, future=True)
 
 
-def test_cli_persists_requirements_and_fees(monkeypatch: pytest.MonkeyPatch, session_factory: sessionmaker[Session]) -> None:
+def test_cli_persists_requirements_and_fees(
+    monkeypatch: pytest.MonkeyPatch, session_factory: sessionmaker[Session]
+) -> None:
     stub_adapters = {"Test City": _StubAdapter}
 
     monkeypatch.setattr(ingest_cli, "CITY_ADAPTERS", stub_adapters)
@@ -237,7 +239,9 @@ def test_cli_persists_requirements_and_fees(monkeypatch: pytest.MonkeyPatch, ses
         assert jurisdictions[0].city == "Test City"
 
 
-def test_cli_skips_unknown_city(monkeypatch: pytest.MonkeyPatch, session_factory: sessionmaker[Session]) -> None:
+def test_cli_skips_unknown_city(
+    monkeypatch: pytest.MonkeyPatch, session_factory: sessionmaker[Session]
+) -> None:
     stub_adapters = {"Test City": _StubAdapter}
 
     monkeypatch.setattr(ingest_cli, "CITY_ADAPTERS", stub_adapters)

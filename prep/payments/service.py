@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
-from typing import Any, Mapping
+from typing import Any
 from uuid import UUID
 
 import stripe
-from stripe.error import SignatureVerificationError, StripeError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from stripe.error import SignatureVerificationError, StripeError
 
 from prep.models.orm import (
     APIUsageEvent,
@@ -94,7 +95,9 @@ class PaymentsService:
             if created_new_account:
                 await self._session.rollback()
                 user.stripe_account_id = None
-            raise PaymentsError("Failed to initialize Stripe Connect onboarding", status_code=502) from exc
+            raise PaymentsError(
+                "Failed to initialize Stripe Connect onboarding", status_code=502
+            ) from exc
 
         if created_new_account:
             try:
@@ -190,7 +193,8 @@ class PaymentsService:
         )
         if booking is None:
             logger.warning(
-                "No booking found for payment intent", extra={"payment_intent_id": payment_intent_id}
+                "No booking found for payment intent",
+                extra={"payment_intent_id": payment_intent_id},
             )
             return
 
@@ -219,7 +223,8 @@ class PaymentsService:
         user_id = _extract_user_id(event)
         if user_id is None:
             logger.debug(
-                "Received subscription event without user metadata", extra={"event_id": _get_attribute(event, "id")}
+                "Received subscription event without user metadata",
+                extra={"event_id": _get_attribute(event, "id")},
             )
             return
 

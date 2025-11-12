@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import importlib
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,14 +16,14 @@ class PredictionResult:
     """Normalized prediction output for compliance risk."""
 
     compliance_probability: float
-    risk_factors: List[str]
-    recommended_actions: List[str]
+    risk_factors: list[str]
+    recommended_actions: list[str]
 
 
 class CompliancePredictor:
     """Predict future compliance risk using historical and real-time features."""
 
-    def __init__(self, model: Optional[Any] = None) -> None:
+    def __init__(self, model: Any | None = None) -> None:
         self.features = [
             "risk_score",
             "days_since_inspection",
@@ -33,7 +34,7 @@ class CompliancePredictor:
         self.model = model or self._create_default_model()
         self._trained = False
 
-    async def predict_compliance_risk(self, kitchen_data: Dict[str, Any]) -> PredictionResult:
+    async def predict_compliance_risk(self, kitchen_data: dict[str, Any]) -> PredictionResult:
         """Predict the probability of a kitchen remaining compliant."""
 
         feature_vector = self.extract_features(kitchen_data)
@@ -46,7 +47,7 @@ class CompliancePredictor:
             recommended_actions=actions,
         )
 
-    def train(self, dataset: Iterable[Dict[str, Any]], labels: Iterable[int]) -> None:
+    def train(self, dataset: Iterable[dict[str, Any]], labels: Iterable[int]) -> None:
         """Train the underlying model using a labeled dataset."""
 
         if not self.model:
@@ -61,7 +62,7 @@ class CompliancePredictor:
             return
         self._trained = True
 
-    def extract_features(self, kitchen_data: Dict[str, Any]) -> List[float]:
+    def extract_features(self, kitchen_data: dict[str, Any]) -> list[float]:
         """Extract numeric feature vector from kitchen metadata."""
 
         return [
@@ -71,10 +72,10 @@ class CompliancePredictor:
             float(kitchen_data.get("zoning_compliance", 1.0)),
         ]
 
-    def identify_risk_factors(self, features: List[float]) -> List[str]:
+    def identify_risk_factors(self, features: list[float]) -> list[str]:
         """Identify potential risk contributors from the feature vector."""
 
-        risk_factors: List[str] = []
+        risk_factors: list[str] = []
         if features[0] > 70:
             risk_factors.append("High historical risk score")
         if features[1] > 365:
@@ -85,7 +86,7 @@ class CompliancePredictor:
             risk_factors.append("Unresolved zoning compliance issues")
         return risk_factors
 
-    def generate_actions(self, probability: float) -> List[str]:
+    def generate_actions(self, probability: float) -> list[str]:
         """Generate recommended mitigation actions based on predicted probability."""
 
         if probability >= 0.8:
@@ -101,7 +102,7 @@ class CompliancePredictor:
             "Update training for food safety staff",
         ]
 
-    def _predict_probability(self, feature_vector: List[float]) -> float:
+    def _predict_probability(self, feature_vector: list[float]) -> float:
         if self.model and self._trained:
             try:
                 proba = self.model.predict_proba([feature_vector])[0]
@@ -120,11 +121,13 @@ class CompliancePredictor:
         try:
             importlib.import_module("sklearn")
         except ModuleNotFoundError:
-            logger.warning("scikit-learn not installed; falling back to heuristic compliance prediction.")
+            logger.warning(
+                "scikit-learn not installed; falling back to heuristic compliance prediction."
+            )
             return False
         return True
 
-    def _create_default_model(self) -> Optional[Any]:
+    def _create_default_model(self) -> Any | None:
         if not self._sklearn_available:
             return None
         try:
@@ -132,7 +135,7 @@ class CompliancePredictor:
         except ModuleNotFoundError:  # pragma: no cover - optional dependency
             logger.warning("sklearn.ensemble unavailable; predictions will use heuristic fallback.")
             return None
-        RandomForestClassifier = getattr(ensemble, "RandomForestClassifier")
+        RandomForestClassifier = ensemble.RandomForestClassifier
         return RandomForestClassifier(n_estimators=100, random_state=42)
 
 

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
+from collections.abc import Mapping, MutableMapping
 from dataclasses import asdict, is_dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from .orchestration import ComplianceDomain
 
@@ -36,7 +37,7 @@ class EvidenceVault:
         payload = {
             "entity_id": entity_id,
             "domain": domain.value,
-            "stored_at": datetime.now(timezone.utc).isoformat(),
+            "stored_at": datetime.now(UTC).isoformat(),
             "evidence": normalized,
         }
         digest = hashlib.sha256(

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 from prep.models.guid import GUID
-
 
 revision = "5c7c26b4d9ab"
 down_revision = "b3f7f1a2e123"

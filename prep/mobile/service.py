@@ -36,9 +36,9 @@ from .schemas import (
     BiometricStatusResponse,
     BiometricVerificationRequest,
     BiometricVerificationResponse,
+    CacheStatusResponse,
     CameraUploadRequest,
     CameraUploadResponse,
-    CacheStatusResponse,
     MobileAuthTokens,
     MobileBookingSummary,
     MobileKitchenDetailResponse,
@@ -91,7 +91,9 @@ class MobileGatewayService:
         result = await self.session.execute(stmt)
         user = result.scalar_one_or_none()
         if user is None or not secrets.compare_digest(user.hashed_password or "", payload.password):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+            )
 
         if not user.is_active or user.is_suspended:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
@@ -100,7 +102,9 @@ class MobileGatewayService:
         await self.session.commit()
 
         tokens = self._issue_tokens(user)
-        await self._cache_session(user.id, payload.device.device_id, tokens, payload.device.app_version)
+        await self._cache_session(
+            user.id, payload.device.device_id, tokens, payload.device.app_version
+        )
 
         interval = await self._get_background_interval(user.id)
 
@@ -131,7 +135,9 @@ class MobileGatewayService:
             "exp": int((datetime.now(UTC) + timedelta(days=7)).timestamp()),
         }
         refresh_token = self._encode_jwt(refresh_payload)
-        return MobileAuthTokens(access_token=token, refresh_token=refresh_token, expires_in=expires_in)
+        return MobileAuthTokens(
+            access_token=token, refresh_token=refresh_token, expires_in=expires_in
+        )
 
     def _encode_jwt(self, payload: dict[str, Any]) -> str:
         header = {"alg": "none", "typ": "JWT"}
@@ -210,8 +216,12 @@ class MobileGatewayService:
                     distance_km=round(distance, 2),
                     city=kitchen.city,
                     state=kitchen.state,
-                    hourly_rate=float(kitchen.hourly_rate) if kitchen.hourly_rate is not None else None,
-                    trust_score=float(kitchen.trust_score) if kitchen.trust_score is not None else None,
+                    hourly_rate=float(kitchen.hourly_rate)
+                    if kitchen.hourly_rate is not None
+                    else None,
+                    trust_score=float(kitchen.trust_score)
+                    if kitchen.trust_score is not None
+                    else None,
                     normalized_rating=None,
                     rating_count=0,
                 )
@@ -241,9 +251,7 @@ class MobileGatewayService:
         d_lon = math.radians(lon2 - lon1)
         a = (
             math.sin(d_lat / 2) ** 2
-            + math.cos(math.radians(lat1))
-            * math.cos(math.radians(lat2))
-            * math.sin(d_lon / 2) ** 2
+            + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lon / 2) ** 2
         )
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         return radius * c
@@ -256,9 +264,7 @@ class MobileGatewayService:
         stmt = (
             select(Booking, Kitchen)
             .join(Kitchen, Kitchen.id == Booking.kitchen_id)
-            .where(
-                or_(Booking.customer_id == user.id, Booking.host_id == user.id)
-            )
+            .where(or_(Booking.customer_id == user.id, Booking.host_id == user.id))
             .where(Booking.end_time >= now)
             .where(Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.PENDING]))
             .order_by(Booking.start_time.asc())
@@ -286,11 +292,15 @@ class MobileGatewayService:
         payload: QuickBookingRequest,
     ) -> QuickBookingResponse:
         if payload.end_time <= payload.start_time:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid time range")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid time range"
+            )
 
         kitchen = await self.session.get(Kitchen, payload.kitchen_id)
         if kitchen is None or not kitchen.published:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kitchen not available")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Kitchen not available"
+            )
 
         total_amount = float(kitchen.hourly_rate or 0)
         platform_fee = round(total_amount * 0.1, 2) if total_amount else 0
@@ -482,8 +492,12 @@ class MobileGatewayService:
         for action in payload.actions:
             existing.append(action.model_dump())
 
-        await self.redis.setex(key, self.OFFLINE_CACHE_TTL, json.dumps(existing, default=self._json_default))
-        return OfflineUploadResponse(processed=len(payload.actions), queued=len(existing), next_sync_hint_minutes=30)
+        await self.redis.setex(
+            key, self.OFFLINE_CACHE_TTL, json.dumps(existing, default=self._json_default)
+        )
+        return OfflineUploadResponse(
+            processed=len(payload.actions), queued=len(existing), next_sync_hint_minutes=30
+        )
 
     async def cache_status(self, user: User) -> CacheStatusResponse:
         snapshot_raw = await self.redis.get(self._offline_cache_key(user.id))
@@ -537,7 +551,11 @@ class MobileGatewayService:
             items = [self._summary_from_match(match) for match in matches]
             return QuickSearchResponse(items=items, generated_at=datetime.now(UTC))
 
-        stmt = select(Kitchen).where(Kitchen.published.is_(True)).where(Kitchen.moderation_status == "approved")
+        stmt = (
+            select(Kitchen)
+            .where(Kitchen.published.is_(True))
+            .where(Kitchen.moderation_status == "approved")
+        )
 
         if filters.query:
             pattern = f"%{filters.query.lower()}%"
@@ -577,8 +595,12 @@ class MobileGatewayService:
                     distance_km=None,
                     city=kitchen.city,
                     state=kitchen.state,
-                    hourly_rate=float(kitchen.hourly_rate) if kitchen.hourly_rate is not None else None,
-                    trust_score=float(kitchen.trust_score) if kitchen.trust_score is not None else None,
+                    hourly_rate=float(kitchen.hourly_rate)
+                    if kitchen.hourly_rate is not None
+                    else None,
+                    trust_score=float(kitchen.trust_score)
+                    if kitchen.trust_score is not None
+                    else None,
                     normalized_rating=normalized,
                     rating_count=rating_count,
                 )
@@ -592,7 +614,11 @@ class MobileGatewayService:
     async def kitchen_detail(self, kitchen_id: UUID) -> MobileKitchenDetailResponse:
         stmt = (
             select(Kitchen, KitchenMatchingProfile)
-            .join(KitchenMatchingProfile, KitchenMatchingProfile.kitchen_id == Kitchen.id, isouter=True)
+            .join(
+                KitchenMatchingProfile,
+                KitchenMatchingProfile.kitchen_id == Kitchen.id,
+                isouter=True,
+            )
             .where(Kitchen.id == kitchen_id)
         )
         result = await self.session.execute(stmt)
@@ -602,7 +628,9 @@ class MobileGatewayService:
 
         kitchen, profile = data
         if not kitchen.published or kitchen.moderation_status != "approved":
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kitchen not available")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Kitchen not available"
+            )
 
         rating_map = await self.rating_service.get_rating_map([kitchen.id])
         rating = rating_map.get(kitchen.id)
@@ -731,7 +759,9 @@ class MobileGatewayService:
             if record:
                 registered = True
                 registered_at = datetime.fromisoformat(record.get("registered_at"))
-        return BiometricStatusResponse(device_id=device_id, registered=registered, registered_at=registered_at)
+        return BiometricStatusResponse(
+            device_id=device_id, registered=registered, registered_at=registered_at
+        )
 
     def _biometric_key(self, user_id: UUID, device_id: str) -> str:
         return f"mobile:biometric:{user_id}:{device_id}"
@@ -807,7 +837,9 @@ class MobileGatewayService:
         record["issue_count"] = len(record["issues"])
         record.setdefault("last_sync_at", datetime.now(UTC).isoformat())
 
-        await self.redis.setex(key, self.PERFORMANCE_TTL, json.dumps(record, default=self._json_default))
+        await self.redis.setex(
+            key, self.PERFORMANCE_TTL, json.dumps(record, default=self._json_default)
+        )
         reference = f"PERF-{uuid4()}"
         return PerformanceReportResponse(accepted=True, reference_id=reference)
 
@@ -870,4 +902,3 @@ class MobileGatewayService:
             except ValueError:
                 return None
         return None
-

@@ -8,8 +8,7 @@ __all__ = ["load_regdocs"]
 __all__ = ["crawler"]
 """Prep ETL tooling package."""
 
-from .crawler import process_urls, main as run_crawler
-from .loader import load_regdocs
+from .crawler import main as run_crawler, process_urls
 from .parser import extract_reg_sections, pdf_to_text
 
 __all__ = [

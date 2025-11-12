@@ -2,28 +2,32 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import httpx
 
 from ...client import Client
 from ...models.fee_collection import FeeCollection
-from ...types import UNSET, Response, Unset, UnexpectedStatus
+from ...types import UNSET, Response, UnexpectedStatus, Unset
 
 
 def _get_kwargs(
     city: str,
     *,
     client: Client,
-    business_type: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
-) -> Dict[str, Any]:
+    business_type: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
+) -> dict[str, Any]:
     headers = client.get_headers()
     if not isinstance(prep_version, Unset) and prep_version is not UNSET:
         headers["Prep-Version"] = prep_version
 
-    params: Dict[str, Any] = {}
-    if not isinstance(business_type, Unset) and business_type is not UNSET and business_type is not None:
+    params: dict[str, Any] = {}
+    if (
+        not isinstance(business_type, Unset)
+        and business_type is not UNSET
+        and business_type is not None
+    ):
         params["businessType"] = business_type
 
     return {
@@ -36,7 +40,7 @@ def _get_kwargs(
     }
 
 
-def _parse_response(*, client: Client, response: httpx.Response) -> Optional[FeeCollection]:
+def _parse_response(*, client: Client, response: httpx.Response) -> FeeCollection | None:
     if response.status_code == HTTPStatus.OK:
         return FeeCollection.model_validate(response.json())
     if client.raise_on_unexpected_status:
@@ -57,8 +61,8 @@ def sync_detailed(
     city: str,
     *,
     client: Client,
-    business_type: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
+    business_type: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
 ) -> Response[FeeCollection]:
     """List recurring and one-time fees for a city."""
 
@@ -83,9 +87,9 @@ def sync(
     city: str,
     *,
     client: Client,
-    business_type: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
-) -> Optional[FeeCollection]:
+    business_type: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
+) -> FeeCollection | None:
     """List recurring and one-time fees for a city."""
 
     return sync_detailed(
@@ -100,8 +104,8 @@ async def asyncio_detailed(
     city: str,
     *,
     client: Client,
-    business_type: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
+    business_type: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
 ) -> Response[FeeCollection]:
     """List recurring and one-time fees for a city."""
 
@@ -126,9 +130,9 @@ async def asyncio(
     city: str,
     *,
     client: Client,
-    business_type: Union[Unset, str] = UNSET,
-    prep_version: Union[Unset, str] = UNSET,
-) -> Optional[FeeCollection]:
+    business_type: Unset | str = UNSET,
+    prep_version: Unset | str = UNSET,
+) -> FeeCollection | None:
     """List recurring and one-time fees for a city."""
 
     return (

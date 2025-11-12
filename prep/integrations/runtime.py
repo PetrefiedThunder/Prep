@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import FastAPI
 
@@ -24,7 +23,7 @@ def configure_integration_event_consumers(app: FastAPI) -> None:
         logger.info("Kafka bootstrap servers not configured; integration consumer disabled")
         return
 
-    consumer: Optional[KafkaIntegrationEventConsumer] = KafkaIntegrationEventConsumer(
+    consumer: KafkaIntegrationEventConsumer | None = KafkaIntegrationEventConsumer(
         bootstrap_servers=bootstrap,
         store=integration_status_store,
     )

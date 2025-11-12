@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Iterable
 
 
 class OrderSource(str, Enum):
@@ -34,9 +34,7 @@ class Order:
         return {
             "id": self.id,
             "status": self.status,
-            "lines": [
-                {"sku": line.sku, "quantity": line.quantity} for line in self.lines
-            ],
+            "lines": [{"sku": line.sku, "quantity": line.quantity} for line in self.lines],
             "due_at": self.due_at.isoformat(),
         }
 
@@ -58,15 +56,14 @@ class ProductionSlot:
 def normalize_timestamp(value: str | datetime) -> datetime:
     if isinstance(value, datetime):
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
-    return datetime.fromisoformat(value).astimezone(timezone.utc)
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
+    return datetime.fromisoformat(value).astimezone(UTC)
 
 
 def coerce_order_lines(payload: Iterable[dict[str, object]]) -> list[OrderLine]:
     return [
-        OrderLine(sku=str(item["sku"]), quantity=int(item.get("quantity", 1)))
-        for item in payload
+        OrderLine(sku=str(item["sku"]), quantity=int(item.get("quantity", 1))) for item in payload
     ]
 
 

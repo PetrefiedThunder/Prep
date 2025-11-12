@@ -67,7 +67,11 @@ def _extract_amount(transaction: dict[str, Any]) -> tuple[Decimal, str]:
         total += Decimal(str(amount))
     if tenders:
         return (total / Decimal("100")) if total else Decimal("0"), currency
-    money = transaction.get("tenders", [{}])[0].get("amount_money") if tenders else transaction.get("amount_money")
+    money = (
+        transaction.get("tenders", [{}])[0].get("amount_money")
+        if tenders
+        else transaction.get("amount_money")
+    )
     if not money:
         return Decimal("0"), currency
     amount = Decimal(str(money.get("amount", 0)))
@@ -147,7 +151,9 @@ class SquarePOSConnector:
     async def fetch_locations(self, access_token: str) -> list[dict[str, Any]]:
         payload = await self._authorized_get(_LOCATIONS_PATH, access_token=access_token)
         locations = payload.get("locations") or []
-        return [location for location in locations if location.get("status", "ACTIVE") != "INACTIVE"]
+        return [
+            location for location in locations if location.get("status", "ACTIVE") != "INACTIVE"
+        ]
 
     async def fetch_transactions(
         self,

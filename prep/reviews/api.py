@@ -17,8 +17,8 @@ from .schemas import (
     ReviewFlagModel,
     ReviewFlagRequest,
     ReviewListResponse,
-    ReviewModerationRequest,
     ReviewModel,
+    ReviewModerationRequest,
     ReviewPhotoCreate,
     ReviewPhotoModel,
     ReviewSubmissionRequest,
@@ -135,7 +135,9 @@ async def vote_review_helpful(
     return await service.vote_review(current_user, review_id, payload)
 
 
-@router.post("/reviews/{review_id}/flag", response_model=ReviewFlagModel, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/reviews/{review_id}/flag", response_model=ReviewFlagModel, status_code=status.HTTP_201_CREATED
+)
 async def flag_review(
     review_id: UUID,
     payload: ReviewFlagRequest,

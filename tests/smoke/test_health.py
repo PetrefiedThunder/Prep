@@ -6,7 +6,6 @@ Run after `make up && make migrate` to verify the stack is operational.
 """
 
 import os
-from typing import Any
 
 import asyncpg
 import boto3
@@ -14,16 +13,13 @@ import pytest
 import requests
 from botocore.client import Config
 
-
 # Service endpoints
 PYTHON_API_BASE = "http://localhost:8000"
 NODE_API_BASE = "http://localhost:3000"
 MINIO_ENDPOINT = "http://localhost:9000"
 
 # Database config
-DB_URL = os.getenv(
-    "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/prepchef"
-)
+DB_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/prepchef")
 
 # MinIO config
 MINIO_ACCESS_KEY = os.getenv("MINIO_ROOT_USER", "minioadmin")
@@ -90,9 +86,7 @@ class TestDatabaseConnectivity:
             auth, rest = db_url.split("@", 1)
             user, password = auth.split(":", 1) if ":" in auth else (auth, "")
             host_port, database = rest.split("/", 1)
-            host, port = (
-                host_port.split(":", 1) if ":" in host_port else (host_port, "5432")
-            )
+            host, port = host_port.split(":", 1) if ":" in host_port else (host_port, "5432")
         else:
             # Fallback defaults
             user, password, host, port, database = (
@@ -128,9 +122,7 @@ class TestDatabaseConnectivity:
             auth, rest = db_url.split("@", 1)
             user, password = auth.split(":", 1) if ":" in auth else (auth, "")
             host_port, database = rest.split("/", 1)
-            host, port = (
-                host_port.split(":", 1) if ":" in host_port else (host_port, "5432")
-            )
+            host, port = host_port.split(":", 1) if ":" in host_port else (host_port, "5432")
         else:
             user, password, host, port, database = (
                 "postgres",

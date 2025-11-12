@@ -1,12 +1,13 @@
 """Utility script to send signed webhook payloads to the local server."""
+
 from __future__ import annotations
 
 import argparse
+
 """Utility for exercising the local Prep webhook receiver."""
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import hmac
 import json
@@ -14,7 +15,7 @@ import os
 import sys
 import time
 import uuid
-from typing import Any, Dict
+from typing import Any
 
 import requests
 
@@ -28,7 +29,7 @@ EVENT_PATHS = {
 }
 
 
-def build_sample_payload(event_type: str) -> Dict[str, Any]:
+def build_sample_payload(event_type: str) -> dict[str, Any]:
     """Return a minimal payload for the provided event."""
 
     data = {
@@ -73,11 +74,11 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_payload(path: str | None, event_type: str) -> Dict[str, Any]:
+def load_payload(path: str | None, event_type: str) -> dict[str, Any]:
     if not path:
         return build_sample_payload(event_type)
 
-    with open(path, "r", encoding="utf-8") as handle:
+    with open(path, encoding="utf-8") as handle:
         payload = json.load(handle)
 
     if payload.get("type") != event_type:
@@ -89,7 +90,9 @@ def main() -> int:
     args = parse_args()
 
     if not args.secret:
-        print("Webhook secret must be provided via --secret or PREP_WEBHOOK_SECRET", file=sys.stderr)
+        print(
+            "Webhook secret must be provided via --secret or PREP_WEBHOOK_SECRET", file=sys.stderr
+        )
         return 1
 
     payload = load_payload(args.payload, args.event)
@@ -112,8 +115,9 @@ def main() -> int:
     print(f"Response status: {response.status_code}")
     print(response.text)
     return 0 if response.ok else 2
+
+
 from http import HTTPStatus
-from typing import Any
 
 import httpx
 
@@ -128,7 +132,7 @@ DEFAULT_EVENT = {
 
 
 def _build_signature(secret: str, timestamp: int, payload: str) -> str:
-    message = f"{timestamp}.".encode("utf-8") + payload.encode("utf-8")
+    message = f"{timestamp}.".encode() + payload.encode("utf-8")
     return hmac.new(secret.encode("utf-8"), message, hashlib.sha256).hexdigest()
 
 
@@ -136,7 +140,7 @@ def _parse_payload(path: str | None) -> dict[str, Any]:
     if not path:
         return DEFAULT_EVENT
 
-    with open(path, "r", encoding="utf-8") as file:
+    with open(path, encoding="utf-8") as file:
         return json.load(file)
 
 

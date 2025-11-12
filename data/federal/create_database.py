@@ -85,34 +85,40 @@ CREATE INDEX idx_links_cb ON ab_cb_scope_links(certification_body_id)
 """)
 
 # Populate accreditation_bodies
-with open(Path(__file__).parent / "ab_table.csv", "r") as f:
+with open(Path(__file__).parent / "ab_table.csv") as f:
     reader = csv.DictReader(f)
     for row in reader:
         cursor.execute(
             "INSERT INTO accreditation_bodies (id, name, url, email, contact) VALUES (?, ?, ?, ?, ?)",
-            (row["id"], row["name"], row["url"], row["email"], row["contact"])
+            (row["id"], row["name"], row["url"], row["email"], row["contact"]),
         )
 
 # Populate certification_bodies
-with open(Path(__file__).parent / "certification_bodies.csv", "r") as f:
+with open(Path(__file__).parent / "certification_bodies.csv") as f:
     reader = csv.DictReader(f)
     for row in reader:
         cursor.execute(
             "INSERT INTO certification_bodies (id, name, url, email) VALUES (?, ?, ?, ?)",
-            (row["id"], row["name"], row["url"], row["email"])
+            (row["id"], row["name"], row["url"], row["email"]),
         )
 
 # Populate scopes
-with open(Path(__file__).parent / "scopes.csv", "r") as f:
+with open(Path(__file__).parent / "scopes.csv") as f:
     reader = csv.DictReader(f)
     for row in reader:
         cursor.execute(
             "INSERT INTO scopes (id, name, cfr_title_part_section, program_reference, notes) VALUES (?, ?, ?, ?, ?)",
-            (row["id"], row["name"], row["cfr_title_part_section"], row["program_reference"], row["notes"])
+            (
+                row["id"],
+                row["name"],
+                row["cfr_title_part_section"],
+                row["program_reference"],
+                row["notes"],
+            ),
         )
 
 # Populate ab_cb_scope_links
-with open(Path(__file__).parent / "accreditor_certifier_scope_links.csv", "r") as f:
+with open(Path(__file__).parent / "accreditor_certifier_scope_links.csv") as f:
     reader = csv.DictReader(f)
     for row in reader:
         cursor.execute(
@@ -120,17 +126,28 @@ with open(Path(__file__).parent / "accreditor_certifier_scope_links.csv", "r") a
             (id, accreditation_body_id, certification_body_id, scope_id,
              recognition_initial_date, recognition_expiration_date, scope_status, source)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (row["id"], row["accreditation_body_id"], row["certification_body_id"],
-             row["scope_id"], row["recognition_initial_date"], row["recognition_expiration_date"],
-             row["scope_status"], row["source"])
+            (
+                row["id"],
+                row["accreditation_body_id"],
+                row["certification_body_id"],
+                row["scope_id"],
+                row["recognition_initial_date"],
+                row["recognition_expiration_date"],
+                row["scope_status"],
+                row["source"],
+            ),
         )
 
 conn.commit()
 
 # Verify data
 print(f"Database created: {DB_PATH}")
-print(f"Accreditation Bodies: {cursor.execute('SELECT COUNT(*) FROM accreditation_bodies').fetchone()[0]}")
-print(f"Certification Bodies: {cursor.execute('SELECT COUNT(*) FROM certification_bodies').fetchone()[0]}")
+print(
+    f"Accreditation Bodies: {cursor.execute('SELECT COUNT(*) FROM accreditation_bodies').fetchone()[0]}"
+)
+print(
+    f"Certification Bodies: {cursor.execute('SELECT COUNT(*) FROM certification_bodies').fetchone()[0]}"
+)
 print(f"Scopes: {cursor.execute('SELECT COUNT(*) FROM scopes').fetchone()[0]}")
 print(f"Links: {cursor.execute('SELECT COUNT(*) FROM ab_cb_scope_links').fetchone()[0]}")
 

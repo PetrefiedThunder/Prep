@@ -112,7 +112,9 @@ class YelpAPIClient:
         except httpx.HTTPStatusError as exc:  # pragma: no cover - network failure path
             status = exc.response.status_code
             text = exc.response.text
-            logger.warning("Yelp API request failed", extra={"url": url, "status": status, "body": text})
+            logger.warning(
+                "Yelp API request failed", extra={"url": url, "status": status, "body": text}
+            )
             raise ExternalAPIError("yelp", text or "Yelp API error", status_code=status) from exc
         except httpx.HTTPError as exc:  # pragma: no cover - network failure path
             logger.warning("Yelp API request error", exc_info=exc, extra={"url": url})
@@ -206,7 +208,11 @@ class GooglePlacesClient:
         data = await self._request(self.DETAILS_URL, params=params)
         result = data.get("result", {})
         business = self._to_business(result)
-        photos = [photo.get("photo_reference") for photo in result.get("photos", []) if photo.get("photo_reference")]
+        photos = [
+            photo.get("photo_reference")
+            for photo in result.get("photos", [])
+            if photo.get("photo_reference")
+        ]
         details = ExternalBusinessDetails(
             **business.model_dump(),
             photos=photos,
@@ -247,7 +253,9 @@ class GooglePlacesClient:
                 "Google Places API request failed",
                 extra={"url": url, "status": status, "body": text},
             )
-            raise ExternalAPIError("google", text or "Google Places API error", status_code=status) from exc
+            raise ExternalAPIError(
+                "google", text or "Google Places API error", status_code=status
+            ) from exc
         except httpx.HTTPError as exc:  # pragma: no cover - network failure path
             logger.warning("Google Places API request error", exc_info=exc, extra={"url": url})
             raise ExternalAPIError("google", "Failed to reach Google Places API") from exc

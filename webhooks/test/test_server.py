@@ -16,7 +16,7 @@ from webhooks.server import main
 
 
 def _build_signature(secret: str, timestamp: str, payload: bytes) -> str:
-    message = f"{timestamp}.".encode("utf-8") + payload
+    message = f"{timestamp}.".encode() + payload
     return hmac.new(secret.encode("utf-8"), message, hashlib.sha256).hexdigest()
 
 

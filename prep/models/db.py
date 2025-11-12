@@ -10,48 +10,47 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from .orm import (
-    Base,
     APIUsageEvent,
+    Base,
     Booking,
     BookingStatus,
+    CertificationDocument,
+    CertificationReviewStatus,
+    ChecklistTemplate,
+    COIDocument,
+    ComplianceDocument,
+    ComplianceDocumentStatus,
     InventoryItem,
     InventoryLot,
     InventoryTransfer,
     InventoryTransferStatus,
-    VerificationTask,
-    VerificationTaskStatus,
-    COIDocument,
-    CertificationDocument,
-    CertificationReviewStatus,
-    COIDocument,
-    ComplianceDocument,
-    ComplianceDocumentStatus,
-    ChecklistTemplate,
+    Kitchen,
+    KitchenModerationEvent,
+    ModerationStatus,
     POSIntegration,
     POSIntegrationStatus,
     POSOrder,
     POSTransaction,
-    SubleaseContract,
-    SubleaseContractStatus,
-    Kitchen,
-    KitchenModerationEvent,
-    Supplier,
-    ModerationStatus,
+    RecurringBookingTemplate,
     Review,
     ReviewFlag,
     ReviewFlagStatus,
     ReviewPhoto,
     ReviewStatus,
     ReviewVote,
-    RecurringBookingTemplate,
     StripeWebhookEvent,
+    SubleaseContract,
+    SubleaseContractStatus,
     SubscriptionStatus,
+    Supplier,
     User,
     UserRole,
+    VerificationTask,
+    VerificationTaskStatus,
 )
 
 if TYPE_CHECKING:  # pragma: no cover - import only for typing
-    from prep.regulatory.models import PolicyDecision as _PolicyDecision
+    pass
 
 
 def get_db_url() -> str:
@@ -152,5 +151,5 @@ def __getattr__(name: str) -> Any:
         from importlib import import_module
 
         module = import_module("prep.regulatory.models")
-        return getattr(module, "PolicyDecision")
+        return module.PolicyDecision
     raise AttributeError(name)

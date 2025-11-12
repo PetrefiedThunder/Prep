@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import asyncio
 import json
-from datetime import datetime, timezone
-from typing import Any, Dict
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from httpx import AsyncClient, MockTransport
@@ -12,9 +13,9 @@ from libs.rcs_client import RCSClient
 
 def test_client_set_get_and_stream() -> None:
     async def _run() -> None:
-        state: Dict[str, Dict[str, Any]] = {}
+        state: dict[str, dict[str, Any]] = {}
         version = 0
-        event_queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue()
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
 
         async def handler(request: httpx.Request) -> httpx.Response:
             nonlocal version
@@ -26,7 +27,7 @@ def test_client_set_get_and_stream() -> None:
                 record = {
                     **payload,
                     "version": version,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(UTC).isoformat(),
                 }
                 state[key] = record
                 await event_queue.put(
@@ -34,13 +35,17 @@ def test_client_set_get_and_stream() -> None:
                         "type": "upsert",
                         "key": key,
                         "version": version,
-                        "emitted_at": datetime.now(timezone.utc).isoformat(),
+                        "emitted_at": datetime.now(UTC).isoformat(),
                         "config": record,
                     }
                 )
                 return httpx.Response(200, json=record)
 
-            if request.method == "GET" and path.startswith("/configs/") and path != "/configs/stream":
+            if (
+                request.method == "GET"
+                and path.startswith("/configs/")
+                and path != "/configs/stream"
+            ):
                 key = path.split("/", 2)[-1]
                 record = state.get(key)
                 if record is None:
@@ -53,7 +58,7 @@ def test_client_set_get_and_stream() -> None:
             if request.method == "GET" and path == "/configs/stream":
                 snapshot = {
                     "type": "snapshot",
-                    "emitted_at": datetime.now(timezone.utc).isoformat(),
+                    "emitted_at": datetime.now(UTC).isoformat(),
                     "configs": list(state.values()),
                 }
                 update = await event_queue.get()
@@ -67,7 +72,9 @@ def test_client_set_get_and_stream() -> None:
             return httpx.Response(404, json={"detail": "not found"})
 
         transport = MockTransport(handler)
-        async with AsyncClient(transport=transport, base_url="http://testserver", trust_env=False) as async_client:
+        async with AsyncClient(
+            transport=transport, base_url="http://testserver", trust_env=False
+        ) as async_client:
             client = RCSClient(base_url="http://testserver", client=async_client)
 
             payload = {
@@ -78,7 +85,7 @@ def test_client_set_get_and_stream() -> None:
 
             stream = client.stream_configs()
 
-            async def read_first_update() -> Dict[str, Any]:
+            async def read_first_update() -> dict[str, Any]:
                 async for event in stream:
                     if event["type"] == "snapshot":
                         continue
@@ -103,5 +110,5 @@ def test_client_set_get_and_stream() -> None:
     asyncio.run(_run())
 
 
-def _encode_event(event: Dict[str, Any]) -> bytes:
-    return f"data: {json.dumps(event)}\n\n".encode("utf-8")
+def _encode_event(event: dict[str, Any]) -> bytes:
+    return f"data: {json.dumps(event)}\n\n".encode()

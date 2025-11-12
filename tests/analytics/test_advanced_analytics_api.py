@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatch
-from typing import Any, AsyncGenerator
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -18,7 +19,6 @@ from prep.cache import RedisProtocol, get_redis
 from prep.database import get_db
 from prep.kitchen_cam.service import KitchenCamService
 from prep.models.orm import Base, Booking, BookingStatus, Kitchen, Review, User
-
 
 pytestmark = pytest.mark.anyio("asyncio")
 
@@ -207,9 +207,11 @@ async def _seed_data(app: FastAPI) -> dict[str, Any]:
     await redis_backend.setex(
         f"kitchen_cam:last_heartbeat:{kitchen.id}",
         KitchenCamService.HEARTBEAT_TTL,
-        json.dumps({
-            "recorded_at": (datetime.now(tz=UTC) - timedelta(minutes=90)).isoformat(),
-        }),
+        json.dumps(
+            {
+                "recorded_at": (datetime.now(tz=UTC) - timedelta(minutes=90)).isoformat(),
+            }
+        ),
     )
 
     return {"admin": admin, "guest": guest, "kitchen": kitchen, "usage_events": usage_events}

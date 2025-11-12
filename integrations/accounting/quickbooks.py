@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from prep.accounting.schemas import DailyRevenueSummary, ExpenseCategory
 from prep.accounting.service import GAAPLedgerService
@@ -14,9 +14,7 @@ class QuickBooksConnector:
     def __init__(self, service: GAAPLedgerService) -> None:
         self._service = service
 
-    async def push_daily_revenue_summaries(
-        self, summaries: Sequence[DailyRevenueSummary]
-    ) -> int:
+    async def push_daily_revenue_summaries(self, summaries: Sequence[DailyRevenueSummary]) -> int:
         """Push normalized revenue summaries into the GAAP ledger."""
 
         processed = 0
@@ -25,9 +23,7 @@ class QuickBooksConnector:
             processed += 1
         return processed
 
-    async def sync_expense_categories(
-        self, categories: Sequence[ExpenseCategory]
-    ) -> int:
+    async def sync_expense_categories(self, categories: Sequence[ExpenseCategory]) -> int:
         """Sync QuickBooks expense categories into the ledger."""
 
         for category in categories:

@@ -7,7 +7,6 @@ from typing import Any
 
 import boto3
 
-
 DEFAULT_KMS_ALIAS = "alias/prep-regulatory-artifacts"
 
 

@@ -1,19 +1,19 @@
 """Export host metrics to CSV and upload to S3 with KMS encryption."""
+
 from __future__ import annotations
 
 import csv
 import io
 import os
+from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
-from datetime import datetime, UTC
-from typing import Iterable, Iterator, Sequence
+from datetime import UTC, datetime
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine, Result
 from sqlalchemy.exc import SQLAlchemyError
-
 
 BUCKET_NAME = "investor-data-room"
 S3_OBJECT_KEY_TEMPLATE = "metrics_{date}.csv"

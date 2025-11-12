@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import aiohttp
-
 from Prep.docusign_client import DocuSignClient, DocuSignError
 
 DEFAULT_BASE_URL = "https://demo.docusign.net/restapi"
@@ -30,7 +29,7 @@ def _require_env(name: str) -> str:
     return value
 
 
-def _create_client(*, session: Optional[requests.Session] = None) -> DocuSignClient:
+def _create_client(*, session: requests.Session | None = None) -> DocuSignClient:
     base_url = os.getenv(ENV_BASE_URL, DEFAULT_BASE_URL)
     account_id = _require_env(ENV_ACCOUNT_ID)
     access_token = _require_env(ENV_ACCESS_TOKEN)
@@ -47,12 +46,12 @@ def send_sublease(
     signer_email: str,
     signer_name: str,
     return_url: str,
-    client_user_id: Optional[str] = None,
-    ping_url: Optional[str] = None,
-    template_id: Optional[str] = None,
+    client_user_id: str | None = None,
+    ping_url: str | None = None,
+    template_id: str | None = None,
     role_name: str = "signer",
-    session: Optional[requests.Session] = None,
-) -> Tuple[str, str]:
+    session: requests.Session | None = None,
+) -> tuple[str, str]:
     """Send a DocuSign envelope for a sublease template."""
 
     template_to_use = template_id or _require_env(ENV_TEMPLATE_ID)
@@ -75,8 +74,8 @@ async def poll_envelope(
     backoff: float = 1.5,
     timeout: int = 300,
     max_interval: int = 60,
-    session: Optional[aiohttp.ClientSession] = None,
-) -> Dict[str, Any]:
+    session: aiohttp.ClientSession | None = None,
+) -> dict[str, Any]:
     """Poll ``envelope_id`` until it completes or fails."""
 
     if interval <= 0:
@@ -116,9 +115,7 @@ async def poll_envelope(
             if status == "completed":
                 return payload
             if status in TERMINAL_FAILURE_STATES:
-                raise DocuSignError(
-                    f"Envelope {envelope_id} entered terminal state: {status}"
-                )
+                raise DocuSignError(f"Envelope {envelope_id} entered terminal state: {status}")
 
             await asyncio.sleep(current_interval)
             current_interval = min(current_interval * backoff, max_interval)
