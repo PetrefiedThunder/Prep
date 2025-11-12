@@ -168,7 +168,6 @@ async def _get_kitchen_or_404(request: Request, db: AsyncSession, kitchen_id: UU
 @router.get("/kitchens/pending", response_model=KitchenListResponse)
 async def get_pending_kitchens(
     *,
-    cursor: datetime | None = Query(default=None, description="Cursor from the previous page"),
     request: Request,
     cursor: str | None = Query(
         default=None,
@@ -373,7 +372,6 @@ async def get_kitchen_moderation_stats(
 @router.get("/certifications/pending", response_model=CertificationListResponse)
 async def get_pending_certifications(
     *,
-    cursor: datetime | None = Query(default=None, description="Cursor from the previous page"),
     request: Request,
     cursor: str | None = Query(
         default=None,
@@ -568,7 +566,6 @@ async def get_certification_stats(
 @router.get("/users", response_model=UserListResponse)
 async def list_users(
     *,
-    cursor: datetime | None = Query(default=None, description="Cursor from the previous page"),
     request: Request,
     cursor: str | None = Query(
         default=None,
