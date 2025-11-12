@@ -1,10 +1,10 @@
 from __future__ import annotations
+
 import asyncio
 import json
 import sys
 import types
 from pathlib import Path
-from typing import Dict, List
 
 from httpx import ASGITransport, AsyncClient
 
@@ -24,9 +24,7 @@ if "botocore.client" not in sys.modules:
 
 if "prep.platform" not in sys.modules:
     platform_pkg = types.ModuleType("prep.platform")
-    platform_pkg.__path__ = [
-        str((Path(__file__).resolve().parents[2] / "prep" / "platform"))
-    ]
+    platform_pkg.__path__ = [str(Path(__file__).resolve().parents[2] / "prep" / "platform")]
     sys.modules["prep.platform"] = platform_pkg
 
 from prep.platform.rcs.service import create_app
@@ -61,20 +59,18 @@ def test_stream_includes_snapshot_and_updates() -> None:
     async def _run() -> None:
         store = ConfigStore()
         app = create_app(store)
-        messages: List[Dict[str, object]] = []
+        messages: list[dict[str, object]] = []
 
-        queue: asyncio.Queue[Dict[str, object]] = asyncio.Queue()
+        queue: asyncio.Queue[dict[str, object]] = asyncio.Queue()
         await queue.put({"type": "http.request", "body": b"", "more_body": False})
 
-        async def receive() -> Dict[str, object]:
+        async def receive() -> dict[str, object]:
             return await queue.get()
 
-        async def send(message: Dict[str, object]) -> None:
+        async def send(message: dict[str, object]) -> None:
             messages.append(message)
 
-        stream_task = asyncio.create_task(
-            app._handle_stream({}, receive, send)
-        )
+        stream_task = asyncio.create_task(app._handle_stream({}, receive, send))
 
         await asyncio.sleep(0)
 
@@ -97,7 +93,7 @@ def test_stream_includes_snapshot_and_updates() -> None:
     asyncio.run(_run())
 
 
-def _sample_entry(key: str = "delivery.unified-tracker") -> Dict[str, object]:
+def _sample_entry(key: str = "delivery.unified-tracker") -> dict[str, object]:
     return {
         "key": key,
         "state": "on",
@@ -108,14 +104,14 @@ def _sample_entry(key: str = "delivery.unified-tracker") -> Dict[str, object]:
     }
 
 
-def _decode_event(body: bytes) -> Dict[str, object]:
+def _decode_event(body: bytes) -> dict[str, object]:
     prefix = b"data: "
     assert body.startswith(prefix)
     payload = body[len(prefix) :].strip()
     return json.loads(payload)
 
 
-def _entry_model(payload: Dict[str, object]):
+def _entry_model(payload: dict[str, object]):
     from prep.platform.rcs.models import ConfigEntry
 
     return ConfigEntry(**payload)

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatch
-from typing import AsyncGenerator
 from uuid import uuid4
 
 import pytest
@@ -16,7 +16,6 @@ from prep.database import get_db
 from prep.kitchen_cam.api import router
 from prep.models.orm import Base, Booking, BookingStatus, Kitchen, User
 
-
 pytestmark = pytest.mark.anyio("asyncio")
 
 
@@ -29,13 +28,13 @@ class DummyRedis(RedisProtocol):  # type: ignore[misc]
         if not entry:
             return None
         expires, value = entry
-        if expires is not None and expires < datetime.now(timezone.utc).timestamp():
+        if expires is not None and expires < datetime.now(UTC).timestamp():
             self._store.pop(key, None)
             return None
         return value
 
     async def setex(self, key: str, ttl: int, value: str) -> None:
-        expires_at = datetime.now(timezone.utc).timestamp() + ttl if ttl else None
+        expires_at = datetime.now(UTC).timestamp() + ttl if ttl else None
         self._store[key] = (expires_at, value)
 
     async def delete(self, *keys: str) -> int:
@@ -47,7 +46,7 @@ class DummyRedis(RedisProtocol):  # type: ignore[misc]
         return removed
 
     async def keys(self, pattern: str) -> list[str]:
-        now = datetime.now(timezone.utc).timestamp()
+        now = datetime.now(UTC).timestamp()
         matches: list[str] = []
         for key, (expires, _) in list(self._store.items()):
             if expires is not None and expires < now:
@@ -139,7 +138,7 @@ async def _seed_data(app: FastAPI) -> dict[str, User | Kitchen]:
         session.add(kitchen)
         await session.flush()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         booking = Booking(
             host_id=host.id,
             customer_id=operator.id,
@@ -252,7 +251,7 @@ async def test_kitchen_cam_api_flow(app: FastAPI, client: AsyncClient) -> None:
 
     expire = await client.post(
         f"/api/v2/kitchen-cam/{kitchen_id}/data/expire",
-        json={"before": (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()},
+        json={"before": (datetime.now(UTC) - timedelta(days=7)).isoformat()},
     )
     assert expire.status_code == 200
     assert expire.json()["scheduled"] is True
@@ -265,9 +264,7 @@ async def test_kitchen_cam_api_flow(app: FastAPI, client: AsyncClient) -> None:
     assert cameras.status_code == 200
     assert len(cameras.json()["items"]) >= 2
 
-    snapshot = await client.get(
-        f"/api/v2/kitchen-cam/{kitchen_id}/cameras/primary/snapshot"
-    )
+    snapshot = await client.get(f"/api/v2/kitchen-cam/{kitchen_id}/cameras/primary/snapshot")
     assert snapshot.status_code == 200
 
     record = await client.post(

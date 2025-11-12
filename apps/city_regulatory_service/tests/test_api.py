@@ -52,10 +52,7 @@ class TestComplianceEndpoints:
 
     def test_compliance_query_missing_jurisdiction(self):
         """Test compliance query with missing jurisdiction."""
-        response = client.post(
-            "/compliance/query",
-            json={"business_type": "restaurant"}
-        )
+        response = client.post("/compliance/query", json={"business_type": "restaurant"})
         # Should return 422 for validation error
         assert response.status_code == 422
 
@@ -63,10 +60,7 @@ class TestComplianceEndpoints:
         """Test valid compliance query."""
         response = client.post(
             "/compliance/query",
-            json={
-                "jurisdiction": "San Francisco",
-                "business_type": "restaurant"
-            }
+            json={"jurisdiction": "San Francisco", "business_type": "restaurant"},
         )
         # May 404 if DB not populated, but should not 500
         assert response.status_code in [200, 404]
@@ -95,10 +89,7 @@ class TestETLEndpoints:
 
     def test_etl_run_invalid_city(self):
         """Test ETL run with invalid city."""
-        response = client.post(
-            "/etl/run",
-            json={"city": "InvalidCity"}
-        )
+        response = client.post("/etl/run", json={"city": "InvalidCity"})
         # Should return 400 for unsupported city
         assert response.status_code == 400
 
@@ -110,10 +101,7 @@ class TestETLEndpoints:
         """Test ETL run has valid response structure."""
         # Note: This will actually run ETL if DB is available
         # In production tests, you'd mock the DB
-        response = client.post(
-            "/etl/run",
-            json={"city": "San Francisco"}
-        )
+        response = client.post("/etl/run", json={"city": "San Francisco"})
 
         # May fail if no DB, but structure should be consistent
         if response.status_code == 200:

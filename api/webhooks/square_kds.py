@@ -34,9 +34,7 @@ def get_verifier(request: Request) -> SquareWebhookVerifier:
     signature_key = os.getenv("SQUARE_KDS_SIGNATURE_KEY", "")
     notification_url = os.getenv("SQUARE_KDS_NOTIFICATION_URL", str(request.url))
     try:
-        return SquareWebhookVerifier(
-            signature_key=signature_key, notification_url=notification_url
-        )
+        return SquareWebhookVerifier(signature_key=signature_key, notification_url=notification_url)
     except ValueError as exc:  # pragma: no cover - env misconfiguration
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
@@ -57,9 +55,7 @@ async def handle_prep_time(
     try:
         verifier.verify(body, signature)
     except SquareWebhookVerificationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 
     try:
         payload = json.loads(body)

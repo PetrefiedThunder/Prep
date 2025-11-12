@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -87,24 +87,24 @@ async def _seed_kitchen(session: AsyncSession, owner: User, **kwargs) -> Kitchen
         description=kwargs.get("description", ""),
         trust_score=kwargs.get("trust_score"),
         hourly_rate=kwargs.get("hourly_rate"),
-        certification_status=kwargs.get(
-            "certification_status", CertificationReviewStatus.PENDING
-        ),
+        certification_status=kwargs.get("certification_status", CertificationReviewStatus.PENDING),
         moderation_status=kwargs.get("moderation_status", ModerationStatus.PENDING),
-        submitted_at=kwargs.get("submitted_at", datetime.now(timezone.utc)),
+        submitted_at=kwargs.get("submitted_at", datetime.now(UTC)),
     )
     session.add(kitchen)
     await session.flush()
     return kitchen
 
 
-async def _seed_certification(session: AsyncSession, kitchen: Kitchen, **kwargs) -> CertificationDocument:
+async def _seed_certification(
+    session: AsyncSession, kitchen: Kitchen, **kwargs
+) -> CertificationDocument:
     certification = CertificationDocument(
         kitchen_id=kitchen.id,
         document_type=kwargs.get("document_type", "health_department"),
         document_url=kwargs.get("document_url", "https://example.com/cert.pdf"),
         status=kwargs.get("status", CertificationReviewStatus.PENDING),
-        submitted_at=kwargs.get("submitted_at", datetime.now(timezone.utc)),
+        submitted_at=kwargs.get("submitted_at", datetime.now(UTC)),
         expires_at=kwargs.get("expires_at"),
     )
     session.add(certification)
@@ -217,12 +217,12 @@ async def test_stats_endpoints(client: AsyncClient, app: FastAPI) -> None:
         owner = await _seed_user(session)
         kitchen = await _seed_kitchen(session, owner)
         kitchen.moderation_status = ModerationStatus.APPROVED
-        kitchen.moderated_at = datetime.now(timezone.utc)
+        kitchen.moderated_at = datetime.now(UTC)
         certification = await _seed_certification(
             session,
             kitchen,
             status=CertificationReviewStatus.APPROVED,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=10),
+            expires_at=datetime.now(UTC) + timedelta(days=10),
         )
         certification.reviewer_id = admin_user.id
         await session.commit()

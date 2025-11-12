@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import Dict, Iterable, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -23,7 +23,9 @@ from prep.models.certification_models import (
     VerificationResult,
 )
 
-certification_router = APIRouter(prefix="/api/v1/admin/certifications", tags=["admin", "certifications"])
+certification_router = APIRouter(
+    prefix="/api/v1/admin/certifications", tags=["admin", "certifications"]
+)
 
 
 class KitchenContext(BaseModel):
@@ -52,24 +54,26 @@ class CertificationVerificationAPI:
     def __init__(
         self,
         *,
-        certifications: Optional[Dict[UUID, CertificationDocument]] = None,
-        workflow: Optional[CertificationVerificationWorkflow] = None,
+        certifications: dict[UUID, CertificationDocument] | None = None,
+        workflow: CertificationVerificationWorkflow | None = None,
     ) -> None:
-        self._kitchens: Dict[UUID, KitchenContext] = self._seed_kitchens()
-        self._certifications: Dict[UUID, CertificationDocument] = certifications or {
+        self._kitchens: dict[UUID, KitchenContext] = self._seed_kitchens()
+        self._certifications: dict[UUID, CertificationDocument] = certifications or {
             doc.id: doc for doc in self._seed_certifications()
         }
         self._workflow = workflow or CertificationVerificationWorkflow(
             self._certifications,
-            kitchen_statuses={kitchen_id: ctx.certification_status for kitchen_id, ctx in self._kitchens.items()},
+            kitchen_statuses={
+                kitchen_id: ctx.certification_status for kitchen_id, ctx in self._kitchens.items()
+            },
         )
         self._refresh_all_kitchen_statuses()
 
     def get_pending_certifications(
         self,
         *,
-        kitchen_id: Optional[UUID] = None,
-        submitted_after: Optional[datetime] = None,
+        kitchen_id: UUID | None = None,
+        submitted_after: datetime | None = None,
         limit: int = 20,
         offset: int = 0,
     ) -> PendingCertificationsResponse:
@@ -79,7 +83,7 @@ class CertificationVerificationAPI:
             CertificationDocumentStatus.PENDING,
             CertificationDocumentStatus.RENEWAL_REQUESTED,
         }
-        documents: List[CertificationDocument] = [
+        documents: list[CertificationDocument] = [
             document.model_copy(deep=True)
             for document in self._certifications.values()
             if document.status in pending_statuses
@@ -88,21 +92,14 @@ class CertificationVerificationAPI:
         if kitchen_id:
             documents = [doc for doc in documents if doc.kitchen_id == kitchen_id]
         if submitted_after:
-            documents = [
-                doc
-                for doc in documents
-                if doc.uploaded_at >= submitted_after
-            ]
+            documents = [doc for doc in documents if doc.uploaded_at >= submitted_after]
 
         documents.sort(key=lambda doc: doc.uploaded_at, reverse=True)
 
         total_count = len(documents)
         page = documents[offset : offset + limit]
         now = datetime.now(UTC)
-        summaries = [
-            self._to_pending_summary(document, now)
-            for document in page
-        ]
+        summaries = [self._to_pending_summary(document, now) for document in page]
 
         return PendingCertificationsResponse(
             certifications=summaries,
@@ -188,9 +185,7 @@ class CertificationVerificationAPI:
             status = self._workflow.update_kitchen_certification_status(kitchen_id)
             self._kitchens[kitchen_id].certification_status = status
 
-    def _available_actions(
-        self, status: CertificationDocumentStatus
-    ) -> List[VerificationAction]:
+    def _available_actions(self, status: CertificationDocumentStatus) -> list[VerificationAction]:
         if status is CertificationDocumentStatus.PENDING:
             return [
                 VerificationAction.VERIFY,
@@ -208,7 +203,7 @@ class CertificationVerificationAPI:
         return [VerificationAction.VERIFY]
 
     @staticmethod
-    def _seed_kitchens() -> Dict[UUID, KitchenContext]:
+    def _seed_kitchens() -> dict[UUID, KitchenContext]:
         """Return deterministic kitchens for use in local development."""
 
         return {
@@ -279,7 +274,7 @@ class CertificationVerificationAPI:
         ]
 
 
-_certification_api: Optional[CertificationVerificationAPI] = None
+_certification_api: CertificationVerificationAPI | None = None
 
 
 def get_certification_verification_api() -> CertificationVerificationAPI:
@@ -305,8 +300,8 @@ async def get_current_admin() -> AdminUser:
 async def list_pending_certifications(
     *,
     current_admin: AdminUser = Depends(get_current_admin),
-    kitchen_id: Optional[UUID] = None,
-    submitted_after: Optional[datetime] = None,
+    kitchen_id: UUID | None = None,
+    submitted_after: datetime | None = None,
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     api: CertificationVerificationAPI = Depends(get_certification_verification_api),
@@ -315,31 +310,12 @@ async def list_pending_certifications(
 
     # current_admin dependency retained for parity with protected endpoints
     _ = current_admin
-    return api.get_pending_certifications(
-"""FastAPI router powering certification verification endpoints."""
-
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-from uuid import UUID, uuid4
-
-from fastapi import APIRouter, Depends, HTTPException, Query
-
-from prep.admin.workflows import CertificationVerificationWorkflow
-from prep.models.pydantic_exports import (
-    AdminUser,
-    CertificationDetail,
-    CertificationVerificationRequest,
-    PendingCertificationsResponse,
-    VerificationResult,
-)
-
-if TYPE_CHECKING:
-    from datetime import datetime
-
-router = APIRouter()
-
-_WORKFLOW = CertificationVerificationWorkflow()
+    return await api.list_pending_certifications(
+        kitchen_id=kitchen_id,
+        submitted_after=submitted_after,
+        limit=limit,
+        offset=offset,
+    )
 
 
 async def get_current_admin() -> AdminUser:
@@ -358,7 +334,8 @@ async def get_pending_certifications(
     current_admin: AdminUser = Depends(get_current_admin),
     kitchen_id: UUID | None = Query(default=None, description="Filter by kitchen identifier"),
     submitted_after: datetime | None = Query(
-        default=None, description="Return certifications submitted on or after this timestamp",
+        default=None,
+        description="Return certifications submitted on or after this timestamp",
     ),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
@@ -409,6 +386,7 @@ __all__ = [
     "get_certification_verification_api",
     "certification_router",
 ]
+
 
 @router.get("/api/v1/admin/certifications/{cert_id}", response_model=CertificationDetail)
 async def get_certification_detail(

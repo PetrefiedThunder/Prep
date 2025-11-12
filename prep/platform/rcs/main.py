@@ -1,4 +1,5 @@
 """Entry point for running the Realtime Config Service with Uvicorn."""
+
 import uvicorn
 
 from .service import app

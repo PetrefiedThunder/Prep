@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -35,13 +35,15 @@ def _as_isoformat(value: Any) -> str | None:
         return None
     if isinstance(value, datetime):
         if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
+            value = value.replace(tzinfo=UTC)
         return value.isoformat()
     return str(value)
 
 
 @router.get("/host/{host_id}")
-async def get_host_metrics(host_id: UUID, session: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+async def get_host_metrics(
+    host_id: UUID, session: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
     """Return host metrics sourced from the ``mv_host_metrics`` view."""
 
     query = text(

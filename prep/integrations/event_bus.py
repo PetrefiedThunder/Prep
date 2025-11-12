@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Awaitable, Callable, List, Optional, Protocol
+from collections.abc import Awaitable, Callable
+from typing import Protocol
 
 from .models import IntegrationEvent
 from .state import IntegrationStatusStore
@@ -22,7 +23,9 @@ logger = logging.getLogger(__name__)
 class IntegrationEventPublisher(Protocol):
     """Protocol for publishing integration events."""
 
-    async def publish(self, event: IntegrationEvent) -> None:  # pragma: no cover - interface definition
+    async def publish(
+        self, event: IntegrationEvent
+    ) -> None:  # pragma: no cover - interface definition
         """Publish an :class:`IntegrationEvent`."""
 
 
@@ -30,7 +33,7 @@ class InMemoryIntegrationEventBus:
     """Simple event bus used for local testing and unit tests."""
 
     def __init__(self) -> None:
-        self._subscribers: List[Callable[[IntegrationEvent], Awaitable[None]]] = []
+        self._subscribers: list[Callable[[IntegrationEvent], Awaitable[None]]] = []
 
     def subscribe(self, handler: Callable[[IntegrationEvent], Awaitable[None]]) -> None:
         self._subscribers.append(handler)
@@ -53,7 +56,7 @@ class KafkaIntegrationEventPublisher:
         self.bootstrap_servers = bootstrap_servers
         self.topic = topic
         self.client_id = client_id
-        self._producer: Optional[AIOKafkaProducer] = None
+        self._producer: AIOKafkaProducer | None = None
 
     async def start(self) -> None:
         if AIOKafkaProducer is None:  # pragma: no cover - environment guard
@@ -67,7 +70,9 @@ class KafkaIntegrationEventPublisher:
             await producer.start()
             self._producer = producer
             logger.info(
-                "Kafka integration publisher started", topic=self.topic, bootstrap_servers=self.bootstrap_servers
+                "Kafka integration publisher started",
+                topic=self.topic,
+                bootstrap_servers=self.bootstrap_servers,
             )
 
     async def stop(self) -> None:
@@ -78,7 +83,9 @@ class KafkaIntegrationEventPublisher:
 
     async def publish(self, event: IntegrationEvent) -> None:
         if self._producer is None:
-            raise RuntimeError("KafkaIntegrationEventPublisher.start() must be awaited before publishing")
+            raise RuntimeError(
+                "KafkaIntegrationEventPublisher.start() must be awaited before publishing"
+            )
         payload = event.model_dump(by_alias=True, mode="json")
         await self._producer.send_and_wait(self.topic, payload)
 
@@ -98,8 +105,8 @@ class KafkaIntegrationEventConsumer:
         self.store = store
         self.topic = topic
         self.group_id = group_id
-        self._consumer: Optional[AIOKafkaConsumer] = None
-        self._task: Optional[asyncio.Task[None]] = None
+        self._consumer: AIOKafkaConsumer | None = None
+        self._task: asyncio.Task[None] | None = None
         self._stopping = asyncio.Event()
 
     async def start(self) -> None:
@@ -119,7 +126,9 @@ class KafkaIntegrationEventConsumer:
         self._stopping.clear()
         self._task = asyncio.create_task(self._consume())
         logger.info(
-            "Kafka integration consumer started", topic=self.topic, bootstrap_servers=self.bootstrap_servers
+            "Kafka integration consumer started",
+            topic=self.topic,
+            bootstrap_servers=self.bootstrap_servers,
         )
 
     async def stop(self) -> None:

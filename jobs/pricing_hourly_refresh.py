@@ -5,10 +5,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Callable, Iterable, Protocol
+from typing import Any, Protocol
 
 try:  # pragma: no cover - optional dependency in minimal test environments
     from sqlalchemy import select  # type: ignore
@@ -17,6 +18,8 @@ except ModuleNotFoundError:  # pragma: no cover - allow running without SQLAlche
     select = None  # type: ignore
     Session = Any  # type: ignore
 
+from prep.models.db import SessionLocal
+from prep.models.orm import Kitchen
 from prep.monitoring.observability import EnterpriseObservability
 from prep.pricing import store_pricing_status
 
@@ -41,8 +44,9 @@ SessionFactory = Callable[[], Session]
 class PricingStrategy(Protocol):
     """Protocol describing the pricing refresh strategy."""
 
-    def build_payload(self, kitchen: Kitchen, *, refreshed_at: datetime) -> dict[str, Any] | None:
-        ...
+    def build_payload(
+        self, kitchen: Kitchen, *, refreshed_at: datetime
+    ) -> dict[str, Any] | None: ...
 
 
 @dataclass(slots=True)
@@ -137,7 +141,10 @@ def run_pricing_refresh(
             except Exception as exc:  # pragma: no cover - strategy-specific failure
                 failures += 1
                 error_message = f"kitchen={getattr(kitchen, 'id', 'unknown')}: {exc}"
-                logger.exception("Failed to build pricing payload", extra={"kitchen_id": getattr(kitchen, "id", None)})
+                logger.exception(
+                    "Failed to build pricing payload",
+                    extra={"kitchen_id": getattr(kitchen, "id", None)},
+                )
                 errors.append(error_message)
                 continue
 
@@ -158,6 +165,93 @@ def run_pricing_refresh(
         failures += 1
         errors.append(str(exc))
         logger.exception("Pricing refresh failed")
+
+
+@dataclass(slots=True)
+class PricingRefreshSummary:
+    """Summary emitted after a pricing refresh run."""
+
+    total_kitchens: int
+    updated: int
+    timestamp: datetime
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "total_kitchens": self.total_kitchens,
+            "updated": self.updated,
+            "timestamp": self.timestamp.isoformat(),
+        }
+
+
+def _load_kitchens(session: Session) -> Iterable[Kitchen]:
+    if select is None or Kitchen is Any:  # pragma: no cover - SQLAlchemy not installed
+        raise RuntimeError("SQLAlchemy is required to refresh pricing")
+    stmt = select(Kitchen)
+    return session.execute(stmt).scalars()
+
+
+def _build_metrics(kitchen: Kitchen) -> UtilizationMetrics:
+    pricing_payload = kitchen.pricing or {}
+    try:
+        utilization = float(pricing_payload.get("utilization_rate", 1.0))
+    except (TypeError, ValueError):
+        utilization = 1.0
+    try:
+        active = int(pricing_payload.get("active_bookings", 0))
+    except (TypeError, ValueError):
+        active = 0
+    try:
+        cancellation = float(pricing_payload.get("cancellation_rate", 0.0))
+    except (TypeError, ValueError):
+        cancellation = 0.0
+    return UtilizationMetrics(
+        utilization_rate=utilization,
+        active_bookings=active,
+        cancellation_rate=cancellation,
+    )
+
+
+def refresh_pricing(
+    *,
+    session_factory: SessionFactory | None = SessionLocal,
+    now: datetime | None = None,
+) -> PricingRefreshSummary:
+    """Refresh pricing recommendations across all kitchens.
+
+    The job runs once per hour and writes the applied discount and refresh timestamp
+    back to ``Kitchen.pricing`` to ensure downstream components (checkpoint C3) can
+    continue using the existing payload structure.
+    """
+
+    if session_factory is None:
+        raise RuntimeError("A session factory is required to refresh pricing")
+
+    engine = build_default_engine()
+    session = session_factory()
+    updated = 0
+    timestamp = now or datetime.now(UTC)
+    kitchens: list[Kitchen] = []
+
+    try:
+        kitchens = list(_load_kitchens(session))
+        for kitchen in kitchens:
+            metrics = _build_metrics(kitchen)
+            decision = engine.evaluate(metrics)
+            if decision.discount <= 0:
+                continue
+
+            pricing_payload = dict(kitchen.pricing or {})
+            pricing_payload["discount_percent"] = decision.discount
+            pricing_payload["pricing_rules"] = decision.applied_rules
+            pricing_payload["last_refreshed_at"] = timestamp.isoformat()
+            kitchen.pricing = pricing_payload
+            updated += 1
+
+        session.commit()
+    except Exception:
+        session.rollback()
+        logger.exception("Hourly pricing refresh failed")
+        raise
     finally:
         session.close()
 
@@ -188,7 +282,9 @@ def run_pricing_refresh(
     )
 
     status_payload = summary.as_dict()
-    status_payload.update({"duration_seconds": duration, "status": "success" if success else "failed"})
+    status_payload.update(
+        {"duration_seconds": duration, "status": "success" if success else "failed"}
+    )
     asyncio.run(store_pricing_status(status_payload))
 
     logger.info("Pricing refresh completed", extra=summary.as_dict())

@@ -1,7 +1,4 @@
 import json
-from pathlib import Path
-
-import json
 
 import pytest
 

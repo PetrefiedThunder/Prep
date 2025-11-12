@@ -26,14 +26,16 @@ class FinanceJobSchedule:
     cron: str = NIGHTLY_CRON
 
     @classmethod
-    def with_default_cron(cls, *, name: str, description: str, cron: Optional[str] = None) -> "FinanceJobSchedule":
+    def with_default_cron(
+        cls, *, name: str, description: str, cron: str | None = None
+    ) -> FinanceJobSchedule:
         """Create a schedule ensuring a nightly cron is present."""
 
         resolved_cron = ensure_nightly_schedule(cron, job_name=name)
         return cls(name=name, description=description, cron=resolved_cron)
 
 
-def ensure_nightly_schedule(cron: Optional[str], *, job_name: str) -> str:
+def ensure_nightly_schedule(cron: str | None, *, job_name: str) -> str:
     """Return a cron string, defaulting to the nightly cadence when missing."""
 
     if cron:

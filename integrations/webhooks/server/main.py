@@ -1,4 +1,5 @@
 """FastAPI application that receives Prep webhook events."""
+
 from __future__ import annotations
 
 import hashlib
@@ -6,7 +7,7 @@ import hmac
 import json
 import logging
 import os
-from typing import Generator
+from collections.abc import Generator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -118,7 +119,9 @@ async def handle_prep_webhook(
 
     event_id = payload_json.get("event_id")
     if not event_id:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Missing event_id")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Missing event_id"
+        )
 
     envelope = Envelope(
         event_id=str(event_id),
@@ -141,10 +144,14 @@ async def handle_prep_webhook(
     except Exception:  # pragma: no cover - unexpected persistence issue
         db.rollback()
         LOGGER.exception("Failed to persist webhook envelope (event_id=%s)", envelope.event_id)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to persist envelope")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to persist envelope"
+        )
 
     ACK_COUNTER.inc()
-    LOGGER.info("Webhook acknowledged (event_id=%s, event_type=%s)", envelope.event_id, envelope.event_type)
+    LOGGER.info(
+        "Webhook acknowledged (event_id=%s, event_type=%s)", envelope.event_id, envelope.event_type
+    )
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={"status": "accepted", "event_id": envelope.event_id},

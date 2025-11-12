@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any, Dict, Iterable, IO, List, Mapping
+from typing import IO, Any
 
 try:  # pragma: no cover - optional dependency
     import yaml  # type: ignore
@@ -24,15 +25,15 @@ class BaseConfigSchema(ABC):
         config_required: bool = True,
     ) -> None:
         self.logger = logger or logging.getLogger(f"{self.__module__}.{self.__class__.__name__}")
-        self.config: Dict[str, Any] = {}
-        self._validation_errors: List[str] = []
+        self.config: dict[str, Any] = {}
+        self._validation_errors: list[str] = []
         self._validated: bool = False
         self._config_required = config_required
 
     # ------------------------------------------------------------------
     # Configuration helpers
     # ------------------------------------------------------------------
-    def load_config(self, config_path: str) -> Dict[str, Any]:
+    def load_config(self, config_path: str) -> dict[str, Any]:
         """Load configuration data from ``config_path``.
 
         JSON files are supported out of the box. YAML files can also be used
@@ -62,7 +63,7 @@ class BaseConfigSchema(ABC):
             data = json.load(handle)
         return data  # type: ignore[return-value]
 
-    def _normalise_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalise_config(self, config: dict[str, Any]) -> dict[str, Any]:
         return config
 
     # ------------------------------------------------------------------
@@ -80,10 +81,10 @@ class BaseConfigSchema(ABC):
         return self._validated
 
     @abstractmethod
-    def _run_validation(self, *args: Any, **kwargs: Any) -> List[str]:
+    def _run_validation(self, *args: Any, **kwargs: Any) -> list[str]:
         """Return a list of validation error messages."""
 
-    def ensure_config_loaded(self) -> Dict[str, Any]:
+    def ensure_config_loaded(self) -> dict[str, Any]:
         if self._config_required and not self.config:
             raise ValueError("Configuration not loaded")
         return self.config
@@ -107,14 +108,14 @@ class BaseConfigSchema(ABC):
         return report
 
     @property
-    def validation_errors(self) -> List[str]:
+    def validation_errors(self) -> list[str]:
         return list(self._validation_errors)
 
 
 class IterableValidationMixin:
     """Mixin providing helper to coerce iterables to a list."""
 
-    def _ensure_list(self, items: Iterable[Any]) -> List[Any]:
+    def _ensure_list(self, items: Iterable[Any]) -> list[Any]:
         if isinstance(items, list):
             return items
         return list(items)

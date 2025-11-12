@@ -1,5 +1,3 @@
-import asyncio
-
 import pytest
 
 wiremock = pytest.importorskip("wiremock")

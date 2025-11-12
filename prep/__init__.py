@@ -18,7 +18,7 @@ from . import utility
 
 __all__ = ["initialize", "utility"]
 
-_CONFIG: Dict[str, Any] | None = None
+_CONFIG: dict[str, Any] | None = None
 
 
 _CONFIG_PATH: Path | None = None
@@ -28,7 +28,7 @@ def initialize(
     config_path: str | None = None,
     *,
     force_reload: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Load configuration from ``config_path``.
 
     Parameters

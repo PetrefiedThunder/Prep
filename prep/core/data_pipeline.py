@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Protocol
+from typing import Any, Protocol
 
 from .orchestration import ComplianceDomain
 
@@ -24,7 +24,7 @@ class DataStream:
 
     source: DataSource
     payload: Any
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -34,28 +34,26 @@ class StandardizedData:
     domain: ComplianceDomain
     content: Any
     quality_score: float = 1.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class DataIngester(Protocol):
-    async def ingest(self, config: Dict[str, Any]) -> DataStream:
-        ...
+    async def ingest(self, config: dict[str, Any]) -> DataStream: ...
 
 
 class DataTransformer(Protocol):
-    async def transform(self, raw_data: Any) -> StandardizedData:
-        ...
+    async def transform(self, raw_data: Any) -> StandardizedData: ...
 
 
 class APIDataIngester:
-    async def ingest(self, config: Dict[str, Any]) -> DataStream:
+    async def ingest(self, config: dict[str, Any]) -> DataStream:
         payload = config.get("data")
         metadata = {"endpoint": config.get("endpoint"), "headers": config.get("headers", {})}
         return DataStream(source=DataSource.API, payload=payload, metadata=metadata)
 
 
 class DatabaseIngester:
-    async def ingest(self, config: Dict[str, Any]) -> DataStream:
+    async def ingest(self, config: dict[str, Any]) -> DataStream:
         query = config.get("query", "")
         payload = config.get("data")
         metadata = {"connection": config.get("connection"), "query": query}
@@ -63,14 +61,14 @@ class DatabaseIngester:
 
 
 class FileIngester:
-    async def ingest(self, config: Dict[str, Any]) -> DataStream:
+    async def ingest(self, config: dict[str, Any]) -> DataStream:
         payload = config.get("data")
         metadata = {"filename": config.get("filename"), "content_type": config.get("content_type")}
         return DataStream(source=DataSource.FILE_UPLOAD, payload=payload, metadata=metadata)
 
 
 class WebScraperIngester:
-    async def ingest(self, config: Dict[str, Any]) -> DataStream:
+    async def ingest(self, config: dict[str, Any]) -> DataStream:
         payload = config.get("data")
         metadata = {"url": config.get("url"), "selector": config.get("selector")}
         return DataStream(source=DataSource.WEB_SCRAPING, payload=payload, metadata=metadata)
@@ -78,8 +76,13 @@ class WebScraperIngester:
 
 class GDPRDataTransformer:
     async def transform(self, raw_data: Any) -> StandardizedData:
-        content = {"data_subjects": raw_data.get("data_subjects", []), "consents": raw_data.get("consents", [])}
-        return StandardizedData(domain=ComplianceDomain.GDPR_CCPA, content=content, quality_score=0.95)
+        content = {
+            "data_subjects": raw_data.get("data_subjects", []),
+            "consents": raw_data.get("consents", []),
+        }
+        return StandardizedData(
+            domain=ComplianceDomain.GDPR_CCPA, content=content, quality_score=0.95
+        )
 
 
 class AMLDataTransformer:
@@ -97,7 +100,9 @@ class AccountingDataTransformer:
             "ledger_entries": raw_data.get("ledger_entries", []),
             "financial_statements": raw_data.get("financial_statements", []),
         }
-        return StandardizedData(domain=ComplianceDomain.GAAP_IFRS, content=content, quality_score=0.92)
+        return StandardizedData(
+            domain=ComplianceDomain.GAAP_IFRS, content=content, quality_score=0.92
+        )
 
 
 class UnifiedDataPipeline:
@@ -117,7 +122,7 @@ class UnifiedDataPipeline:
             ComplianceDomain.GAAP_IFRS: AccountingDataTransformer(),
         }
 
-    async def ingest_data(self, source_type: DataSource, config: Dict[str, Any]) -> DataStream:
+    async def ingest_data(self, source_type: DataSource, config: dict[str, Any]) -> DataStream:
         """Ingest data from the provided source using a unified interface."""
 
         try:

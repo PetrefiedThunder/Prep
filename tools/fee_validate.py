@@ -7,9 +7,10 @@ import importlib.util
 import json
 import pkgutil
 import sys
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Callable, Iterable
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:

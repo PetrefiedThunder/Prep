@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Any
 from .db import SessionLocal, engine, get_db_url
 from .guid import GUID
 from .orm import (
-    Base,
     APIUsageEvent,
+    Base,
     Booking,
     BookingStatus,
     COIDocument,
@@ -75,5 +75,5 @@ __all__ = [
 def __getattr__(name: str) -> Any:
     if name == "PolicyDecision":
         module = import_module("prep.regulatory.models")
-        return getattr(module, "PolicyDecision")
+        return module.PolicyDecision
     raise AttributeError(name)

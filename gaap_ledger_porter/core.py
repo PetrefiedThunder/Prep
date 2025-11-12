@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 
 from prep.utility.config_schema import BaseConfigSchema, IterableValidationMixin
 
@@ -12,7 +13,7 @@ class GAAPLedgerPorter(IterableValidationMixin, BaseConfigSchema):
 
     def __init__(self, *, logger=None) -> None:
         super().__init__(logger=logger, config_required=False)
-        self.ledger: List[Dict[str, float]] = []
+        self.ledger: list[dict[str, float]] = []
         self.is_valid: bool = False
 
     def load_config(self, config_path: str) -> None:  # type: ignore[override]
@@ -26,18 +27,14 @@ class GAAPLedgerPorter(IterableValidationMixin, BaseConfigSchema):
                 raise TypeError("Ledger import must be a list of entries")
             self.ledger = self._ensure_list(data)
 
-    def validate(
-        self, ledger: Optional[Iterable[Dict[str, float]]] = None
-    ) -> bool:  # type: ignore[override]
+    def validate(self, ledger: Iterable[dict[str, float]] | None = None) -> bool:  # type: ignore[override]
         if ledger is None and not self.ledger:
             raise ValueError("Ledger data not provided")
         return super().validate(ledger if ledger is not None else self.ledger)
 
-    def _run_validation(
-        self, ledger: Iterable[Dict[str, Any]]
-    ) -> List[str]:  # type: ignore[override]
+    def _run_validation(self, ledger: Iterable[dict[str, Any]]) -> list[str]:  # type: ignore[override]
         ledger_list = self._ensure_list(ledger)
-        errors: List[str] = []
+        errors: list[str] = []
         total_debit = 0.0
         total_credit = 0.0
 
@@ -63,10 +60,7 @@ class GAAPLedgerPorter(IterableValidationMixin, BaseConfigSchema):
         self.ledger = ledger_list
 
         if not balanced:
-            errors.append(
-                "Ledger is not balanced: "
-                f"debit={total_debit}, credit={total_credit}"
-            )
+            errors.append(f"Ledger is not balanced: debit={total_debit}, credit={total_credit}")
 
         return errors
 
@@ -83,8 +77,7 @@ class GAAPLedgerPorter(IterableValidationMixin, BaseConfigSchema):
         total_debit = sum(float(entry["debit"]) for entry in self.ledger)
         total_credit = sum(float(entry["credit"]) for entry in self.ledger)
         report = (
-            f"Total Debit: {total_debit}, Total Credit: {total_credit}, "
-            f"Balanced: {self.is_valid}"
+            f"Total Debit: {total_debit}, Total Credit: {total_credit}, Balanced: {self.is_valid}"
         )
 
         export_path = self.config.get("export_path")

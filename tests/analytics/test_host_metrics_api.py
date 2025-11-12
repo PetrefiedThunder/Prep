@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -14,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from prep.analytics.host_metrics_api import router as host_metrics_router
 from prep.database import get_db
-
 
 pytestmark = pytest.mark.anyio("asyncio")
 
@@ -73,7 +73,7 @@ async def _seed_metrics(app: FastAPI, **overrides: Any) -> dict[str, Any]:
         "total_revenue_cents": 12500,
         "completed_shifts": 14,
         "incident_count": 2,
-        "calculated_at": datetime(2024, 1, 1, tzinfo=timezone.utc).isoformat(),
+        "calculated_at": datetime(2024, 1, 1, tzinfo=UTC).isoformat(),
     }
     payload = {**defaults, **overrides}
 
@@ -98,7 +98,9 @@ async def _seed_metrics(app: FastAPI, **overrides: Any) -> dict[str, Any]:
     return payload
 
 
-async def test_get_host_metrics_returns_structured_payload(app: FastAPI, client: AsyncClient) -> None:
+async def test_get_host_metrics_returns_structured_payload(
+    app: FastAPI, client: AsyncClient
+) -> None:
     """The endpoint should return structured metrics data when available."""
 
     metrics = await _seed_metrics(app)

@@ -169,8 +169,7 @@ class CityExpansionService:
                 func.sum(case((Kitchen.published.is_(True), 1), else_=0)).label("published"),
                 func.avg(Kitchen.hourly_rate).label("avg_rate"),
                 func.avg(Kitchen.trust_score).label("avg_trust"),
-            )
-            .where(func.lower(Kitchen.city) == normalized_city)
+            ).where(func.lower(Kitchen.city) == normalized_city)
         )
         stats_row = kitchen_stats.one()
         total_kitchens = int(stats_row.kitchen_count or 0)
@@ -196,7 +195,9 @@ class CityExpansionService:
         trends = await self._load_trends(normalized_city)
         demand_index = self._calculate_demand_index(total_kitchens, booking_count_30d)
 
-        top_kitchens_raw = await self._matching_service.recommend_top_kitchens_for_city(normalized_city)
+        top_kitchens_raw = await self._matching_service.recommend_top_kitchens_for_city(
+            normalized_city
+        )
         top_kitchens = await self._to_highlights(top_kitchens_raw, currency_code)
 
         metrics = CityMarketMetrics(
@@ -245,7 +246,9 @@ class CityExpansionService:
         normalized_city = self._normalize_city(city)
         currency_code = self._normalize_currency(currency or self.DEFAULT_CURRENCY)
 
-        matches = await self._matching_service.recommend_top_kitchens_for_city(normalized_city, limit=8)
+        matches = await self._matching_service.recommend_top_kitchens_for_city(
+            normalized_city, limit=8
+        )
         competitors: list[CompetitorProfile] = []
         for match in matches:
             converted_rate = self._convert_value(match.hourly_rate, currency_code)
@@ -261,7 +264,9 @@ class CityExpansionService:
                 )
             )
 
-        market_share = min(sum((item.occupancy_rate or 0) for item in competitors) / len(competitors or [1]), 1.0)
+        market_share = min(
+            sum((item.occupancy_rate or 0) for item in competitors) / len(competitors or [1]), 1.0
+        )
 
         confidence = [
             ConfidenceSignal(
@@ -378,13 +383,16 @@ class CityExpansionService:
     # ------------------------------------------------------------------
     async def get_city_regulations(self, city: str) -> CityRegulationResponse:
         normalized_city = self._normalize_city(city)
-        requirements = self.CITY_REGULATIONS.get(normalized_city, [
-            RegulationItem(
-                category="General",
-                description="Verify local business licensing, zoning approval, and fire inspections",
-                due_in_days=30,
-            )
-        ])
+        requirements = self.CITY_REGULATIONS.get(
+            normalized_city,
+            [
+                RegulationItem(
+                    category="General",
+                    description="Verify local business licensing, zoning approval, and fire inspections",
+                    due_in_days=30,
+                )
+            ],
+        )
 
         confidence = [
             ConfidenceSignal(
@@ -419,7 +427,9 @@ class CityExpansionService:
 
     async def check_compliance(self, payload: ComplianceCheckRequest) -> ComplianceCheckResponse:
         normalized_city = self._normalize_city(payload.city)
-        requirements = {item.category.lower(): item for item in self.CITY_REGULATIONS.get(normalized_city, [])}
+        requirements = {
+            item.category.lower(): item for item in self.CITY_REGULATIONS.get(normalized_city, [])
+        }
 
         submitted = {doc.lower() for doc in payload.submitted_documents}
         certifications = {cert.lower() for cert in payload.certifications}
@@ -461,12 +471,18 @@ class CityExpansionService:
             recommendations=recommendations,
         )
 
-    async def get_compliance_templates(self, city: str | None = None) -> ComplianceTemplatesResponse:
+    async def get_compliance_templates(
+        self, city: str | None = None
+    ) -> ComplianceTemplatesResponse:
         if city:
             normalized_city = self._normalize_city(city)
             templates = self.COMPLIANCE_TEMPLATES.get(normalized_city, [])
         else:
-            templates = [template for template_list in self.COMPLIANCE_TEMPLATES.values() for template in template_list]
+            templates = [
+                template
+                for template_list in self.COMPLIANCE_TEMPLATES.values()
+                for template in template_list
+            ]
 
         insights = [
             MarketInsight(
@@ -487,7 +503,11 @@ class CityExpansionService:
         return ComplianceTemplatesResponse(
             templates=templates,
             confidence=[
-                ConfidenceSignal(metric="template_coverage", score=0.7, description="Curated compliance templates"),
+                ConfidenceSignal(
+                    metric="template_coverage",
+                    score=0.7,
+                    description="Curated compliance templates",
+                ),
             ],
             insights=insights,
             recommendations=recommendations,
@@ -497,10 +517,7 @@ class CityExpansionService:
     # Currency and pricing utilities
     # ------------------------------------------------------------------
     async def list_currencies(self) -> tuple[list[dict[str, str]], list[ConfidenceSignal]]:
-        currencies = [
-            {"code": code, **meta}
-            for code, meta in self.SUPPORTED_CURRENCIES.items()
-        ]
+        currencies = [{"code": code, **meta} for code, meta in self.SUPPORTED_CURRENCIES.items()]
         confidence = [
             ConfidenceSignal(
                 metric="fx_sources",
@@ -510,18 +527,19 @@ class CityExpansionService:
         ]
         return currencies, confidence
 
-    async def get_currency_rates(self, base_currency: str | None = None) -> tuple[str, dict[str, float], datetime]:
+    async def get_currency_rates(
+        self, base_currency: str | None = None
+    ) -> tuple[str, dict[str, float], datetime]:
         normalized_base = self._normalize_currency(base_currency or self.DEFAULT_CURRENCY)
         rate_table = await self._load_rate_table()
         self._rate_table = rate_table
         base_rate = rate_table.get(normalized_base)
         if base_rate is None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported base currency")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported base currency"
+            )
 
-        normalized_rates = {
-            code: round(value / base_rate, 6)
-            for code, value in rate_table.items()
-        }
+        normalized_rates = {code: round(value / base_rate, 6) for code, value in rate_table.items()}
         return normalized_base, normalized_rates, datetime.now(UTC)
 
     async def quote_booking(self, payload: BookingQuoteRequest) -> BookingQuoteResponse:
@@ -580,7 +598,9 @@ class CityExpansionService:
     # ------------------------------------------------------------------
     # Geographic intelligence
     # ------------------------------------------------------------------
-    async def validate_address(self, payload: AddressValidationRequest) -> AddressValidationResponse:
+    async def validate_address(
+        self, payload: AddressValidationRequest
+    ) -> AddressValidationResponse:
         normalized_city = self._normalize_city(payload.city)
         issues: list[str] = []
         is_valid = True
@@ -595,7 +615,9 @@ class CityExpansionService:
             issues.append("Postal code appears incomplete")
             is_valid = False
 
-        normalized_address = f"{payload.address_line.strip()}, {self._title_case_city(normalized_city)}"
+        normalized_address = (
+            f"{payload.address_line.strip()}, {self._title_case_city(normalized_city)}"
+        )
         if payload.state:
             normalized_address += f", {payload.state.upper()}"
         if payload.postal_code:
@@ -621,7 +643,9 @@ class CityExpansionService:
 
     async def get_service_zones(self, city: str) -> CityServiceZonesResponse:
         normalized_city = self._normalize_city(city)
-        top_kitchens = await self._matching_service.recommend_top_kitchens_for_city(normalized_city, limit=6)
+        top_kitchens = await self._matching_service.recommend_top_kitchens_for_city(
+            normalized_city, limit=6
+        )
 
         if not top_kitchens:
             zones = [
@@ -684,7 +708,9 @@ class CityExpansionService:
             select(func.count(Kitchen.id)).where(func.lower(Kitchen.city) == normalized_city)
         )
         unique_hosts = await self._session.scalar(
-            select(func.count(func.distinct(Kitchen.host_id))).where(func.lower(Kitchen.city) == normalized_city)
+            select(func.count(func.distinct(Kitchen.host_id))).where(
+                func.lower(Kitchen.city) == normalized_city
+            )
         )
         bookings_last_quarter = await self._session.scalar(
             select(func.count(Booking.id))
@@ -1071,7 +1097,9 @@ class CityExpansionService:
             )
         return insights
 
-    def _build_market_recommendations(self, metrics: CityMarketMetrics) -> list[ExpansionRecommendation]:
+    def _build_market_recommendations(
+        self, metrics: CityMarketMetrics
+    ) -> list[ExpansionRecommendation]:
         recommendations: list[ExpansionRecommendation] = []
         if metrics.demand_index < 0.5:
             recommendations.append(
@@ -1102,7 +1130,9 @@ class CityExpansionService:
             )
         return recommendations
 
-    def _build_competition_insights(self, competitors: list[CompetitorProfile]) -> list[MarketInsight]:
+    def _build_competition_insights(
+        self, competitors: list[CompetitorProfile]
+    ) -> list[MarketInsight]:
         if not competitors:
             return [
                 MarketInsight(
@@ -1111,7 +1141,11 @@ class CityExpansionService:
                     confidence=0.4,
                 )
             ]
-        avg_rate = mean([item.hourly_rate for item in competitors if item.hourly_rate]) if competitors else None
+        avg_rate = (
+            mean([item.hourly_rate for item in competitors if item.hourly_rate])
+            if competitors
+            else None
+        )
         insights = [
             MarketInsight(
                 title="Competitive benchmarking",
@@ -1260,7 +1294,9 @@ class CityExpansionService:
                 self._rate_table = table
                 return table
             except (TypeError, ValueError):
-                logger.warning("Invalid cached currency table, regenerating", extra={"payload": cached})
+                logger.warning(
+                    "Invalid cached currency table, regenerating", extra={"payload": cached}
+                )
         await self._redis.setex(
             self.RATE_CACHE_KEY,
             self.RATE_TTL_SECONDS,
@@ -1277,13 +1313,17 @@ class CityExpansionService:
         base_value = rate_table.get(self.DEFAULT_CURRENCY, 1.0)
         target_rate = rate_table.get(target)
         if target_rate is None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported currency")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported currency"
+            )
         converted = value * (target_rate / base_value)
         return round(converted, 2)
 
     def _normalize_city(self, city: str) -> str:
         if not city or not city.strip():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="City name is required")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="City name is required"
+            )
         return city.strip().lower()
 
     def _title_case_city(self, normalized_city: str) -> str:
@@ -1292,7 +1332,9 @@ class CityExpansionService:
     def _normalize_currency(self, currency: str) -> str:
         code = (currency or self.DEFAULT_CURRENCY).strip().upper()
         if code not in self.SUPPORTED_CURRENCIES:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported currency")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported currency"
+            )
         return code
 
     def _percentile(self, data: list[float], percentile: int) -> float | None:
@@ -1323,11 +1365,16 @@ class CityExpansionService:
                     city=self._title_case_city(normalized_city),
                     launched_at=launched_at,
                     plan=plan,
-                    confidence=[ConfidenceSignal(metric="launch_plan", score=0.7, description="Cached launch plan")],
+                    confidence=[
+                        ConfidenceSignal(
+                            metric="launch_plan", score=0.7, description="Cached launch plan"
+                        )
+                    ],
                     insights=[],
                     recommendations=[],
                 )
             except Exception:  # pragma: no cover - defensive guard
-                logger.exception("Failed to deserialize launch plan", extra={"city": normalized_city})
+                logger.exception(
+                    "Failed to deserialize launch plan", extra={"city": normalized_city}
+                )
         return await self.initialize_launch(normalized_city, CityLaunchRequest())
-

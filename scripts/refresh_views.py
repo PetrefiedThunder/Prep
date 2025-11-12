@@ -48,7 +48,9 @@ def _parse_args() -> argparse.Namespace:
         help="Database port. Defaults to $DB_PORT or 5432.",
     )
     parser.add_argument("--user", help="Database user. Defaults to $DB_USER or postgres.")
-    parser.add_argument("--password", help="Database password. Defaults to $DB_PASSWORD or postgres.")
+    parser.add_argument(
+        "--password", help="Database password. Defaults to $DB_PASSWORD or postgres."
+    )
     parser.add_argument(
         "--database",
         help="Database name. Defaults to $DB_NAME or prepchef.",

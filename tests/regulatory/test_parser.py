@@ -3,7 +3,6 @@ from __future__ import annotations
 from importlib import util
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PARSER_PATH = PROJECT_ROOT / "prep" / "regulatory" / "parser.py"
 _SPEC = util.spec_from_file_location("prep_regulatory_parser", PARSER_PATH)
@@ -68,6 +67,8 @@ def test_extract_reg_sections_parses_fda_and_food_code_samples() -> None:
 
 def test_extract_reg_sections_returns_empty_for_text_without_identifiers() -> None:
     assert extract_reg_sections("General guidance without sections.") == []
+
+
 """Tests for the regulatory parser utilities."""
 
 from __future__ import annotations
@@ -217,7 +218,9 @@ def test_pdf_to_text_preprocesses_low_resolution_images(
     assert processed_sizes == [("L", (40, 40))]
 
     metrics_records = [
-        record for record in caplog.records if getattr(record, "event", "") == "regulatory_pdf_ocr_metrics"
+        record
+        for record in caplog.records
+        if getattr(record, "event", "") == "regulatory_pdf_ocr_metrics"
     ]
     assert metrics_records, "Expected structured OCR metrics when pilot_mode is enabled"
     metrics_record = metrics_records[0]

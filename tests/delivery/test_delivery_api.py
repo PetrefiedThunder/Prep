@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import AsyncGenerator
 
 import pytest
 from fastapi import FastAPI
@@ -100,13 +100,17 @@ async def test_create_delivery_persists_order(app: FastAPI, client: AsyncClient)
 
     state_factory: _AsyncSessionFactory = app.state.sessions
     async with state_factory.session() as session:
-        saved = await session.scalar(select(DeliveryOrder).where(DeliveryOrder.external_order_id == "order-123"))
+        saved = await session.scalar(
+            select(DeliveryOrder).where(DeliveryOrder.external_order_id == "order-123")
+        )
         assert saved is not None
         assert saved.provider == DeliveryProvider.DOORDASH
 
 
 @pytest.mark.anyio("asyncio")
-async def test_status_webhook_updates_delivery_and_logs_compliance(app: FastAPI, client: AsyncClient) -> None:
+async def test_status_webhook_updates_delivery_and_logs_compliance(
+    app: FastAPI, client: AsyncClient
+) -> None:
     payload = {
         "external_order_id": "order-456",
         "provider": DeliveryProvider.UBER.value,
@@ -131,13 +135,17 @@ async def test_status_webhook_updates_delivery_and_logs_compliance(app: FastAPI,
 
     state_factory: _AsyncSessionFactory = app.state.sessions
     async with state_factory.session() as session:
-        delivery = await session.scalar(select(DeliveryOrder).where(DeliveryOrder.external_order_id == "order-456"))
+        delivery = await session.scalar(
+            select(DeliveryOrder).where(DeliveryOrder.external_order_id == "order-456")
+        )
         assert delivery is not None
         assert delivery.status == DeliveryStatus.DELIVERED
         assert delivery.proof_photo_url == "https://example.com/photo.jpg"
         assert delivery.proof_signature == "signed"
         compliance_event = await session.scalar(
-            select(DeliveryComplianceEvent).where(DeliveryComplianceEvent.delivery_id == delivery.id)
+            select(DeliveryComplianceEvent).where(
+                DeliveryComplianceEvent.delivery_id == delivery.id
+            )
         )
         assert compliance_event is not None
         assert compliance_event.courier_identity == "Sam Courier"
@@ -189,4 +197,3 @@ async def test_orders_endpoint_merges_providers(app: FastAPI, client: AsyncClien
     orders = {order["external_order_id"]: order for order in body["orders"]}
     assert orders["order-dd"]["status"] == DeliveryStatus.IN_TRANSIT.value
     assert orders["order-uber"]["status"] == DeliveryStatus.DISPATCHED.value
-

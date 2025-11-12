@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Utility script to send signed webhook requests to the local server."""
+
 from __future__ import annotations
 
 import argparse
@@ -55,10 +56,16 @@ def _sign_payload(secret: str, payload: bytes) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Send a signed webhook request to the Prep webhook server.")
-    parser.add_argument("--url", default=DEFAULT_URL, help="Webhook endpoint URL. Defaults to %(default)s")
+    parser = argparse.ArgumentParser(
+        description="Send a signed webhook request to the Prep webhook server."
+    )
+    parser.add_argument(
+        "--url", default=DEFAULT_URL, help="Webhook endpoint URL. Defaults to %(default)s"
+    )
     parser.add_argument("--secret", help="Webhook signing secret. Overrides PREP_WEBHOOK_SECRET.")
-    parser.add_argument("--event-id", default=str(uuid.uuid4()), help="Event identifier for the payload.")
+    parser.add_argument(
+        "--event-id", default=str(uuid.uuid4()), help="Event identifier for the payload."
+    )
     parser.add_argument("--event-type", default="prep.test", help="Event type for the payload.")
     parser.add_argument(
         "--payload-file",

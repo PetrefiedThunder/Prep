@@ -154,7 +154,9 @@ def validate_fee_schedule(schedule: FeeSchedule) -> FeeValidationResult:
             issues.append(f"Recurring fee '{fee.name}' missing cadence")
 
     incremental_count = schedule.incremental_fee_count
-    return FeeValidationResult(is_valid=not issues, issues=issues, incremental_fee_count=incremental_count)
+    return FeeValidationResult(
+        is_valid=not issues, issues=issues, incremental_fee_count=incremental_count
+    )
 
 
 def make_fee_schedule(

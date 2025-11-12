@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from collections.abc import AsyncGenerator
-
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -13,6 +12,7 @@ from sqlalchemy.orm import sessionmaker
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/prepchef"
 )
+
 
 def _engine_options(url: str) -> dict[str, Any]:
     echo_flag = os.getenv("SQLALCHEMY_ECHO", "0").lower() in {"1", "true", "on"}

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient, Response
+
 pytest.importorskip("sqlalchemy")
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -123,7 +124,7 @@ async def test_booking_unrestricted_when_flag_disabled(
     _set_flag(monkeypatch, False)
     user_id, kitchen_id = await _create_user_and_kitchen(app)
 
-    saturday = datetime.now(timezone.utc)
+    saturday = datetime.now(UTC)
     while saturday.weekday() != 5:
         saturday += timedelta(days=1)
     start = saturday.replace(hour=7, minute=30, second=0, microsecond=0)
@@ -139,7 +140,7 @@ async def test_booking_restricted_to_weekdays_when_flag_enabled(
     _set_flag(monkeypatch, True)
     user_id, kitchen_id = await _create_user_and_kitchen(app)
 
-    saturday = datetime.now(timezone.utc)
+    saturday = datetime.now(UTC)
     while saturday.weekday() != 5:
         saturday += timedelta(days=1)
     start = saturday.replace(hour=9, minute=0, second=0, microsecond=0)
@@ -156,7 +157,7 @@ async def test_booking_allows_valid_window_when_flag_enabled(
     _set_flag(monkeypatch, True)
     user_id, kitchen_id = await _create_user_and_kitchen(app)
 
-    monday = datetime.now(timezone.utc)
+    monday = datetime.now(UTC)
     while monday.weekday() != 0:
         monday += timedelta(days=1)
     start = monday.replace(hour=9, minute=0, second=0, microsecond=0)

@@ -1,4 +1,5 @@
 """Async crawler that fetches regulatory documents into raw S3 storage."""
+
 from __future__ import annotations
 
 import argparse
@@ -7,10 +8,11 @@ import hashlib
 import logging
 import os
 import sys
+from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
-from typing import Any, Awaitable, Callable, Iterable, List, Optional, Sequence, Tuple
+from typing import Any
 from urllib.parse import unquote, urlparse, urlsplit
 
 import aiohttp
@@ -95,7 +97,13 @@ async def fetch_with_backoff(
             if attempt >= max_attempts:
                 raise CrawlerError(f"Failed to fetch {url} after {max_attempts} attempts") from exc
             delay = min(base_delay * (2 ** (attempt - 1)), max_delay)
-            logger.warning("Client error for %s (attempt %s/%s); retrying in %.2fs", url, attempt, max_attempts, delay)
+            logger.warning(
+                "Client error for %s (attempt %s/%s); retrying in %.2fs",
+                url,
+                attempt,
+                max_attempts,
+                delay,
+            )
             await sleep(delay)
 
 
@@ -223,7 +231,7 @@ async def fetch_and_store(
     return FetchResult(url, None, None, RuntimeError(f"Max attempts ({max_attempts}) exceeded"))
 
 
-def parse_targets(lines: Iterable[str]) -> List[CrawlTarget]:
+def parse_targets(lines: Iterable[str]) -> list[CrawlTarget]:
     """Parse jurisdiction/URL pairs from ``lines``.
 
     Lines starting with ``#`` or blank lines are ignored. Each remaining line
@@ -231,14 +239,14 @@ def parse_targets(lines: Iterable[str]) -> List[CrawlTarget]:
     whitespace.
     """
 
-    targets: List[CrawlTarget] = []
+    targets: list[CrawlTarget] = []
     for raw_line in lines:
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
 
-        jurisdiction: Optional[str]
-        url: Optional[str] = None
+        jurisdiction: str | None
+        url: str | None = None
         if "," in line:
             jurisdiction, url = [part.strip() for part in line.split(",", 1)]
         elif "\t" in line:
@@ -279,7 +287,7 @@ async def fetch_and_upload(
     max_delay: float = DEFAULT_MAX_DELAY,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     to_thread: Callable[..., Awaitable[Any]] = asyncio.to_thread,
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     """Fetch ``target`` and upload to S3.
 
     Returns a tuple of the S3 key and the SHA-256 hex digest.
@@ -315,8 +323,8 @@ async def run_crawler(
     *,
     bucket: str = DEFAULT_BUCKET,
     concurrency: int = DEFAULT_CONCURRENCY,
-    date_prefix: Optional[str] = None,
-    session: Optional[aiohttp.ClientSession] = None,
+    date_prefix: str | None = None,
+    session: aiohttp.ClientSession | None = None,
     s3_client=None,
     max_attempts: int = DEFAULT_MAX_ATTEMPTS,
     base_delay: float = DEFAULT_BASE_DELAY,
@@ -379,7 +387,7 @@ def configure_logging(verbosity: int) -> None:
     logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 
-def _parse_args(argv: Optional[Sequence[str]]) -> argparse.Namespace:
+def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fetch URLs and upload to S3")
     parser.add_argument(
         "--bucket",
@@ -407,7 +415,7 @@ def _parse_args(argv: Optional[Sequence[str]]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: Optional[Sequence[str]] = None) -> None:
+def main(argv: Sequence[str] | None = None) -> None:
     args = _parse_args(argv)
     configure_logging(args.verbose)
 

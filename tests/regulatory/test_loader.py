@@ -29,6 +29,8 @@ def test_normalize_regdoc_respects_explicit_fields() -> None:
 
     assert normalized["country_code"] == "CA"
     assert normalized["state_province"] == "ON"
+
+
 from __future__ import annotations
 
 import logging
@@ -99,7 +101,9 @@ def _sample_payload(summary: str = "New regulation summary") -> dict[str, Any]:
     }
 
 
-def test_load_regdoc_inserts_and_invalidates_rules_cache(session: Session, caplog: pytest.LogCaptureFixture) -> None:
+def test_load_regdoc_inserts_and_invalidates_rules_cache(
+    session: Session, caplog: pytest.LogCaptureFixture
+) -> None:
     redis = RecordingRedis()
     redis.store.update({"rules:alpha": "1", "rules:beta": "2", "other:key": "noop"})
 
@@ -113,7 +117,9 @@ def test_load_regdoc_inserts_and_invalidates_rules_cache(session: Session, caplo
     assert "Invalidated" in caplog.text
 
 
-def test_load_regdoc_updates_and_invalidates_on_changes(session: Session, caplog: pytest.LogCaptureFixture) -> None:
+def test_load_regdoc_updates_and_invalidates_on_changes(
+    session: Session, caplog: pytest.LogCaptureFixture
+) -> None:
     original_payload = _sample_payload()
     load_regdoc(session, [original_payload], redis_client=RecordingRedis())
 

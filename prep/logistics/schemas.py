@@ -38,9 +38,7 @@ class RouteOptimizationRequest(BaseModel):
     soft_capacity: conint(ge=1, le=500) = Field(
         default=50, description="Nominal capacity of the route vehicle"
     )
-    start_time: datetime | None = Field(
-        default=None, description="When the route should begin"
-    )
+    start_time: datetime | None = Field(default=None, description="When the route should begin")
 
     @validator("stops")
     def _validate_stops(cls, value: list[Stop]) -> list[Stop]:

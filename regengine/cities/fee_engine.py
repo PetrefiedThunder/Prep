@@ -5,11 +5,12 @@ Computes city/county-specific fees, taxes, deposits, and late penalties
 with deterministic, auditable calculations.
 """
 
-from typing import List, Dict, Any, Optional
-from decimal import Decimal, ROUND_HALF_UP
-from datetime import datetime, timedelta, UTC
-import yaml
 import os
+from datetime import UTC, datetime
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
+
+import yaml
 
 
 class FeeLineItem:
@@ -23,7 +24,7 @@ class FeeLineItem:
         value: Decimal,
         base_amount_cents: int,
         computed_fee_cents: int,
-        citation: Optional[str] = None
+        citation: str | None = None,
     ):
         self.code = code
         self.display_name = display_name
@@ -33,7 +34,7 @@ class FeeLineItem:
         self.computed_fee_cents = computed_fee_cents
         self.citation = citation
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "code": self.code,
             "display_name": self.display_name,
@@ -41,7 +42,7 @@ class FeeLineItem:
             "value": float(self.value),
             "base_amount_cents": self.base_amount_cents,
             "computed_fee_cents": self.computed_fee_cents,
-            "citation": self.citation
+            "citation": self.citation,
         }
 
 
@@ -50,7 +51,7 @@ class FeeQuote:
 
     def __init__(self, jurisdiction_id: str):
         self.jurisdiction_id = jurisdiction_id
-        self.line_items: List[FeeLineItem] = []
+        self.line_items: list[FeeLineItem] = []
         self.deposit_cents: int = 0
         self.deposit_hold_window_hours: int = 72
         self.late_penalty_cents: int = 0
@@ -77,13 +78,9 @@ class FeeQuote:
 
     def _recalculate_total(self):
         """Recalculate total amount."""
-        self.total_cents = (
-            self.total_fees_cents +
-            self.deposit_cents +
-            self.late_penalty_cents
-        )
+        self.total_cents = self.total_fees_cents + self.deposit_cents + self.late_penalty_cents
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "jurisdiction_id": self.jurisdiction_id,
             "line_items": [item.to_dict() for item in self.line_items],
@@ -92,7 +89,7 @@ class FeeQuote:
             "late_penalty_cents": self.late_penalty_cents,
             "total_fees_cents": self.total_fees_cents,
             "total_cents": self.total_cents,
-            "computed_at": self.computed_at.isoformat()
+            "computed_at": self.computed_at.isoformat(),
         }
 
 
@@ -113,29 +110,25 @@ class MunicipalFeeEngine:
         )
     """
 
-    def __init__(self, jurisdiction_id: str, config_path: Optional[str] = None):
+    def __init__(self, jurisdiction_id: str, config_path: str | None = None):
         self.jurisdiction_id = jurisdiction_id
 
         # Load city config
         if config_path is None:
-            config_path = os.path.join(
-                os.path.dirname(__file__),
-                jurisdiction_id,
-                "config.yaml"
-            )
+            config_path = os.path.join(os.path.dirname(__file__), jurisdiction_id, "config.yaml")
 
-        with open(config_path, 'r') as f:
+        with open(config_path) as f:
             self.config = yaml.safe_load(f)
 
-        self.fees = self.config.get('fees', [])
-        self.deposits_config = self.config.get('deposits', {})
+        self.fees = self.config.get("fees", [])
+        self.deposits_config = self.config.get("deposits", {})
 
     def compute_fee_quote(
         self,
-        line_items: List[Dict[str, Any]],
-        booking_id: Optional[str] = None,
-        created_at: Optional[datetime] = None,
-        confirmed_at: Optional[datetime] = None
+        line_items: list[dict[str, Any]],
+        booking_id: str | None = None,
+        created_at: datetime | None = None,
+        confirmed_at: datetime | None = None,
     ) -> FeeQuote:
         """
         Compute complete fee quote for a booking.
@@ -152,7 +145,7 @@ class MunicipalFeeEngine:
         quote = FeeQuote(self.jurisdiction_id)
 
         # Build line item map
-        line_item_map = {item['code']: item['cents'] for item in line_items}
+        line_item_map = {item["code"]: item["cents"] for item in line_items}
 
         # Compute each fee/tax
         for fee_config in self.fees:
@@ -162,7 +155,7 @@ class MunicipalFeeEngine:
 
         # Compute security deposit
         deposit_cents = self._compute_deposit(line_items)
-        deposit_hold_hours = self.deposits_config.get('hold_window_hours', 72)
+        deposit_hold_hours = self.deposits_config.get("hold_window_hours", 72)
         quote.set_deposit(deposit_cents, deposit_hold_hours)
 
         # Compute late penalty if applicable
@@ -174,38 +167,31 @@ class MunicipalFeeEngine:
         return quote
 
     def _compute_fee(
-        self,
-        fee_config: Dict[str, Any],
-        line_item_map: Dict[str, int]
-    ) -> Optional[FeeLineItem]:
+        self, fee_config: dict[str, Any], line_item_map: dict[str, int]
+    ) -> FeeLineItem | None:
         """Compute a single fee/tax line item."""
-        code = fee_config['code']
-        display_name = fee_config['display_name']
-        kind = fee_config['kind']
-        value = Decimal(str(fee_config['value']))
-        applies_to = fee_config['applies_to']
-        citation = fee_config.get('citation')
+        code = fee_config["code"]
+        display_name = fee_config["display_name"]
+        kind = fee_config["kind"]
+        value = Decimal(str(fee_config["value"]))
+        applies_to = fee_config["applies_to"]
+        citation = fee_config.get("citation")
 
         # Sum up base amounts this fee applies to
-        base_amount_cents = sum(
-            line_item_map.get(component, 0)
-            for component in applies_to
-        )
+        base_amount_cents = sum(line_item_map.get(component, 0) for component in applies_to)
 
         if base_amount_cents == 0:
             return None
 
         # Compute fee based on kind
-        if kind == 'percent':
+        if kind == "percent":
             # Multiply base by percentage, round to nearest cent
             computed_cents = int(
-                (Decimal(base_amount_cents) * value).quantize(
-                    Decimal('1'), rounding=ROUND_HALF_UP
-                )
+                (Decimal(base_amount_cents) * value).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
             )
-        elif kind == 'flat_per_booking':
+        elif kind == "flat_per_booking":
             computed_cents = int(value)
-        elif kind == 'flat_per_hour':
+        elif kind == "flat_per_hour":
             # Would need booking duration - not implemented yet
             computed_cents = 0
         else:
@@ -218,22 +204,18 @@ class MunicipalFeeEngine:
             value=value,
             base_amount_cents=base_amount_cents,
             computed_fee_cents=computed_cents,
-            citation=citation
+            citation=citation,
         )
 
-    def _compute_deposit(self, line_items: List[Dict[str, Any]]) -> int:
+    def _compute_deposit(self, line_items: list[dict[str, Any]]) -> int:
         """Compute security deposit."""
-        min_deposit = self.deposits_config.get('min_cents', 10000)
+        min_deposit = self.deposits_config.get("min_cents", 10000)
 
         # For now, just return minimum
         # Could implement percentage-of-booking logic here
         return min_deposit
 
-    def _compute_late_penalty(
-        self,
-        created_at: datetime,
-        confirmed_at: datetime
-    ) -> int:
+    def _compute_late_penalty(self, created_at: datetime, confirmed_at: datetime) -> int:
         """
         Compute late confirmation penalty.
 
@@ -251,13 +233,13 @@ class MunicipalFeeEngine:
 
         return 0
 
-    def get_deposit_policy(self) -> Dict[str, Any]:
+    def get_deposit_policy(self) -> dict[str, Any]:
         """Get deposit policy for jurisdiction."""
         return {
-            "min_cents": self.deposits_config.get('min_cents', 10000),
-            "max_cents": self.deposits_config.get('max_cents'),
-            "hold_window_hours": self.deposits_config.get('hold_window_hours', 72),
-            "refund_window_hours": self.deposits_config.get('refund_window_hours', 168)
+            "min_cents": self.deposits_config.get("min_cents", 10000),
+            "max_cents": self.deposits_config.get("max_cents"),
+            "hold_window_hours": self.deposits_config.get("hold_window_hours", 72),
+            "refund_window_hours": self.deposits_config.get("refund_window_hours", 168),
         }
 
 
@@ -268,14 +250,14 @@ if __name__ == "__main__":
 
     quote = engine.compute_fee_quote(
         line_items=[
-            {"code": "base", "cents": 19500},        # $195 base rate
-            {"code": "cleaning", "cents": 2500},     # $25 cleaning
-            {"code": "platform_fee", "cents": 2200}  # $22 platform fee
+            {"code": "base", "cents": 19500},  # $195 base rate
+            {"code": "cleaning", "cents": 2500},  # $25 cleaning
+            {"code": "platform_fee", "cents": 2200},  # $22 platform fee
         ]
     )
 
     print(f"Jurisdiction: {quote.jurisdiction_id}")
-    print(f"\nFees/Taxes:")
+    print("\nFees/Taxes:")
     for item in quote.line_items:
         print(f"  {item.display_name}: ${item.computed_fee_cents / 100:.2f}")
         print(f"    ({item.value * 100}% of ${item.base_amount_cents / 100:.2f})")

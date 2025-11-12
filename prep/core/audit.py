@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 
 @dataclass
@@ -13,18 +13,18 @@ class AuditRecord:
 
     timestamp: datetime
     category: str
-    details: Dict[str, Any] = field(default_factory=dict)
-    user_id: Optional[str] = None
-    action_type: Optional[str] = None
-    resource: Optional[str] = None
-    outcome: Optional[str] = None
+    details: dict[str, Any] = field(default_factory=dict)
+    user_id: str | None = None
+    action_type: str | None = None
+    resource: str | None = None
+    outcome: str | None = None
 
 
 class AuditService:
     """Simple in-memory audit service used by the orchestration layer."""
 
     def __init__(self) -> None:
-        self._records: List[AuditRecord] = []
+        self._records: list[AuditRecord] = []
 
     async def record_compliance_check(
         self,
@@ -33,7 +33,7 @@ class AuditService:
         entity_id: str,
         result: Any,
         schema_version: str | None = None,
-        evidence_reference: Dict[str, str] | None = None,
+        evidence_reference: dict[str, str] | None = None,
     ) -> AuditRecord:
         """Persist an audit record for a compliance check."""
 
@@ -48,7 +48,7 @@ class AuditService:
         }
 
         record = AuditRecord(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             category="compliance_check",
             details=details,
         )
@@ -60,12 +60,12 @@ class AuditService:
         *,
         domain: Any,
         entity_id: str,
-        errors: List[str],
+        errors: list[str],
     ) -> AuditRecord:
         """Record a validation failure emitted by a compliance engine."""
 
         record = AuditRecord(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             category="compliance_validation_error",
             details={
                 "entity_id": entity_id,
@@ -76,7 +76,7 @@ class AuditService:
         self._records.append(record)
         return record
 
-    async def list_records(self) -> List[AuditRecord]:
+    async def list_records(self) -> list[AuditRecord]:
         """Return all audit records recorded so far."""
 
         return list(self._records)

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import Iterable
 
 from sqlalchemy import Select, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -21,9 +21,9 @@ from prep.models.orm import (
 from prep.settings import Settings
 
 from .clients import (
-    DoorDashDriveClient,
     DeliveryIntegrationError,
     DeliveryIntegrationResult,
+    DoorDashDriveClient,
     UberDirectClient,
 )
 from .schemas import (
@@ -34,8 +34,8 @@ from .schemas import (
     DeliveryResource,
     DeliveryStatusUpdate,
     DeliveryStop,
-    OrderStatus,
     OrdersResponse,
+    OrderStatus,
 )
 
 logger = logging.getLogger("prep.delivery.service")
@@ -62,7 +62,8 @@ class DeliveryService:
         """Create a delivery with the requested provider and persist state."""
 
         logger.info(
-            "Creating delivery", extra={"order_id": payload.external_order_id, "provider": payload.provider.value}
+            "Creating delivery",
+            extra={"order_id": payload.external_order_id, "provider": payload.provider.value},
         )
 
         await self._ensure_unique_order(payload.external_order_id)
@@ -96,7 +97,9 @@ class DeliveryService:
             DeliveryStatusEvent(
                 delivery=delivery,
                 status=integration_result.status,
-                provider_status=integration_result.raw.get("status", integration_result.status.value)
+                provider_status=integration_result.raw.get(
+                    "status", integration_result.status.value
+                )
                 if integration_result.raw
                 else integration_result.status.value,
                 occurred_at=datetime.now(UTC),
@@ -108,11 +111,16 @@ class DeliveryService:
             await self._session.commit()
         except IntegrityError as exc:
             await self._session.rollback()
-            logger.exception("Duplicate delivery detected", extra={"order_id": payload.external_order_id})
+            logger.exception(
+                "Duplicate delivery detected", extra={"order_id": payload.external_order_id}
+            )
             raise DeliveryServiceError("Delivery already exists", status_code=409) from exc
         except SQLAlchemyError as exc:  # pragma: no cover - commit failures are exceptional
             await self._session.rollback()
-            logger.exception("Database error while creating delivery", extra={"order_id": payload.external_order_id})
+            logger.exception(
+                "Database error while creating delivery",
+                extra={"order_id": payload.external_order_id},
+            )
             raise DeliveryServiceError("Failed to persist delivery", status_code=500) from exc
 
         logger.info(
@@ -133,7 +141,11 @@ class DeliveryService:
 
         logger.info(
             "Received status update",
-            extra={"provider": update.provider.value, "status": update.status, "external_order_id": update.external_order_id},
+            extra={
+                "provider": update.provider.value,
+                "status": update.status,
+                "external_order_id": update.external_order_id,
+            },
         )
 
         delivery = await self._find_delivery(update)
@@ -176,7 +188,9 @@ class DeliveryService:
                 occurred_at=occurred_at,
                 metadata_json={
                     "courier_phone": update.courier_phone,
-                    "proof_photo_url": str(update.proof_photo_url) if update.proof_photo_url else None,
+                    "proof_photo_url": str(update.proof_photo_url)
+                    if update.proof_photo_url
+                    else None,
                     "provider_status": update.status,
                 },
             )
@@ -208,13 +222,21 @@ class DeliveryService:
         orders = [_serialize_order_status(delivery) for delivery in deliveries]
         accuracy = _calculate_reconciliation_accuracy(deliveries)
         connectors = {
-            DeliveryProvider.DOORDASH.value: "authenticated" if self._connector_ready(self._doordash) else "unconfigured",
-            DeliveryProvider.UBER.value: "authenticated" if self._connector_ready(self._uber) else "unconfigured",
+            DeliveryProvider.DOORDASH.value: "authenticated"
+            if self._connector_ready(self._doordash)
+            else "unconfigured",
+            DeliveryProvider.UBER.value: "authenticated"
+            if self._connector_ready(self._uber)
+            else "unconfigured",
         }
-        return OrdersResponse(orders=orders, connectors=connectors, reconciliation_accuracy=accuracy)
+        return OrdersResponse(
+            orders=orders, connectors=connectors, reconciliation_accuracy=accuracy
+        )
 
     async def _ensure_unique_order(self, external_order_id: str) -> None:
-        stmt: Select[DeliveryOrder] = select(DeliveryOrder).where(DeliveryOrder.external_order_id == external_order_id)
+        stmt: Select[DeliveryOrder] = select(DeliveryOrder).where(
+            DeliveryOrder.external_order_id == external_order_id
+        )
         existing = await self._session.scalar(stmt)
         if existing:
             raise DeliveryServiceError("Delivery already exists", status_code=409)
@@ -259,7 +281,10 @@ class DeliveryService:
     async def _load_deliveries(self) -> Iterable[DeliveryOrder]:
         stmt = (
             select(DeliveryOrder)
-            .options(selectinload(DeliveryOrder.status_events), selectinload(DeliveryOrder.compliance_events))
+            .options(
+                selectinload(DeliveryOrder.status_events),
+                selectinload(DeliveryOrder.compliance_events),
+            )
             .order_by(DeliveryOrder.created_at.desc())
         )
         result = await self._session.execute(stmt)
@@ -270,7 +295,9 @@ class DeliveryService:
 
     def _assert_credentials(self, configured: bool, provider: str) -> None:
         if not configured and not self._settings.use_fixtures:
-            raise DeliveryServiceError(f"{provider} credentials are not configured", status_code=500)
+            raise DeliveryServiceError(
+                f"{provider} credentials are not configured", status_code=500
+            )
 
     def verify_doordash_signature(self, payload: bytes, signature: str | None) -> None:
         """Verify the authenticity of a DoorDash webhook payload."""

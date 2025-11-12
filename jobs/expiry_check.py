@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Protocol
+from datetime import UTC, datetime, timedelta
+from typing import Any, Protocol
 
 try:  # pragma: no cover - exercised via integration tests
     from sqlalchemy import select  # type: ignore
@@ -40,7 +41,9 @@ class SMSClient(Protocol):
 class EmailClient(Protocol):
     """Protocol describing the interface for email delivery."""
 
-    def send_email(self, *, to: str, subject: str, body: str) -> None:  # pragma: no cover - interface
+    def send_email(
+        self, *, to: str, subject: str, body: str
+    ) -> None:  # pragma: no cover - interface
         """Send an email message."""
 
 
@@ -105,7 +108,9 @@ class EmailAlertClient:
             )
             return
         if not to:
-            self._logger.warning("Skipping email dispatch; destination address missing", subject=subject)
+            self._logger.warning(
+                "Skipping email dispatch; destination address missing", subject=subject
+            )
             return
 
         self._logger.info(
@@ -122,7 +127,9 @@ class EmailAlertClient:
 SessionFactory = Callable[[], Any]
 
 
-def _query_expiring_documents(session: Session, start: datetime, cutoff: datetime) -> list[COIDocument]:
+def _query_expiring_documents(
+    session: Session, start: datetime, cutoff: datetime
+) -> list[COIDocument]:
     """Return COI documents expiring between ``start`` and ``cutoff`` inclusive."""
 
     if select is None or SessionLocal is None or COIDocument is Any:  # pragma: no cover - env guard
@@ -139,8 +146,8 @@ def _query_expiring_documents(session: Session, start: datetime, cutoff: datetim
 
 def _normalize_expiry(expiry: datetime) -> datetime:
     if expiry.tzinfo is None:
-        return expiry.replace(tzinfo=timezone.utc)
-    return expiry.astimezone(timezone.utc)
+        return expiry.replace(tzinfo=UTC)
+    return expiry.astimezone(UTC)
 
 
 def _days_until(expiry: datetime, reference: datetime) -> int:
@@ -165,11 +172,11 @@ def run_expiry_check(
     email_recipient = settings.compliance_ops_email
 
     if now is None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
     if now.tzinfo is None:
-        now = now.replace(tzinfo=timezone.utc)
+        now = now.replace(tzinfo=UTC)
     else:
-        now = now.astimezone(timezone.utc)
+        now = now.astimezone(UTC)
 
     cutoff = now + timedelta(days=30)
 
@@ -195,9 +202,10 @@ def run_expiry_check(
         normalized_expiry = _normalize_expiry(expiry)
         days_until = _days_until(normalized_expiry, now)
 
-        message = (
-            "Certificate of Insurance '%s' expires on %s (%d days remaining)."
-            % (document.filename, normalized_expiry.date().isoformat(), days_until)
+        message = "Certificate of Insurance '%s' expires on %s (%d days remaining)." % (
+            document.filename,
+            normalized_expiry.date().isoformat(),
+            days_until,
         )
         subject = f"COI expiring in {days_until} day{'s' if days_until != 1 else ''}"
 
@@ -213,9 +221,7 @@ def run_expiry_check(
                 extra={"document_id": str(document.id)},
             )
 
-        email_body = (
-            f"{message}\n\nDocument ID: {document.id}\nChecksum: {document.checksum}"
-        )
+        email_body = f"{message}\n\nDocument ID: {document.id}\nChecksum: {document.checksum}"
         if email_recipient:
             email_client.send_email(to=email_recipient, subject=subject, body=email_body)
             emails_sent += 1

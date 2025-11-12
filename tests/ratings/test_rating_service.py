@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from fnmatch import fnmatch
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from fnmatch import fnmatch
 
 from prep.cache import RedisProtocol
 from prep.models.orm import Base, Kitchen, Review, ReviewStatus, User

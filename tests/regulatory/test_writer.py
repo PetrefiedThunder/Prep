@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
-from pathlib import Path
 import sys
 import types
+from datetime import datetime
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, select

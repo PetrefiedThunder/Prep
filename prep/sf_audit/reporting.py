@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterable, Mapping
-
 
 DOMAIN_LABELS: Mapping[str, str] = {
     "test_business_registration_controls": "business_registration",

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
-from datetime import UTC, datetime
 import logging
-from typing import Any, Dict, List, Mapping, MutableMapping, Optional
+from collections import defaultdict
+from collections.abc import Mapping, MutableMapping
+from datetime import UTC, datetime
+from typing import Any
 
 try:  # pragma: no cover - optional dependency
     import requests
@@ -29,7 +30,7 @@ class ApicbaseConnector:
         *,
         location_id: str | None = None,
         timeout: int = 20,
-        session: Optional[requests.Session] = None,
+        session: requests.Session | None = None,
     ) -> None:
         if not requests:
             raise RuntimeError("requests is required to use ApicbaseConnector")
@@ -40,7 +41,9 @@ class ApicbaseConnector:
         self.timeout = timeout
         self._session = session or requests.Session()
 
-    def _request(self, method: str, path: str, *, params: Optional[Mapping[str, Any]] = None) -> Mapping[str, Any]:
+    def _request(
+        self, method: str, path: str, *, params: Mapping[str, Any] | None = None
+    ) -> Mapping[str, Any]:
         url = f"{self.base_url}{path.lstrip('/')}"
         headers = {"X-API-Key": self.api_key}
         response = self._session.request(
@@ -51,7 +54,9 @@ class ApicbaseConnector:
             timeout=self.timeout,
         )
         if response.status_code >= 400:
-            raise ConnectorError("Apicbase", f"{method} {path} failed", status_code=response.status_code)
+            raise ConnectorError(
+                "Apicbase", f"{method} {path} failed", status_code=response.status_code
+            )
         try:
             payload = response.json()
         except ValueError as exc:  # pragma: no cover - defensive guard
@@ -60,13 +65,13 @@ class ApicbaseConnector:
             return payload
         raise ConnectorError("Apicbase", "Unexpected response payload shape")
 
-    def _get(self, path: str, *, params: Optional[Mapping[str, Any]] = None) -> Mapping[str, Any]:
+    def _get(self, path: str, *, params: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         return self._request("GET", path, params=params)
 
-    def fetch_recipes(self) -> List[Mapping[str, Any]]:
+    def fetch_recipes(self) -> list[Mapping[str, Any]]:
         """Return recipe metadata including allergens."""
 
-        params: Dict[str, Any] = {}
+        params: dict[str, Any] = {}
         if self.location_id:
             params["location"] = self.location_id
         payload = self._get("recipes", params=params)
@@ -80,7 +85,7 @@ class ApicbaseConnector:
     def fetch_recipe_costs(self) -> Mapping[str, Any]:
         """Return the most recent recipe costing data."""
 
-        params: Dict[str, Any] = {}
+        params: dict[str, Any] = {}
         if self.location_id:
             params["location"] = self.location_id
         payload = self._get("recipes/costs", params=params)
@@ -88,10 +93,10 @@ class ApicbaseConnector:
             return payload
         return {}
 
-    def fetch_allergens(self) -> List[Mapping[str, Any]]:
+    def fetch_allergens(self) -> list[Mapping[str, Any]]:
         """Return allergen flags per recipe."""
 
-        params: Dict[str, Any] = {}
+        params: dict[str, Any] = {}
         if self.location_id:
             params["location"] = self.location_id
         payload = self._get("recipes/allergens", params=params)
@@ -102,7 +107,7 @@ class ApicbaseConnector:
             return payload  # type: ignore[return-value]
         return []
 
-    def build_compliance_snapshot(self) -> Dict[str, Any]:
+    def build_compliance_snapshot(self) -> dict[str, Any]:
         """Produce an enriched structure suitable for the compliance engine."""
 
         recipes = self.fetch_recipes()
@@ -117,9 +122,15 @@ class ApicbaseConnector:
                     if isinstance(entry, Mapping) and entry.get("recipe_id"):
                         cost_lookup[str(entry["recipe_id"])] = entry
             elif isinstance(raw_costs, Mapping):
-                cost_lookup.update({str(key): value for key, value in raw_costs.items() if isinstance(value, Mapping)})
+                cost_lookup.update(
+                    {
+                        str(key): value
+                        for key, value in raw_costs.items()
+                        if isinstance(value, Mapping)
+                    }
+                )
 
-        allergen_lookup: MutableMapping[str, List[Mapping[str, Any]]] = defaultdict(list)
+        allergen_lookup: MutableMapping[str, list[Mapping[str, Any]]] = defaultdict(list)
         for entry in allergen_records:
             if not isinstance(entry, Mapping):
                 continue
@@ -128,8 +139,8 @@ class ApicbaseConnector:
                 continue
             allergen_lookup[str(recipe_id)].append(entry)
 
-        enriched_recipes: List[Dict[str, Any]] = []
-        allergen_summary: MutableMapping[str, Dict[str, Any]] = defaultdict(
+        enriched_recipes: list[dict[str, Any]] = []
+        allergen_summary: MutableMapping[str, dict[str, Any]] = defaultdict(
             lambda: {"recipes": 0, "undeclared": 0}
         )
         now = datetime.now(UTC).isoformat()
@@ -139,7 +150,7 @@ class ApicbaseConnector:
             recipe_id = str(recipe.get("id") or recipe.get("recipe_id") or "")
             if not recipe_id:
                 continue
-            enriched: Dict[str, Any] = {
+            enriched: dict[str, Any] = {
                 "id": recipe_id,
                 "name": recipe.get("name") or recipe.get("title"),
                 "category": recipe.get("category"),
@@ -177,7 +188,7 @@ class ApicbaseConnector:
             "fetched_at": now,
         }
 
-    def enrich_payload(self, payload: Mapping[str, Any]) -> Dict[str, Any]:
+    def enrich_payload(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         """Return a copy of ``payload`` enriched with Apicbase insights."""
 
         snapshot = self.build_compliance_snapshot()

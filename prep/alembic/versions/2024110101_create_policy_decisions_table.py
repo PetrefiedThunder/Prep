@@ -36,7 +36,9 @@ def upgrade() -> None:
         sa.Column("trace_id", sa.String(length=64), nullable=True),
         sa.Column("request_id", sa.String(length=64), nullable=True),
         sa.Column("triggered_by", sa.String(length=64), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
@@ -46,7 +48,9 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_policy_decisions_request_hash", "policy_decisions", ["request_hash"], unique=False)
+    op.create_index(
+        "ix_policy_decisions_request_hash", "policy_decisions", ["request_hash"], unique=False
+    )
     op.create_index(
         "ix_policy_decisions_region_jurisdiction",
         "policy_decisions",

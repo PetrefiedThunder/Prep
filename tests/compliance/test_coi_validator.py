@@ -30,9 +30,7 @@ def _mock_ocr(monkeypatch: pytest.MonkeyPatch) -> None:
             "Expiration Date: December 31, 2035\n"
         )
 
-    monkeypatch.setattr(
-        "prep.compliance.coi_validator.convert_from_bytes", _convert
-    )
+    monkeypatch.setattr("prep.compliance.coi_validator.convert_from_bytes", _convert)
     monkeypatch.setattr(
         "prep.compliance.coi_validator.pytesseract",
         SimpleNamespace(image_to_string=_image_to_string),
@@ -57,9 +55,7 @@ def test_validate_coi_raises_when_field_missing(monkeypatch: pytest.MonkeyPatch)
     def _image_to_string(_: _Image) -> str:
         return "Policy Number: XYZ\n"
 
-    monkeypatch.setattr(
-        "prep.compliance.coi_validator.convert_from_bytes", _convert
-    )
+    monkeypatch.setattr("prep.compliance.coi_validator.convert_from_bytes", _convert)
     monkeypatch.setattr(
         "prep.compliance.coi_validator.pytesseract",
         SimpleNamespace(image_to_string=_image_to_string),
@@ -79,9 +75,7 @@ def test_validate_coi_returns_warnings_in_pilot_mode(monkeypatch: pytest.MonkeyP
     def _image_to_string(_: _Image) -> str:
         return "Named Insured: Prep Kitchens LLC\nExpiration Date: December 31, 2035\n"
 
-    monkeypatch.setattr(
-        "prep.compliance.coi_validator.convert_from_bytes", _convert
-    )
+    monkeypatch.setattr("prep.compliance.coi_validator.convert_from_bytes", _convert)
     monkeypatch.setattr(
         "prep.compliance.coi_validator.pytesseract",
         SimpleNamespace(image_to_string=_image_to_string),
@@ -104,9 +98,7 @@ def test_validate_coi_allows_configurable_leniency(monkeypatch: pytest.MonkeyPat
     def _image_to_string(_: _Image) -> str:
         return "Policy Number: ABC-9876\nExpiration Date: December 31, 2035\n"
 
-    monkeypatch.setattr(
-        "prep.compliance.coi_validator.convert_from_bytes", _convert
-    )
+    monkeypatch.setattr("prep.compliance.coi_validator.convert_from_bytes", _convert)
     monkeypatch.setattr(
         "prep.compliance.coi_validator.pytesseract",
         SimpleNamespace(image_to_string=_image_to_string),

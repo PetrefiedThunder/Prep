@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from copy import deepcopy
-from datetime import datetime, timedelta, timezone
-from functools import wraps
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from copy import deepcopy
+from datetime import UTC, datetime, timedelta
+from functools import wraps
+from typing import Any
 from urllib.parse import urljoin
 
 try:
@@ -32,7 +33,7 @@ class DataIntelligenceAPIClient:
         api_key: str,
         *,
         timeout: int = 10,
-        session: Optional[requests.Session] = None,
+        session: requests.Session | None = None,
     ) -> None:
         if not requests:  # pragma: no cover - defensive guard
             raise RuntimeError("requests is required for DataIntelligenceAPIClient")
@@ -45,12 +46,12 @@ class DataIntelligenceAPIClient:
         if not self.logger.handlers:
             self.logger.addHandler(logging.NullHandler())
 
-    def get(self, path: str, *, params: Optional[Dict[str, Any]] = None) -> requests.Response:
+    def get(self, path: str, *, params: dict[str, Any] | None = None) -> requests.Response:
         url = urljoin(self.api_base_url, path.lstrip("/"))
         headers = {"Authorization": f"Bearer {self.api_key}"}
         return self.session.get(url, params=params, headers=headers, timeout=self.timeout)
 
-    def post_json(self, path: str, payload: Dict[str, Any]) -> requests.Response:
+    def post_json(self, path: str, payload: dict[str, Any]) -> requests.Response:
         url = urljoin(self.api_base_url, path.lstrip("/"))
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -58,7 +59,7 @@ class DataIntelligenceAPIClient:
         }
         return self.session.post(url, json=payload, headers=headers, timeout=self.timeout)
 
-    def verify_license(self, license_number: str, county_fips: str) -> Dict[str, Any]:
+    def verify_license(self, license_number: str, county_fips: str) -> dict[str, Any]:
         """Fetch the latest inspection details for a license."""
 
         response = self.post_json(
@@ -78,7 +79,7 @@ class DataIntelligenceAPIClient:
 
 STALENESS_WINDOW_DAYS = 180
 PEST_CONTROL_WINDOW_DAYS = 90
-BADGE_THRESHOLDS: Tuple[Tuple[str, int], ...] = (
+BADGE_THRESHOLDS: tuple[tuple[str, int], ...] = (
     ("gold", 95),
     ("silver", 85),
     ("bronze", 70),
@@ -92,12 +93,21 @@ SEVERITY_RANK = {
 }
 
 
-def _segment_guard(segment_name: str) -> Callable[[Callable[["FoodSafetyComplianceEngine", Dict[str, Any]], List[ComplianceViolation]]], Callable[["FoodSafetyComplianceEngine", Dict[str, Any]], List[ComplianceViolation]]]:
+def _segment_guard(
+    segment_name: str,
+) -> Callable[
+    [Callable[[FoodSafetyComplianceEngine, dict[str, Any]], list[ComplianceViolation]]],
+    Callable[[FoodSafetyComplianceEngine, dict[str, Any]], list[ComplianceViolation]],
+]:
     """Decorator ensuring segment failures degrade gracefully."""
 
-    def decorator(func: Callable[["FoodSafetyComplianceEngine", Dict[str, Any]], List[ComplianceViolation]]):
+    def decorator(
+        func: Callable[[FoodSafetyComplianceEngine, dict[str, Any]], list[ComplianceViolation]],
+    ):
         @wraps(func)
-        def wrapper(self: "FoodSafetyComplianceEngine", data: Dict[str, Any]) -> List[ComplianceViolation]:
+        def wrapper(
+            self: FoodSafetyComplianceEngine, data: dict[str, Any]
+        ) -> list[ComplianceViolation]:
             try:
                 return func(self, data)
             except Exception as exc:  # pragma: no cover - defensive guard
@@ -109,7 +119,7 @@ def _segment_guard(segment_name: str) -> Callable[[Callable[["FoodSafetyComplian
     return decorator
 
 
-def normalize_to_utc(date_input: Any) -> Optional[datetime]:
+def normalize_to_utc(date_input: Any) -> datetime | None:
     """Return a timezone-aware UTC datetime for the provided input."""
 
     if not date_input:
@@ -117,8 +127,8 @@ def normalize_to_utc(date_input: Any) -> Optional[datetime]:
 
     if isinstance(date_input, datetime):
         if date_input.tzinfo:
-            return date_input.astimezone(timezone.utc)
-        return date_input.replace(tzinfo=timezone.utc)
+            return date_input.astimezone(UTC)
+        return date_input.replace(tzinfo=UTC)
 
     try:
         parsed = isoparse(str(date_input))
@@ -126,16 +136,16 @@ def normalize_to_utc(date_input: Any) -> Optional[datetime]:
         return None
 
     if parsed.tzinfo:
-        return parsed.astimezone(timezone.utc)
-    return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(UTC)
+    return parsed.replace(tzinfo=UTC)
 
 
-def is_stale(utc_dt: Optional[datetime], days: int) -> bool:
+def is_stale(utc_dt: datetime | None, days: int) -> bool:
     """Determine if the provided datetime is older than the staleness threshold."""
 
     if utc_dt is None:
         return True
-    return (datetime.now(timezone.utc) - utc_dt) > timedelta(days=days)
+    return (datetime.now(UTC) - utc_dt) > timedelta(days=days)
 
 
 class FoodSafetyComplianceEngine(ComplianceEngine):
@@ -165,13 +175,11 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
 
     def __init__(
         self,
-        data_api_client: Optional[DataIntelligenceAPIClient] = None,
+        data_api_client: DataIntelligenceAPIClient | None = None,
         *,
         strict_mode: bool = False,
     ) -> None:
-        super().__init__(
-            "Food_Safety_Compliance_Engine", engine_version=self.ENGINE_VERSION
-        )
+        super().__init__("Food_Safety_Compliance_Engine", engine_version=self.ENGINE_VERSION)
         self.data_api_client = data_api_client
         self.strict_mode = strict_mode
         self.load_rules()
@@ -180,7 +188,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
             self.logger.addHandler(logging.NullHandler())
 
     def load_rules(self) -> None:  # type: ignore[override]
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self.rules = [
             ComplianceRule(
                 id="fs_license_1",
@@ -406,14 +414,14 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         *,
         message: str,
         severity: str,
-        context: Optional[Dict[str, Any]] = None,
-        evidence_path: Optional[str] = None,
+        context: dict[str, Any] | None = None,
+        evidence_path: str | None = None,
         observed_value: Any = None,
     ) -> ComplianceViolation:
         """Create a violation enriched with traceability metadata."""
 
         rule_name = next((rule.name for rule in self.rules if rule.id == rule_id), rule_id)
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         return ComplianceViolation(
             rule_id=rule_id,
             rule_name=rule_name,
@@ -426,7 +434,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
             observed_value=observed_value,
         )
 
-    def validate(self, data: Dict[str, Any]) -> List[ComplianceViolation]:  # type: ignore[override]
+    def validate(self, data: dict[str, Any]) -> list[ComplianceViolation]:  # type: ignore[override]
         validation_errors = DataValidator.validate_kitchen_data(data)
         if validation_errors:
             return [
@@ -443,8 +451,8 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         sanitized_data = DataValidator.sanitize_kitchen_data(data)
         enriched_data = self._enrich_with_real_time_data(deepcopy(sanitized_data))
 
-        segment_validators: Tuple[
-            Callable[[Dict[str, Any]], List[ComplianceViolation]],
+        segment_validators: tuple[
+            Callable[[dict[str, Any]], list[ComplianceViolation]],
             ...,
         ] = (
             self._validate_licensing,
@@ -456,7 +464,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
             self._validate_operations,
         )
 
-        violations: List[ComplianceViolation] = []
+        violations: list[ComplianceViolation] = []
         for validator in segment_validators:
             violations.extend(validator(enriched_data))
 
@@ -468,7 +476,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         )
         return violations
 
-    def _enrich_with_real_time_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _enrich_with_real_time_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """Enrich the sanitized payload with live inspection data when available."""
 
         if not self.data_api_client:
@@ -502,8 +510,8 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         return data
 
     @_segment_guard("licensing")
-    def _validate_licensing(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_licensing(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
         license_info = data.get("license_info", {}) or {}
 
         license_number = license_info.get("license_number")
@@ -536,7 +544,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
                     observed_value=expiration_raw,
                 )
             )
-        elif expiration_utc and expiration_utc < datetime.now(timezone.utc):
+        elif expiration_utc and expiration_utc < datetime.now(UTC):
             violations.append(
                 self._build_violation(
                     "fs_license_1",
@@ -567,9 +575,9 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         return violations
 
     @_segment_guard("inspections")
-    def _validate_inspections(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
-        inspection_history: List[Dict[str, Any]] = data.get("inspection_history", []) or []
+    def _validate_inspections(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
+        inspection_history: list[dict[str, Any]] = data.get("inspection_history", []) or []
 
         if not inspection_history:
             violations.append(
@@ -600,7 +608,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
                 )
             )
         elif inspection_date_utc:
-            days_since = (datetime.now(timezone.utc) - inspection_date_utc).days
+            days_since = (datetime.now(UTC) - inspection_date_utc).days
             if days_since > 365:
                 violations.append(
                     self._build_violation(
@@ -620,8 +628,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
                     self._build_violation(
                         "fs_inspect_stale",
                         message=(
-                            "Last inspection data is older than "
-                            f"{STALENESS_WINDOW_DAYS} days"
+                            f"Last inspection data is older than {STALENESS_WINDOW_DAYS} days"
                         ),
                         severity="medium",
                         context={
@@ -708,7 +715,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
 
         return violations
 
-    def _is_critical_violation(self, violation: Dict[str, Any]) -> bool:
+    def _is_critical_violation(self, violation: dict[str, Any]) -> bool:
         violation_code = str(violation.get("violation_code", "")).lower()
         description = str(violation.get("violation_description", "")).lower()
 
@@ -722,8 +729,8 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         return False
 
     @_segment_guard("certifications")
-    def _validate_certifications(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_certifications(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
         certifications = data.get("certifications", []) or []
 
         has_manager_cert = any(
@@ -766,8 +773,8 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         return violations
 
     @_segment_guard("equipment")
-    def _validate_equipment(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_equipment(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
         equipment = data.get("equipment", []) or []
 
         required_equipment = {
@@ -813,16 +820,14 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         return violations
 
     @_segment_guard("allergens")
-    def _validate_allergen_controls(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_allergen_controls(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
         recipes = data.get("recipes") or []
         if not isinstance(recipes, list) or not recipes:
             return violations
 
         recipes_without_allergens = [
-            recipe
-            for recipe in recipes
-            if not (recipe.get("allergens") or [])
+            recipe for recipe in recipes if not (recipe.get("allergens") or [])
         ]
         if recipes_without_allergens:
             violations.append(
@@ -838,7 +843,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
                 )
             )
 
-        undeclared_allergens: List[Dict[str, Any]] = []
+        undeclared_allergens: list[dict[str, Any]] = []
         for recipe in recipes:
             allergens = recipe.get("allergens") or []
             for allergen in allergens:
@@ -870,8 +875,8 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         return violations
 
     @_segment_guard("marketplace")
-    def _validate_marketplace_requirements(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_marketplace_requirements(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
         insurance = data.get("insurance", {}) or {}
 
         if not insurance.get("policy_number"):
@@ -892,17 +897,14 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
                 violations.append(
                     self._build_violation(
                         "fs_prep_1",
-                        message=(
-                            "Invalid insurance expiration date format: "
-                            f"{expiration_raw}"
-                        ),
+                        message=(f"Invalid insurance expiration date format: {expiration_raw}"),
                         severity="critical",
                         context={"expiration_date": expiration_raw},
                         evidence_path="insurance.expiration_date",
                         observed_value=expiration_raw,
                     )
                 )
-            elif expiration_utc and expiration_utc < datetime.now(timezone.utc):
+            elif expiration_utc and expiration_utc < datetime.now(UTC):
                 violations.append(
                     self._build_violation(
                         "fs_prep_1",
@@ -949,8 +951,8 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         return violations
 
     @_segment_guard("operations")
-    def _validate_operations(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_operations(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
         pest_control = data.get("pest_control_records", []) or []
 
         if not pest_control:
@@ -973,10 +975,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
                     violations.append(
                         self._build_violation(
                             "fs_ops_1",
-                            message=(
-                                "Invalid pest control service date format: "
-                                f"{service_date}"
-                            ),
+                            message=(f"Invalid pest control service date format: {service_date}"),
                             severity="high",
                             context={"service_date": service_date},
                             evidence_path="pest_control_records[0].service_date",
@@ -984,7 +983,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
                         )
                     )
                 elif service_date_utc and is_stale(service_date_utc, PEST_CONTROL_WINDOW_DAYS):
-                    days_since = (datetime.now(timezone.utc) - service_date_utc).days
+                    days_since = (datetime.now(UTC) - service_date_utc).days
                     violations.append(
                         self._build_violation(
                             "fs_ops_1",
@@ -1015,18 +1014,20 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         return violations
 
     def validate_for_booking(
-        self, kitchen_data: Dict[str, Any]
-    ) -> Tuple[bool, List[ComplianceViolation]]:
+        self, kitchen_data: dict[str, Any]
+    ) -> tuple[bool, list[ComplianceViolation]]:
         violations = self.validate(kitchen_data)
-        critical_violations = [violation for violation in violations if violation.severity == "critical"]
+        critical_violations = [
+            violation for violation in violations if violation.severity == "critical"
+        ]
         return len(critical_violations) == 0, critical_violations
 
     def generate_kitchen_safety_badge(
         self,
-        kitchen_data: Dict[str, Any],
+        kitchen_data: dict[str, Any],
         *,
-        report: Optional[ComplianceReport] = None,
-    ) -> Dict[str, Any]:
+        report: ComplianceReport | None = None,
+    ) -> dict[str, Any]:
         if report is None:
             report = self.generate_report(kitchen_data)
         score_percent = int(round(report.overall_compliance_score * 100))
@@ -1043,7 +1044,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
         )
 
         sanitized_input = DataValidator.sanitize_kitchen_data(kitchen_data)
-        highlights: List[str] = []
+        highlights: list[str] = []
         inspection_history = sanitized_input.get("inspection_history", []) or []
         if inspection_history:
             latest = inspection_history[0]

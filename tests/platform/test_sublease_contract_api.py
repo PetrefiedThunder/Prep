@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -17,7 +18,6 @@ from prep.platform.api import (
     router,
 )
 from prep.settings import Settings
-
 
 pytestmark = pytest.mark.anyio("asyncio")
 
@@ -138,7 +138,7 @@ async def _seed_booking(app: FastAPI) -> UUID:
         session.add(kitchen)
         await session.flush()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         booking = Booking(
             host_id=host.id,
             customer_id=customer.id,

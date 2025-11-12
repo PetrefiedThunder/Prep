@@ -4,20 +4,19 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
-from datetime import datetime, UTC
-from typing import Any, Iterator
+from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
+
 """Persistence helpers for regulatory requirements and fee schedules."""
 
 from __future__ import annotations
 
 import dataclasses
 import uuid
-from contextlib import contextmanager
-from datetime import datetime, UTC
-from typing import Any, Iterable, Mapping, MutableMapping, Sequence
+from collections.abc import MutableMapping
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -171,7 +170,7 @@ def _coerce_fee_schedule_id(value: Any) -> str | UUID | None:
     if isinstance(value, (UUID, str)):
         return value
     if hasattr(value, "id"):
-        return getattr(value, "id")
+        return value.id
     return str(value)
 
 
@@ -186,26 +185,18 @@ def _normalise_requirement_payload(
     data = dict(raw)
 
     requirement_id = (
-        data.pop("requirement_id", None)
-        or data.pop("external_id", None)
-        or data.pop("id", None)
+        data.pop("requirement_id", None) or data.pop("external_id", None) or data.pop("id", None)
     )
     if not requirement_id:
         raise ValueError("Requirement payload missing 'requirement_id'")
 
     label = (
-        data.pop("label", None)
-        or data.pop("requirement_label", None)
-        or data.pop("title", None)
+        data.pop("label", None) or data.pop("requirement_label", None) or data.pop("title", None)
     )
     if not label:
         raise ValueError("Requirement payload missing 'label'")
 
-    requirement_type = (
-        data.pop("requirement_type", None)
-        or data.pop("type", None)
-        or "general"
-    )
+    requirement_type = data.pop("requirement_type", None) or data.pop("type", None) or "general"
     summary = data.pop("summary", None) or data.pop("description", None)
 
     documents = data.pop("documents", None) or data.pop("required_documents", None) or []
@@ -329,8 +320,7 @@ def write_reg_requirements(
 
     records: list[RegRequirement] = []
     payloads = [
-        _normalise_requirement_payload(jurisdiction, item, fee_schedule_id)
-        for item in requirements
+        _normalise_requirement_payload(jurisdiction, item, fee_schedule_id) for item in requirements
     ]
 
     with _managed_session(session) as active_session:
@@ -358,7 +348,6 @@ def write_reg_requirements(
 
 __all__ = ["write_fee_schedule", "write_reg_requirements"]
 from prep.regulatory.models import FeeSchedule as FeeScheduleModel
-from prep.regulatory.models import RegRequirement
 
 _CADENCE_FACTORS: dict[str, int] = {
     "annual": 1,

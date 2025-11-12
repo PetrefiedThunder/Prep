@@ -28,7 +28,9 @@ from .schemas import (
 class AvalaraClientProtocol:
     """Protocol-style duck type for Avalara API adapters."""
 
-    async def map_tax(self, request: BookingTaxRequest) -> TaxComputationResult:  # pragma: no cover - protocol definition
+    async def map_tax(
+        self, request: BookingTaxRequest
+    ) -> TaxComputationResult:  # pragma: no cover - protocol definition
         ...
 
 
@@ -274,7 +276,9 @@ class GAAPLedgerService:
         if isinstance(format, str):
             format = LedgerExportFormat(format.lower())
 
-        stmt = select(LedgerEntry).order_by(LedgerEntry.entry_date.asc(), LedgerEntry.created_at.asc())
+        stmt = select(LedgerEntry).order_by(
+            LedgerEntry.entry_date.asc(), LedgerEntry.created_at.asc()
+        )
         result = await self._session.execute(stmt)
         entries = result.scalars().all()
         rows = [self._entry_to_dict(entry) for entry in entries]
@@ -327,9 +331,7 @@ class GAAPLedgerService:
         """Infer the GAAP revenue type from description metadata."""
 
         tokens = " ".join(
-            token
-            for token in [summary.channel or "", summary.description]
-            if token
+            token for token in [summary.channel or "", summary.description] if token
         ).lower()
         if "delivery" in tokens:
             return RevenueType.DELIVERY

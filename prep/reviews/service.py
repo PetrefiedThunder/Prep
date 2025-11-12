@@ -35,8 +35,8 @@ from .schemas import (
     ReviewFlagModel,
     ReviewFlagRequest,
     ReviewListResponse,
-    ReviewModerationRequest,
     ReviewModel,
+    ReviewModerationRequest,
     ReviewPhotoModel,
     ReviewSubmissionRequest,
     ReviewVoteRequest,
@@ -107,11 +107,15 @@ class ReviewService:
         if booking is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
         if booking.customer_id != user.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot review this booking")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Cannot review this booking"
+            )
         if booking.kitchen_id != payload.kitchen_id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Kitchen mismatch")
         if booking.status != BookingStatus.COMPLETED:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Booking not completed")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Booking not completed"
+            )
 
         ratings = _coerce_breakdown(payload)
         spam_score = _calculate_spam_score(payload.comment)
@@ -160,10 +164,14 @@ class ReviewService:
 
         return self._to_schema(review)
 
-    async def add_photo(self, user: User, review_id: UUID, payload: ReviewPhotoCreate) -> ReviewPhoto:
+    async def add_photo(
+        self, user: User, review_id: UUID, payload: ReviewPhotoCreate
+    ) -> ReviewPhoto:
         review = await self._get_review(review_id)
         if review.customer_id != user.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to add photos")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to add photos"
+            )
 
         photo = ReviewPhoto(review_id=review.id, url=str(payload.url), caption=payload.caption)
         self._session.add(photo)
@@ -172,10 +180,14 @@ class ReviewService:
         await self._session.refresh(photo)
         return photo
 
-    async def host_response(self, user: User, review_id: UUID, payload: HostResponseUpdate) -> ReviewModel:
+    async def host_response(
+        self, user: User, review_id: UUID, payload: HostResponseUpdate
+    ) -> ReviewModel:
         review = await self._get_review(review_id)
         if review.host_id != user.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the host may respond")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Only the host may respond"
+            )
 
         review.host_response = payload.response
         review.host_response_at = datetime.now(UTC)
@@ -189,7 +201,9 @@ class ReviewService:
         )
         return self._to_schema(review)
 
-    async def list_kitchen_reviews(self, kitchen_id: UUID, requester: User | None) -> ReviewListResponse:
+    async def list_kitchen_reviews(
+        self, kitchen_id: UUID, requester: User | None
+    ) -> ReviewListResponse:
         kitchen = await self._session.get(Kitchen, kitchen_id)
         if kitchen is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kitchen not found")
@@ -208,15 +222,16 @@ class ReviewService:
         reviews = [self._to_schema(review) for review in result.scalars().all()]
 
         flags_result = await self._session.execute(
-            select(ReviewFlag)
-            .where(
+            select(ReviewFlag).where(
                 and_(
                     ReviewFlag.reporter_id == user_id,
                     ReviewFlag.status == ReviewFlagStatus.OPEN,
                 )
             )
         )
-        pending_flags = [ReviewFlagModel.model_validate(flag) for flag in flags_result.scalars().all()]
+        pending_flags = [
+            ReviewFlagModel.model_validate(flag) for flag in flags_result.scalars().all()
+        ]
         return UserReviewListResponse(items=reviews, pending_flags=pending_flags)
 
     async def delete_review(self, review_id: UUID) -> None:
@@ -226,10 +241,14 @@ class ReviewService:
         await self._session.commit()
         await self._refresh_rating_cache(kitchen_id)
 
-    async def vote_review(self, user: User, review_id: UUID, payload: ReviewVoteRequest) -> ReviewModel:
+    async def vote_review(
+        self, user: User, review_id: UUID, payload: ReviewVoteRequest
+    ) -> ReviewModel:
         review = await self._get_review(review_id)
         if review.customer_id == user.id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot vote on own review")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot vote on own review"
+            )
 
         try:
             vote = ReviewVote(review_id=review_id, user_id=user.id, is_helpful=payload.helpful)
@@ -255,7 +274,9 @@ class ReviewService:
         await self._session.refresh(review)
         return self._to_schema(review)
 
-    async def flag_review(self, user: User, review_id: UUID, payload: ReviewFlagRequest) -> ReviewFlagModel:
+    async def flag_review(
+        self, user: User, review_id: UUID, payload: ReviewFlagRequest
+    ) -> ReviewFlagModel:
         review = await self._get_review(review_id)
         flag = ReviewFlag(
             review_id=review.id,
@@ -275,7 +296,9 @@ class ReviewService:
         )
         return ReviewFlagModel.model_validate(flag)
 
-    async def moderate_review(self, admin: User, review_id: UUID, payload: ReviewModerationRequest) -> ReviewModel:
+    async def moderate_review(
+        self, admin: User, review_id: UUID, payload: ReviewModerationRequest
+    ) -> ReviewModel:
         review = await self._get_review(review_id)
         now = datetime.now(UTC)
         if payload.action == "approve":
@@ -286,7 +309,11 @@ class ReviewService:
         review.moderated_by = admin.id
 
         for flag in review.flags:
-            flag.status = ReviewFlagStatus.RESOLVED if payload.action == "approve" else ReviewFlagStatus.REJECTED
+            flag.status = (
+                ReviewFlagStatus.RESOLVED
+                if payload.action == "approve"
+                else ReviewFlagStatus.REJECTED
+            )
             flag.resolved_at = now
             flag.resolved_by = admin.id
 
@@ -306,7 +333,11 @@ class ReviewService:
         review = await self._session.get(
             Review,
             review_id,
-            options=(selectinload(Review.photos), selectinload(Review.flags), selectinload(Review.votes)),
+            options=(
+                selectinload(Review.photos),
+                selectinload(Review.flags),
+                selectinload(Review.votes),
+            ),
         )
         if review is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
@@ -339,7 +370,9 @@ class ReviewService:
         try:
             cached = await self._redis.get(cache_key)
         except Exception:  # pragma: no cover - defensive logging
-            logger.exception("Failed to read rating aggregate cache", extra={"cache_key": cache_key})
+            logger.exception(
+                "Failed to read rating aggregate cache", extra={"cache_key": cache_key}
+            )
             cached = None
         if cached:
             try:

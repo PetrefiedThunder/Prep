@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import timedelta
-from typing import Iterable
 
 from prep.commerce import models
 
@@ -27,7 +27,10 @@ class ProductionScheduler:
         self, slots: list[models.ProductionSlot], order: models.Order
     ) -> models.ProductionSlot:
         for slot in slots:
-            if slot.end >= order.due_at and slot.capacity + self._order_size(order) <= self._max_capacity:
+            if (
+                slot.end >= order.due_at
+                and slot.capacity + self._order_size(order) <= self._max_capacity
+            ):
                 return slot
         start = order.due_at - self._slot_duration
         slot = models.ProductionSlot(start=start, end=order.due_at)

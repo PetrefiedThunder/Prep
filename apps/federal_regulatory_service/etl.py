@@ -10,11 +10,9 @@ import json
 import logging
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
-
-import httpx
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +22,7 @@ class ETLRun:
     """ETL run metadata."""
 
     started_at: datetime
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     records_processed: int = 0
     records_inserted: int = 0
     records_updated: int = 0
@@ -73,7 +71,7 @@ class FederalDataETL:
                 continue
 
             try:
-                with open(filepath, "r", encoding="utf-8") as f:
+                with open(filepath) as f:
                     reader = csv.DictReader(f)
                     records = list(reader)
                     data[table_name] = records
@@ -95,15 +93,15 @@ class FederalDataETL:
         cursor = conn.cursor()
 
         try:
-            # Clear existing data - use hardcoded table names to prevent SQL injection
-            cursor.execute("DELETE FROM ab_cb_scope_links")
-            logger.info("Cleared table: ab_cb_scope_links")
-            cursor.execute("DELETE FROM scopes")
-            logger.info("Cleared table: scopes")
-            cursor.execute("DELETE FROM certification_bodies")
-            logger.info("Cleared table: certification_bodies")
-            cursor.execute("DELETE FROM accreditation_bodies")
-            logger.info("Cleared table: accreditation_bodies")
+            # Clear existing data
+            for table_name in [
+                "ab_cb_scope_links",
+                "scopes",
+                "certification_bodies",
+                "accreditation_bodies",
+            ]:
+                cursor.execute(f"DELETE FROM {table_name}")
+                logger.info(f"Cleared table: {table_name}")
 
             # Load accreditation_bodies
             if "accreditation_bodies" in data:
@@ -111,7 +109,13 @@ class FederalDataETL:
                     cursor.execute(
                         """INSERT INTO accreditation_bodies (id, name, url, email, contact)
                            VALUES (?, ?, ?, ?, ?)""",
-                        (record["id"], record["name"], record["url"], record["email"], record["contact"])
+                        (
+                            record["id"],
+                            record["name"],
+                            record["url"],
+                            record["email"],
+                            record["contact"],
+                        ),
                     )
                     self.run.records_inserted += 1
 
@@ -121,7 +125,7 @@ class FederalDataETL:
                     cursor.execute(
                         """INSERT INTO certification_bodies (id, name, url, email)
                            VALUES (?, ?, ?, ?)""",
-                        (record["id"], record["name"], record["url"], record["email"])
+                        (record["id"], record["name"], record["url"], record["email"]),
                     )
                     self.run.records_inserted += 1
 
@@ -136,8 +140,8 @@ class FederalDataETL:
                             record["name"],
                             record["cfr_title_part_section"],
                             record["program_reference"],
-                            record["notes"]
-                        )
+                            record["notes"],
+                        ),
                     )
                     self.run.records_inserted += 1
 
@@ -157,8 +161,8 @@ class FederalDataETL:
                             record["recognition_initial_date"],
                             record["recognition_expiration_date"],
                             record["scope_status"],
-                            record["source"]
-                        )
+                            record["source"],
+                        ),
                     )
                     self.run.records_inserted += 1
 
@@ -334,7 +338,7 @@ if __name__ == "__main__":
 
     run = run_federal_etl(db_path, data_dir)
 
-    print(f"\nETL Run Summary:")
+    print("\nETL Run Summary:")
     print(f"  Status: {'SUCCESS' if run.success else 'FAILED'}")
     print(f"  Records Processed: {run.records_processed}")
     print(f"  Records Inserted: {run.records_inserted}")
@@ -342,6 +346,6 @@ if __name__ == "__main__":
     print(f"  Duration: {(run.completed_at - run.started_at).total_seconds():.2f}s")
 
     if run.errors:
-        print(f"\nErrors:")
+        print("\nErrors:")
         for error in run.errors:
             print(f"  - {error}")

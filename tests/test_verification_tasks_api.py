@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -71,7 +71,7 @@ async def _create_user(app: FastAPI, *, email: str) -> User:
 @pytest.mark.anyio("asyncio")
 async def test_create_task(client: AsyncClient, app: FastAPI) -> None:
     assignee = await _create_user(app, email="assignee@example.com")
-    due_at = datetime.now(timezone.utc) + timedelta(days=2)
+    due_at = datetime.now(UTC) + timedelta(days=2)
 
     response = await client.post(
         "/api/v1/verification-tasks",
@@ -107,7 +107,7 @@ async def test_list_tasks_orders_by_due_date(client: AsyncClient, app: FastAPI) 
             "entity_type": "kitchen",
             "entity_id": str(uuid4()),
             "task_type": "document_upload",
-            "due_at": (datetime.now(timezone.utc) + timedelta(days=3)).isoformat(),
+            "due_at": (datetime.now(UTC) + timedelta(days=3)).isoformat(),
         },
     )
     await client.post(
@@ -116,7 +116,7 @@ async def test_list_tasks_orders_by_due_date(client: AsyncClient, app: FastAPI) 
             "entity_type": "user",
             "entity_id": str(uuid4()),
             "task_type": "background_check",
-            "due_at": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+            "due_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
         },
     )
 

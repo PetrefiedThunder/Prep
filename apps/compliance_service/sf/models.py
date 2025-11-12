@@ -1,9 +1,11 @@
 """Pydantic models for the San Francisco compliance module."""
+
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date, datetime
 from enum import Enum
-from typing import Literal, Sequence
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, constr
@@ -172,4 +174,3 @@ class MetricsSnapshot(BaseModel):
     sf_tax_collections_total: float
     sf_compliance_blocked_bookings: int
     sf_api_response_time_seconds: float | None = None
-

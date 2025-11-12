@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import Request
-from typing import Any, Sequence
-from uuid import UUID
-
 from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from prep.models.orm import (
@@ -17,21 +15,16 @@ from prep.models.orm import (
     Booking,
     BookingStatus,
     BusinessPermit,
-    ComplianceDocument,
-    ComplianceDocumentStatus,
-    DocumentProcessingStatus,
-    DocumentUpload,
-    Kitchen,
-    PaymentStatus,
-    BusinessProfile,
     CheckoutPayment,
     CheckoutPaymentStatus,
     ComplianceDocument,
     ComplianceDocumentStatus,
     DocumentOCRStatus,
+    DocumentProcessingStatus,
     DocumentUpload,
     DocumentUploadStatus,
     Kitchen,
+    PaymentStatus,
     Permit,
     PermitStatus,
     Review,
@@ -108,9 +101,7 @@ def resolve_request_id(request: Request) -> str:
     if isinstance(existing, str) and existing:
         return existing
 
-    header_id = request.headers.get("x-request-id") or request.headers.get(
-        "x-correlation-id"
-    )
+    header_id = request.headers.get("x-request-id") or request.headers.get("x-correlation-id")
     request_id = header_id or str(uuid4())
     request.state.request_id = request_id
     return request_id
@@ -160,6 +151,8 @@ class TokenPairResponse(AuthTokenResponse):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(min_length=16)
+
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(min_length=1)
     device_fingerprint: str | None = Field(default=None, max_length=255)
@@ -322,6 +315,8 @@ class ReviewCollectionResponse(BaseModel):
 
     items: list[ReviewResponse]
     pagination: CursorPagination
+
+
 class ReviewListResponse(BaseModel):
     """Cursor paginated list of kitchen reviews."""
 
@@ -361,6 +356,8 @@ class DocumentUploadRequest(BaseModel):
     storage_bucket: str | None = Field(default=None, max_length=255)
     trigger_ocr: bool = True
     requirement_key: str | None = Field(default=None, max_length=120)
+
+
 class DocumentUploadCreateRequest(BaseModel):
     business_id: UUID
     uploader_id: UUID | None = None
@@ -627,6 +624,8 @@ def serialize_document_upload(document: DocumentUpload) -> DocumentUploadRespons
 
 def serialize_permit(permit: BusinessPermit) -> PermitResponse:
     return PermitResponse.model_validate(permit)
+
+
 def serialize_document_upload(upload: DocumentUpload) -> DocumentUploadResponse:
     return DocumentUploadResponse.model_validate(upload)
 

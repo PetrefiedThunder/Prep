@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,11 +13,11 @@ router = APIRouter(prefix="/search", tags=["search"])
 
 @router.get("/kitchens")
 async def search_kitchens(
-    query: Optional[str] = Query(default=None, description="Free text query"),
-    state: Optional[str] = Query(default=None, description="State filter"),
-    city: Optional[str] = Query(default=None, description="City filter"),
-    equipment: Optional[List[str]] = Query(default=None, description="Required equipment"),
-    min_compliance: Optional[str] = Query(default="partial_compliance"),
+    query: str | None = Query(default=None, description="Free text query"),
+    state: str | None = Query(default=None, description="State filter"),
+    city: str | None = Query(default=None, description="City filter"),
+    equipment: list[str] | None = Query(default=None, description="Required equipment"),
+    min_compliance: str | None = Query(default="partial_compliance"),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Search kitchens with compliance filtering."""
@@ -51,7 +49,9 @@ async def search_kitchens(
     elif min_compliance == "partial_compliance":
         base_query += " AND k.compliance_status IN ('compliant', 'partial_compliance')"
     elif min_compliance == "non_compliant":
-        base_query += " AND k.compliance_status IN ('compliant', 'partial_compliance', 'non_compliant')"
+        base_query += (
+            " AND k.compliance_status IN ('compliant', 'partial_compliance', 'non_compliant')"
+        )
 
     if equipment:
         for index, item in enumerate(equipment):
