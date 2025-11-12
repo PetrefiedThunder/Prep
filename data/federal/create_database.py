@@ -129,9 +129,18 @@ conn.commit()
 
 # Verify data
 print(f"Database created: {DB_PATH}")
-print(f"Accreditation Bodies: {cursor.execute('SELECT COUNT(*) FROM accreditation_bodies').fetchone()[0]}")
-print(f"Certification Bodies: {cursor.execute('SELECT COUNT(*) FROM certification_bodies').fetchone()[0]}")
-print(f"Scopes: {cursor.execute('SELECT COUNT(*) FROM scopes').fetchone()[0]}")
-print(f"Links: {cursor.execute('SELECT COUNT(*) FROM ab_cb_scope_links').fetchone()[0]}")
+
+# Use defensive checks for fetchone() results
+ab_result = cursor.execute('SELECT COUNT(*) FROM accreditation_bodies').fetchone()
+print(f"Accreditation Bodies: {ab_result[0] if ab_result else 0}")
+
+cb_result = cursor.execute('SELECT COUNT(*) FROM certification_bodies').fetchone()
+print(f"Certification Bodies: {cb_result[0] if cb_result else 0}")
+
+scopes_result = cursor.execute('SELECT COUNT(*) FROM scopes').fetchone()
+print(f"Scopes: {scopes_result[0] if scopes_result else 0}")
+
+links_result = cursor.execute('SELECT COUNT(*) FROM ab_cb_scope_links').fetchone()
+print(f"Links: {links_result[0] if links_result else 0}")
 
 conn.close()

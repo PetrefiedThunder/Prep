@@ -189,12 +189,27 @@ class MunicipalComplianceKernel:
 
     def _check_insurance(self, maker_data: Dict[str, Any], eval: ComplianceEvaluation):
         """Check insurance meets city minimums."""
-        ins_config = self.config['insurance']
+        ins_config = self.config.get('insurance')
+        if not ins_config:
+            return
+
         maker_insurance = maker_data.get('insurance', {})
 
         # Check general liability
         liability_cents = maker_insurance.get('general_liability_cents', 0)
-        min_liability = ins_config['liability_min_cents']
+        min_liability = ins_config.get('liability_min_cents', 0)
+
+        # Validate numeric types before comparison and arithmetic
+        try:
+            liability_cents = int(liability_cents) if liability_cents is not None else 0
+            min_liability = int(min_liability) if min_liability is not None else 0
+        except (TypeError, ValueError):
+            eval.add_warning(ComplianceViolation(
+                rule_id="INSURANCE_VALIDATION_ERROR",
+                severity="warning",
+                message="Invalid insurance amount format, cannot validate coverage"
+            ))
+            return
 
         if liability_cents < min_liability:
             eval.add_violation(ComplianceViolation(
@@ -207,7 +222,19 @@ class MunicipalComplianceKernel:
 
         # Check aggregate
         aggregate_cents = maker_insurance.get('aggregate_cents', 0)
-        min_aggregate = ins_config['aggregate_min_cents']
+        min_aggregate = ins_config.get('aggregate_min_cents', 0)
+
+        # Validate numeric types
+        try:
+            aggregate_cents = int(aggregate_cents) if aggregate_cents is not None else 0
+            min_aggregate = int(min_aggregate) if min_aggregate is not None else 0
+        except (TypeError, ValueError):
+            eval.add_warning(ComplianceViolation(
+                rule_id="INSURANCE_AGGREGATE_VALIDATION_ERROR",
+                severity="warning",
+                message="Invalid aggregate coverage format"
+            ))
+            return
 
         if aggregate_cents < min_aggregate:
             eval.add_violation(ComplianceViolation(
@@ -219,9 +246,9 @@ class MunicipalComplianceKernel:
 
         # Check additional insured
         additional_insured_text = maker_insurance.get('additional_insured_text', '')
-        required_text = ins_config['additional_insured_legal']
+        required_text = ins_config.get('additional_insured_legal', '')
 
-        if required_text.lower() not in additional_insured_text.lower():
+        if required_text and required_text.lower() not in additional_insured_text.lower():
             eval.add_violation(ComplianceViolation(
                 rule_id="INSURANCE_ADDITIONAL_INSURED",
                 severity="critical",
@@ -237,21 +264,41 @@ class MunicipalComplianceKernel:
         if not quiet_hours:
             return
 
-        booking_start = datetime.fromisoformat(booking_data['start'])
-        booking_end = datetime.fromisoformat(booking_data['end'])
+        try:
+            # Validate booking data has required fields
+            if 'start' not in booking_data or 'end' not in booking_data:
+                eval.add_warning(ComplianceViolation(
+                    rule_id="SOUND_MISSING_DATA",
+                    severity="warning",
+                    message="Booking start/end times missing, cannot validate sound ordinance"
+                ))
+                return
 
-        quiet_start = datetime.strptime(quiet_hours['start'], '%H:%M').time()
-        quiet_end = datetime.strptime(quiet_hours['end'], '%H:%M').time()
+            booking_start = datetime.fromisoformat(booking_data['start'])
+            booking_end = datetime.fromisoformat(booking_data['end'])
 
-        # Check if booking overlaps quiet hours
-        if self._overlaps_quiet_hours(booking_start, booking_end, quiet_start, quiet_end):
-            citation = sound_config.get('citation', '')
-            eval.add_violation(ComplianceViolation(
-                rule_id="SOUND_QUIET_HOURS",
-                severity="high",
-                message=f"Booking overlaps quiet hours ({quiet_hours['start']}-{quiet_hours['end']})",
-                remedy=f"Adjust booking to avoid quiet hours {quiet_hours['start']}-{quiet_hours['end']}",
-                citation=citation
+            # Validate quiet hours configuration
+            if 'start' not in quiet_hours or 'end' not in quiet_hours:
+                return
+
+            quiet_start = datetime.strptime(quiet_hours['start'], '%H:%M').time()
+            quiet_end = datetime.strptime(quiet_hours['end'], '%H:%M').time()
+
+            # Check if booking overlaps quiet hours
+            if self._overlaps_quiet_hours(booking_start, booking_end, quiet_start, quiet_end):
+                citation = sound_config.get('citation', '')
+                eval.add_violation(ComplianceViolation(
+                    rule_id="SOUND_QUIET_HOURS",
+                    severity="high",
+                    message=f"Booking overlaps quiet hours ({quiet_hours['start']}-{quiet_hours['end']})",
+                    remedy=f"Adjust booking to avoid quiet hours {quiet_hours['start']}-{quiet_hours['end']}",
+                    citation=citation
+                ))
+        except (ValueError, KeyError) as e:
+            eval.add_warning(ComplianceViolation(
+                rule_id="SOUND_VALIDATION_ERROR",
+                severity="warning",
+                message=f"Could not validate sound ordinance: invalid date/time format ({str(e)})"
             ))
 
     def _overlaps_quiet_hours(
@@ -262,22 +309,21 @@ class MunicipalComplianceKernel:
         quiet_end: time
     ) -> bool:
         """Check if datetime range overlaps quiet hours."""
-        # Simplified - assumes quiet hours don't span midnight
         booking_start_time = start.time()
         booking_end_time = end.time()
 
         if quiet_start < quiet_end:
-            # Normal case: quiet hours like 22:00-06:00
-            return (
-                booking_start_time < quiet_end or
-                booking_end_time > quiet_start
-            )
+            # Normal case: quiet hours during day (e.g., 09:00-17:00)
+            # Overlap if booking interval intersects quiet interval
+            return booking_start_time < quiet_end and booking_end_time > quiet_start
         else:
-            # Spans midnight
-            return (
-                booking_start_time >= quiet_start or
-                booking_end_time <= quiet_end
-            )
+            # Spans midnight case: quiet hours like 22:00-06:00
+            # Quiet period is [22:00-23:59:59] + [00:00-06:00]
+            # Check if either start or end time falls in the quiet period
+            def in_quiet_period(t: time) -> bool:
+                return t >= quiet_start or t < quiet_end
+
+            return in_quiet_period(booking_start_time) or in_quiet_period(booking_end_time)
 
     def _check_rental_limits(
         self,

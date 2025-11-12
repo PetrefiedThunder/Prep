@@ -73,7 +73,7 @@ class FederalDataETL:
                 continue
 
             try:
-                with open(filepath, "r") as f:
+                with open(filepath, "r", encoding="utf-8") as f:
                     reader = csv.DictReader(f)
                     records = list(reader)
                     data[table_name] = records
@@ -95,10 +95,15 @@ class FederalDataETL:
         cursor = conn.cursor()
 
         try:
-            # Clear existing data
-            for table_name in ["ab_cb_scope_links", "scopes", "certification_bodies", "accreditation_bodies"]:
-                cursor.execute(f"DELETE FROM {table_name}")
-                logger.info(f"Cleared table: {table_name}")
+            # Clear existing data - use hardcoded table names to prevent SQL injection
+            cursor.execute("DELETE FROM ab_cb_scope_links")
+            logger.info("Cleared table: ab_cb_scope_links")
+            cursor.execute("DELETE FROM scopes")
+            logger.info("Cleared table: scopes")
+            cursor.execute("DELETE FROM certification_bodies")
+            logger.info("Cleared table: certification_bodies")
+            cursor.execute("DELETE FROM accreditation_bodies")
+            logger.info("Cleared table: accreditation_bodies")
 
             # Load accreditation_bodies
             if "accreditation_bodies" in data:
@@ -296,7 +301,7 @@ class FederalDataETL:
         }
 
         try:
-            with open(metadata_path, "w") as f:
+            with open(metadata_path, "w", encoding="utf-8") as f:
                 json.dump(metadata, f, indent=2)
             logger.info(f"Saved ETL metadata to {metadata_path}")
         except Exception as e:

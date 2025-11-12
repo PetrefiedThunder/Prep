@@ -233,25 +233,21 @@ async def health_check() -> HealthResponse:
         with get_db() as conn:
             cursor = conn.cursor()
 
-            # SECURITY: Use whitelist validation and parameterized queries to prevent SQL injection
-            ALLOWED_TABLES = frozenset([
-                "accreditation_bodies",
-                "certification_bodies",
-                "scopes",
-                "ab_cb_scope_links"
-            ])
-            tables = ["accreditation_bodies", "certification_bodies", "scopes", "ab_cb_scope_links"]
-            for table in tables:
-                if table not in ALLOWED_TABLES:
-                    logger.warning(f"Skipping invalid table name: {table}")
-                    continue
+            # SECURITY: Use hardcoded table names to prevent SQL injection
+            # Query each table individually with hardcoded names instead of dynamic table names
+            tables = {
+                "accreditation_bodies": "SELECT COUNT(*) FROM accreditation_bodies",
+                "certification_bodies": "SELECT COUNT(*) FROM certification_bodies",
+                "scopes": "SELECT COUNT(*) FROM scopes",
+                "ab_cb_scope_links": "SELECT COUNT(*) FROM ab_cb_scope_links"
+            }
+            for table_name, query in tables.items():
                 try:
-                    # Safe to use string formatting since table is validated against whitelist
-                    count = cursor.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # noqa: S608
-                    record_counts[table] = count
+                    result = cursor.execute(query).fetchone()
+                    record_counts[table_name] = result[0] if result else 0
                 except Exception as e:
-                    logger.error(f"Error counting {table}: {e}")
-                    record_counts[table] = -1
+                    logger.error(f"Error counting {table_name}: {e}")
+                    record_counts[table_name] = -1
 
     return HealthResponse(
         status="ok" if db_exists else "degraded",
