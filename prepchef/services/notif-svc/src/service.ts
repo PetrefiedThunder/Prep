@@ -77,7 +77,7 @@ export class NotificationService {
       userClients.set(clientId, client);
       this.clients.set(userId, userClients);
 
-      connection.socket.on('message', data => {
+      connection.socket.on('message', (data: Buffer) => {
         try {
           const parsed = JSON.parse(data.toString());
           if (parsed.type === 'pong') {
@@ -270,7 +270,7 @@ export class NotificationService {
     const allowed: NotificationChannel[] = [];
     for (const channel of channels) {
       if (channel === 'in_app') {
-        if (preferences.inApp !== false) {
+        if (preferences.in_app !== false) {
           allowed.push(channel);
         }
       } else if (preferences[channel] !== false) {

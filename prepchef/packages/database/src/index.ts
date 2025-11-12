@@ -3,7 +3,7 @@ import { env } from '@prep/config';
 
 let prisma: PrismaClient | undefined;
 
-function buildLoggingConfig(): Prisma.LogLevel[] {
+function buildLoggingConfig(): ('info' | 'warn' | 'error' | 'query')[] {
   if (env.NODE_ENV === 'development') {
     return ['info', 'warn', 'error'];
   }

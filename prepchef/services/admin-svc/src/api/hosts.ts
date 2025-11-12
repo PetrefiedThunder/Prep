@@ -4,6 +4,7 @@
  */
 
 import { FastifyInstance } from 'fastify';
+import '@fastify/multipart';
 import { z } from 'zod';
 import { Pool } from 'pg';
 import { ApiError } from '@prep/common';
@@ -99,10 +100,15 @@ export default async function (app: FastifyInstance) {
       return reply.code(400).send(ApiError('PC-REQ-400', 'No file uploaded'));
     }
 
+    const getFieldValue = (field: any) => {
+      if (Array.isArray(field)) return field[0]?.value;
+      return field?.value;
+    };
+
     const parsed = UploadCertificateSchema.safeParse({
-      certificate_type: data.fields.certificate_type?.value,
-      expiration_date: data.fields.expiration_date?.value,
-      issuing_agency: data.fields.issuing_agency?.value
+      certificate_type: getFieldValue(data.fields.certificate_type),
+      expiration_date: getFieldValue(data.fields.expiration_date),
+      issuing_agency: getFieldValue(data.fields.issuing_agency)
     });
 
     if (!parsed.success) {

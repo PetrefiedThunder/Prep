@@ -73,7 +73,9 @@ export const prepSecurityPlugin: FastifyPluginAsync<PrepSecurityPluginOptions> =
   }
 
   if (jwt !== false) {
-    const { secret, ...rest } = jwt ?? {};
+    const jwtOptions = (jwt || {}) as Partial<FastifyJWTOptions>;
+    const secret = jwtOptions.secret;
+    const { secret: _, ...rest } = jwtOptions;
     const jwtSecret = secret ?? process.env.JWT_SECRET;
 
     if (!jwtSecret) {
