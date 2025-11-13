@@ -1,0 +1,406 @@
+# San Francisco Short-Term Rental Compliance Rules
+# Based on SF Planning Code Sections 41A and 41B
+# Last updated: 2025-11-13
+
+jurisdiction: san_francisco
+version: "1.0"
+effective_date: "2025-01-01"
+
+rules:
+  # ============================================================================
+  # BUSINESS REGISTRATION
+  # ============================================================================
+
+  - id: SF-BRC-001
+    name: "Business Registration Certificate Required"
+    description: "All STR operators must have active Business Registration Certificate"
+    severity: blocking
+    category: business_license
+
+    conditions:
+      property_type:
+        - entire_home
+        - private_room
+        - shared_room
+
+    checks:
+      - field: vendor.business_registration.status
+        operator: equals
+        value: active
+      - field: vendor.business_registration.expiration_date
+        operator: greater_than
+        value: today
+
+    violation:
+      message: "Business Registration Certificate is required and must be active"
+      remedy: "Apply at https://businessportal.sfgov.org"
+      estimated_time: "2-3 weeks"
+      cost: "$91"
+
+    citation: "SF Business and Tax Regulations Code Article 12-A"
+    url: "https://sf.gov/information/register-your-business"
+    dependencies: []
+
+  # ============================================================================
+  # TOB (TRANSIENT OCCUPANCY TAX) REGISTRATION
+  # ============================================================================
+
+  - id: SF-TOB-001
+    name: "TOB Registration Required"
+    description: "Transient Occupancy Tax registration required for all STRs"
+    severity: blocking
+    category: tax
+
+    conditions:
+      property_type:
+        - entire_home
+        - private_room
+        - shared_room
+
+    checks:
+      - field: facility.tob_registration.status
+        operator: equals
+        value: active
+      - field: facility.tob_registration.certificate_number
+        operator: not_empty
+
+    violation:
+      message: "TOB registration is required for short-term rentals"
+      remedy: "Register at SF Treasurer's Office"
+      estimated_time: "1-2 weeks"
+      cost: "$50"
+
+    citation: "SF Business and Tax Regulations Code Article 7"
+    url: "https://sftreasurer.org/business/taxes-fees/transient-occupancy-tax"
+    dependencies:
+      - SF-BRC-001
+
+  # ============================================================================
+  # SHORT-TERM RENTAL REGISTRATION
+  # ============================================================================
+
+  - id: SF-STR-001
+    name: "STR Registration Required"
+    description: "Properties must be registered as short-term rentals with SF Planning"
+    severity: blocking
+    category: permits
+
+    conditions:
+      property_type:
+        - entire_home
+        - private_room
+
+    checks:
+      - field: facility.str_registration.status
+        operator: equals
+        value: active
+      - field: facility.str_registration.number
+        operator: not_empty
+      - field: facility.str_registration.expiration_date
+        operator: greater_than
+        value: today
+
+    violation:
+      message: "Short-term rental registration required"
+      remedy: "Register at SF Planning Department"
+      estimated_time: "30-45 days"
+      cost: "$250 (initial) + $250 (renewal)"
+
+    citation: "SF Planning Code Sections 41A.5(c)"
+    url: "https://sf.gov/information/register-short-term-rental"
+    dependencies:
+      - SF-BRC-001
+      - SF-TOB-001
+
+  # ============================================================================
+  # ZONING COMPLIANCE
+  # ============================================================================
+
+  - id: SF-ZONING-001
+    name: "Zoning District Check"
+    description: "Property must be in allowed zoning district for STRs"
+    severity: blocking
+    category: zoning
+
+    conditions:
+      property_type:
+        - entire_home
+        - private_room
+
+    checks:
+      - field: facility.zoning_district
+        operator: in_list
+        value:
+          - RH-1
+          - RH-2
+          - RH-3
+          - RM-1
+          - RM-2
+          - RM-3
+          - RM-4
+          - RC-3
+          - RC-4
+          - NC
+          - NCT
+
+    violation:
+      message: "Property is not in an allowed zoning district for STRs"
+      remedy: "Apply for Conditional Use Authorization or move to allowed district"
+      estimated_time: "3-6 months (if CUA required)"
+      cost: "$7,806 (CUA filing fee)"
+
+    citation: "SF Planning Code Section 41A.4(b)"
+    url: "https://sf.gov/information/zoning-restrictions-short-term-rentals"
+    dependencies: []
+
+  # ============================================================================
+  # OWNER OCCUPANCY
+  # ============================================================================
+
+  - id: SF-OWNER-001
+    name: "Primary Residence Requirement"
+    description: "Unhosted STRs must be operator's primary residence"
+    severity: blocking
+    category: operational
+
+    conditions:
+      property_type:
+        - entire_home
+      hosting_type: unhosted
+
+    checks:
+      - field: facility.owner_occupancy.is_primary_residence
+        operator: equals
+        value: true
+      - field: facility.owner_occupancy.days_occupied_per_year
+        operator: greater_than_or_equal
+        value: 275
+
+    violation:
+      message: "Unhosted STRs must be operator's primary residence (occupied 275+ days/year)"
+      remedy: "Convert to hosted rental or use only as primary residence"
+      estimated_time: "N/A"
+      cost: "$0"
+
+    citation: "SF Planning Code Section 41A.4(c)(1)"
+    dependencies:
+      - SF-STR-001
+
+  # ============================================================================
+  # ANNUAL NIGHT LIMIT
+  # ============================================================================
+
+  - id: SF-NIGHTS-001
+    name: "90-Night Annual Limit"
+    description: "Unhosted entire-home STRs limited to 90 nights per year"
+    severity: blocking
+    category: operational
+
+    conditions:
+      property_type:
+        - entire_home
+      hosting_type: unhosted
+
+    checks:
+      - field: facility.booking_stats.nights_rented_this_year
+        operator: less_than_or_equal
+        value: 90
+
+    violation:
+      message: "Unhosted entire-home STRs limited to 90 nights per calendar year"
+      remedy: "Wait until next calendar year or convert to hosted rental"
+      estimated_time: "Wait until Jan 1"
+      cost: "$0"
+
+    citation: "SF Planning Code Section 41A.4(c)(2)"
+    dependencies:
+      - SF-STR-001
+      - SF-OWNER-001
+
+  # ============================================================================
+  # FIRE SAFETY
+  # ============================================================================
+
+  - id: SF-FIRE-001
+    name: "Fire Safety Requirements"
+    description: "STRs must meet fire safety standards"
+    severity: blocking
+    category: fire_safety
+
+    conditions:
+      property_type:
+        - entire_home
+        - private_room
+
+    checks:
+      - field: facility.fire_safety.smoke_detectors
+        operator: equals
+        value: true
+      - field: facility.fire_safety.carbon_monoxide_detectors
+        operator: equals
+        value: true
+      - field: facility.fire_safety.fire_extinguisher
+        operator: equals
+        value: true
+
+    violation:
+      message: "Fire safety equipment required: smoke detectors, CO detectors, fire extinguisher"
+      remedy: "Install required equipment and self-certify compliance"
+      estimated_time: "Immediate"
+      cost: "$100-200"
+
+    citation: "SF Fire Code Chapter 9"
+    dependencies:
+      - SF-STR-001
+
+  # ============================================================================
+  # INSURANCE
+  # ============================================================================
+
+  - id: SF-INSURANCE-001
+    name: "Liability Insurance Required"
+    description: "STR operators must maintain minimum liability insurance"
+    severity: blocking
+    category: insurance
+
+    conditions:
+      property_type:
+        - entire_home
+        - private_room
+
+    checks:
+      - field: vendor.insurance.liability_coverage_cents
+        operator: greater_than_or_equal
+        value: 50000000  # $500,000
+      - field: vendor.insurance.policy_expiration
+        operator: greater_than
+        value: today
+
+    violation:
+      message: "Liability insurance required (minimum $500,000)"
+      remedy: "Obtain or update liability insurance policy"
+      estimated_time: "1-3 days"
+      cost: "$300-800/year"
+
+    citation: "SF Planning Code Section 41A.5(g)"
+    dependencies:
+      - SF-STR-001
+
+  # ============================================================================
+  # POSTING REQUIREMENTS
+  # ============================================================================
+
+  - id: SF-POSTING-001
+    name: "Registration Number Posting"
+    description: "STR registration number must be displayed in listings"
+    severity: warning
+    category: reporting
+
+    conditions:
+      property_type:
+        - entire_home
+        - private_room
+
+    checks:
+      - field: facility.str_registration.displayed_in_listings
+        operator: equals
+        value: true
+
+    violation:
+      message: "STR registration number must be visible in all online listings"
+      remedy: "Add registration number to Airbnb, VRBO, and other listings"
+      estimated_time: "Immediate"
+      cost: "$0"
+
+    citation: "SF Planning Code Section 41A.5(h)(1)"
+    dependencies:
+      - SF-STR-001
+
+  # ============================================================================
+  # QUARTERLY REPORTING
+  # ============================================================================
+
+  - id: SF-REPORT-001
+    name: "Quarterly Reporting"
+    description: "STR operators must submit quarterly reports to SF"
+    severity: warning
+    category: reporting
+
+    conditions:
+      property_type:
+        - entire_home
+        - private_room
+
+    checks:
+      - field: facility.reporting.last_quarterly_report_date
+        operator: within_days
+        value: 100  # ~3 months + grace period
+
+    violation:
+      message: "Quarterly reports required (due Jan 31, Apr 30, Jul 31, Oct 31)"
+      remedy: "Submit quarterly report via SF Planning portal"
+      estimated_time: "1 hour"
+      cost: "$0"
+
+    citation: "SF Planning Code Section 41A.5(j)"
+    dependencies:
+      - SF-STR-001
+
+  # ============================================================================
+  # BUILDING NOTICES
+  # ============================================================================
+
+  - id: SF-NOTICE-001
+    name: "Building Notification"
+    description: "Multi-unit building owners must be notified of STR activity"
+    severity: info
+    category: operational
+
+    conditions:
+      building_type: multi_unit
+      property_type:
+        - entire_home
+        - private_room
+
+    checks:
+      - field: facility.building_notification.owner_notified
+        operator: equals
+        value: true
+      - field: facility.building_notification.date_notified
+        operator: not_empty
+
+    violation:
+      message: "Building owner notification recommended for multi-unit buildings"
+      remedy: "Notify building owner via certified mail"
+      estimated_time: "1-2 days"
+      cost: "$10"
+
+    citation: "SF Planning Code Section 41A.5(i)"
+    dependencies:
+      - SF-STR-001
+
+# ============================================================================
+# RULE METADATA
+# ============================================================================
+
+metadata:
+  total_rules: 11
+  blocking_rules: 9
+  warning_rules: 2
+  info_rules: 0
+
+  categories:
+    business_license: 1
+    tax: 1
+    permits: 1
+    zoning: 1
+    operational: 3
+    fire_safety: 1
+    insurance: 1
+    reporting: 2
+
+  typical_evaluation_time_ms: 30
+  cache_ttl_seconds: 3600
+
+  last_updated_by: "Compliance Engineering"
+  next_review_date: "2025-03-01"
