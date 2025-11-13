@@ -1,0 +1,385 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prep.com/schemas/facility.v1.json",
+  "title": "Facility",
+  "description": "Short-term rental property/facility entity",
+  "type": "object",
+  "required": [
+    "facility_id",
+    "vendor_id",
+    "address",
+    "property_type",
+    "bedrooms",
+    "bathrooms",
+    "max_occupancy",
+    "jurisdiction",
+    "status",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "facility_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for the facility"
+    },
+    "vendor_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Reference to the vendor/owner"
+    },
+    "external_listing_ids": {
+      "type": "object",
+      "description": "External platform listing IDs",
+      "properties": {
+        "airbnb": {
+          "type": "string"
+        },
+        "vrbo": {
+          "type": "string"
+        },
+        "booking_com": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "address": {
+      "$ref": "#/$defs/address"
+    },
+    "property_type": {
+      "type": "string",
+      "enum": [
+        "entire_home",
+        "private_room",
+        "shared_room",
+        "apartment",
+        "house",
+        "condo",
+        "townhouse",
+        "accessory_dwelling_unit"
+      ]
+    },
+    "bedrooms": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 50
+    },
+    "bathrooms": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 50,
+      "multipleOf": 0.5
+    },
+    "max_occupancy": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "description": "Maximum number of guests allowed"
+    },
+    "square_footage": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Property square footage"
+    },
+    "parcel_number": {
+      "type": "string",
+      "description": "Assessor's Parcel Number (APN)"
+    },
+    "jurisdiction": {
+      "type": "object",
+      "required": ["city", "county", "state", "country"],
+      "properties": {
+        "city": {
+          "type": "string",
+          "minLength": 1
+        },
+        "county": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "country": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$",
+          "default": "US"
+        },
+        "jurisdiction_code": {
+          "type": "string",
+          "description": "Composite jurisdiction code (e.g., US-CA-SF)",
+          "pattern": "^[A-Z]{2}-[A-Z]{2}-[A-Z]+$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "zoning": {
+      "type": "object",
+      "properties": {
+        "zoning_code": {
+          "type": "string"
+        },
+        "zoning_district": {
+          "type": "string"
+        },
+        "str_permitted": {
+          "type": "boolean",
+          "description": "Short-term rentals permitted in this zone"
+        },
+        "restrictions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ownership": {
+      "type": "object",
+      "properties": {
+        "owner_occupied": {
+          "type": "boolean",
+          "description": "Is this the primary residence of the owner?"
+        },
+        "ownership_type": {
+          "type": "string",
+          "enum": ["owned", "leased", "managed"]
+        },
+        "lease_allows_str": {
+          "type": "boolean",
+          "description": "If leased, does lease allow short-term rentals?"
+        }
+      },
+      "additionalProperties": false
+    },
+    "permits_licenses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["permit_type", "status"],
+        "properties": {
+          "permit_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "permit_type": {
+            "type": "string",
+            "enum": [
+              "str_permit",
+              "business_license",
+              "tob_permit",
+              "health_permit",
+              "fire_safety_certificate",
+              "zoning_clearance"
+            ]
+          },
+          "permit_number": {
+            "type": "string"
+          },
+          "issuing_agency": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_required",
+              "not_applied",
+              "application_pending",
+              "active",
+              "expired",
+              "revoked",
+              "denied"
+            ]
+          },
+          "issued_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "expiration_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "renewal_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date when renewal should be initiated"
+          },
+          "document_url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "properties": {
+        "overall_status": {
+          "type": "string",
+          "enum": ["compliant", "non_compliant", "pending", "unknown"]
+        },
+        "last_checked": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "compliance_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "blocking_issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["issue_id", "description", "severity"],
+            "properties": {
+              "issue_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "rule_id": {
+                "type": "string",
+                "description": "Reference to compliance rule"
+              },
+              "description": {
+                "type": "string"
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["blocking", "warning", "info"]
+              },
+              "resolution_steps": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "next_inspection_date": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "additionalProperties": false
+    },
+    "operational_restrictions": {
+      "type": "object",
+      "properties": {
+        "max_nights_per_year": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 365,
+          "description": "Maximum nights that can be rented per year"
+        },
+        "min_night_stay": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum consecutive night requirement"
+        },
+        "blackout_dates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["start_date", "end_date", "reason"],
+            "properties": {
+              "start_date": {
+                "type": "string",
+                "format": "date"
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "pending_review",
+        "active",
+        "inactive",
+        "suspended",
+        "deactivated"
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Custom key-value metadata",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "deleted_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "address": {
+      "type": "object",
+      "required": ["street", "city", "state", "postal_code", "country"],
+      "properties": {
+        "street": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unit": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "postal_code": {
+          "type": "string",
+          "pattern": "^[0-9]{5}(-[0-9]{4})?$"
+        },
+        "country": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$",
+          "default": "US"
+        },
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

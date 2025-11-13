@@ -1,0 +1,96 @@
+# Docker Compose for Mock Services
+# Use this for local development with mocked external dependencies
+#
+# Usage:
+#   docker compose -f docker-compose.mock.yml up
+
+version: '3.8'
+
+services:
+  # Mock Stripe API
+  mock-stripe:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock-stripe
+    container_name: prep-mock-stripe
+    ports:
+      - "8001:8001"
+    environment:
+      - LOG_LEVEL=info
+    networks:
+      - prepchef-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Mock Government Portals (LA/SF)
+  mock-gov-portals:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock-portals
+    container_name: prep-mock-portals
+    ports:
+      - "8002:8002"  # LA portal
+      - "8003:8003"  # SF portal
+    environment:
+      - LA_PORT=8002
+      - SF_PORT=8003
+    networks:
+      - prepchef-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Mock Notification Service (Email/SMS)
+  mock-notifications:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock-notifications
+    container_name: prep-mock-notifications
+    ports:
+      - "8025:8025"  # Web UI
+      - "1025:1025"  # SMTP
+    environment:
+      - SMTP_PORT=1025
+      - WEB_PORT=8025
+    networks:
+      - prepchef-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8025/"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Mock Auth Provider (OAuth/OIDC)
+  mock-auth:
+    image: ghcr.io/navikt/mock-oauth2-server:0.5.8
+    container_name: prep-mock-auth
+    ports:
+      - "8080:8080"
+    environment:
+      - JSON_CONFIG={"interactiveLogin":true}
+    networks:
+      - prepchef-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:8080/default/.well-known/openid-configuration"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # MailHog for email testing (already a good mock)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: prep-mailhog
+    ports:
+      - "8026:8025"  # Web UI
+      - "1026:1025"  # SMTP
+    networks:
+      - prepchef-network
+
+networks:
+  prepchef-network:
+    external: true
