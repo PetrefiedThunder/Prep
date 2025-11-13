@@ -7,14 +7,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from prep.ratings.schemas import (
-    ExternalRatingModel,
-    ExternalRatingSyncItem,
-    ExternalRatingSyncRequest,
-    ExternalRatingSyncResponse,
-    KitchenRatingResponse,
-)
-
 
 class PreferenceSettings(BaseModel):
     """User-configurable matching preferences."""
@@ -23,12 +15,12 @@ class PreferenceSettings(BaseModel):
     certifications: list[str] = Field(
         default_factory=list, description="Required certification levels"
     )
-    cuisines: list[str] = Field(
-        default_factory=list, description="Preferred cuisine styles"
-    )
+    cuisines: list[str] = Field(default_factory=list, description="Preferred cuisine styles")
     preferred_cities: list[str] = Field(default_factory=list)
     preferred_states: list[str] = Field(default_factory=list)
-    availability: list[str] = Field(default_factory=list, description="Desired availability patterns")
+    availability: list[str] = Field(
+        default_factory=list, description="Desired availability patterns"
+    )
     min_price: float | None = Field(default=None, ge=0)
     max_price: float | None = Field(default=None, ge=0)
     max_distance_km: float | None = Field(default=None, ge=0)
@@ -91,5 +83,3 @@ class MatchResponse(BaseModel):
     matches: list[KitchenMatchModel]
     generated_at: datetime
     preferences: PreferenceSettings | None
-
-

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from collections import Counter
-from functools import lru_cache
 import json
 import logging
+from collections import Counter
+from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -31,9 +31,7 @@ class RequirementEntry(BaseModel):
 
     id: str = Field(..., description="Canonical identifier for the obligation")
     title: str = Field(..., description="Display title for the obligation")
-    applies_to: str = Field(
-        ..., description="Party responsible for fulfilling the obligation"
-    )
+    applies_to: str = Field(..., description="Party responsible for fulfilling the obligation")
     req_type: str = Field(..., alias="requirement_type", description="Requirement category")
     authority: str = Field(..., description="Issuing authority")
     severity: str = Field(..., description="Severity level (blocking, conditional, advisory)")
@@ -73,9 +71,7 @@ class ValidationSummary(BaseModel):
         default_factory=dict,
         description="Requirement counts grouped by responsible party",
     )
-    blocking_count: int = Field(
-        0, description="Number of obligations marked as blocking"
-    )
+    blocking_count: int = Field(0, description="Number of obligations marked as blocking")
     has_fee_links: bool = Field(
         False, description="True when any requirement links to a fee schedule"
     )
@@ -91,9 +87,7 @@ class RequirementsBundleResponse(BaseModel):
 
     jurisdiction: str
     version: str = Field(default="v1")
-    status: str = Field(
-        ..., description="Readiness status derived from blocking requirements"
-    )
+    status: str = Field(..., description="Readiness status derived from blocking requirements")
     requirements: list[RequirementEntry] = Field(default_factory=list)
     change_candidates: list[ChangeCandidate] = Field(default_factory=list)
     validation: ValidationSummary
@@ -105,7 +99,7 @@ class RequirementsBundleResponse(BaseModel):
 
 _DATA_PATH = Path(__file__).resolve().parents[2] / "policy" / "rego" / "city" / "data.json"
 
-_POLICY_DECISION_SCHEMA: Dict[str, Any] = {
+_POLICY_DECISION_SCHEMA: dict[str, Any] = {
     "jurisdiction": "string",
     "version": "string",
     "status": "string",
@@ -116,9 +110,7 @@ _POLICY_DECISION_SCHEMA: Dict[str, Any] = {
 
 _EVENT_STREAM = CDCStreamManager(
     registry=SchemaRegistry(),
-    bigquery=BigQueryDestination(
-        project_id="prep-sandbox", dataset="policy_decisions"
-    ),
+    bigquery=BigQueryDestination(project_id="prep-sandbox", dataset="policy_decisions"),
     snowflake=SnowflakeDestination(account=None, database=None, schema=None),
 )
 
@@ -183,13 +175,9 @@ def _hydrate_bundle(city: str, payload: dict[str, Any]) -> RequirementsBundleRes
         RequirementEntry.model_validate(item) for item in payload.get("requirements", [])
     ]
     change_candidates = [
-        ChangeCandidate.model_validate(item)
-        for item in payload.get("change_candidates", [])
+        ChangeCandidate.model_validate(item) for item in payload.get("change_candidates", [])
     ]
-    rationales = {
-        str(key): str(value)
-        for key, value in (payload.get("rationales") or {}).items()
-    }
+    rationales = {str(key): str(value) for key, value in (payload.get("rationales") or {}).items()}
     validation = _build_validation(requirements, change_candidates, rationales)
     status = "ready" if validation.blocking_count == 0 else "attention_required"
     version = str(payload.get("version", "v1"))
@@ -217,7 +205,8 @@ async def _emit_policy_decision(bundle: RequirementsBundleResponse) -> None:
     }
     await _EVENT_STREAM.publish("policy.decision", payload, _POLICY_DECISION_SCHEMA)
     logger.info(
-        "Emitted policy.decision", extra={"jurisdiction": bundle.jurisdiction, "status": bundle.status}
+        "Emitted policy.decision",
+        extra={"jurisdiction": bundle.jurisdiction, "status": bundle.status},
     )
 
 

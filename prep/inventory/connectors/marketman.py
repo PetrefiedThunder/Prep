@@ -1,12 +1,14 @@
 """Connector for synchronising inventory data from MarketMan."""
+
 """Connector for synchronising inventory data from MarketMan."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timezone
-from decimal import Decimal
 import logging
-from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional
+from collections.abc import Iterable, Mapping, MutableMapping
+from datetime import UTC, datetime
+from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 try:  # pragma: no cover - optional dependency at runtime
@@ -45,15 +47,15 @@ def _parse_date(value: Any) -> datetime | None:
         return None
     if isinstance(value, datetime):
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
     try:
         parsed = datetime.fromisoformat(str(value))
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _extract_date(value: Any) -> datetime | None:
@@ -62,7 +64,7 @@ def _extract_date(value: Any) -> datetime | None:
     parsed = _parse_date(value)
     if parsed is None:
         return None
-    return parsed.astimezone(timezone.utc)
+    return parsed.astimezone(UTC)
 
 
 class MarketManConnector:
@@ -74,7 +76,7 @@ class MarketManConnector:
         api_key: str,
         *,
         timeout: int = 15,
-        session: Optional[requests.Session] = None,
+        session: requests.Session | None = None,
     ) -> None:
         if not requests:
             raise RuntimeError("requests is required to use MarketManConnector")
@@ -110,13 +112,13 @@ class MarketManConnector:
             return payload
         raise ConnectorError("MarketMan", "Unexpected response payload shape")
 
-    def _get(self, path: str, *, params: Optional[Mapping[str, Any]] = None) -> Mapping[str, Any]:
+    def _get(self, path: str, *, params: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         return self._request("GET", path, params=params)
 
     # --------------------------
     # Public API
     # --------------------------
-    def fetch_inventory_items(self) -> List[Mapping[str, Any]]:
+    def fetch_inventory_items(self) -> list[Mapping[str, Any]]:
         """Return raw inventory items from MarketMan."""
 
         payload = self._get("inventory/items")
@@ -127,7 +129,7 @@ class MarketManConnector:
             return payload  # type: ignore[return-value]
         return []
 
-    def fetch_purchases(self) -> List[Mapping[str, Any]]:
+    def fetch_purchases(self) -> list[Mapping[str, Any]]:
         """Return purchase orders to map lot receipts."""
 
         payload = self._get("purchases")
@@ -138,7 +140,7 @@ class MarketManConnector:
             return payload  # type: ignore[return-value]
         return []
 
-    def fetch_suppliers(self) -> List[Mapping[str, Any]]:
+    def fetch_suppliers(self) -> list[Mapping[str, Any]]:
         """Return supplier catalogue entries from MarketMan."""
 
         payload = self._get("suppliers")
@@ -155,7 +157,7 @@ class MarketManConnector:
         *,
         kitchen_id: UUID,
         host_id: UUID,
-    ) -> List[InventoryItem]:
+    ) -> list[InventoryItem]:
         """Fetch data from MarketMan and upsert into Prep's inventory tables."""
 
         supplier_records = self.fetch_suppliers()
@@ -183,14 +185,14 @@ class MarketManConnector:
             supplier_lookup[external_id] = supplier
 
         purchase_records = self.fetch_purchases()
-        purchase_lookup: Dict[str, Mapping[str, Any]] = {
+        purchase_lookup: dict[str, Mapping[str, Any]] = {
             str(entry.get("id") or entry.get("purchase_id")): entry
             for entry in purchase_records
             if entry.get("id") or entry.get("purchase_id")
         }
 
         now = datetime.now(UTC)
-        items: List[InventoryItem] = []
+        items: list[InventoryItem] = []
         for raw_item in self.fetch_inventory_items():
             external_id = str(raw_item.get("id") or raw_item.get("item_id") or "")
             if not external_id:
@@ -231,9 +233,7 @@ class MarketManConnector:
             if not isinstance(lots_payload, Iterable):
                 lots_payload = []
 
-            existing_lots = {
-                lot.external_id: lot for lot in item.lots if lot.external_id
-            }
+            existing_lots = {lot.external_id: lot for lot in item.lots if lot.external_id}
             seen_lot_ids: set[str] = set()
 
             for raw_lot in lots_payload:
@@ -253,9 +253,7 @@ class MarketManConnector:
                     lot = InventoryLot(item=item)
                 lot.external_id = lot_external_id
                 lot.quantity = _to_decimal(
-                    raw_lot.get("quantity")
-                    or raw_lot.get("on_hand")
-                    or raw_lot.get("available")
+                    raw_lot.get("quantity") or raw_lot.get("on_hand") or raw_lot.get("available")
                 )
                 lot.unit = str(raw_lot.get("unit") or raw_lot.get("uom") or item.unit)
                 expiry_raw = raw_lot.get("expiry_date") or raw_lot.get("expiration_date")

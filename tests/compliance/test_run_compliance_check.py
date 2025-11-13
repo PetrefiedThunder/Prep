@@ -3,16 +3,16 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 
 def iso(days_offset: int) -> str:
-    value = datetime.now(timezone.utc).replace(microsecond=0) + timedelta(days=days_offset)
+    value = datetime.now(UTC).replace(microsecond=0) + timedelta(days=days_offset)
     return value.isoformat().replace("+00:00", "Z")
 
 
-def build_payload() -> Dict[str, Any]:
+def build_payload() -> dict[str, Any]:
     return {
         "license_info": {
             "license_number": "VALID-CLI-1",

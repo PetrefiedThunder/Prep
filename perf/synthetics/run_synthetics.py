@@ -32,13 +32,13 @@ import argparse
 import asyncio
 import json
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import httpx
-
 
 DEFAULT_SCENARIOS: dict[str, dict[str, Any]] = {
     "san_francisco": {
@@ -183,7 +183,7 @@ async def run_synthetics(
             results.extend([estimate_result, requirements_result])
 
     summary = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "base_url": base_url,
         "threshold_ms": threshold_ms,
         "iterations": iterations,
@@ -191,9 +191,7 @@ async def run_synthetics(
         "checks": [result.to_json() for result in results],
     }
     summary["passed"] = all(result["passed"] for result in summary["checks"])
-    summary["p95_by_check"] = {
-        result["name"]: result["p95_ms"] for result in summary["checks"]
-    }
+    summary["p95_by_check"] = {result["name"]: result["p95_ms"] for result in summary["checks"]}
     return summary
 
 
@@ -228,9 +226,9 @@ def main() -> None:
     if not base_url:
         raise SystemExit("SYNTHETIC_BASE_URL is required")
 
-    jurisdictions = os.environ.get(
-        "SYNTHETIC_JURISDICTIONS", "san_francisco,joshua_tree"
-    ).split(",")
+    jurisdictions = os.environ.get("SYNTHETIC_JURISDICTIONS", "san_francisco,joshua_tree").split(
+        ","
+    )
     iterations = int(os.environ.get("SYNTHETIC_ITERATIONS", "5"))
     threshold_ms = float(os.environ.get("SYNTHETIC_THRESHOLD_MS", "200"))
     idempotency_key = os.environ.get("SYNTHETIC_IDEMPOTENCY")

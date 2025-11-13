@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import random
-from typing import Any, Dict, List
+from datetime import UTC, datetime
+from typing import Any
 
 from .base_engine import (
     ComplianceEngine,
@@ -25,7 +25,7 @@ class LondonStockExchangeSimulator(ComplianceEngine):
         }
 
     def load_rules(self) -> None:  # type: ignore[override]
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self.rules = [
             ComplianceRule(
                 id="lse_disclosure_1",
@@ -69,8 +69,8 @@ class LondonStockExchangeSimulator(ComplianceEngine):
             ),
         ]
 
-    def validate(self, data: Dict[str, Any]) -> List[ComplianceViolation]:  # type: ignore[override]
-        violations: List[ComplianceViolation] = []
+    def validate(self, data: dict[str, Any]) -> list[ComplianceViolation]:  # type: ignore[override]
+        violations: list[ComplianceViolation] = []
 
         violations.extend(self._validate_disclosure(data))
         violations.extend(self._validate_market_abuse(data))
@@ -79,7 +79,7 @@ class LondonStockExchangeSimulator(ComplianceEngine):
 
         return violations
 
-    def simulate_impact(self, scenario: Dict[str, Any]) -> Dict[str, Any]:
+    def simulate_impact(self, scenario: dict[str, Any]) -> dict[str, Any]:
         event_type = scenario.get("event_type", "generic")
         impact_magnitude = float(scenario.get("impact_magnitude", 0.1))
 
@@ -96,12 +96,12 @@ class LondonStockExchangeSimulator(ComplianceEngine):
             "price_impact": adjusted_price_impact,
             "volume_impact": adjusted_volume_impact,
             "confidence": 0.85,
-            "simulation_timestamp": datetime.now(timezone.utc),
+            "simulation_timestamp": datetime.now(UTC),
             "market_conditions": self.market_conditions.copy(),
         }
 
-    def _validate_disclosure(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_disclosure(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
 
         for event in data.get("material_events", []):
             disclosed = bool(event.get("disclosed", False))
@@ -121,7 +121,7 @@ class LondonStockExchangeSimulator(ComplianceEngine):
                             "event_id": event.get("id"),
                             "disclosed": disclosed,
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
             elif isinstance(disclosure_time, datetime) and isinstance(event_time, datetime):
@@ -139,14 +139,14 @@ class LondonStockExchangeSimulator(ComplianceEngine):
                                 "event_id": event.get("id"),
                                 "delay_seconds": delay,
                             },
-                            timestamp=datetime.now(timezone.utc),
+                            timestamp=datetime.now(UTC),
                         )
                     )
 
         return violations
 
-    def _validate_market_abuse(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_market_abuse(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
 
         for trade in data.get("trades", []):
             if trade.get("suspicious", False):
@@ -160,7 +160,7 @@ class LondonStockExchangeSimulator(ComplianceEngine):
                             "trade_id": trade.get("id"),
                             "suspicious_indicators": trade.get("indicators", []),
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 
@@ -175,14 +175,14 @@ class LondonStockExchangeSimulator(ComplianceEngine):
                             "trade_id": trade.get("id"),
                             "insider_relationship": trade.get("relationship"),
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 
         return violations
 
-    def _validate_reporting(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_reporting(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
         reports = data.get("financial_reports", [])
         required_reports = ["annual", "interim", "ad hoc"]
 
@@ -198,14 +198,14 @@ class LondonStockExchangeSimulator(ComplianceEngine):
                             "missing_report_type": report_type,
                             "submitted_reports": [report.get("type") for report in reports],
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 
         return violations
 
-    def _validate_corporate_governance(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_corporate_governance(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
         governance = data.get("corporate_governance", {})
         required_elements = ["board_independence", "audit_committee", "remuneration_policy"]
 
@@ -223,13 +223,13 @@ class LondonStockExchangeSimulator(ComplianceEngine):
                                 key for key, value in governance.items() if value
                             ],
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 
         return violations
 
-    def generate_report(self, data: Dict[str, Any]) -> ComplianceReport:  # type: ignore[override]
+    def generate_report(self, data: dict[str, Any]) -> ComplianceReport:  # type: ignore[override]
         base_report = super().generate_report(data)
         simulation_results = self.simulate_impact(
             {"event_type": "compliance_review", "impact_magnitude": 0.05}

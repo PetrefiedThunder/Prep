@@ -1,4 +1,5 @@
 """FastAPI router exposing San Francisco compliance endpoints."""
+
 from __future__ import annotations
 
 from calendar import monthrange
@@ -54,7 +55,9 @@ def _period_to_dates(period: str) -> tuple[datetime, datetime]:
     return start, end
 
 
-@router.post("/host-onboard", response_model=HostComplianceStatus, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/host-onboard", response_model=HostComplianceStatus, status_code=status.HTTP_201_CREATED
+)
 async def onboard_host(
     payload: HostKitchenRecord,
     svc: SFComplianceService = Depends(get_service),

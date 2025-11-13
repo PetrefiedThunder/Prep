@@ -1,4 +1,5 @@
 """Unit tests for the GUID database type decorator."""
+
 from __future__ import annotations
 
 import uuid

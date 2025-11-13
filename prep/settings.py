@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterable
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Iterable
-from typing import Any, Dict, List
+from typing import Any
 
 from pydantic import (
     AnyUrl,
@@ -23,10 +23,10 @@ _ENV_FILE_ENV = "PREP_ENV_FILE"
 _DEFAULT_ENV_FILE = Path(".env")
 
 
-def _parse_env_file(path: Path) -> Dict[str, str]:
+def _parse_env_file(path: Path) -> dict[str, str]:
     """Parse a simple ``.env`` file into a dictionary."""
 
-    values: Dict[str, str] = {}
+    values: dict[str, str] = {}
     if not path.exists() or not path.is_file():
         return values
 
@@ -80,33 +80,17 @@ class Settings(BaseModel):
     database_pool_timeout: int = Field(default=30, ge=1, alias="DATABASE_POOL_TIMEOUT")
     database_pool_recycle: int = Field(default=1800, ge=1, alias="DATABASE_POOL_RECYCLE")
     session_ttl_seconds: int = Field(default=3600, ge=300, alias="SESSION_TTL_SECONDS")
-    session_max_age_minutes: int = Field(
-        default=480, ge=30, alias="SESSION_MAX_AGE_MINUTES"
-    )
+    session_max_age_minutes: int = Field(default=480, ge=30, alias="SESSION_MAX_AGE_MINUTES")
     secret_key: str = Field(default="change-me", alias="SECRET_KEY")
     auth_signing_key: str | None = Field(default=None, alias="AUTH_SIGNING_KEY")
     access_token_expire_minutes: int = Field(default=60, ge=5, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
-    refresh_token_ttl_days: int = Field(
-        default=30, ge=1, alias="REFRESH_TOKEN_TTL_DAYS"
-    )
-    auth_oidc_metadata: Dict[str, Any] = Field(
-        default_factory=dict, alias="AUTH_OIDC_METADATA"
-    )
-    auth_saml_metadata: Dict[str, Any] = Field(
-        default_factory=dict, alias="AUTH_SAML_METADATA"
-    )
-    auth_signing_public_key: str | None = Field(
-        default=None, alias="AUTH_SIGNING_PUBLIC_KEY"
-    )
-    auth_signing_private_key: str | None = Field(
-        default=None, alias="AUTH_SIGNING_PRIVATE_KEY"
-    )
-    auth_ip_allowlist: List[str] = Field(
-        default_factory=list, alias="AUTH_IP_ALLOWLIST"
-    )
-    auth_device_allowlist: List[str] = Field(
-        default_factory=list, alias="AUTH_DEVICE_ALLOWLIST"
-    )
+    refresh_token_ttl_days: int = Field(default=30, ge=1, alias="REFRESH_TOKEN_TTL_DAYS")
+    auth_oidc_metadata: dict[str, Any] = Field(default_factory=dict, alias="AUTH_OIDC_METADATA")
+    auth_saml_metadata: dict[str, Any] = Field(default_factory=dict, alias="AUTH_SAML_METADATA")
+    auth_signing_public_key: str | None = Field(default=None, alias="AUTH_SIGNING_PUBLIC_KEY")
+    auth_signing_private_key: str | None = Field(default=None, alias="AUTH_SIGNING_PRIVATE_KEY")
+    auth_ip_allowlist: list[str] = Field(default_factory=list, alias="AUTH_IP_ALLOWLIST")
+    auth_device_allowlist: list[str] = Field(default_factory=list, alias="AUTH_DEVICE_ALLOWLIST")
     refresh_token_ttl_seconds: int = Field(
         default=60 * 60 * 24 * 14,
         ge=3600,
@@ -132,16 +116,12 @@ class Settings(BaseModel):
     stripe_api_key: str | None = Field(default=None, alias="STRIPE_API_KEY")
     stripe_currency: str = Field(default="usd", alias="STRIPE_CURRENCY")
     use_fixtures: bool = Field(default=False, alias="USE_FIXTURES")
-    compliance_controls_enabled: bool = Field(
-        default=False, alias="COMPLIANCE_CONTROLS_ENABLED"
-    )
+    compliance_controls_enabled: bool = Field(default=False, alias="COMPLIANCE_CONTROLS_ENABLED")
     twilio_from_number: str | None = Field(default=None, alias="TWILIO_FROM_NUMBER")
     compliance_ops_phone: str | None = Field(default=None, alias="COMPLIANCE_OPS_PHONE")
     compliance_ops_email: str | None = Field(default=None, alias="COMPLIANCE_OPS_EMAIL")
     alert_email_sender: str = Field(default="alerts@prep.test", alias="ALERT_EMAIL_SENDER")
-    doordash_drive_client_id: str | None = Field(
-        default=None, alias="DOORDASH_DRIVE_CLIENT_ID"
-    )
+    doordash_drive_client_id: str | None = Field(default=None, alias="DOORDASH_DRIVE_CLIENT_ID")
     doordash_drive_client_secret: str | None = Field(
         default=None, alias="DOORDASH_DRIVE_CLIENT_SECRET"
     )
@@ -151,16 +131,10 @@ class Settings(BaseModel):
     doordash_drive_webhook_secret: str | None = Field(
         default=None, alias="DOORDASH_DRIVE_WEBHOOK_SECRET"
     )
-    uber_direct_client_id: str | None = Field(
-        default=None, alias="UBER_DIRECT_CLIENT_ID"
-    )
-    uber_direct_client_secret: str | None = Field(
-        default=None, alias="UBER_DIRECT_CLIENT_SECRET"
-    )
+    uber_direct_client_id: str | None = Field(default=None, alias="UBER_DIRECT_CLIENT_ID")
+    uber_direct_client_secret: str | None = Field(default=None, alias="UBER_DIRECT_CLIENT_SECRET")
     uber_direct_scope: str = Field(default="delivery", alias="UBER_DIRECT_SCOPE")
-    uber_direct_audience: str = Field(
-        default="https://api.uber.com", alias="UBER_DIRECT_AUDIENCE"
-    )
+    uber_direct_audience: str = Field(default="https://api.uber.com", alias="UBER_DIRECT_AUDIENCE")
     uber_direct_base_url: AnyUrl = Field(
         default="https://api.uber.com", alias="UBER_DIRECT_BASE_URL"
     )
@@ -180,59 +154,33 @@ class Settings(BaseModel):
     )
     docusign_ping_url: AnyUrl | None = Field(default=None, alias="DOCUSIGN_PING_URL")
     contracts_s3_bucket: str | None = Field(default=None, alias="CONTRACTS_S3_BUCKET")
-    stripe_webhook_secret: str | None = Field(
-        default=None, alias="STRIPE_WEBHOOK_SECRET"
-    )
+    stripe_webhook_secret: str | None = Field(default=None, alias="STRIPE_WEBHOOK_SECRET")
     onfleet_api_key: str | None = Field(default=None, alias="ONFLEET_API_KEY")
-    onfleet_base_url: AnyUrl = Field(
-        default="https://onfleet.com/api/v2", alias="ONFLEET_BASE_URL"
-    )
+    onfleet_base_url: AnyUrl = Field(default="https://onfleet.com/api/v2", alias="ONFLEET_BASE_URL")
     shopify_store_domain: str | None = Field(default=None, alias="SHOPIFY_STORE_DOMAIN")
-    shopify_admin_api_token: str | None = Field(
-        default=None, alias="SHOPIFY_ADMIN_API_TOKEN"
-    )
+    shopify_admin_api_token: str | None = Field(default=None, alias="SHOPIFY_ADMIN_API_TOKEN")
     shopify_api_version: str = Field(default="2024-01", alias="SHOPIFY_API_VERSION")
     tiktok_shop_app_key: str | None = Field(default=None, alias="TIKTOK_SHOP_APP_KEY")
-    tiktok_shop_app_secret: str | None = Field(
-        default=None, alias="TIKTOK_SHOP_APP_SECRET"
-    )
-    tiktok_shop_access_token: str | None = Field(
-        default=None, alias="TIKTOK_SHOP_ACCESS_TOKEN"
-    )
-    oracle_simphony_host: AnyUrl | None = Field(
-        default=None, alias="ORACLE_SIMPHONY_HOST"
-    )
-    oracle_simphony_username: str | None = Field(
-        default=None, alias="ORACLE_SIMPHONY_USERNAME"
-    )
-    oracle_simphony_password: str | None = Field(
-        default=None, alias="ORACLE_SIMPHONY_PASSWORD"
-    )
+    tiktok_shop_app_secret: str | None = Field(default=None, alias="TIKTOK_SHOP_APP_SECRET")
+    tiktok_shop_access_token: str | None = Field(default=None, alias="TIKTOK_SHOP_ACCESS_TOKEN")
+    oracle_simphony_host: AnyUrl | None = Field(default=None, alias="ORACLE_SIMPHONY_HOST")
+    oracle_simphony_username: str | None = Field(default=None, alias="ORACLE_SIMPHONY_USERNAME")
+    oracle_simphony_password: str | None = Field(default=None, alias="ORACLE_SIMPHONY_PASSWORD")
     oracle_simphony_enterprise_id: str | None = Field(
         default=None, alias="ORACLE_SIMPHONY_ENTERPRISE_ID"
     )
-    bigquery_project_id: str | None = Field(
-        default=None, alias="BIGQUERY_PROJECT_ID"
-    )
+    bigquery_project_id: str | None = Field(default=None, alias="BIGQUERY_PROJECT_ID")
     bigquery_dataset: str | None = Field(default=None, alias="BIGQUERY_DATASET")
     snowflake_account: str | None = Field(default=None, alias="SNOWFLAKE_ACCOUNT")
     snowflake_database: str | None = Field(default=None, alias="SNOWFLAKE_DATABASE")
     snowflake_schema: str | None = Field(default=None, alias="SNOWFLAKE_SCHEMA")
-    snowflake_warehouse: str | None = Field(
-        default=None, alias="SNOWFLAKE_WAREHOUSE"
-    )
-    schema_registry_url: AnyUrl | None = Field(
-        default=None, alias="SCHEMA_REGISTRY_URL"
-    )
-    kafka_bootstrap_servers: str | None = Field(
-        default=None, alias="KAFKA_BOOTSTRAP_SERVERS"
-    )
+    snowflake_warehouse: str | None = Field(default=None, alias="SNOWFLAKE_WAREHOUSE")
+    schema_registry_url: AnyUrl | None = Field(default=None, alias="SCHEMA_REGISTRY_URL")
+    kafka_bootstrap_servers: str | None = Field(default=None, alias="KAFKA_BOOTSTRAP_SERVERS")
     integration_endpoints: list[IntegrationEndpoint] = Field(
         default_factory=list, alias="INTEGRATION_ENDPOINTS"
     )
-    integrations_beta_enabled: bool = Field(
-        default=False, alias="INTEGRATIONS_BETA"
-    )
+    integrations_beta_enabled: bool = Field(default=False, alias="INTEGRATIONS_BETA")
     integration_health_timeout_seconds: int = Field(
         default=10, ge=1, alias="INTEGRATION_HEALTH_TIMEOUT_SECONDS"
     )
@@ -249,7 +197,9 @@ class Settings(BaseModel):
     )
     rbac_policies: list[RBACPolicy] = Field(
         default_factory=lambda: [
-            RBACPolicy(path_prefix="/api/v1/platform/admin", roles=["operator_admin", "support_analyst"]),
+            RBACPolicy(
+                path_prefix="/api/v1/platform/admin", roles=["operator_admin", "support_analyst"]
+            ),
             RBACPolicy(
                 path_prefix="/api/v1/platform/kitchens",
                 roles=["operator_admin", "kitchen_manager"],
@@ -266,9 +216,7 @@ class Settings(BaseModel):
     )
     square_client_id: str | None = Field(default=None, alias="SQUARE_CLIENT_ID")
     square_client_secret: str | None = Field(default=None, alias="SQUARE_CLIENT_SECRET")
-    square_base_url: AnyUrl = Field(
-        default="https://connect.squareup.com", alias="SQUARE_BASE_URL"
-    )
+    square_base_url: AnyUrl = Field(default="https://connect.squareup.com", alias="SQUARE_BASE_URL")
     toast_api_key: str | None = Field(default=None, alias="TOAST_API_KEY")
     toast_base_url: AnyUrl = Field(default="https://toast-api.io", alias="TOAST_BASE_URL")
     pos_ledger_bucket: str | None = Field(default=None, alias="POS_LEDGER_BUCKET")
@@ -276,8 +224,6 @@ class Settings(BaseModel):
     thimble_api_key: str | None = Field(default=None, alias="THIMBLE_API_KEY")
     pilot_zip_codes: list[str] = Field(default_factory=list, alias="PILOT_ZIP_CODES")
     pilot_counties: list[str] = Field(default_factory=list, alias="PILOT_COUNTIES")
-    pilot_zip_codes: List[str] = Field(default_factory=list, alias="PILOT_ZIP_CODES")
-    pilot_counties: List[str] = Field(default_factory=list, alias="PILOT_COUNTIES")
 
     model_config = {
         "populate_by_name": True,
@@ -292,6 +238,13 @@ class Settings(BaseModel):
         if normalized not in allowed:
             raise ValueError(f"ENVIRONMENT must be one of {sorted(allowed)}")
         return normalized
+
+    @field_validator("stripe_secret_key", "stripe_api_key", "stripe_webhook_secret")
+    @classmethod
+    def _validate_stripe_keys(cls, value: str | None, info: ValidationInfo) -> str | None:
+        if value is not None and value.strip() == "":
+            raise ValueError(f"{info.field_name} cannot be an empty string")
+        return value
 
     @field_validator(
         "ip_allowlist",
@@ -334,17 +287,6 @@ class Settings(BaseModel):
             raise ValueError("RBAC_POLICIES must decode to a list of policies")
         return value
 
-    @field_validator("pilot_zip_codes", "pilot_counties", mode="before")
-    @classmethod
-    def _parse_pilot_config(cls, value: Any) -> list[str]:
-        if value in (None, ""):
-            return []
-        if isinstance(value, str):
-            return [item.strip() for item in value.split(",") if item.strip()]
-        if isinstance(value, Iterable):
-            return [str(item).strip() for item in value if str(item).strip()]
-        raise TypeError("Pilot configuration must be provided as a string or iterable")
-
     @field_validator("auth_ip_allowlist", "auth_device_allowlist", mode="before")
     @classmethod
     def _parse_allowlists(cls, value: Any) -> list[str]:
@@ -371,23 +313,19 @@ class Settings(BaseModel):
 
     @field_validator("pilot_zip_codes", "pilot_counties", mode="before")
     @classmethod
-    def _normalize_pilot_collections(
-        cls, value: Any, info: ValidationInfo
-    ) -> List[str]:
+    def _normalize_pilot_collections(cls, value: Any, info: ValidationInfo) -> list[str]:
         if value is None or value == "":
             return []
         if isinstance(value, str):
-            normalized_source: List[str] = [
+            normalized_source: list[str] = [
                 item.strip() for item in value.replace(";", ",").split(",")
             ]
         elif isinstance(value, (list, tuple, set)):
             normalized_source = [str(item).strip() for item in value]
         else:  # pragma: no cover - defensive branch
-            raise TypeError(
-                f"Unsupported type for {info.field_name}: {type(value)!r}"
-            )
+            raise TypeError(f"Unsupported type for {info.field_name}: {type(value)!r}")
 
-        cleaned: List[str] = []
+        cleaned: list[str] = []
         for item in normalized_source:
             if not item:
                 continue
@@ -400,8 +338,8 @@ class Settings(BaseModel):
         return cleaned
 
 
-def _collect_environment(env_file: Path | None) -> Dict[str, Any]:
-    env: Dict[str, Any] = {}
+def _collect_environment(env_file: Path | None) -> dict[str, Any]:
+    env: dict[str, Any] = {}
     if env_file is None:
         env_file = _DEFAULT_ENV_FILE
     env.update(_parse_env_file(env_file))

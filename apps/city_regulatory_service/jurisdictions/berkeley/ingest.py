@@ -1,8 +1,8 @@
-
 """Synthetic ingestion payloads for Berkeley, California."""
+
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from apps.city_regulatory_service.models import FacilityType, RegulationType
@@ -109,10 +109,11 @@ INSURANCE_REQUIREMENTS: list[dict[str, Any]] = [
     },
 ]
 
+
 def build_payload(verification_date: datetime | None = None) -> dict[str, Any]:
     """Return a DataIngestionRequest-compatible payload for Berkeley."""
 
-    verification = verification_date or datetime.utcnow()
+    verification = verification_date or datetime.now(UTC)
     return {
         "city_name": JURISDICTION_NAME,
         "state": STATE,
@@ -123,6 +124,7 @@ def build_payload(verification_date: datetime | None = None) -> dict[str, Any]:
         "insurance_requirements": INSURANCE_REQUIREMENTS,
         "opa_package": OPA_PACKAGE,
     }
+
 
 __all__ = [
     "JURISDICTION_INFO",

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Iterable, Sequence
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -102,7 +102,11 @@ class POSAnalyticsService:
         total_sales = txn_total + order_total
 
         duration_seconds = (end_utc - start_utc).total_seconds()
-        total_hours = Decimal(str(duration_seconds)) / Decimal("3600") if duration_seconds > 0 else Decimal("0")
+        total_hours = (
+            Decimal(str(duration_seconds)) / Decimal("3600")
+            if duration_seconds > 0
+            else Decimal("0")
+        )
         if total_hours <= 0:
             total_hours = Decimal("1")
 

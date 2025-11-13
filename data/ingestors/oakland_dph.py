@@ -1,4 +1,5 @@
 """City of Oakland Department of Public Health fee schedule."""
+
 """Fee schedule for Alameda County Department of Environmental Health (Oakland)."""
 
 from __future__ import annotations
@@ -22,9 +23,7 @@ def make_fee_schedule() -> FeeSchedule:
             "Oakland facilities are permitted through Alameda County Environmental Health; "
             "tiers reflect the 2024 fee resolution for permanent food facilities."
         ),
-        references=(
-            "https://deh.acgov.org/food/documents/2024-retail-food-fee-schedule.pdf",
-        ),
+        references=("https://deh.acgov.org/food/documents/2024-retail-food-fee-schedule.pdf",),
         components=(
             FeeComponent(
                 name="Base permit fee (0-2000 sq ft)",
@@ -68,7 +67,12 @@ def make_fee_schedule() -> FeeSchedule:
         "Zoning Clearance",
     ]
     fees = [
-        FeeItem(name="Environmental Health Permit", amount_cents=47200, kind="recurring", cadence="annual"),
+        FeeItem(
+            name="Environmental Health Permit",
+            amount_cents=47200,
+            kind="recurring",
+            cadence="annual",
+        ),
         FeeItem(name="Initial Inspection", amount_cents=18900),
         FeeItem(
             name="Follow-up Inspection",
@@ -79,11 +83,11 @@ def make_fee_schedule() -> FeeSchedule:
         ),
     ]
     return FeeSchedule(jurisdiction="oakland", paperwork=paperwork, fees=fees)
+
+
 from __future__ import annotations
 
 from apps.city_regulatory_service.jurisdictions.common.fees import (
-    FeeItem,
-    FeeSchedule,
     make_fee_schedule as build_schedule,
 )
 

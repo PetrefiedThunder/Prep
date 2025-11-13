@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List
+from datetime import UTC, datetime
+from typing import Any
 
 from .base_engine import ComplianceEngine, ComplianceRule, ComplianceViolation
 
@@ -25,8 +25,8 @@ class DOLRegComplianceEngine(ComplianceEngine):
                 category="wage_and_hour",
                 severity="critical",
                 applicable_regulations=["FLSA"],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             ),
             ComplianceRule(
                 id="dol_minimum_wage_1",
@@ -35,21 +35,20 @@ class DOLRegComplianceEngine(ComplianceEngine):
                 category="wage_and_hour",
                 severity="critical",
                 applicable_regulations=["FLSA"],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             ),
             ComplianceRule(
                 id="dol_child_labor_1",
                 name="Child Labor Restrictions",
                 description=(
-                    "Prohibits employment of children under 14, limits hours for"
-                    " 14-15 year olds"
+                    "Prohibits employment of children under 14, limits hours for 14-15 year olds"
                 ),
                 category="child_labor",
                 severity="critical",
                 applicable_regulations=["FLSA"],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             ),
             ComplianceRule(
                 id="dol_record_keeping_1",
@@ -58,8 +57,8 @@ class DOLRegComplianceEngine(ComplianceEngine):
                 category="record_keeping",
                 severity="high",
                 applicable_regulations=["FLSA"],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             ),
             ComplianceRule(
                 id="dol_break_1",
@@ -68,13 +67,13 @@ class DOLRegComplianceEngine(ComplianceEngine):
                 category="working_conditions",
                 severity="medium",
                 applicable_regulations=["State_Laws"],
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             ),
         ]
 
-    def validate(self, data: Dict[str, Any]) -> List[ComplianceViolation]:  # type: ignore[override]
-        violations: List[ComplianceViolation] = []
+    def validate(self, data: dict[str, Any]) -> list[ComplianceViolation]:  # type: ignore[override]
+        violations: list[ComplianceViolation] = []
 
         violations.extend(self._validate_overtime(data))
         violations.extend(self._validate_minimum_wage(data))
@@ -84,8 +83,8 @@ class DOLRegComplianceEngine(ComplianceEngine):
 
         return violations
 
-    def _validate_overtime(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_overtime(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
 
         for employee in data.get("employees", []):
             hours_worked = float(employee.get("hours_worked", 0))
@@ -110,14 +109,14 @@ class DOLRegComplianceEngine(ComplianceEngine):
                                 "required_overtime": required_overtime,
                                 "actual_overtime": overtime_paid,
                             },
-                            timestamp=datetime.now(timezone.utc),
+                            timestamp=datetime.now(UTC),
                         )
                     )
 
         return violations
 
-    def _validate_minimum_wage(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_minimum_wage(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
         federal_min_wage = 7.25
 
         for employee in data.get("employees", []):
@@ -137,14 +136,14 @@ class DOLRegComplianceEngine(ComplianceEngine):
                             "paid_rate": hourly_rate,
                             "minimum_rate": federal_min_wage,
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 
         return violations
 
-    def _validate_child_labor(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_child_labor(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
 
         for employee in data.get("employees", []):
             age = employee.get("age")
@@ -163,7 +162,7 @@ class DOLRegComplianceEngine(ComplianceEngine):
                             "employee_id": employee.get("id"),
                             "age": age,
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
             elif int(age) in {14, 15} and hours_worked > 18:
@@ -181,14 +180,14 @@ class DOLRegComplianceEngine(ComplianceEngine):
                             "age": age,
                             "hours_worked": hours_worked,
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 
         return violations
 
-    def _validate_record_keeping(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_record_keeping(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
 
         for record in data.get("payroll_records", []):
             created_date = record.get("created_date")
@@ -208,7 +207,7 @@ class DOLRegComplianceEngine(ComplianceEngine):
                                 "record_id": record.get("id"),
                                 "date_field": created_date,
                             },
-                            timestamp=datetime.now(timezone.utc),
+                            timestamp=datetime.now(UTC),
                         )
                     )
             else:
@@ -219,14 +218,14 @@ class DOLRegComplianceEngine(ComplianceEngine):
                         message="Missing created_date in payroll record",
                         severity="high",
                         context={"record_id": record.get("id")},
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 
         return violations
 
-    def _validate_breaks(self, data: Dict[str, Any]) -> List[ComplianceViolation]:
-        violations: List[ComplianceViolation] = []
+    def _validate_breaks(self, data: dict[str, Any]) -> list[ComplianceViolation]:
+        violations: list[ComplianceViolation] = []
 
         for employee in data.get("employees", []):
             hours_worked = float(employee.get("hours_worked", 0))
@@ -247,7 +246,7 @@ class DOLRegComplianceEngine(ComplianceEngine):
                             "hours_worked": hours_worked,
                             "breaks_taken": breaks_taken,
                         },
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 

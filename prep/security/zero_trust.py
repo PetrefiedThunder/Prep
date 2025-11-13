@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from ..core.audit import AuditRecord
 
@@ -16,7 +16,7 @@ class Request:
     user_id: str
     device_id: str
     ip_address: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -25,8 +25,8 @@ class AuthenticationResult:
 
     authenticated: bool
     confidence_score: float
-    reason: Optional[str] = None
-    factors: Dict[str, Any] = field(default_factory=dict)
+    reason: str | None = None
+    factors: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -37,7 +37,7 @@ class SecurityAction:
     type: str
     resource: str
     outcome: str
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
 
 
 class ZeroTrustSecurity:
@@ -67,7 +67,7 @@ class ZeroTrustSecurity:
         """Comprehensive audit logging for SOC2."""
 
         return AuditRecord(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             category="security_action",
             user_id=action.user_id,
             action_type=action.type,

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Iterable, Mapping, Sequence
 
 _VALID_KINDS: set[str] = {"one_time", "recurring", "incremental"}
 _VALID_CADENCE: dict[str, int] = {
@@ -74,7 +74,9 @@ class FeeValidationError(ValueError):
 
     def __init__(self, issues: Sequence[str]) -> None:
         joined = "\n - ".join(issues)
-        message = f"Fee schedule validation failed:\n - {joined}" if issues else "Invalid fee schedule"
+        message = (
+            f"Fee schedule validation failed:\n - {joined}" if issues else "Invalid fee schedule"
+        )
         super().__init__(message)
         self.issues = list(issues)
 
@@ -89,7 +91,7 @@ def validate_fee_schedule(schedule: object, *, raise_on_error: bool = True) -> F
     """
 
     issues: list[str] = []
-    counts: dict[str, int] = {kind: 0 for kind in _VALID_KINDS}
+    counts: dict[str, int] = dict.fromkeys(_VALID_KINDS, 0)
     fees = _iter_fees(schedule)
     if not fees:
         issues.append("Fee schedule must include at least one fee item")
@@ -121,9 +123,7 @@ def validate_fee_schedule(schedule: object, *, raise_on_error: bool = True) -> F
             if not cadence_str:
                 issues.append(f"Recurring fee '{name}' must provide a cadence")
             elif cadence_str not in _VALID_CADENCE:
-                issues.append(
-                    f"Recurring fee '{name}' uses unsupported cadence '{cadence_str}'"
-                )
+                issues.append(f"Recurring fee '{name}' uses unsupported cadence '{cadence_str}'")
             if isinstance(amount, int) and amount >= 0 and cadence_str in _VALID_CADENCE:
                 total_recurring += amount * _VALID_CADENCE[cadence_str]
 
@@ -141,9 +141,7 @@ def validate_fee_schedule(schedule: object, *, raise_on_error: bool = True) -> F
             elif unit_str not in _INCREMENTAL_UNITS:
                 issues.append(f"Incremental fee '{name}' has unsupported unit '{unit_str}'")
         elif unit_str and unit_str not in _INCREMENTAL_UNITS:
-            issues.append(
-                f"Fee '{name}' provides unit '{unit_str}' but is not marked incremental"
-            )
+            issues.append(f"Fee '{name}' provides unit '{unit_str}' but is not marked incremental")
 
     provided_one_time = _total_from_schedule(schedule, "one_time_cents")
     if provided_one_time is not None and provided_one_time != total_one_time:

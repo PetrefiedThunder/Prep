@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+
 import httpx
 
 from prep.commerce import models
@@ -67,9 +68,7 @@ class TikTokShopConnector:
             "app_key": self._app_key,
             "order_id": order.id,
             "status": order.status,
-            "items": [
-                {"sku": line.sku, "quantity": line.quantity} for line in order.lines
-            ],
+            "items": [{"sku": line.sku, "quantity": line.quantity} for line in order.lines],
         }
         async with httpx.AsyncClient(base_url=self._base_url) as client:
             response = await client.post("/api/fulfillment/update", json=payload)

@@ -40,7 +40,10 @@ class MockContextManager:
 @pytest.mark.parametrize(
     "line, expected",
     [
-        ("ca,https://example.com/file.pdf", crawler.CrawlTarget("ca", "https://example.com/file.pdf")),
+        (
+            "ca,https://example.com/file.pdf",
+            crawler.CrawlTarget("ca", "https://example.com/file.pdf"),
+        ),
         ("ny\thttps://example.com", crawler.CrawlTarget("ny", "https://example.com")),
         ("wa https://example.com/path", crawler.CrawlTarget("wa", "https://example.com/path")),
     ],

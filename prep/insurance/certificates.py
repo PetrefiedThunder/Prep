@@ -70,9 +70,7 @@ async def issue_certificate_for_booking(booking_id: str) -> None:
 
         await _persist_certificate(session, certificate, booking, kitchen)
         INTEGRATION_SYNC_SUCCESS.labels(integration="insurance").inc()
-        logger.info(
-            "Issued %s certificate for booking %s", certificate.provider, booking.id
-        )
+        logger.info("Issued %s certificate for booking %s", certificate.provider, booking.id)
 
 
 async def _persist_certificate(

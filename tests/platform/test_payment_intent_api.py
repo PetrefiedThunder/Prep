@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
-from typing import Any, AsyncGenerator
+from typing import Any
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
@@ -14,7 +16,6 @@ import stripe
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from unittest.mock import Mock
 
 from prep.cache import RedisProtocol, get_redis
 from prep.database import get_db

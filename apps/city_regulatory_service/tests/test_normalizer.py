@@ -1,6 +1,5 @@
 """Tests for requirement normalizer."""
 
-
 from apps.city_regulatory_service.src.normalizers import RequirementNormalizer
 
 
@@ -9,35 +8,38 @@ class TestRequirementNormalizer:
 
     def test_normalize_requirement_type_business_license(self):
         """Test normalization of business license types."""
-        assert RequirementNormalizer.normalize_requirement_type(
-            "Business Registration Certificate"
-        ) == "business_license"
+        assert (
+            RequirementNormalizer.normalize_requirement_type("Business Registration Certificate")
+            == "business_license"
+        )
 
-        assert RequirementNormalizer.normalize_requirement_type(
-            "General Business License"
-        ) == "business_license"
+        assert (
+            RequirementNormalizer.normalize_requirement_type("General Business License")
+            == "business_license"
+        )
 
     def test_normalize_requirement_type_restaurant(self):
         """Test normalization of restaurant license types."""
-        assert RequirementNormalizer.normalize_requirement_type(
-            "Food Service Permit"
-        ) == "restaurant_license"
+        assert (
+            RequirementNormalizer.normalize_requirement_type("Food Service Permit")
+            == "restaurant_license"
+        )
 
-        assert RequirementNormalizer.normalize_requirement_type(
-            "Common Victualler License"
-        ) == "restaurant_license"
+        assert (
+            RequirementNormalizer.normalize_requirement_type("Common Victualler License")
+            == "restaurant_license"
+        )
 
     def test_normalize_requirement_type_food_safety(self):
         """Test normalization of food safety training types."""
-        assert RequirementNormalizer.normalize_requirement_type(
-            "Food Manager Certification"
-        ) == "food_safety_training"
+        assert (
+            RequirementNormalizer.normalize_requirement_type("Food Manager Certification")
+            == "food_safety_training"
+        )
 
     def test_normalize_requirement_type_fallback(self):
         """Test fallback for unknown requirement types."""
-        assert RequirementNormalizer.normalize_requirement_type(
-            "Unknown Permit Type"
-        ) == "other"
+        assert RequirementNormalizer.normalize_requirement_type("Unknown Permit Type") == "other"
 
     def test_normalize_renewal_frequency_annual(self):
         """Test normalization of annual renewal frequency."""
@@ -77,19 +79,17 @@ class TestRequirementNormalizer:
 
     def test_extract_fee_amount_with_amount(self):
         """Test fee extraction with numeric amount."""
-        amount, schedule = RequirementNormalizer.extract_fee_amount({
-            "amount": 686.00,
-            "frequency": "annual"
-        })
+        amount, schedule = RequirementNormalizer.extract_fee_amount(
+            {"amount": 686.00, "frequency": "annual"}
+        )
         assert amount == 686.00
         assert schedule == "annual"
 
     def test_extract_fee_amount_variable(self):
         """Test fee extraction with variable amount."""
-        amount, schedule = RequirementNormalizer.extract_fee_amount({
-            "amount": None,
-            "schedule": "variable by revenue"
-        })
+        amount, schedule = RequirementNormalizer.extract_fee_amount(
+            {"amount": None, "schedule": "variable by revenue"}
+        )
         assert amount is None
         assert schedule == "variable by revenue"
 
@@ -110,10 +110,7 @@ class TestRequirementNormalizer:
             "applies_to": ["restaurant", "shared kitchen"],
             "required_documents": ["Floor plan", "Menu"],
             "renewal_cycle": "annual",
-            "fee_structure": {
-                "amount": 686.00,
-                "frequency": "annual"
-            },
+            "fee_structure": {"amount": 686.00, "frequency": "annual"},
             "submission_channel": "online",
             "application_url": "https://example.com",
             "inspection_required": True,

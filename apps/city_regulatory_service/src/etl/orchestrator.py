@@ -8,7 +8,7 @@ into the Prep regulatory engine.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -59,9 +59,7 @@ class CityETLOrchestrator:
             CityJurisdiction instance
         """
         jurisdiction = (
-            self.db_session.query(CityJurisdiction)
-            .filter_by(city=city, state=state)
-            .first()
+            self.db_session.query(CityJurisdiction).filter_by(city=city, state=state).first()
         )
 
         if not jurisdiction:
@@ -202,7 +200,7 @@ class CityETLOrchestrator:
 
         etl_run = CityETLRun(
             jurisdiction_id=jurisdiction.id,
-            run_started_at=datetime.utcnow(),
+            run_started_at=datetime.now(UTC),
             status="running",
         )
         self.db_session.add(etl_run)
@@ -258,7 +256,7 @@ class CityETLOrchestrator:
             self.db_session.commit()
 
             # Update ETL run record
-            etl_run.run_completed_at = datetime.utcnow()
+            etl_run.run_completed_at = datetime.now(UTC)
             etl_run.status = "completed" if not stats["errors"] else "completed_with_errors"
             etl_run.requirements_processed = stats["processed"]
             etl_run.requirements_inserted = stats["inserted"]
@@ -272,7 +270,7 @@ class CityETLOrchestrator:
             logger.error(f"ETL failed for {city}: {e}")
             etl_run.status = "failed"
             etl_run.errors = [str(e)]
-            etl_run.run_completed_at = datetime.utcnow()
+            etl_run.run_completed_at = datetime.now(UTC)
             self.db_session.commit()
             raise
 

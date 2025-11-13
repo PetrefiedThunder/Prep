@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = "9d92f4b9c4ce"
 down_revision = None

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import List
 
 
 @dataclass(slots=True)
@@ -13,8 +12,8 @@ class COIValidationResult:
 
     valid: bool
     expiry_date: datetime | None
-    errors: List[str]
-    warnings: List[str] = field(default_factory=list)
+    errors: list[str]
+    warnings: list[str] = field(default_factory=list)
 
 
 def validate_coi(payload: bytes, *, pilot_mode: bool = False) -> COIValidationResult:
@@ -26,8 +25,8 @@ def validate_coi(payload: bytes, *, pilot_mode: bool = False) -> COIValidationRe
     purposes and rely on the computed expiry date for follow-up reminders.
     """
 
-    errors: List[str] = []
-    warnings: List[str] = []
+    errors: list[str] = []
+    warnings: list[str] = []
 
     if not payload:
         message = "Uploaded document is empty."

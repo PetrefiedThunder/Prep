@@ -11,10 +11,9 @@ Exit codes:
 """
 
 import sys
-from typing import Iterable
+from collections.abc import Iterable
 
 from libs.safe_import import safe_import
-
 
 # Core API modules that must always import
 REQUIRED_MODULES: Iterable[str] = (

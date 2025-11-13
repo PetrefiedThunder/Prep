@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import datetime
-from typing import AsyncIterator, Dict, List, Optional
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -29,13 +29,15 @@ class RegulatoryNotifier:
         kitchen_id: str,
         old_status: str,
         new_status: str,
-        reasons: List[str],
+        reasons: list[str],
     ) -> None:
         """Notify a host when their kitchen compliance status changes."""
 
         kitchen = await self.get_kitchen(kitchen_id)
         if kitchen is None:
-            self.logger.warning("Unable to load kitchen %s for compliance change notification", kitchen_id)
+            self.logger.warning(
+                "Unable to load kitchen %s for compliance change notification", kitchen_id
+            )
             return
 
         message = f"Compliance status changed from {old_status or 'unknown'} to {new_status} for {kitchen.name}"
@@ -58,14 +60,16 @@ class RegulatoryNotifier:
     async def notify_regulatory_update(
         self,
         state: str,
-        city: Optional[str],
-        regulation_changes: List[Dict],
+        city: str | None,
+        regulation_changes: list[dict],
     ) -> None:
         """Notify hosts within a jurisdiction about new regulations."""
 
         kitchens = await self.get_kitchens_by_jurisdiction(state, city)
         for kitchen in kitchens:
-            message = f"New regulatory updates in {city or 'your area'}, {state} may affect your kitchen"
+            message = (
+                f"New regulatory updates in {city or 'your area'}, {state} may affect your kitchen"
+            )
             await self.notification_service.send_notification(
                 user_id=str(kitchen.host_id),
                 type="regulatory_update",
@@ -89,10 +93,12 @@ class RegulatoryNotifier:
 
         kitchen = await self.get_kitchen(kitchen_id)
         if kitchen is None:
-            self.logger.warning("Unable to load kitchen %s for compliance deadline notification", kitchen_id)
+            self.logger.warning(
+                "Unable to load kitchen %s for compliance deadline notification", kitchen_id
+            )
             return
 
-        days_until = max((deadline - datetime.utcnow()).days, 0)
+        days_until = max((deadline - datetime.now(UTC)).days, 0)
         await self.notification_service.send_notification(
             user_id=str(kitchen.host_id),
             type="compliance_deadline",
@@ -106,7 +112,7 @@ class RegulatoryNotifier:
             },
         )
 
-    async def get_kitchen(self, kitchen_id: str) -> Optional[Kitchen]:
+    async def get_kitchen(self, kitchen_id: str) -> Kitchen | None:
         """Fetch a kitchen by ID using a short-lived database session."""
 
         try:
@@ -118,7 +124,7 @@ class RegulatoryNotifier:
             result = await session.execute(select(Kitchen).where(Kitchen.id == kitchen_uuid))
             return result.scalar_one_or_none()
 
-    async def get_kitchens_by_jurisdiction(self, state: str, city: Optional[str]) -> List[Kitchen]:
+    async def get_kitchens_by_jurisdiction(self, state: str, city: str | None) -> list[Kitchen]:
         """Fetch kitchens within a given jurisdiction."""
 
         async with self._session() as session:

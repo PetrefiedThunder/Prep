@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncIterator, Callable, Dict, Optional
+from collections.abc import AsyncIterator, Callable
+from typing import Any
 
 import httpx
 
@@ -15,9 +16,9 @@ class RCSClient:
         self,
         base_url: str,
         *,
-        client: Optional[httpx.AsyncClient] = None,
-        timeout: Optional[float] = 10.0,
-        stream_transport_factory: Optional[Callable[[], httpx.AsyncBaseTransport]] = None,
+        client: httpx.AsyncClient | None = None,
+        timeout: float | None = 10.0,
+        stream_transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None,
     ) -> None:
         self._client = client or httpx.AsyncClient(
             base_url=base_url,
@@ -32,14 +33,14 @@ class RCSClient:
         if self._owns_client:
             await self._client.aclose()
 
-    async def get_config(self, key: str) -> Optional[Dict[str, Any]]:
+    async def get_config(self, key: str) -> dict[str, Any] | None:
         response = await self._client.get(f"/configs/{key}")
         if response.status_code == 404:
             return None
         response.raise_for_status()
         return response.json()
 
-    async def set_config(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def set_config(self, payload: dict[str, Any]) -> dict[str, Any]:
         key = payload.get("key")
         if not key:
             raise ValueError("Configuration payload must include a 'key' field")
@@ -52,15 +53,13 @@ class RCSClient:
         if response.status_code not in (200, 204):
             response.raise_for_status()
 
-    async def list_configs(self, prefix: Optional[str] = None) -> list[Dict[str, Any]]:
+    async def list_configs(self, prefix: str | None = None) -> list[dict[str, Any]]:
         params = {"prefix": prefix} if prefix else None
         response = await self._client.get("/configs", params=params)
         response.raise_for_status()
         return response.json()
 
-    async def stream_configs(
-        self, *, prefix: Optional[str] = None
-    ) -> AsyncIterator[Dict[str, Any]]:
+    async def stream_configs(self, *, prefix: str | None = None) -> AsyncIterator[dict[str, Any]]:
         params = {"prefix": prefix} if prefix else None
         stream_client = self._client
         owns_stream_client = False
@@ -87,7 +86,7 @@ class RCSClient:
             if owns_stream_client:
                 await stream_client.aclose()
 
-    async def __aenter__(self) -> "RCSClient":
+    async def __aenter__(self) -> RCSClient:
         return self
 
     async def __aexit__(self, *exc_info: Any) -> None:

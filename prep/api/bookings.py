@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
-import re
 import uuid
-from datetime import UTC, datetime, timedelta, timezone
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Optional
+from datetime import datetime, timedelta
+from decimal import ROUND_HALF_UP, Decimal
+
+"""Booking API endpoints with compliance validation."""
+
+from __future__ import annotations
+
+import re
+from datetime import UTC
 from uuid import UUID
 
 from dateutil.rrule import rrulestr
@@ -101,9 +106,7 @@ def _calculate_dynamic_price(
 
     discount_multiplier = Decimal("1") - Decimal(str(decision.discount))
     discount_multiplier = max(discount_multiplier, Decimal("0"))
-    total = (subtotal * discount_multiplier).quantize(
-        Decimal("0.01"), rounding=ROUND_HALF_UP
-    )
+    total = (subtotal * discount_multiplier).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     return total, decision.discount, decision.applied_rules
 
 
@@ -131,6 +134,7 @@ class BookingResponse(BaseModel):
     discount_percent: float | None = None
     pricing_adjustments: list[str] = Field(default_factory=list)
 
+
 def _advisory_lock_key(kitchen_id: UUID) -> int:
     """Derive a signed 64-bit advisory lock key from a UUID."""
 
@@ -147,7 +151,9 @@ async def _acquire_kitchen_lock(db: AsyncSession, kitchen_id: UUID) -> None:
     if bind is None or getattr(bind.dialect, "name", "") != "postgresql":
         return
 
-    await db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _advisory_lock_key(kitchen_id)})
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(:key)"), {"key": _advisory_lock_key(kitchen_id)}
+    )
 
 
 async def _find_conflicting_booking(
@@ -156,7 +162,7 @@ async def _find_conflicting_booking(
     start_time: datetime,
     end_time: datetime,
     buffer: timedelta = BOOKING_BUFFER,
-) -> Optional[Booking]:
+) -> Booking | None:
     """Return an existing booking that overlaps the requested window (with buffer)."""
 
     window_start = start_time - buffer
@@ -219,7 +225,9 @@ async def create_booking(
         kitchen_uuid = uuid.UUID(booking_data.kitchen_id)
         user_uuid = uuid.UUID(booking_data.user_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid identifier") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid identifier"
+        ) from exc
 
     kitchen = await db.get(Kitchen, kitchen_uuid)
     if kitchen is None:
@@ -228,8 +236,9 @@ async def create_booking(
     pilot_mode, compliance_banner = _determine_pilot_mode(kitchen)
 
     if settings.compliance_controls_enabled:
+
         def _normalize(dt: datetime) -> datetime:
-            return dt.astimezone(timezone.utc) if dt.tzinfo else dt
+            return dt.astimezone(UTC) if dt.tzinfo else dt
 
         start_dt = _normalize(booking_data.start_time)
         end_dt = _normalize(booking_data.end_time)
@@ -259,7 +268,7 @@ async def create_booking(
         )
 
     if kitchen.last_compliance_check:
-        if (datetime.utcnow() - kitchen.last_compliance_check) > timedelta(days=30):
+        if (datetime.now(UTC) - kitchen.last_compliance_check) > timedelta(days=30):
             background_tasks.add_task(analyze_kitchen_compliance, str(kitchen.id))
 
     await _acquire_kitchen_lock(db, kitchen_uuid)
@@ -333,7 +342,9 @@ async def create_recurring_booking(
         kitchen_uuid = uuid.UUID(booking_data.kitchen_id)
         user_uuid = uuid.UUID(booking_data.user_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid identifier") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid identifier"
+        ) from exc
 
     normalized_start = _ensure_timezone(booking_data.start_time)
     normalized_end = _ensure_timezone(booking_data.end_time)
@@ -346,7 +357,9 @@ async def create_recurring_booking(
     try:
         rule = rrulestr(booking_data.rrule, dtstart=normalized_start)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid recurrence rule") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid recurrence rule"
+        ) from exc
 
     kitchen = await db.get(Kitchen, kitchen_uuid)
     if kitchen is None:
@@ -360,7 +373,7 @@ async def create_recurring_booking(
         )
 
     if kitchen.last_compliance_check:
-        if (datetime.utcnow() - kitchen.last_compliance_check) > timedelta(days=30):
+        if (datetime.now(UTC) - kitchen.last_compliance_check) > timedelta(days=30):
             background_tasks.add_task(analyze_kitchen_compliance, str(kitchen.id))
 
     window_start = datetime.now(UTC)

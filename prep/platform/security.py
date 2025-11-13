@@ -7,8 +7,9 @@ import hashlib
 import hmac
 import json
 import secrets
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
-from typing import Any, Dict, Iterable
+from typing import Any
 
 import jwt
 
@@ -72,7 +73,7 @@ def create_access_token(
         if user.is_admin and UserRole.ADMIN.value not in derived_roles:
             derived_roles.append(UserRole.ADMIN.value)
 
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "sub": str(user.id),
         "roles": _collect_roles(user),
         "roles": derived_roles,

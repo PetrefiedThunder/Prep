@@ -6,10 +6,7 @@ from fastapi.testclient import TestClient
 
 from api.index import create_app
 
-
-client = TestClient(
-    create_app(include_full_router=False, include_legacy_mounts=False)
-)
+client = TestClient(create_app(include_full_router=False, include_legacy_mounts=False))
 
 
 def test_versions_endpoint_lists_available_diffs() -> None:
@@ -53,11 +50,10 @@ def test_city_version_endpoint_filters_by_city() -> None:
     assert payload["version"] == version_id
     assert payload["city"] == city_slug
 
-    cached = client.get(
-        f"/city/diff/{version_id}/{city_slug}", headers={"If-None-Match": etag}
-    )
+    cached = client.get(f"/city/diff/{version_id}/{city_slug}", headers={"If-None-Match": etag})
     assert cached.status_code == 304
     assert cached.headers.get("ETag") == etag
+
 
 client = TestClient(create_app())
 

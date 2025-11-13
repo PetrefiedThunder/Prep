@@ -74,7 +74,9 @@ class DoorDashDriveClient:
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:  # pragma: no cover - network specific failures
-            logger.exception("DoorDash Drive returned error", extra={"status": exc.response.status_code})
+            logger.exception(
+                "DoorDash Drive returned error", extra={"status": exc.response.status_code}
+            )
             raise DeliveryIntegrationError(
                 "Failed to create DoorDash delivery",
                 status_code=exc.response.status_code,
@@ -148,7 +150,9 @@ class UberDirectClient:
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:  # pragma: no cover - network specific failures
-            logger.exception("Uber Direct returned error", extra={"status": exc.response.status_code})
+            logger.exception(
+                "Uber Direct returned error", extra={"status": exc.response.status_code}
+            )
             raise DeliveryIntegrationError(
                 "Failed to create Uber Direct delivery",
                 status_code=exc.response.status_code,
@@ -166,11 +170,17 @@ class UberDirectClient:
         )
 
     async def _get_token(self) -> str:
-        if self._access_token and self._token_expiration and self._token_expiration > datetime.now(UTC) + timedelta(seconds=30):
+        if (
+            self._access_token
+            and self._token_expiration
+            and self._token_expiration > datetime.now(UTC) + timedelta(seconds=30)
+        ):
             return self._access_token
 
         if not self.is_configured:
-            raise DeliveryIntegrationError("Uber Direct credentials are not configured", status_code=500)
+            raise DeliveryIntegrationError(
+                "Uber Direct credentials are not configured", status_code=500
+            )
 
         data = {
             "grant_type": "client_credentials",
@@ -178,18 +188,28 @@ class UberDirectClient:
             "audience": self._audience,
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(self._token_url, data=data, auth=httpx.BasicAuth(self._client_id or "", self._client_secret or ""))
+            response = await client.post(
+                self._token_url,
+                data=data,
+                auth=httpx.BasicAuth(self._client_id or "", self._client_secret or ""),
+            )
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:  # pragma: no cover - network specific failures
-            logger.exception("Uber Direct token request failed", extra={"status": exc.response.status_code})
-            raise DeliveryIntegrationError("Failed to authenticate with Uber Direct", status_code=exc.response.status_code) from exc
+            logger.exception(
+                "Uber Direct token request failed", extra={"status": exc.response.status_code}
+            )
+            raise DeliveryIntegrationError(
+                "Failed to authenticate with Uber Direct", status_code=exc.response.status_code
+            ) from exc
 
         token_data = response.json()
         access_token = token_data.get("access_token")
         expires_in = token_data.get("expires_in", 3600)
         if not access_token:
-            raise DeliveryIntegrationError("Uber Direct token response missing access_token", status_code=502)
+            raise DeliveryIntegrationError(
+                "Uber Direct token response missing access_token", status_code=502
+            )
 
         self._access_token = access_token
         self._token_expiration = datetime.now(UTC) + timedelta(seconds=int(expires_in))

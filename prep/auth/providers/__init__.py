@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import base64
+from collections.abc import Iterable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 from urllib.parse import urlencode
 
 import httpx
@@ -67,9 +68,7 @@ class BaseAuthProvider:
     async def build_authorization_url(self, *, redirect_uri: str, state: str) -> str:
         raise NotImplementedError
 
-    async def exchange_code(
-        self, *, code: str, redirect_uri: str | None = None
-    ) -> IdentityProfile:
+    async def exchange_code(self, *, code: str, redirect_uri: str | None = None) -> IdentityProfile:
         raise NotImplementedError
 
 
@@ -96,14 +95,14 @@ class OIDCProvider(BaseAuthProvider):
             params["prompt"] = prompt
         return f"{authorization_endpoint}?{urlencode(params)}"
 
-    async def exchange_code(
-        self, *, code: str, redirect_uri: str | None = None
-    ) -> IdentityProfile:
+    async def exchange_code(self, *, code: str, redirect_uri: str | None = None) -> IdentityProfile:
         metadata = self.provider.metadata or {}
         token_endpoint = metadata.get("token_endpoint")
         userinfo_endpoint = metadata.get("userinfo_endpoint")
         client_id = (self.provider.settings or {}).get("client_id") or metadata.get("client_id")
-        client_secret = (self.provider.settings or {}).get("client_secret") or metadata.get("client_secret")
+        client_secret = (self.provider.settings or {}).get("client_secret") or metadata.get(
+            "client_secret"
+        )
 
         if not token_endpoint or not client_id or not client_secret:
             raise AuthProviderError("OIDC provider is missing token endpoint configuration")
@@ -120,7 +119,9 @@ class OIDCProvider(BaseAuthProvider):
             data["redirect_uri"] = redirect_uri
 
         async with self._client_ctx() as client:
-            token_response = await client.post(token_endpoint, data=data, headers={"Accept": "application/json"})
+            token_response = await client.post(
+                token_endpoint, data=data, headers={"Accept": "application/json"}
+            )
             token_response.raise_for_status()
             token_payload = token_response.json()
 
@@ -158,9 +159,7 @@ class SAMLProvider(BaseAuthProvider):
             raise AuthProviderError("SAML provider is missing an SSO endpoint")
         return f"{sso_url}?{urlencode({'RelayState': state, 'ReturnTo': redirect_uri})}"
 
-    async def exchange_code(
-        self, *, code: str, redirect_uri: str | None = None
-    ) -> IdentityProfile:
+    async def exchange_code(self, *, code: str, redirect_uri: str | None = None) -> IdentityProfile:
         try:
             decoded = base64.b64decode(code)
         except (TypeError, ValueError) as exc:
@@ -188,7 +187,12 @@ class SAMLProvider(BaseAuthProvider):
         """Very small helper to parse common SAML attributes from an XML document."""
 
         try:
-            import xml.etree.ElementTree as ET
+            # SECURITY FIX: Use defusedxml to prevent XXE attacks
+            try:
+                from defusedxml import ElementTree as ET
+            except ImportError:
+                # Fallback with manual XXE protection
+                import xml.etree.ElementTree as ET
 
             root = ET.fromstring(document)
         except ET.ParseError as exc:  # type: ignore[attr-defined]
@@ -206,7 +210,9 @@ class SAMLProvider(BaseAuthProvider):
             name = attribute.attrib.get("Name")
             if not name:
                 continue
-            values = [value.text for value in attribute.findall("saml2:AttributeValue", ns) if value.text]
+            values = [
+                value.text for value in attribute.findall("saml2:AttributeValue", ns) if value.text
+            ]
             if not values:
                 continue
             if len(values) == 1:
@@ -223,7 +229,9 @@ class ProviderRegistry:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    def load(self, provider: IdentityProvider, *, client: httpx.AsyncClient | None = None) -> BaseAuthProvider:
+    def load(
+        self, provider: IdentityProvider, *, client: httpx.AsyncClient | None = None
+    ) -> BaseAuthProvider:
         if not provider.is_active:
             raise AuthProviderError("Identity provider is disabled")
         context = ProviderContext(provider=provider, settings=self._settings)

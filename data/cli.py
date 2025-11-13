@@ -6,10 +6,8 @@ import argparse
 import json
 import logging
 import os
+from collections.abc import Callable, Iterable, Mapping, MutableMapping, Sequence
 from dataclasses import dataclass, replace
-from typing import Callable, Iterable, Mapping, MutableMapping, Sequence
-
-from libs.safe_import import safe_import
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,6 +17,7 @@ from apps.city_regulatory_service.src.models import (
     CityFeeSchedule,
     CityJurisdiction,
 )
+from libs.safe_import import safe_import
 
 try:  # pragma: no cover - defensive fallback for optional dependencies
     from apps.city_regulatory_service.src.etl import CITY_ADAPTERS, CityETLOrchestrator
@@ -28,6 +27,7 @@ except Exception:  # pragma: no cover - import may fail in slim test environment
     class CityETLOrchestrator:  # type: ignore[override]
         def __init__(self, _: Session) -> None:
             raise RuntimeError("City ETL orchestration is unavailable in this environment")
+
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +75,9 @@ def _build_city_specs() -> dict[str, CitySpec]:
         state_upper = state.upper()
         existing = specs.get(slug)
         if existing:
-            specs[slug] = replace(existing, fee_module=module_path, state=state_upper or existing.state)
+            specs[slug] = replace(
+                existing, fee_module=module_path, state=state_upper or existing.state
+            )
         else:
             specs[slug] = CitySpec(
                 slug=slug,
@@ -120,7 +122,9 @@ def _ensure_jurisdiction(session: Session, spec: CitySpec) -> CityJurisdiction:
     return jurisdiction
 
 
-def _persist_fee_schedule(session: Session, jurisdiction: CityJurisdiction, schedule: FeeSchedule) -> CityFeeSchedule:
+def _persist_fee_schedule(
+    session: Session, jurisdiction: CityJurisdiction, schedule: FeeSchedule
+) -> CityFeeSchedule:
     stmt = select(CityFeeSchedule).where(CityFeeSchedule.jurisdiction_id == jurisdiction.id)
     record = session.execute(stmt).scalar_one_or_none()
     payload = {
@@ -154,15 +158,13 @@ def run_ingestion(
     """Run ingestion for the provided cities returning a structured report."""
 
     if session_factory is None:
-        from prep.models.db import SessionLocal as _SessionLocal  # pragma: no cover - optional import
+        from prep.models.db import (
+            SessionLocal as _SessionLocal,  # pragma: no cover - optional import
+        )
 
         session_factory = _SessionLocal
 
-    selected_slugs = (
-        {_slugify(city) for city in cities}
-        if cities
-        else set(city_specs.keys())
-    )
+    selected_slugs = {_slugify(city) for city in cities} if cities else set(city_specs.keys())
 
     results: MutableMapping[str, dict[str, object]] = {}
     session = session_factory()
@@ -226,7 +228,9 @@ def run_ingestion(
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Ingest city regulatory data")
-    parser.add_argument("cities", nargs="*", help="Specific cities to ingest (defaults to all supported)")
+    parser.add_argument(
+        "cities", nargs="*", help="Specific cities to ingest (defaults to all supported)"
+    )
     parser.add_argument(
         "--database-url",
         dest="database_url",
@@ -264,7 +268,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     session_factory: Callable[[], Session] | None = None
     try:
-        from prep.models.db import SessionLocal as _SessionLocal, init_db as _init_db  # pragma: no cover - optional import
+        from prep.models.db import (  # pragma: no cover - optional import
+            SessionLocal as _SessionLocal,
+            init_db as _init_db,
+        )
     except Exception:  # pragma: no cover - optional dependency missing
         _SessionLocal = None
         _init_db = None

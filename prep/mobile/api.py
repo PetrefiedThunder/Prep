@@ -19,13 +19,13 @@ from .schemas import (
     BiometricStatusResponse,
     BiometricVerificationRequest,
     BiometricVerificationResponse,
+    CacheStatusResponse,
     CameraUploadRequest,
     CameraUploadResponse,
-    CacheStatusResponse,
+    MobileKitchenDetailResponse,
     MobileLoginRequest,
     MobileLoginResponse,
     MobileNearbyKitchensResponse,
-    MobileKitchenDetailResponse,
     MobileUpcomingBookingsResponse,
     NotificationRegistrationRequest,
     NotificationRegistrationResponse,
@@ -222,4 +222,3 @@ async def bandwidth_estimate(
     service: MobileGatewayService = Depends(get_mobile_service),
 ) -> BandwidthEstimateResponse:
     return await service.bandwidth_estimate(current_user)
-

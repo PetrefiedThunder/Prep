@@ -1,13 +1,13 @@
 """Observability helpers for metrics and tracing."""
 
 from .metrics import (
-    DELIVERY_KITCHENS_GAUGE,
     DELIVERIES_COUNTER,
+    DELIVERY_KITCHENS_GAUGE,
     INTEGRATION_SYNC_FAILURES,
     INTEGRATION_SYNC_SUCCESS,
-    MetricsMiddleware,
     REQUEST_COUNT,
     REQUEST_LATENCY,
+    MetricsMiddleware,
     create_metrics_router,
 )
 

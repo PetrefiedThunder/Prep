@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Awaitable, Callable, Iterable, Mapping, Sequence
 
 import jwt
 from fastapi import HTTPException, Request, status
@@ -46,7 +46,7 @@ def require_roles(*roles: str) -> Callable[[Callable[..., object]], Callable[...
     required = frozenset(_normalize_roles(roles))
 
     def decorator(func: Callable[..., object]) -> Callable[..., object]:
-        setattr(func, "__rbac_roles__", required)
+        func.__rbac_roles__ = required
         return func
 
     return decorator
@@ -93,7 +93,9 @@ class RBACMiddleware(BaseHTTPMiddleware):
         self._rules: tuple[RBACRule, ...] = tuple(rule for rule in rules if rule.roles)
 
     async def dispatch(  # type: ignore[override]
-        self, request: StarletteRequest, call_next: Callable[[StarletteRequest], Awaitable[Response]]
+        self,
+        request: StarletteRequest,
+        call_next: Callable[[StarletteRequest], Awaitable[Response]],
     ) -> Response:
         path = request.url.path.rstrip("/")
         if any(path.startswith(prefix) for prefix in self._exempt_paths if prefix):

@@ -1,11 +1,11 @@
 import asyncio
 import sys
-from typing import Iterable, Tuple
+from collections.abc import Iterable
 
 import aiohttp
 
 
-async def fetch_status(session: aiohttp.ClientSession, url: str) -> Tuple[str, str]:
+async def fetch_status(session: aiohttp.ClientSession, url: str) -> tuple[str, str]:
     try:
         async with session.get(url) as response:
             return url, str(response.status)
@@ -13,7 +13,7 @@ async def fetch_status(session: aiohttp.ClientSession, url: str) -> Tuple[str, s
         return url, f"error: {exc}"
 
 
-async def fetch_all(urls: Iterable[str]) -> Iterable[Tuple[str, str]]:
+async def fetch_all(urls: Iterable[str]) -> Iterable[tuple[str, str]]:
     timeout = aiohttp.ClientTimeout(total=None)
     connector = aiohttp.TCPConnector(limit=20)
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:

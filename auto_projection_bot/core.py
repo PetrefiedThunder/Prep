@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any
 
 from prep.utility.config_schema import BaseConfigSchema
 
@@ -14,8 +14,8 @@ class AutoProjectionBot(BaseConfigSchema):
     def load_config(self, config_path: str) -> None:  # type: ignore[override]
         super().load_config(config_path)
 
-    def _run_validation(self) -> List[str]:  # type: ignore[override]
-        errors: List[str] = []
+    def _run_validation(self) -> list[str]:  # type: ignore[override]
+        errors: list[str] = []
         config: dict[str, Any] = self.config
 
         for field in ("revenue", "expenses"):

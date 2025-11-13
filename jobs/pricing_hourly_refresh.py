@@ -1,24 +1,15 @@
-"""Hourly pricing refresh job and scheduler metadata."""
+"""Hourly job that refreshes ML-powered pricing recommendations."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Callable, Iterable, Protocol
-
-try:  # pragma: no cover - optional dependency import guard
-"""Hourly job that refreshes ML-powered pricing recommendations."""
-
-from __future__ import annotations
-
-import logging
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Callable, Iterable
+from typing import Any, Protocol
 
 try:  # pragma: no cover - optional dependency in minimal test environments
     from sqlalchemy import select  # type: ignore
@@ -27,10 +18,11 @@ except ModuleNotFoundError:  # pragma: no cover - allow running without SQLAlche
     select = None  # type: ignore
     Session = Any  # type: ignore
 
-from prep.monitoring.observability import EnterpriseObservability
 from prep.models.db import SessionLocal
 from prep.models.orm import Kitchen
+from prep.monitoring.observability import EnterpriseObservability
 from prep.pricing import store_pricing_status
+
 try:  # pragma: no cover - optional in unit tests
     from prep.models.db import SessionLocal  # type: ignore
     from prep.models.orm import Kitchen  # type: ignore
@@ -38,7 +30,11 @@ except ModuleNotFoundError:  # pragma: no cover
     SessionLocal = None  # type: ignore
     Kitchen = Any  # type: ignore
 
-from apps.pricing import UtilizationMetrics, build_default_engine
+try:  # pragma: no cover - optional dependency
+    from apps.pricing import UtilizationMetrics, build_default_engine  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    UtilizationMetrics = Any  # type: ignore
+    build_default_engine = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +44,9 @@ SessionFactory = Callable[[], Session]
 class PricingStrategy(Protocol):
     """Protocol describing the pricing refresh strategy."""
 
-    def build_payload(self, kitchen: Kitchen, *, refreshed_at: datetime) -> dict[str, Any] | None:
-        ...
+    def build_payload(
+        self, kitchen: Kitchen, *, refreshed_at: datetime
+    ) -> dict[str, Any] | None: ...
 
 
 @dataclass(slots=True)
@@ -144,7 +141,10 @@ def run_pricing_refresh(
             except Exception as exc:  # pragma: no cover - strategy-specific failure
                 failures += 1
                 error_message = f"kitchen={getattr(kitchen, 'id', 'unknown')}: {exc}"
-                logger.exception("Failed to build pricing payload", extra={"kitchen_id": getattr(kitchen, "id", None)})
+                logger.exception(
+                    "Failed to build pricing payload",
+                    extra={"kitchen_id": getattr(kitchen, "id", None)},
+                )
                 errors.append(error_message)
                 continue
 
@@ -165,6 +165,8 @@ def run_pricing_refresh(
         failures += 1
         errors.append(str(exc))
         logger.exception("Pricing refresh failed")
+
+
 @dataclass(slots=True)
 class PricingRefreshSummary:
     """Summary emitted after a pricing refresh run."""
@@ -227,7 +229,7 @@ def refresh_pricing(
     engine = build_default_engine()
     session = session_factory()
     updated = 0
-    timestamp = now or datetime.now(timezone.utc)
+    timestamp = now or datetime.now(UTC)
     kitchens: list[Kitchen] = []
 
     try:
@@ -280,7 +282,9 @@ def refresh_pricing(
     )
 
     status_payload = summary.as_dict()
-    status_payload.update({"duration_seconds": duration, "status": "success" if success else "failed"})
+    status_payload.update(
+        {"duration_seconds": duration, "status": "success" if success else "failed"}
+    )
     asyncio.run(store_pricing_status(status_payload))
 
     logger.info("Pricing refresh completed", extra=summary.as_dict())
@@ -325,13 +329,3 @@ __all__ = [
     "run_pricing_refresh_async",
     "SCHEDULE_CRON",
 ]
-    summary = PricingRefreshSummary(
-        total_kitchens=len(kitchens),
-        updated=updated,
-        timestamp=timestamp,
-    )
-    logger.info("Pricing refresh complete", extra=summary.as_dict())
-    return summary
-
-
-__all__ = ["PricingRefreshSummary", "refresh_pricing"]

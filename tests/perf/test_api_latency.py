@@ -24,7 +24,9 @@ def test_client() -> TestClient:
     return TestClient(app)
 
 
-@pytest.mark.parametrize("endpoint", [route for route in DEFAULT_TARGETED_ROUTES if route == "/healthz"])
+@pytest.mark.parametrize(
+    "endpoint", [route for route in DEFAULT_TARGETED_ROUTES if route == "/healthz"]
+)
 def test_targeted_endpoint_latency_under_budget(test_client: TestClient, endpoint: str) -> None:
     start = time.perf_counter()
     response = test_client.get(endpoint)

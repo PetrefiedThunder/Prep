@@ -1,4 +1,5 @@
 """Utilities for validating Berkeley permits with OPA."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping

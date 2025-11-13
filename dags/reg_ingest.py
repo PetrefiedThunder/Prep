@@ -5,27 +5,26 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
-from typing import Any, Callable
+from typing import Any
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from sqlalchemy.exc import SQLAlchemyError
 
+from data.ingestors.berkeley_dph import validate_fee_schedule_berkeley
+from data.ingestors.joshua_tree_dph import validate_fee_schedule_joshua_tree
+from data.ingestors.oakland_dph import validate_fee_schedule_oakland
+from data.ingestors.palo_alto_dph import validate_fee_schedule_palo_alto
+from data.ingestors.san_jose_dph import validate_fee_schedule_san_jose
+from data.ingestors.sf_dph import validate_fee_schedule_sf
+from etl.validators import FeeValidationError, validate_fee_schedule as ensure_fee_schedule
 from prep.models.db import SessionLocal
 from prep.regulatory import RegulatoryScraper, load_regdoc
 from prep.regulatory.ingest_state import record_document_changes, store_status
 from prep.regulatory.models import RegDoc
 from prep.regulatory.parser import extract_reg_sections
-from data.ingestors.berkeley_dph import validate_fee_schedule_berkeley
-from data.ingestors.joshua_tree_dph import validate_fee_schedule_joshua_tree
-from data.ingestors.oakland_dph import validate_fee_schedule_oakland
-from data.ingestors.palo_alto_dph import validate_fee_schedule_palo_alto
-
-from etl.validators import FeeValidationError, validate_fee_schedule as ensure_fee_schedule
-from data.ingestors.san_jose_dph import validate_fee_schedule_san_jose
-from data.ingestors.sf_dph import validate_fee_schedule_sf
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,9 @@ def _fetch_raw(**context: Any) -> dict[str, Any]:
             for state in states:
                 try:
                     regulations = await scraper.scrape_health_department(state)
-                except Exception as exc:  # pragma: no cover - network failures are non-deterministic
+                except (
+                    Exception
+                ) as exc:  # pragma: no cover - network failures are non-deterministic
                     logger.exception("Failed to fetch regulations for state %s", state)
                     failures.append(f"{state}: {exc}")
                     regulations = []
@@ -74,7 +75,9 @@ def _parse_docs(**context: Any) -> dict[str, Any]:
             sections = extract_reg_sections(description)
             summary = sections[0]["body"] if sections else description[:280]
             title = regulation.get("title") or f"Regulation - {state}"
-            doc_type = regulation.get("source_type") or regulation.get("regulation_type") or "regulation"
+            doc_type = (
+                regulation.get("source_type") or regulation.get("regulation_type") or "regulation"
+            )
             jurisdiction = regulation.get("jurisdiction") or state
             city = None
             if isinstance(jurisdiction, str) and "," in jurisdiction:

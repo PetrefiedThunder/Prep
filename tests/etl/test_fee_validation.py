@@ -5,9 +5,10 @@ from __future__ import annotations
 import importlib.util
 import pkgutil
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Callable
+from typing import Any
 
 Validator = Callable[[], dict[str, Any]]
 REPO_ROOT = Path(__file__).resolve().parents[2]

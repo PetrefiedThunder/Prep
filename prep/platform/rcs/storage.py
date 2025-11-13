@@ -3,31 +3,31 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator, Iterable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import AsyncIterator, Dict, Iterable, Optional
+from datetime import UTC, datetime
 
 from .models import ChangeType, ConfigChange, ConfigEntry, ConfigRecord
 
 
 @dataclass
 class _Subscriber:
-    queue: "asyncio.Queue[ConfigChange]"
-    prefix: Optional[str]
+    queue: asyncio.Queue[ConfigChange]
+    prefix: str | None
 
 
 class ConfigStore:
     """Simple in-memory configuration store with pub/sub semantics."""
 
     def __init__(self) -> None:
-        self._records: Dict[str, ConfigRecord] = {}
+        self._records: dict[str, ConfigRecord] = {}
         self._lock = asyncio.Lock()
-        self._subscribers: Dict[int, _Subscriber] = {}
+        self._subscribers: dict[int, _Subscriber] = {}
         self._next_subscriber_id = 0
         self._global_version = 0
 
-    async def list(self, prefix: Optional[str] = None) -> Iterable[ConfigRecord]:
+    async def list(self, prefix: str | None = None) -> Iterable[ConfigRecord]:
         """Return a snapshot of configuration records, optionally filtered by prefix."""
 
         async with self._lock:
@@ -38,7 +38,7 @@ class ConfigStore:
 
         return [record for record in records if record.key.startswith(prefix)]
 
-    async def get(self, key: str) -> Optional[ConfigRecord]:
+    async def get(self, key: str) -> ConfigRecord | None:
         """Fetch a single configuration record by key."""
 
         async with self._lock:
@@ -52,7 +52,7 @@ class ConfigStore:
             record = ConfigRecord(
                 **entry.model_dump(),
                 version=self._global_version,
-                updated_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(UTC),
             )
             self._records[entry.key] = record
 
@@ -61,12 +61,12 @@ class ConfigStore:
             key=record.key,
             record=record,
             version=record.version,
-            emitted_at=datetime.now(timezone.utc),
+            emitted_at=datetime.now(UTC),
         )
         await self._notify(change)
         return record
 
-    async def delete(self, key: str) -> Optional[ConfigRecord]:
+    async def delete(self, key: str) -> ConfigRecord | None:
         """Delete a configuration entry and notify subscribers."""
 
         async with self._lock:
@@ -81,7 +81,7 @@ class ConfigStore:
             key=key,
             record=None,
             version=version,
-            emitted_at=datetime.now(timezone.utc),
+            emitted_at=datetime.now(UTC),
         )
         await self._notify(change)
         return record
@@ -103,11 +103,11 @@ class ConfigStore:
 
     @asynccontextmanager
     async def subscribe(
-        self, prefix: Optional[str] = None, max_queue_size: int = 100
-    ) -> AsyncIterator["asyncio.Queue[ConfigChange]"]:
+        self, prefix: str | None = None, max_queue_size: int = 100
+    ) -> AsyncIterator[asyncio.Queue[ConfigChange]]:
         """Subscribe to change events filtered by optional key prefix."""
 
-        queue: "asyncio.Queue[ConfigChange]" = asyncio.Queue(maxsize=max_queue_size)
+        queue: asyncio.Queue[ConfigChange] = asyncio.Queue(maxsize=max_queue_size)
         async with self._lock:
             identifier = self._next_subscriber_id
             self._next_subscriber_id += 1

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from pydantic import AnyUrl, BaseModel, Field
@@ -21,7 +21,9 @@ class DeliveryStop(BaseModel):
     city: str | None = Field(default=None, description="City of the stop")
     state: str | None = Field(default=None, description="State or region")
     postal_code: str | None = Field(default=None, description="Postal or ZIP code")
-    instructions: str | None = Field(default=None, description="Special instructions for the courier")
+    instructions: str | None = Field(
+        default=None, description="Special instructions for the courier"
+    )
 
 
 class DeliveryCreateRequest(BaseModel):
@@ -33,10 +35,14 @@ class DeliveryCreateRequest(BaseModel):
     pickup: DeliveryStop
     dropoff: DeliveryStop
     ready_by: datetime | None = Field(default=None, description="Pickup ready timestamp")
-    dropoff_deadline: datetime | None = Field(default=None, description="Latest acceptable dropoff timestamp")
+    dropoff_deadline: datetime | None = Field(
+        default=None, description="Latest acceptable dropoff timestamp"
+    )
     tip: Decimal | None = Field(default=None, description="Tip amount to include with the delivery")
-    items: List[str] = Field(default_factory=list, description="Line items being delivered")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Arbitrary metadata forwarded to the provider")
+    items: list[str] = Field(default_factory=list, description="Line items being delivered")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Arbitrary metadata forwarded to the provider"
+    )
 
 
 class CourierDetails(BaseModel):
@@ -87,7 +93,7 @@ class DeliveryStatusUpdate(BaseModel):
     proof_photo_url: AnyUrl | None = Field(default=None)
     proof_signature: str | None = Field(default=None)
     tracking_url: AnyUrl | None = Field(default=None)
-    raw_payload: Dict[str, Any] = Field(default_factory=dict)
+    raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
 class OrderStatus(BaseModel):
@@ -108,8 +114,8 @@ class OrderStatus(BaseModel):
 class OrdersResponse(BaseModel):
     """Response payload for the unified orders endpoint."""
 
-    orders: List[OrderStatus]
-    connectors: Dict[str, str]
+    orders: list[OrderStatus]
+    connectors: dict[str, str]
     reconciliation_accuracy: float = Field(
         default=0.0,
         description="Observed variance between provider and internal status tracking",

@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from prep.admin.dependencies import get_current_admin
-from prep.api.errors import http_exception
 from prep.admin.schemas import (
     CertificationDecisionRequest,
     CertificationDecisionResponse,
@@ -33,8 +32,7 @@ from prep.admin.schemas import (
     UserStats,
     UserSummary,
 )
-from prep.api.errors import http_error
-from prep.platform.schemas import CursorPageMeta
+from prep.api.errors import http_exception
 from prep.database import get_db
 from prep.models.admin import AdminUser
 from prep.models.db import (
@@ -46,6 +44,7 @@ from prep.models.db import (
     User,
     UserRole,
 )
+from prep.platform.schemas import CursorPageMeta
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -65,9 +64,7 @@ async def create_checklist_template(
     _ = current_admin
 
     result = await db.execute(
-        select(func.max(ChecklistTemplate.version)).where(
-            ChecklistTemplate.name == payload.name
-        )
+        select(func.max(ChecklistTemplate.version)).where(ChecklistTemplate.name == payload.name)
     )
     latest_version = result.scalar_one()
     next_version = (latest_version or 0) + 1
@@ -123,9 +120,6 @@ def _build_certification_summary(document: CertificationDocument) -> Certificati
     )
 
 
-async def _get_kitchen_or_404(
-    request: Request, db: AsyncSession, kitchen_id: UUID
-) -> Kitchen:
 def _parse_entity_cursor(
     request: Request,
     cursor: str | None,
@@ -162,10 +156,6 @@ async def _get_kitchen_or_404(request: Request, db: AsyncSession, kitchen_id: UU
     )
     kitchen = result.unique().scalar_one_or_none()
     if kitchen is None:
-        raise http_error(
-            request,
-            status_code=status.HTTP_404_NOT_FOUND,
-            code="admin.kitchen_not_found",
         raise http_exception(
             request,
             status_code=status.HTTP_404_NOT_FOUND,
@@ -178,7 +168,6 @@ async def _get_kitchen_or_404(request: Request, db: AsyncSession, kitchen_id: UU
 @router.get("/kitchens/pending", response_model=KitchenListResponse)
 async def get_pending_kitchens(
     *,
-    cursor: datetime | None = Query(default=None, description="Cursor from the previous page"),
     request: Request,
     cursor: str | None = Query(
         default=None,
@@ -216,10 +205,6 @@ async def get_pending_kitchens(
         .where(and_(*filters))
         .order_by(Kitchen.submitted_at.desc())
     )
-    if cursor is not None:
-        query = query.where(Kitchen.submitted_at < cursor)
-        .order_by(Kitchen.submitted_at.desc(), Kitchen.id.desc())
-    )
 
     parsed_cursor = _parse_entity_cursor(
         request,
@@ -247,11 +232,7 @@ async def get_pending_kitchens(
         kitchens = kitchens[:limit]
 
     items = [_build_kitchen_summary(kitchen) for kitchen in kitchens]
-    pagination = PaginationMeta(
-        limit=limit,
-        cursor=cursor,
-        next_cursor=next_cursor,
-        total=total,
+
     next_cursor = None
     if items:
         tail = kitchens[-1]
@@ -279,7 +260,12 @@ async def get_kitchen_details(
     kitchen = await _get_kitchen_or_404(request, db, kitchen_id)
     summary = _build_kitchen_summary(kitchen)
     certifications = [_build_certification_summary(doc) for doc in kitchen.certifications]
-    return KitchenDetail(**summary.model_dump(), description=kitchen.description, rejection_reason=kitchen.rejection_reason, certifications=certifications)
+    return KitchenDetail(
+        **summary.model_dump(),
+        description=kitchen.description,
+        rejection_reason=kitchen.rejection_reason,
+        certifications=certifications,
+    )
 
 
 @router.post("/kitchens/{kitchen_id}/moderate", response_model=ModerationResponse)
@@ -296,15 +282,13 @@ async def moderate_kitchen(
     kitchen = await _get_kitchen_or_404(request, db, kitchen_id)
 
     if kitchen.moderation_status != ModerationStatus.PENDING:
-        raise http_error(
-            request,
-            status_code=status.HTTP_400_BAD_REQUEST,
-            code="admin.kitchen_already_moderated",
         raise http_exception(
             request,
             status_code=status.HTTP_400_BAD_REQUEST,
-            code="admin.kitchens.already_moderated",
-            message="Kitchen already moderated",
+            detail={
+                "code": "admin.kitchens.already_moderated",
+                "message": "Kitchen already moderated"
+            }
         )
 
     now = datetime.now(UTC)
@@ -390,7 +374,6 @@ async def get_kitchen_moderation_stats(
 @router.get("/certifications/pending", response_model=CertificationListResponse)
 async def get_pending_certifications(
     *,
-    cursor: datetime | None = Query(default=None, description="Cursor from the previous page"),
     request: Request,
     cursor: str | None = Query(
         default=None,
@@ -419,10 +402,6 @@ async def get_pending_certifications(
         .join(Kitchen)
         .where(and_(*filters))
         .order_by(CertificationDocument.submitted_at.asc())
-    )
-    if cursor is not None:
-        query = query.where(CertificationDocument.submitted_at > cursor)
-        .order_by(CertificationDocument.submitted_at.asc(), CertificationDocument.id.asc())
     )
 
     parsed_cursor = _parse_entity_cursor(
@@ -454,11 +433,7 @@ async def get_pending_certifications(
         documents = documents[:limit]
 
     items = [_build_certification_summary(doc) for doc in documents]
-    pagination = PaginationMeta(
-        limit=limit,
-        cursor=cursor,
-        next_cursor=next_cursor,
-        total=total,
+
     next_cursor = None
     if items:
         tail = documents[-1]
@@ -473,7 +448,9 @@ async def get_pending_certifications(
     return CertificationListResponse(items=items, pagination=pagination)
 
 
-@router.post("/certifications/{certification_id}/verify", response_model=CertificationDecisionResponse)
+@router.post(
+    "/certifications/{certification_id}/verify", response_model=CertificationDecisionResponse
+)
 async def verify_certification(
     certification_id: UUID,
     payload: CertificationDecisionRequest,
@@ -492,10 +469,6 @@ async def verify_certification(
     )
     document = result.scalar_one_or_none()
     if document is None:
-        raise http_error(
-            request,
-            status_code=status.HTTP_404_NOT_FOUND,
-            code="admin.certification_not_found",
         raise http_exception(
             request,
             status_code=status.HTTP_404_NOT_FOUND,
@@ -504,10 +477,6 @@ async def verify_certification(
         )
 
     if document.status != CertificationReviewStatus.PENDING:
-        raise http_error(
-            request,
-            status_code=status.HTTP_400_BAD_REQUEST,
-            code="admin.certification_already_reviewed",
         raise http_exception(
             request,
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -523,11 +492,6 @@ async def verify_certification(
         message = "Certification approved"
     else:
         if not payload.rejection_reason:
-            raise http_error(
-                request,
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                code="admin.certification_rejection_reason_missing",
-                message="Rejection reason is required when rejecting a certification",
             raise http_exception(
                 request,
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -566,13 +530,19 @@ async def get_certification_stats(
 
     total = (await db.execute(base_stmt)).scalar_one()
     pending = (
-        await db.execute(base_stmt.where(CertificationDocument.status == CertificationReviewStatus.PENDING))
+        await db.execute(
+            base_stmt.where(CertificationDocument.status == CertificationReviewStatus.PENDING)
+        )
     ).scalar_one()
     approved = (
-        await db.execute(base_stmt.where(CertificationDocument.status == CertificationReviewStatus.APPROVED))
+        await db.execute(
+            base_stmt.where(CertificationDocument.status == CertificationReviewStatus.APPROVED)
+        )
     ).scalar_one()
     rejected = (
-        await db.execute(base_stmt.where(CertificationDocument.status == CertificationReviewStatus.REJECTED))
+        await db.execute(
+            base_stmt.where(CertificationDocument.status == CertificationReviewStatus.REJECTED)
+        )
     ).scalar_one()
 
     soon_threshold = datetime.now(UTC) + timedelta(days=30)
@@ -598,7 +568,6 @@ async def get_certification_stats(
 @router.get("/users", response_model=UserListResponse)
 async def list_users(
     *,
-    cursor: datetime | None = Query(default=None, description="Cursor from the previous page"),
     request: Request,
     cursor: str | None = Query(
         default=None,
@@ -676,9 +645,9 @@ async def list_users(
     ]
     pagination = PaginationMeta(
         limit=limit,
-        cursor=cursor,
-        next_cursor=next_cursor,
-        total=total,
+        has_more=has_more,
+    )
+
     next_cursor = None
     if users:
         tail = users[-1]
@@ -708,10 +677,6 @@ async def suspend_user(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
-        raise http_error(
-            request,
-            status_code=status.HTTP_404_NOT_FOUND,
-            code="admin.user_not_found",
         raise http_exception(
             request,
             status_code=status.HTTP_404_NOT_FOUND,
@@ -720,10 +685,6 @@ async def suspend_user(
         )
 
     if user.role == UserRole.ADMIN and user.id == current_admin.id:
-        raise http_error(
-            request,
-            status_code=status.HTTP_400_BAD_REQUEST,
-            code="admin.self_suspension_forbidden",
         raise http_exception(
             request,
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -766,15 +727,9 @@ async def get_user_stats(
     active = (
         await db.execute(base_stmt.where(User.is_active.is_(True), User.is_suspended.is_(False)))
     ).scalar_one()
-    suspended = (
-        await db.execute(base_stmt.where(User.is_suspended.is_(True)))
-    ).scalar_one()
-    admins = (
-        await db.execute(base_stmt.where(User.role == UserRole.ADMIN))
-    ).scalar_one()
-    hosts = (
-        await db.execute(base_stmt.where(User.role == UserRole.HOST))
-    ).scalar_one()
+    suspended = (await db.execute(base_stmt.where(User.is_suspended.is_(True)))).scalar_one()
+    admins = (await db.execute(base_stmt.where(User.role == UserRole.ADMIN))).scalar_one()
+    hosts = (await db.execute(base_stmt.where(User.role == UserRole.HOST))).scalar_one()
 
     return UserStats(
         total=total,

@@ -12,8 +12,8 @@ from prep.models.orm import User
 
 from .advanced_models import (
     BehaviorClusterResponse,
-    BehaviorPredictRequest,
     BehaviorPredictionResponse,
+    BehaviorPredictRequest,
     BehaviorRetentionResponse,
     BehaviorTrendResponse,
     DemandForecastResponse,
@@ -38,7 +38,6 @@ from .advanced_models import (
     UsagePatternResponse,
 )
 from .advanced_service import AdvancedAnalyticsService
-
 
 router = APIRouter(prefix="/api/v2/analytics", tags=["advanced-analytics"])
 

@@ -19,5 +19,5 @@ export async function createApp() {
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 0) || Math.floor(Math.random() * 1000) + 3000;
-  createApp().then(app => app.listen({ port }).then(() => log.info('admin-svc listening', port)));
+  createApp().then(app => app.listen({ port }).then(() => log.info('admin-svc listening', { port })));
 }

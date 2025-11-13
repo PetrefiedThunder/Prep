@@ -6,7 +6,7 @@ import importlib
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +16,10 @@ class Requirement:
     """Structured representation of a regulation requirement."""
 
     text: str
-    entities: Dict[str, Any]
-    deadline: Optional[str]
-    penalties: Optional[str]
-    classification: Optional[str]
+    entities: dict[str, Any]
+    deadline: str | None
+    penalties: str | None
+    classification: str | None
 
 
 class RegulationNLP:
@@ -34,11 +34,11 @@ class RegulationNLP:
         self._spacy = self._load_spacy(spacy_model)
         self._classifier = self._load_classifier(classifier_model)
 
-    def extract_requirements(self, regulation_text: str) -> List[Requirement]:
+    def extract_requirements(self, regulation_text: str) -> list[Requirement]:
         """Extract obligation-oriented sentences with contextual metadata."""
 
         doc = self._spacy(regulation_text)
-        requirements: List[Requirement] = []
+        requirements: list[Requirement] = []
         for sentence in doc.sents:
             if self._is_requirement_sentence(sentence.text):
                 classification = self.classify_requirement(sentence.text)
@@ -52,7 +52,7 @@ class RegulationNLP:
                 requirements.append(requirement)
         return requirements
 
-    def classify_requirement(self, text: str) -> Optional[str]:
+    def classify_requirement(self, text: str) -> str | None:
         """Classify a requirement sentence using the configured transformer pipeline."""
 
         if not self._classifier:
@@ -69,10 +69,10 @@ class RegulationNLP:
                 return prediction.get("label")
         return None
 
-    def extract_entities(self, sentence) -> Dict[str, Any]:  # type: ignore[override]
+    def extract_entities(self, sentence) -> dict[str, Any]:  # type: ignore[override]
         """Extract named entities such as amounts, organizations, and dates."""
 
-        entities: Dict[str, Any] = {}
+        entities: dict[str, Any] = {}
         for ent in sentence.ents:
             if ent.label_ in {"MONEY", "PERCENT"}:
                 entities["amount"] = ent.text
@@ -84,7 +84,7 @@ class RegulationNLP:
             entities["organizations"] = sorted(entities["organizations"])  # type: ignore[index]
         return entities
 
-    def extract_deadlines(self, text: str) -> Optional[str]:
+    def extract_deadlines(self, text: str) -> str | None:
         """Find deadline phrases using simple pattern matching."""
 
         deadline_patterns = [
@@ -99,7 +99,7 @@ class RegulationNLP:
                 return match.group(0)
         return None
 
-    def extract_penalties(self, text: str) -> Optional[str]:
+    def extract_penalties(self, text: str) -> str | None:
         """Extract penalty descriptors from requirement text."""
 
         penalty_patterns = [
@@ -131,10 +131,12 @@ class RegulationNLP:
         try:
             transformers = importlib.import_module("transformers")
         except ModuleNotFoundError:  # pragma: no cover - optional dependency
-            logger.warning("transformers library not installed; requirement classification disabled.")
+            logger.warning(
+                "transformers library not installed; requirement classification disabled."
+            )
             return None
 
-        pipeline = getattr(transformers, "pipeline")
+        pipeline = transformers.pipeline
         try:
             return pipeline("text-classification", model=model)
         except Exception as exc:  # pragma: no cover - remote download may fail

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
 
@@ -63,7 +63,9 @@ async def session_factory() -> async_sessionmaker[AsyncSession]:
         await engine.dispose()
 
 
-async def test_sync_integration_persists_transactions(session_factory: async_sessionmaker[AsyncSession]) -> None:
+async def test_sync_integration_persists_transactions(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
     async with session_factory() as session:
         integration = POSIntegration(
             kitchen_id=uuid4(),
@@ -95,6 +97,6 @@ async def test_sync_integration_persists_transactions(session_factory: async_ses
         assert saved.amount == Decimal("25")
         assert saved.currency == "USD"
         assert saved.location_id == "LOC-1"
-        assert saved.occurred_at == datetime(2024, 1, 1, tzinfo=timezone.utc)
+        assert saved.occurred_at == datetime(2024, 1, 1, tzinfo=UTC)
         assert integration.access_token == "access-token"
         assert integration.refresh_token == "new-refresh"

@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-from decimal import Decimal
-from typing import List
-from uuid import uuid4
-
 import enum
+from datetime import datetime, timedelta
+from decimal import Decimal
+from uuid import uuid4
 
 from sqlalchemy import (
     Boolean,
@@ -51,19 +49,21 @@ class User(Base, TimestampedMixin):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False, default=UserRole.CUSTOMER)
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole), nullable=False, default=UserRole.CUSTOMER
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    kitchens: Mapped[List["Kitchen"]] = relationship(
+    kitchens: Mapped[list[Kitchen]] = relationship(
         back_populates="owner", cascade="all, delete-orphan"
     )
-    bookings: Mapped[List["Booking"]] = relationship(
+    bookings: Mapped[list[Booking]] = relationship(
         back_populates="customer",
         cascade="all, delete-orphan",
         foreign_keys="Booking.customer_id",
     )
-    hosted_bookings: Mapped[List["Booking"]] = relationship(
+    hosted_bookings: Mapped[list[Booking]] = relationship(
         back_populates="host",
         cascade="all, delete-orphan",
         foreign_keys="Booking.host_id",
@@ -87,7 +87,7 @@ class Kitchen(Base, TimestampedMixin):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     owner: Mapped[User] = relationship(back_populates="kitchens")
-    bookings: Mapped[List["Booking"]] = relationship(
+    bookings: Mapped[list[Booking]] = relationship(
         back_populates="kitchen", cascade="all, delete-orphan"
     )
 
@@ -115,12 +115,8 @@ class Booking(Base, TimestampedMixin):
     total_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
 
     kitchen: Mapped[Kitchen] = relationship(back_populates="bookings")
-    host: Mapped[User] = relationship(
-        back_populates="hosted_bookings", foreign_keys=[host_id]
-    )
-    customer: Mapped[User] = relationship(
-        back_populates="bookings", foreign_keys=[customer_id]
-    )
+    host: Mapped[User] = relationship(back_populates="hosted_bookings", foreign_keys=[host_id])
+    customer: Mapped[User] = relationship(back_populates="bookings", foreign_keys=[customer_id])
 
     def duration(self) -> timedelta:
         """Return the booking duration."""

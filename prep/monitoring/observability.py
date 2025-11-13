@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
     from ..core.orchestration import ComplianceDomain
@@ -13,9 +14,9 @@ if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
 @dataclass
 class Span:
     name: str
-    tags: Dict[str, Any]
+    tags: dict[str, Any]
 
-    async def __aenter__(self) -> "Span":
+    async def __aenter__(self) -> Span:
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:  # type: ignore[override]
@@ -41,19 +42,19 @@ class MetricsCollector:
     """Collects numeric metrics for compliance workflows."""
 
     def __init__(self) -> None:
-        self._counters: Dict[str, int] = {}
-        self._gauges: Dict[str, float] = {}
+        self._counters: dict[str, int] = {}
+        self._gauges: dict[str, float] = {}
 
     def increment(self, name: str, value: int = 1) -> None:
         self._counters[name] = self._counters.get(name, 0) + value
 
-    def counters(self) -> Dict[str, int]:
+    def counters(self) -> dict[str, int]:
         return dict(self._counters)
 
     def set_gauge(self, name: str, value: float | int) -> None:
         self._gauges[name] = float(value)
 
-    def gauges(self) -> Dict[str, float]:
+    def gauges(self) -> dict[str, float]:
         return dict(self._gauges)
 
 
@@ -61,13 +62,13 @@ class StructuredLogger:
     """Structured logging helper."""
 
     def __init__(self) -> None:
-        self._entries: List[Dict[str, Any]] = []
+        self._entries: list[dict[str, Any]] = []
 
     def info(self, message: str, **context: Any) -> None:
         entry = {"level": "INFO", "message": message, **context}
         self._entries.append(entry)
 
-    def entries(self) -> List[Dict[str, Any]]:
+    def entries(self) -> list[dict[str, Any]]:
         return list(self._entries)
 
 
@@ -98,7 +99,7 @@ class EnterpriseObservability:
         self.logging.info("Background job completed", **log_payload)
 
     async def track_compliance_workflow(
-        self, workflow_id: str, domains: Iterable["ComplianceDomain"]
+        self, workflow_id: str, domains: Iterable[ComplianceDomain]
     ) -> None:
         """End-to-end compliance workflow monitoring."""
 

@@ -6,7 +6,7 @@ for the city-level compliance regulatory system.
 """
 
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 from models import (
     Base,
@@ -223,7 +223,7 @@ def load_sample_data(session: Session) -> None:
         city = CityJurisdiction(
             **city_data,
             data_source="Initial city setup",
-            last_verified=datetime.utcnow(),
+            last_verified=datetime.now(UTC),
         )
         city_objects.append(city)
         session.add(city)
@@ -296,10 +296,10 @@ def load_sample_data(session: Session) -> None:
                 local_code_reference=f"{city.city_name} Code - Pending data collection",
                 effective_date=datetime(2024, 1, 1),
                 renewal_period_days=365,
-                agency_url=city.health_department_url if "health" in template["enforcement_agency"].lower() else city.business_licensing_url,
-                requirements={
-                    "note": "Detailed requirements to be populated from city sources"
-                },
+                agency_url=city.health_department_url
+                if "health" in template["enforcement_agency"].lower()
+                else city.business_licensing_url,
+                requirements={"note": "Detailed requirements to be populated from city sources"},
                 application_process={
                     "note": "Application process to be documented from city sources"
                 },

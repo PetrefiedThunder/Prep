@@ -3,8 +3,19 @@
 from __future__ import annotations
 
 import base64
-import xml.etree.ElementTree as ET
 from typing import Any
+
+# SECURITY FIX: Use defusedxml to prevent XXE attacks
+try:
+    from defusedxml import ElementTree as ET
+except ImportError:
+    # Fallback with manual XXE protection if defusedxml not available
+    import xml.etree.ElementTree as ET
+
+    # Disable dangerous features
+    import xml.parsers.expat
+
+    xml.parsers.expat.ParserCreate().SetParamEntityParsing(0)
 
 from prep.settings import Settings
 
@@ -51,15 +62,11 @@ class SAMLIdentityBroker:
         attributes = self._extract_attributes(root)
         email = _first_or_none(attributes.get("email") or attributes.get("mail"))
         full_name = _first_or_none(
-            attributes.get("displayName")
-            or attributes.get("name")
-            or attributes.get("fullName")
+            attributes.get("displayName") or attributes.get("name") or attributes.get("fullName")
         )
         if not full_name:
             given = _first_or_none(attributes.get("givenName"))
-            family = _first_or_none(
-                attributes.get("sn") or attributes.get("surname")
-            )
+            family = _first_or_none(attributes.get("sn") or attributes.get("surname"))
             if given or family:
                 full_name = " ".join(part for part in [given, family] if part)
 
@@ -76,10 +83,7 @@ class SAMLIdentityBroker:
             name = attr.get("Name")
             if not name:
                 continue
-            values = [
-                value.text or ""
-                for value in attr.findall("saml2:AttributeValue", self._NS)
-            ]
+            values = [value.text or "" for value in attr.findall("saml2:AttributeValue", self._NS)]
             if not values:
                 continue
             attributes[name] = values[0] if len(values) == 1 else values

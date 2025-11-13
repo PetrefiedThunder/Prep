@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from .health_departments import BaseAPIClient, RegulatoryAPIError
 
@@ -21,10 +21,10 @@ class PolicyVerificationResult:
     provider: str
     policy_number: str
     active: bool
-    coverage: Dict[str, Any]
-    effective_date: Optional[datetime]
-    expiration_date: Optional[datetime]
-    raw: Dict[str, Any]
+    coverage: dict[str, Any]
+    effective_date: datetime | None
+    expiration_date: datetime | None
+    raw: dict[str, Any]
 
 
 @dataclass(slots=True)
@@ -35,33 +35,35 @@ class CertificateIssueResult:
     policy_number: str
     certificate_url: str
     issued_at: datetime
-    expires_at: Optional[datetime]
-    insured_name: Optional[str]
-    reference_id: Optional[str]
-    raw: Dict[str, Any]
+    expires_at: datetime | None
+    insured_name: str | None
+    reference_id: str | None
+    raw: dict[str, Any]
 
 
 class BaseInsuranceAPI(BaseAPIClient):
     """Common helpers shared by specific insurance provider API clients."""
 
     provider: str = ""
-    default_base_url: Optional[str] = None
-    api_key_env: Optional[str] = None
-    base_url_env: Optional[str] = None
+    default_base_url: str | None = None
+    api_key_env: str | None = None
+    base_url_env: str | None = None
 
-    def __init__(self, *, base_url: Optional[str] = None, api_key: Optional[str] = None, timeout: int = 30) -> None:
+    def __init__(
+        self, *, base_url: str | None = None, api_key: str | None = None, timeout: int = 30
+    ) -> None:
         super().__init__(timeout=timeout)
         self.base_url = base_url or self._load_env(self.base_url_env) or self.default_base_url
         self.api_key = api_key or self._load_env(self.api_key_env)
 
     @staticmethod
-    def _load_env(key: Optional[str]) -> Optional[str]:
+    def _load_env(key: str | None) -> str | None:
         if not key:
             return None
         return os.getenv(key)
 
-    def _auth_headers(self) -> Dict[str, str]:
-        headers: Dict[str, str] = {"Accept": "application/json"}
+    def _auth_headers(self) -> dict[str, str]:
+        headers: dict[str, str] = {"Accept": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
@@ -72,10 +74,14 @@ class BaseInsuranceAPI(BaseAPIClient):
                 f"Base URL not configured for {self.provider}. Set the {self.base_url_env or 'base_url'} environment variable."
             )
 
-    async def verify_policy(self, policy_number: str) -> PolicyVerificationResult:  # pragma: no cover - interface
+    async def verify_policy(
+        self, policy_number: str
+    ) -> PolicyVerificationResult:  # pragma: no cover - interface
         raise NotImplementedError
 
-    def _build_result(self, policy_number: str, response: Dict[str, Any]) -> PolicyVerificationResult:
+    def _build_result(
+        self, policy_number: str, response: dict[str, Any]
+    ) -> PolicyVerificationResult:
         coverage = response.get("coverage") or {}
         return PolicyVerificationResult(
             provider=self.provider,
@@ -88,18 +94,18 @@ class BaseInsuranceAPI(BaseAPIClient):
         )
 
     async def issue_certificate(
-        self, policy_number: str, *, insured_name: str, reference_id: Optional[str] = None
+        self, policy_number: str, *, insured_name: str, reference_id: str | None = None
     ) -> CertificateIssueResult:  # pragma: no cover - interface
         raise NotImplementedError
 
     def _build_certificate_result(
         self,
         policy_number: str,
-        response: Dict[str, Any],
+        response: dict[str, Any],
         *,
-        reference_id: Optional[str] = None,
+        reference_id: str | None = None,
     ) -> CertificateIssueResult:
-        issued_at = self._parse_datetime(response.get("issued_at")) or datetime.utcnow()
+        issued_at = self._parse_datetime(response.get("issued_at")) or datetime.now(UTC)
         url = response.get("certificate_url") or response.get("download_url") or ""
         return CertificateIssueResult(
             provider=self.provider,
@@ -113,7 +119,7 @@ class BaseInsuranceAPI(BaseAPIClient):
         )
 
     @staticmethod
-    def _parse_datetime(value: Optional[str]) -> Optional[datetime]:
+    def _parse_datetime(value: str | None) -> datetime | None:
         if not value:
             return None
         for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%m/%d/%Y"):
@@ -176,7 +182,7 @@ class NextInsuranceAPI(BaseInsuranceAPI):
         return self._build_result(policy_number, response)
 
     async def issue_certificate(
-        self, policy_number: str, *, insured_name: str, reference_id: Optional[str] = None
+        self, policy_number: str, *, insured_name: str, reference_id: str | None = None
     ) -> CertificateIssueResult:
         self._require_configuration()
         url = f"{self.base_url}/policies/{policy_number}/certificates"
@@ -202,7 +208,7 @@ class ThimbleAPI(BaseInsuranceAPI):
         return self._build_result(policy_number, response)
 
     async def issue_certificate(
-        self, policy_number: str, *, insured_name: str, reference_id: Optional[str] = None
+        self, policy_number: str, *, insured_name: str, reference_id: str | None = None
     ) -> CertificateIssueResult:
         self._require_configuration()
         url = f"{self.base_url}/policies/{policy_number}/certificates"
@@ -218,7 +224,7 @@ class ThimbleAPI(BaseInsuranceAPI):
 class InsuranceVerificationAPI:
     """Facade for verifying commercial insurance policies across providers."""
 
-    def __init__(self, providers: Optional[Dict[str, BaseInsuranceAPI]] = None) -> None:
+    def __init__(self, providers: dict[str, BaseInsuranceAPI] | None = None) -> None:
         self.providers = providers or {
             "state_farm": StateFarmAPI(),
             "allstate": AllStateAPI(),
@@ -238,7 +244,7 @@ class InsuranceVerificationAPI:
         policy_number: str,
         *,
         insured_name: str,
-        reference_id: Optional[str] = None,
+        reference_id: str | None = None,
     ) -> CertificateIssueResult:
         if provider not in self.providers:
             raise InsuranceAPIError(f"Unsupported insurance provider '{provider}'.")

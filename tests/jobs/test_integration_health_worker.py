@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import pytest
-
 import asyncio
+
+import pytest
 
 from jobs.integration_health_worker import IntegrationHealthMonitor, PingResult
 from prep.integrations.models import IntegrationEvent
@@ -23,7 +23,9 @@ def test_monitor_publishes_events(monkeypatch: pytest.MonkeyPatch) -> None:
             {"id": "crm", "name": "CRM", "url": "https://example.com/health"}
         )
         publisher = DummyPublisher()
-        monitor = IntegrationHealthMonitor(endpoints=[endpoint], publisher=publisher, timeout_seconds=0.1)
+        monitor = IntegrationHealthMonitor(
+            endpoints=[endpoint], publisher=publisher, timeout_seconds=0.1
+        )
 
         async def fake_ping(_: IntegrationEndpoint) -> PingResult:
             return PingResult(
@@ -50,7 +52,9 @@ def test_monitor_marks_degraded(monkeypatch: pytest.MonkeyPatch) -> None:
             {"id": "billing", "name": "Billing", "url": "https://billing.example.com/status"}
         )
         publisher = DummyPublisher()
-        monitor = IntegrationHealthMonitor(endpoints=[endpoint], publisher=publisher, timeout_seconds=0.1)
+        monitor = IntegrationHealthMonitor(
+            endpoints=[endpoint], publisher=publisher, timeout_seconds=0.1
+        )
 
         async def fake_ping(_: IntegrationEndpoint) -> PingResult:
             return PingResult(

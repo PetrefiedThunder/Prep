@@ -9,7 +9,7 @@ import csv
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from database import get_session
@@ -102,10 +102,7 @@ class CityRegulatoryETL:
             self._process_jurisdiction(data["city_info"])
 
         # Get the city
-        city = self._get_city(
-            data["city_info"]["city_name"],
-            data["city_info"]["state"]
-        )
+        city = self._get_city(data["city_info"]["city_name"], data["city_info"]["state"])
 
         if not city:
             raise ValueError(f"Failed to create/find city: {data['city_info']['city_name']}")
@@ -224,10 +221,12 @@ class CityRegulatoryETL:
 
         # Update jurisdiction info if provided
         if jurisdiction_info:
-            jurisdiction_info.update({
-                "city_name": city_name,
-                "state": state,
-            })
+            jurisdiction_info.update(
+                {
+                    "city_name": city_name,
+                    "state": state,
+                }
+            )
             self._process_jurisdiction(jurisdiction_info)
 
         # Get city
@@ -262,25 +261,29 @@ class CityRegulatoryETL:
             return
 
         # Check if jurisdiction exists
-        existing = self.db.query(CityJurisdiction).filter(
-            CityJurisdiction.city_name.ilike(city_name),
-            CityJurisdiction.state == state.upper(),
-        ).first()
+        existing = (
+            self.db.query(CityJurisdiction)
+            .filter(
+                CityJurisdiction.city_name.ilike(city_name),
+                CityJurisdiction.state == state.upper(),
+            )
+            .first()
+        )
 
         if existing:
             # Update existing
             for key, value in jurisdiction_data.items():
                 if hasattr(existing, key):
                     setattr(existing, key, value)
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(UTC)
             self.stats["jurisdictions_updated"] += 1
             logger.info(f"Updated jurisdiction: {city_name}, {state}")
         else:
             # Create new
             jurisdiction = CityJurisdiction(
                 **jurisdiction_data,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
             self.db.add(jurisdiction)
             self.stats["jurisdictions_created"] += 1
@@ -312,25 +315,31 @@ class CityRegulatoryETL:
                 if date_field in regulation_data and isinstance(regulation_data[date_field], str):
                     try:
                         regulation_data[date_field] = datetime.fromisoformat(
-                            regulation_data[date_field].replace('Z', '+00:00')
+                            regulation_data[date_field].replace("Z", "+00:00")
                         )
                     except ValueError:
-                        self.stats["warnings"].append(f"Invalid date format for {date_field}: {regulation_data[date_field]}")
+                        self.stats["warnings"].append(
+                            f"Invalid date format for {date_field}: {regulation_data[date_field]}"
+                        )
                         regulation_data[date_field] = None
 
             # Check if regulation exists
-            existing = self.db.query(CityRegulation).filter(
-                CityRegulation.city_id == city_id,
-                CityRegulation.regulation_type == regulation_type,
-                CityRegulation.title == title,
-            ).first()
+            existing = (
+                self.db.query(CityRegulation)
+                .filter(
+                    CityRegulation.city_id == city_id,
+                    CityRegulation.regulation_type == regulation_type,
+                    CityRegulation.title == title,
+                )
+                .first()
+            )
 
             if existing:
                 # Update existing
                 for key, value in regulation_data.items():
                     if hasattr(existing, key) and key not in ["id", "city_id", "created_at"]:
                         setattr(existing, key, value)
-                existing.updated_at = datetime.utcnow()
+                existing.updated_at = datetime.now(UTC)
                 self.stats["regulations_updated"] += 1
                 logger.debug(f"Updated regulation: {title}")
             else:
@@ -338,8 +347,8 @@ class CityRegulatoryETL:
                 regulation = CityRegulation(
                     city_id=city_id,
                     **regulation_data,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
+                    created_at=datetime.now(UTC),
+                    updated_at=datetime.now(UTC),
                 )
                 self.db.add(regulation)
                 self.stats["regulations_created"] += 1
@@ -356,7 +365,9 @@ class CityRegulatoryETL:
             coverage_name = insurance_data.get("coverage_name")
 
             if not insurance_type or not coverage_name:
-                self.stats["errors"].append(f"Missing insurance_type or coverage_name: {insurance_data}")
+                self.stats["errors"].append(
+                    f"Missing insurance_type or coverage_name: {insurance_data}"
+                )
                 return
 
             # Ensure applicable_facility_types is a list
@@ -367,20 +378,26 @@ class CityRegulatoryETL:
 
             # Convert minimum_coverage_amount to float
             if "minimum_coverage_amount" in insurance_data:
-                insurance_data["minimum_coverage_amount"] = float(insurance_data["minimum_coverage_amount"])
+                insurance_data["minimum_coverage_amount"] = float(
+                    insurance_data["minimum_coverage_amount"]
+                )
 
             # Check if requirement exists
-            existing = self.db.query(CityInsuranceRequirement).filter(
-                CityInsuranceRequirement.city_id == city_id,
-                CityInsuranceRequirement.insurance_type == insurance_type,
-            ).first()
+            existing = (
+                self.db.query(CityInsuranceRequirement)
+                .filter(
+                    CityInsuranceRequirement.city_id == city_id,
+                    CityInsuranceRequirement.insurance_type == insurance_type,
+                )
+                .first()
+            )
 
             if existing:
                 # Update existing
                 for key, value in insurance_data.items():
                     if hasattr(existing, key) and key not in ["id", "city_id", "created_at"]:
                         setattr(existing, key, value)
-                existing.updated_at = datetime.utcnow()
+                existing.updated_at = datetime.now(UTC)
                 self.stats["insurance_requirements_updated"] += 1
                 logger.debug(f"Updated insurance requirement: {coverage_name}")
             else:
@@ -388,8 +405,8 @@ class CityRegulatoryETL:
                 insurance_req = CityInsuranceRequirement(
                     city_id=city_id,
                     **insurance_data,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
+                    created_at=datetime.now(UTC),
+                    updated_at=datetime.now(UTC),
                 )
                 self.db.add(insurance_req)
                 self.stats["insurance_requirements_created"] += 1
@@ -401,10 +418,14 @@ class CityRegulatoryETL:
 
     def _get_city(self, city_name: str, state: str) -> CityJurisdiction | None:
         """Get city jurisdiction by name and state"""
-        return self.db.query(CityJurisdiction).filter(
-            CityJurisdiction.city_name.ilike(city_name),
-            CityJurisdiction.state == state.upper(),
-        ).first()
+        return (
+            self.db.query(CityJurisdiction)
+            .filter(
+                CityJurisdiction.city_name.ilike(city_name),
+                CityJurisdiction.state == state.upper(),
+            )
+            .first()
+        )
 
     def _transform_csv_regulation(self, row: dict[str, str]) -> dict[str, Any]:
         """Transform CSV row to regulation data structure"""
@@ -432,7 +453,9 @@ class CityRegulatoryETL:
             try:
                 required_documents = json.loads(required_documents)
             except json.JSONDecodeError:
-                required_documents = [doc.strip() for doc in required_documents.split("|") if doc.strip()]
+                required_documents = [
+                    doc.strip() for doc in required_documents.split("|") if doc.strip()
+                ]
 
         fees = row.get("fees")
         if fees:
@@ -453,18 +476,28 @@ class CityRegulatoryETL:
             "agency_phone": row.get("agency_phone"),
             "agency_url": row.get("agency_url"),
             "penalty_for_violation": row.get("penalty_for_violation"),
-            "fine_amount_min": float(row["fine_amount_min"]) if row.get("fine_amount_min") else None,
-            "fine_amount_max": float(row["fine_amount_max"]) if row.get("fine_amount_max") else None,
+            "fine_amount_min": float(row["fine_amount_min"])
+            if row.get("fine_amount_min")
+            else None,
+            "fine_amount_max": float(row["fine_amount_max"])
+            if row.get("fine_amount_max")
+            else None,
             "requirements": requirements,
             "application_process": application_process,
             "required_documents": required_documents,
             "fees": fees,
             "applicable_facility_types": facility_types,
-            "employee_count_threshold": int(row["employee_count_threshold"]) if row.get("employee_count_threshold") else None,
-            "revenue_threshold": float(row["revenue_threshold"]) if row.get("revenue_threshold") else None,
+            "employee_count_threshold": int(row["employee_count_threshold"])
+            if row.get("employee_count_threshold")
+            else None,
+            "revenue_threshold": float(row["revenue_threshold"])
+            if row.get("revenue_threshold")
+            else None,
             "is_active": row.get("is_active", "true").lower() == "true",
             "priority": row.get("priority", "medium"),
-            "renewal_period_days": int(row["renewal_period_days"]) if row.get("renewal_period_days") else None,
+            "renewal_period_days": int(row["renewal_period_days"])
+            if row.get("renewal_period_days")
+            else None,
             "data_source": row.get("data_source"),
             "notes": row.get("notes"),
         }
@@ -480,11 +513,17 @@ class CityRegulatoryETL:
             "coverage_name": row.get("coverage_name"),
             "description": row.get("description"),
             "minimum_coverage_amount": float(row.get("minimum_coverage_amount", 0)),
-            "per_occurrence_limit": float(row["per_occurrence_limit"]) if row.get("per_occurrence_limit") else None,
-            "aggregate_limit": float(row["aggregate_limit"]) if row.get("aggregate_limit") else None,
+            "per_occurrence_limit": float(row["per_occurrence_limit"])
+            if row.get("per_occurrence_limit")
+            else None,
+            "aggregate_limit": float(row["aggregate_limit"])
+            if row.get("aggregate_limit")
+            else None,
             "deductible_max": float(row["deductible_max"]) if row.get("deductible_max") else None,
             "applicable_facility_types": facility_types,
-            "employee_count_threshold": int(row["employee_count_threshold"]) if row.get("employee_count_threshold") else None,
+            "employee_count_threshold": int(row["employee_count_threshold"])
+            if row.get("employee_count_threshold")
+            else None,
             "local_ordinance": row.get("local_ordinance"),
             "state_requirement": row.get("state_requirement"),
             "is_mandatory": row.get("is_mandatory", "true").lower() == "true",
@@ -513,14 +552,14 @@ class CityRegulatoryETL:
             raise ValueError(f"City not found: {city_name}, {state}")
 
         # Get regulations
-        regulations = self.db.query(CityRegulation).filter(
-            CityRegulation.city_id == city.id
-        ).all()
+        regulations = self.db.query(CityRegulation).filter(CityRegulation.city_id == city.id).all()
 
         # Get insurance requirements
-        insurance_reqs = self.db.query(CityInsuranceRequirement).filter(
-            CityInsuranceRequirement.city_id == city.id
-        ).all()
+        insurance_reqs = (
+            self.db.query(CityInsuranceRequirement)
+            .filter(CityInsuranceRequirement.city_id == city.id)
+            .all()
+        )
 
         # Build export data
         export_data = {
@@ -571,10 +610,12 @@ class CityRegulatoryETL:
             export_data["insurance_requirements"].append(ins_dict)
 
         # Write to file
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             json.dump(export_data, f, indent=2)
 
-        logger.info(f"Exported {len(regulations)} regulations and {len(insurance_reqs)} insurance requirements")
+        logger.info(
+            f"Exported {len(regulations)} regulations and {len(insurance_reqs)} insurance requirements"
+        )
 
     def close(self):
         """Close the database session"""
@@ -596,7 +637,7 @@ def main():
         etl.export_city_data_to_json(
             city_name="San Francisco",
             state="CA",
-            output_file="/home/user/Prep/data/cities/san_francisco_ca_example.json"
+            output_file="/home/user/Prep/data/cities/san_francisco_ca_example.json",
         )
         print("✓ Exported San Francisco data to JSON")
     except Exception as e:

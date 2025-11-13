@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 from prep.core.orchestration import ComplianceDomain, ComplianceEngine, OrchestrationEngine
 
@@ -31,7 +32,9 @@ def test_orchestration_records_validation_error() -> None:
 
         assert report.domain_results == {}
         records = await orchestrator.audit_trail.list_records()
-        error_records = [record for record in records if record.category == "compliance_validation_error"]
+        error_records = [
+            record for record in records if record.category == "compliance_validation_error"
+        ]
         assert len(error_records) == 1
         assert error_records[0].details["domain"] == ComplianceDomain.GDPR_CCPA.value
 

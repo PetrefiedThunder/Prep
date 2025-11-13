@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import re
-from typing import Dict, Iterable
+from collections.abc import Iterable
+from datetime import datetime
 
 try:  # pragma: no cover - import guarded for optional dependency environments
     from pdf2image import convert_from_bytes
@@ -52,7 +52,7 @@ def validate_coi(
     *,
     pilot_mode: bool = False,
     lenient_fields: Iterable[str] | None = None,
-) -> Dict[str, str | None | list[str]]:
+) -> dict[str, str | None | list[str]]:
     """Extract key fields from a Certificate of Insurance PDF.
 
     Args:
@@ -70,7 +70,9 @@ def validate_coi(
 
     lenient_set = {
         field.lower()
-        for field in (lenient_fields if lenient_fields is not None else ("policy_number", "insured_name"))
+        for field in (
+            lenient_fields if lenient_fields is not None else ("policy_number", "insured_name")
+        )
     }
 
     missing_dependencies = []
@@ -80,9 +82,7 @@ def validate_coi(
         missing_dependencies.append("pytesseract")
     if missing_dependencies:
         deps = ", ".join(missing_dependencies)
-        raise COIExtractionError(
-            f"Required dependencies missing for COI validation: {deps}."
-        )
+        raise COIExtractionError(f"Required dependencies missing for COI validation: {deps}.")
 
     try:
         images = convert_from_bytes(pdf_bytes)  # type: ignore[misc]
@@ -148,7 +148,7 @@ def validate_coi(
 
     expiry_date = _parse_expiry(expiry_raw)
 
-    result: Dict[str, str | None | list[str]] = {
+    result: dict[str, str | None | list[str]] = {
         "policy_number": policy_number,
         "insured_name": insured_name,
         "expiry_date": expiry_date,

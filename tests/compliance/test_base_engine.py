@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from prep.compliance.base_engine import (
     ComplianceEngine,
@@ -16,7 +16,7 @@ class DummyComplianceEngine(ComplianceEngine):
         self.load_rules()
 
     def load_rules(self) -> None:  # type: ignore[override]
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self.rules = [
             ComplianceRule(
                 id="test_rule_1",
@@ -40,7 +40,7 @@ class DummyComplianceEngine(ComplianceEngine):
                 message="Test violation",
                 severity="medium",
                 context={"test": "data"},
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 rule_version="1.0.0",
             )
         ]
@@ -64,7 +64,7 @@ def test_generate_report_with_valid_data() -> None:
     assert report.passed_rules == ["test_rule_1"]
     assert report.engine_version == "9.9.9"
     assert report.rule_versions == {}
-    assert report.timestamp.tzinfo == timezone.utc
+    assert report.timestamp.tzinfo == UTC
 
 
 def test_generate_report_with_violation() -> None:
@@ -74,5 +74,5 @@ def test_generate_report_with_violation() -> None:
     assert len(report.violations_found) == 1
     assert report.overall_compliance_score == 0.0
     assert report.passed_rules == []
-    assert report.timestamp.tzinfo == timezone.utc
-    assert all(violation.timestamp.tzinfo == timezone.utc for violation in report.violations_found)
+    assert report.timestamp.tzinfo == UTC
+    assert all(violation.timestamp.tzinfo == UTC for violation in report.violations_found)

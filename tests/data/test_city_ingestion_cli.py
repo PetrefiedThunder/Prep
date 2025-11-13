@@ -157,7 +157,9 @@ def cli_environment(monkeypatch: pytest.MonkeyPatch):
         monkeypatch.delitem(sys.modules, name, raising=False)
 
 
-def test_cli_ingests_requirements_and_fees(cli_environment, monkeypatch: pytest.MonkeyPatch, tmp_path):
+def test_cli_ingests_requirements_and_fees(
+    cli_environment, monkeypatch: pytest.MonkeyPatch, tmp_path
+):
     cli, SessionLocal, CityJurisdiction, CityRequirement, CityFeeSchedule = cli_environment
 
     module_name = "tests.fake_fee_ingestor"
@@ -188,7 +190,12 @@ def test_cli_ingests_requirements_and_fees(cli_environment, monkeypatch: pytest.
         def run_etl_for_city(self, city: str) -> dict[str, object]:
             jurisdiction = cli._ensure_jurisdiction(
                 self.session,
-                cli.CitySpec(slug=cli._slugify(city), display_name=city, state="TS", supports_requirements=True),
+                cli.CitySpec(
+                    slug=cli._slugify(city),
+                    display_name=city,
+                    state="TS",
+                    supports_requirements=True,
+                ),
             )
             agency = types.SimpleNamespace(id=str(uuid.uuid4()))
             self.session.add(

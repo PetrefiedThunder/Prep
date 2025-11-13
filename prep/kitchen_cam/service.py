@@ -237,9 +237,7 @@ class KitchenCamService:
             reason=payload.reason,
         )
 
-    async def unlock(
-        self, kitchen_id: UUID, payload: LockCommandRequest
-    ) -> LockCommandResponse:
+    async def unlock(self, kitchen_id: UUID, payload: LockCommandRequest) -> LockCommandResponse:
         kitchen = await self._get_kitchen(kitchen_id)
         now = datetime.now(UTC)
         data = {
@@ -404,9 +402,7 @@ class KitchenCamService:
             generated_at=now,
         )
 
-    async def camera_snapshot(
-        self, kitchen_id: UUID, camera_id: str
-    ) -> CameraSnapshotResponse:
+    async def camera_snapshot(self, kitchen_id: UUID, camera_id: str) -> CameraSnapshotResponse:
         await self._ensure_camera(camera_id)
         await self._get_kitchen(kitchen_id)
         now = datetime.now(UTC)
@@ -417,9 +413,7 @@ class KitchenCamService:
             captured_at=now,
         )
 
-    async def camera_stream(
-        self, kitchen_id: UUID, camera_id: str
-    ) -> CameraStreamResponse:
+    async def camera_stream(self, kitchen_id: UUID, camera_id: str) -> CameraStreamResponse:
         await self._ensure_camera(camera_id)
         await self._get_kitchen(kitchen_id)
         now = datetime.now(UTC)
@@ -455,9 +449,7 @@ class KitchenCamService:
         await self._get_kitchen(kitchen_id)
         now = datetime.now(UTC)
         expires_at = (
-            now + timedelta(minutes=payload.duration_minutes)
-            if payload.duration_minutes
-            else None
+            now + timedelta(minutes=payload.duration_minutes) if payload.duration_minutes else None
         )
         privacy_payload = {
             "mode": payload.mode.value,
@@ -585,9 +577,7 @@ class KitchenCamService:
             created=False,
         )
 
-    async def remove_device(
-        self, kitchen_id: UUID, device_id: str
-    ) -> DeviceRemovalResponse:
+    async def remove_device(self, kitchen_id: UUID, device_id: str) -> DeviceRemovalResponse:
         await self._get_kitchen(kitchen_id)
         devices = await self._load_device_registry(kitchen_id)
         removed = devices.pop(device_id, None)
@@ -705,7 +695,8 @@ class KitchenCamService:
                 events.append(
                     UsageHistoryEvent(
                         event_type=item.get("event_type", "unknown"),
-                        recorded_at=self._parse_datetime(item.get("recorded_at")) or datetime.now(UTC),
+                        recorded_at=self._parse_datetime(item.get("recorded_at"))
+                        or datetime.now(UTC),
                         metadata=item.get("metadata", {}),
                     )
                 )
@@ -729,9 +720,7 @@ class KitchenCamService:
             json.dumps(payload),
         )
 
-    async def _load_device_registry(
-        self, kitchen_id: UUID
-    ) -> dict[str, KitchenCamDevice]:
+    async def _load_device_registry(self, kitchen_id: UUID) -> dict[str, KitchenCamDevice]:
         payload = await self.redis.get(self._devices_key(kitchen_id))
         devices: dict[str, KitchenCamDevice] = {}
         if isinstance(payload, str):
@@ -745,7 +734,8 @@ class KitchenCamService:
                     device_type=data.get("device_type", "unknown"),
                     firmware_version=data.get("firmware_version"),
                     capabilities=data.get("capabilities", []),
-                    registered_at=self._parse_datetime(data.get("registered_at")) or datetime.now(UTC),
+                    registered_at=self._parse_datetime(data.get("registered_at"))
+                    or datetime.now(UTC),
                     last_heartbeat_at=self._parse_datetime(data.get("last_heartbeat_at")),
                     status=data.get("status"),
                 )

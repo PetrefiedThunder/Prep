@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from fastapi import Request
@@ -58,9 +58,23 @@ async def audit_logger(request: Request, call_next: Callable):
                 user_agent=user_agent,
             )
             await session.commit()
-    except Exception:
-        # The audit trail must never impact the customer request.
-        pass
+    except Exception as exc:
+        # The audit trail must never impact the customer request, but we should log failures
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            "Audit logging failed - this should be investigated",
+            exc_info=exc,
+            extra={
+                "path": path if "path" in locals() else "unknown",
+                "user_id": str(user_id) if "user_id" in locals() and user_id else None,
+                "status_code": response.status_code,
+                "audit_failure": True,
+            },
+        )
+        # In production, also emit metric for monitoring
+        # metrics.increment("audit.logging.failure")
 
     return response
 
@@ -113,6 +127,6 @@ async def _insert_audit_record(
             "metadata": metadata,
             "ip_address": ip_address,
             "user_agent": user_agent,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
         },
     )

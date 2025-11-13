@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
-import math
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from statistics import mean
-from typing import Any, Iterable
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Select, select
@@ -22,9 +22,9 @@ from prep.models.orm import Booking, BookingStatus, Kitchen, Review
 from .advanced_models import (
     BehaviorCluster,
     BehaviorClusterResponse,
-    BehaviorPredictRequest,
     BehaviorPrediction,
     BehaviorPredictionResponse,
+    BehaviorPredictRequest,
     BehaviorRetentionCohort,
     BehaviorRetentionResponse,
     BehaviorTrend,
@@ -85,7 +85,11 @@ class _KitchenSnapshot:
 
     @property
     def confirmed_bookings(self) -> list[Booking]:
-        return [b for b in self.bookings if b.status in {BookingStatus.CONFIRMED, BookingStatus.COMPLETED}]
+        return [
+            b
+            for b in self.bookings
+            if b.status in {BookingStatus.CONFIRMED, BookingStatus.COMPLETED}
+        ]
 
     @property
     def total_active_hours(self) -> float:
@@ -150,7 +154,9 @@ class AdvancedAnalyticsService:
                     severity=severity,
                     confidence=round(confidence, 3),
                     recommended_action=(
-                        "Schedule technician visit" if severity == "high" else "Run remote diagnostics"
+                        "Schedule technician visit"
+                        if severity == "high"
+                        else "Run remote diagnostics"
                     ),
                     next_service_date=next_service_date,
                 )
@@ -181,7 +187,11 @@ class AdvancedAnalyticsService:
         now = datetime.now(UTC)
         history: list[MaintenanceHistoryEntry] = []
         for snapshot in snapshots:
-            for event in sorted(snapshot.usage_events, key=lambda e: e.get("recorded_at", now.isoformat()), reverse=True)[:10]:
+            for event in sorted(
+                snapshot.usage_events,
+                key=lambda e: e.get("recorded_at", now.isoformat()),
+                reverse=True,
+            )[:10]:
                 recorded_at = self._parse_datetime(event.get("recorded_at")) or now
                 description = event.get("event_type", "usage")
                 cost = Decimal(str(event.get("metadata", {}).get("cost", 0)))
@@ -197,7 +207,9 @@ class AdvancedAnalyticsService:
                     )
                 )
 
-        response = MaintenanceHistoryResponse(generated_at=now, history=sorted(history, key=lambda h: h.occurred_at, reverse=True))
+        response = MaintenanceHistoryResponse(
+            generated_at=now, history=sorted(history, key=lambda h: h.occurred_at, reverse=True)
+        )
         await self._persist_cache(cache_key, response)
         return response
 
@@ -472,7 +484,9 @@ class AdvancedAnalyticsService:
         weekly_totals: defaultdict[date, Decimal] = defaultdict(Decimal)
         for snapshot in snapshots:
             for booking in snapshot.confirmed_bookings:
-                week_start = booking.start_time.date() - timedelta(days=booking.start_time.weekday())
+                week_start = booking.start_time.date() - timedelta(
+                    days=booking.start_time.weekday()
+                )
                 weekly_totals[week_start] += Decimal(str(booking.total_amount or 0))
 
         trends = [
@@ -625,22 +639,28 @@ class AdvancedAnalyticsService:
         snapshots = await self._load_snapshots()
         now = datetime.now(UTC)
         strategies: list[DemandStrategy] = []
-        regions = payload.regions or list({
-            f"{snapshot.kitchen.city or 'Unknown'}, {snapshot.kitchen.state or 'N/A'}"
-            for snapshot in snapshots
-        })
+        regions = payload.regions or list(
+            {
+                f"{snapshot.kitchen.city or 'Unknown'}, {snapshot.kitchen.state or 'N/A'}"
+                for snapshot in snapshots
+            }
+        )
 
         for region in regions:
             intensity = 0
             for snapshot in snapshots:
-                kitchen_region = f"{snapshot.kitchen.city or 'Unknown'}, {snapshot.kitchen.state or 'N/A'}"
+                kitchen_region = (
+                    f"{snapshot.kitchen.city or 'Unknown'}, {snapshot.kitchen.state or 'N/A'}"
+                )
                 if kitchen_region == region:
                     intensity += len(snapshot.confirmed_bookings)
             confidence = min(0.95, 0.5 + intensity * 0.02)
             strategies.append(
                 DemandStrategy(
                     region=region,
-                    strategy="Launch targeted promotions" if intensity < 10 else "Introduce tiered pricing",
+                    strategy="Launch targeted promotions"
+                    if intensity < 10
+                    else "Introduce tiered pricing",
                     expected_impact=round(min(0.5, 0.1 + intensity * 0.01), 3),
                     confidence=round(confidence, 3),
                 )
@@ -769,9 +789,7 @@ class AdvancedAnalyticsService:
         await self._persist_cache(cache_key, response)
         return response
 
-    async def behavior_predict(
-        self, payload: BehaviorPredictRequest
-    ) -> BehaviorPredictionResponse:
+    async def behavior_predict(self, payload: BehaviorPredictRequest) -> BehaviorPredictionResponse:
         snapshots = await self._load_snapshots()
         now = datetime.now(UTC)
 
@@ -786,7 +804,7 @@ class AdvancedAnalyticsService:
         booking_count = len(user_bookings)
         retention_probability = min(0.95, 0.4 + booking_count * 0.1)
         churn_risk = round(max(0.05, 1 - retention_probability), 3)
-        projected_ltv = (user_spend * Decimal("1.2") if user_spend else Decimal("500"))
+        projected_ltv = user_spend * Decimal("1.2") if user_spend else Decimal("500")
         confidence = min(0.95, 0.5 + booking_count * 0.05)
 
         prediction = BehaviorPrediction(

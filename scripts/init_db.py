@@ -20,7 +20,7 @@ async def init_database() -> None:
     )
 
     try:
-        with open("migrations/init.sql", "r", encoding="utf-8") as sql_file:
+        with open("migrations/init.sql", encoding="utf-8") as sql_file:
             sql = sql_file.read()
         await conn.execute(sql)
     finally:

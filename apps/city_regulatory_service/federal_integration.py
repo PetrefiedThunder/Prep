@@ -7,7 +7,7 @@ Federal Scope → State Code → City Ordinance → Facility Compliance
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -105,7 +105,7 @@ class FederalRegulatoryIntegration:
             # Get certifiers for this scope
             response = await self.client.get(
                 f"{self.federal_service_url}/federal/certification-bodies",
-                params={"scope_id": scope["id"], **params}
+                params={"scope_id": scope["id"], **params},
             )
             response.raise_for_status()
             return response.json()
@@ -137,16 +137,16 @@ class FederalRegulatoryIntegration:
                 return False
 
             # Update the city regulation
-            regulation = self.db.query(CityRegulation).filter(
-                CityRegulation.id == regulation_id
-            ).first()
+            regulation = (
+                self.db.query(CityRegulation).filter(CityRegulation.id == regulation_id).first()
+            )
 
             if not regulation:
                 logger.error(f"City regulation not found: {regulation_id}")
                 return False
 
             regulation.cfr_citation = cfr_citation
-            regulation.updated_at = datetime.utcnow()
+            regulation.updated_at = datetime.now(UTC)
             self.db.commit()
 
             logger.info(f"Linked regulation '{regulation.title}' to federal scope: {cfr_citation}")
@@ -175,10 +175,14 @@ class FederalRegulatoryIntegration:
             Complete regulatory chain information
         """
         # Get city
-        city = self.db.query(CityJurisdiction).filter(
-            CityJurisdiction.city_name.ilike(city_name),
-            CityJurisdiction.state == state.upper(),
-        ).first()
+        city = (
+            self.db.query(CityJurisdiction)
+            .filter(
+                CityJurisdiction.city_name.ilike(city_name),
+                CityJurisdiction.state == state.upper(),
+            )
+            .first()
+        )
 
         if not city:
             return {
@@ -270,10 +274,14 @@ class FederalRegulatoryIntegration:
             Validation results
         """
         # Get city regulations with federal linkages
-        city = self.db.query(CityJurisdiction).filter(
-            CityJurisdiction.city_name.ilike(city_name),
-            CityJurisdiction.state == state.upper(),
-        ).first()
+        city = (
+            self.db.query(CityJurisdiction)
+            .filter(
+                CityJurisdiction.city_name.ilike(city_name),
+                CityJurisdiction.state == state.upper(),
+            )
+            .first()
+        )
 
         if not city:
             return {
@@ -282,11 +290,15 @@ class FederalRegulatoryIntegration:
             }
 
         # Get regulations with CFR citations
-        regulations = self.db.query(CityRegulation).filter(
-            CityRegulation.city_id == city.id,
-            CityRegulation.is_active,
-            CityRegulation.cfr_citation.isnot(None),
-        ).all()
+        regulations = (
+            self.db.query(CityRegulation)
+            .filter(
+                CityRegulation.city_id == city.id,
+                CityRegulation.is_active,
+                CityRegulation.cfr_citation.isnot(None),
+            )
+            .all()
+        )
 
         validation_results = {
             "facility_id": facility_id,
@@ -312,10 +324,14 @@ class FederalRegulatoryIntegration:
 
                 if certification_body_name.lower() in certifier_names:
                     requirement["valid"] = True
-                    requirement["message"] = f"Certification body '{certification_body_name}' is authorized"
+                    requirement["message"] = (
+                        f"Certification body '{certification_body_name}' is authorized"
+                    )
                 else:
                     requirement["valid"] = False
-                    requirement["message"] = f"Certification body '{certification_body_name}' not authorized for {reg.cfr_citation}"
+                    requirement["message"] = (
+                        f"Certification body '{certification_body_name}' not authorized for {reg.cfr_citation}"
+                    )
                     validation_results["overall_valid"] = False
             else:
                 requirement["message"] = "No certification body provided"
@@ -343,26 +359,33 @@ class FederalRegulatoryIntegration:
             Recommended certifiers with coverage information
         """
         # Get city regulations applicable to facility type
-        city = self.db.query(CityJurisdiction).filter(
-            CityJurisdiction.city_name.ilike(city_name),
-            CityJurisdiction.state == state.upper(),
-        ).first()
+        city = (
+            self.db.query(CityJurisdiction)
+            .filter(
+                CityJurisdiction.city_name.ilike(city_name),
+                CityJurisdiction.state == state.upper(),
+            )
+            .first()
+        )
 
         if not city:
             return {
                 "error": f"City not found: {city_name}, {state}",
             }
 
-        regulations = self.db.query(CityRegulation).filter(
-            CityRegulation.city_id == city.id,
-            CityRegulation.is_active,
-            CityRegulation.cfr_citation.isnot(None),
-        ).all()
+        regulations = (
+            self.db.query(CityRegulation)
+            .filter(
+                CityRegulation.city_id == city.id,
+                CityRegulation.is_active,
+                CityRegulation.cfr_citation.isnot(None),
+            )
+            .all()
+        )
 
         # Filter by facility type
         applicable_regulations = [
-            r for r in regulations
-            if facility_type in r.applicable_facility_types
+            r for r in regulations if facility_type in r.applicable_facility_types
         ]
 
         # Get unique CFR citations
@@ -455,4 +478,5 @@ async def main():
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(main())

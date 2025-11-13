@@ -55,15 +55,21 @@ async def get_current_admin(
 
     subject = payload.get("sub")
     if not subject:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
+        )
 
     try:
         admin_id = UUID(str(subject))
     except ValueError as exc:  # pragma: no cover - defensive handling
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject") from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject"
+        ) from exc
 
     result = await db.execute(
-        select(User).where(User.id == admin_id, User.role == UserRole.ADMIN, User.is_active.is_(True))
+        select(User).where(
+            User.id == admin_id, User.role == UserRole.ADMIN, User.is_active.is_(True)
+        )
     )
     admin = result.scalar_one_or_none()
     if admin is None:
@@ -73,4 +79,6 @@ async def get_current_admin(
     if not isinstance(permissions, list):
         permissions = []
 
-    return AdminUser(id=admin.id, email=admin.email, full_name=admin.full_name, permissions=permissions)
+    return AdminUser(
+        id=admin.id, email=admin.email, full_name=admin.full_name, permissions=permissions
+    )

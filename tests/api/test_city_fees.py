@@ -4,9 +4,7 @@ from fastapi.testclient import TestClient
 
 from api.index import create_app
 
-client = TestClient(
-    create_app(include_full_router=False, include_legacy_mounts=False)
-)
+client = TestClient(create_app(include_full_router=False, include_legacy_mounts=False))
 
 
 def _assert_ok(city: str) -> None:

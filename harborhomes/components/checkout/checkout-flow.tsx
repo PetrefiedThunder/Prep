@@ -51,7 +51,8 @@ export function CheckoutFlow({ listing, startDate, endDate, guests }: { listing:
     if (currentStep === "payment") {
       const valid = await paymentForm.trigger();
       if (!valid) return;
-      const code = `HH-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+      // Use cryptographically secure random for confirmation codes
+      const code = `HH-${crypto.randomUUID().split('-')[0].toUpperCase()}`;
       setConfirmation(code);
       track({ type: "start_checkout", listingId: listing.id, total });
     }

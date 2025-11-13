@@ -22,16 +22,18 @@ def __getattr__(name: str) -> Any:  # pragma: no cover - thin import shim
 
 def __dir__() -> list[str]:  # pragma: no cover - delegated to stdlib introspection
     return sorted(__all__)
-from typing import TYPE_CHECKING, Any
+
+
+from typing import TYPE_CHECKING
 
 from libs.safe_import import safe_import_attr
 
 if TYPE_CHECKING:  # pragma: no cover - only for static analysis
     from .expiry_check import ExpirySummary, run_expiry_check, run_expiry_check_async
     from .pricing_hourly_refresh import (
+        SCHEDULE_CRON,
         DefaultPricingStrategy,
         PricingRefreshSummary,
-        SCHEDULE_CRON,
         beat_schedule_entry,
         run_pricing_refresh,
         run_pricing_refresh_async,
@@ -72,7 +74,7 @@ def __getattr__(name: str) -> Any:
     raise AttributeError(f"module 'jobs' has no attribute {name!r}")
 
 
-__all__ = list(sorted(set(__all__)))
+__all__ = sorted(set(__all__))
 from .expiry_check import ExpirySummary, run_expiry_check, run_expiry_check_async
 from .reconciliation_engine import (
     ReconciliationEntry,

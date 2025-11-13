@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from typing import Dict, List
 
 from fastapi.testclient import TestClient
 
@@ -17,10 +16,10 @@ from prep.reports.compliance import DEFAULT_REPORT_PATH, generate_compliance_man
 LOGGER = logging.getLogger("prep.regression")
 
 
-async def run_regression_suite() -> Dict[str, bool]:
+async def run_regression_suite() -> dict[str, bool]:
     """Execute regression checks and return a summary of pass/fail states."""
 
-    results: Dict[str, bool] = {}
+    results: dict[str, bool] = {}
     results["openapi"] = _verify_openapi_contract()
     results["metrics_endpoint"] = _verify_metrics_endpoint()
     results["model_schema"] = _verify_model_schema()
@@ -32,7 +31,6 @@ async def run_regression_suite() -> Dict[str, bool]:
 def _verify_openapi_contract() -> bool:
     required_paths = {
         "/metrics",
-        "/kitchens/{kitchen_id}/sanitation",
         "/kitchens/{kitchen_id}/sanitation",
         "/kitchens/{kitchen_id}/compliance",
     }
@@ -68,7 +66,9 @@ def _verify_insurance_integrations() -> bool:
     providers = set(api.providers.keys())
     required = {"next", "thimble"}
     if not required.issubset(providers):
-        LOGGER.error("Insurance providers missing integrations: %s", ", ".join(sorted(required - providers)))
+        LOGGER.error(
+            "Insurance providers missing integrations: %s", ", ".join(sorted(required - providers))
+        )
         return False
     return True
 
@@ -85,7 +85,7 @@ async def _verify_manifest_generation() -> bool:
 async def main() -> None:
     logging.basicConfig(level=logging.INFO)
     results = await run_regression_suite()
-    failures: List[str] = [name for name, passed in results.items() if not passed]
+    failures: list[str] = [name for name, passed in results.items() if not passed]
     if failures:
         LOGGER.error("Regression suite failed checks: %s", ", ".join(failures))
         raise SystemExit(1)

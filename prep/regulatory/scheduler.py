@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import List
 
 import aioschedule as schedule
 
@@ -51,7 +50,7 @@ class RegulatoryScheduler:
     async def scrape_all_states(self) -> None:
         """Scrape all states weekly."""
 
-        all_states: List[str] = [
+        all_states: list[str] = [
             "AL",
             "AK",
             "AZ",
@@ -136,7 +135,7 @@ class RegulatoryScheduler:
             },
         )
 
-    async def save_regulations(self, state: str, regulations: List[dict]) -> None:
+    async def save_regulations(self, state: str, regulations: list[dict]) -> None:
         """Persist scraped regulations to storage (placeholder)."""
 
         self.logger.info("Saved %s regulations for %s", len(regulations), state)

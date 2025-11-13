@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Iterable, Mapping, Sequence
 
 EXPECTED_PARTIES: tuple[str, ...] = (
     "kitchen_operator",
@@ -28,7 +28,11 @@ class RequirementValidationError(ValueError):
 
     def __init__(self, issues: Sequence[str]) -> None:
         joined = "\n - ".join(issues)
-        message = f"Requirement validation failed:\n - {joined}" if issues else "Invalid requirements payload"
+        message = (
+            f"Requirement validation failed:\n - {joined}"
+            if issues
+            else "Invalid requirements payload"
+        )
         super().__init__(message)
         self.issues = list(issues)
 
@@ -68,7 +72,7 @@ def validate_requirements(
     """Validate a collection of requirement payloads."""
 
     parties = [party.strip().lower() for party in expected_parties]
-    counts = {party: 0 for party in parties}
+    counts = dict.fromkeys(parties, 0)
     blocking_count = 0
     issues: list[str] = []
 
@@ -77,7 +81,9 @@ def validate_requirements(
         issues.append("No requirements supplied for validation")
 
     for idx, requirement in enumerate(reqs, start=1):
-        identifier = requirement.get("id") or requirement.get("requirement_id") or f"requirement #{idx}"
+        identifier = (
+            requirement.get("id") or requirement.get("requirement_id") or f"requirement #{idx}"
+        )
         applies_to = _normalize_parties(_extract("applies_to", requirement))
         if not applies_to:
             issues.append(f"{identifier}: missing applies_to audience tagging")

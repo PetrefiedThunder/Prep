@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from prep.compliance.gdpr_ccpa_core import GDPRCCPACore
 
@@ -18,7 +18,7 @@ def test_consent_validation() -> None:
     consent = [v for v in violations if v.rule_id == "privacy_consent_1"]
     assert len(consent) == 1
     assert consent[0].severity == "critical"
-    assert all(v.timestamp.tzinfo == timezone.utc for v in consent)
+    assert all(v.timestamp.tzinfo == UTC for v in consent)
 
 
 def test_data_minimization_validation() -> None:
@@ -30,7 +30,7 @@ def test_data_minimization_validation() -> None:
     violations = engine.validate(data)
     minimization = [v for v in violations if v.rule_id == "privacy_data_minimization_1"]
     assert len(minimization) == 1
-    assert all(v.timestamp.tzinfo == timezone.utc for v in minimization)
+    assert all(v.timestamp.tzinfo == UTC for v in minimization)
 
 
 def test_data_breach_validation() -> None:
@@ -39,8 +39,8 @@ def test_data_breach_validation() -> None:
         "data_breaches": [
             {
                 "id": "breach1",
-                "detected_at": datetime.now(timezone.utc) - timedelta(hours=80),
-                "notified_at": datetime.now(timezone.utc),
+                "detected_at": datetime.now(UTC) - timedelta(hours=80),
+                "notified_at": datetime.now(UTC),
             }
         ]
     }
@@ -48,7 +48,7 @@ def test_data_breach_validation() -> None:
     breach = [v for v in violations if v.rule_id == "privacy_data_breach_1"]
     assert len(breach) == 1
     assert breach[0].severity == "critical"
-    assert all(v.timestamp.tzinfo == timezone.utc for v in breach)
+    assert all(v.timestamp.tzinfo == UTC for v in breach)
 
 
 def test_third_party_sharing_validation() -> None:
@@ -65,4 +65,4 @@ def test_third_party_sharing_validation() -> None:
     violations = engine.validate(data)
     sharing = [v for v in violations if v.rule_id == "privacy_third_party_1"]
     assert len(sharing) == 2
-    assert all(v.timestamp.tzinfo == timezone.utc for v in sharing)
+    assert all(v.timestamp.tzinfo == UTC for v in sharing)

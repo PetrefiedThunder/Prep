@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
+from collections.abc import Iterable
 from functools import partial
-from typing import Any, Iterable
+from typing import Any
 
 __all__ = [
     "connect",
@@ -38,11 +39,11 @@ class Cursor:
         self._cursor = cursor
         self._loop = loop
 
-    async def execute(self, sql: str, parameters: Iterable[Any] | None = None) -> "Cursor":
+    async def execute(self, sql: str, parameters: Iterable[Any] | None = None) -> Cursor:
         await self._loop.run_in_executor(None, self._cursor.execute, sql, parameters or ())
         return self
 
-    async def executemany(self, sql: str, seq_of_parameters: Iterable[Iterable[Any]]) -> "Cursor":
+    async def executemany(self, sql: str, seq_of_parameters: Iterable[Iterable[Any]]) -> Cursor:
         await self._loop.run_in_executor(None, self._cursor.executemany, sql, seq_of_parameters)
         return self
 
@@ -110,7 +111,7 @@ class Connection:
     async def close(self) -> None:
         await self._loop.run_in_executor(None, self._conn.close)
 
-    async def __aenter__(self) -> "Connection":
+    async def __aenter__(self) -> Connection:
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:  # type: ignore[override]
@@ -138,7 +139,9 @@ class Connection:
 class _ConnectAwaitable:
     """Awaitable wrapper that exposes a ``daemon`` attribute like a thread."""
 
-    def __init__(self, loop: asyncio.AbstractEventLoop, database: str, kwargs: dict[str, Any]) -> None:
+    def __init__(
+        self, loop: asyncio.AbstractEventLoop, database: str, kwargs: dict[str, Any]
+    ) -> None:
         self._loop = loop
         self._database = database
         self._kwargs = kwargs

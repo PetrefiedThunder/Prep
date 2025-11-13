@@ -1,10 +1,11 @@
 """Domain service implementing San Francisco specific compliance logic."""
+
 from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from datetime import UTC, date, datetime, timedelta
-from typing import Iterable, Sequence
 from uuid import UUID
 
 from .models import (
@@ -83,9 +84,7 @@ class SFComplianceService:
         issues: list[str] = []
 
         def add_issue(field: str, status: str, message: str) -> None:
-            checklist.append(
-                HostComplianceFieldStatus(field=field, status=status, message=message)
-            )
+            checklist.append(HostComplianceFieldStatus(field=field, status=status, message=message))
             issues.append(message)
 
         def add_ok(field: str, message: str | None = None) -> None:
@@ -186,7 +185,9 @@ class SFComplianceService:
 
         if not issues:
             overall_status = "compliant"
-        elif any(item.status in {"missing", "invalid"} for item in checklist if item.status != "ok"):
+        elif any(
+            item.status in {"missing", "invalid"} for item in checklist if item.status != "ok"
+        ):
             overall_status = "blocked"
         else:
             overall_status = "needs_attention"
@@ -209,7 +210,8 @@ class SFComplianceService:
             return record
 
     async def perform_zoning_check(
-        self, *,
+        self,
+        *,
         host_id: UUID,
         address: str,
         zoning_use_district: str | None,
@@ -268,7 +270,9 @@ class SFComplianceService:
             self._tax_reports[key] = report
             return report
 
-    async def get_tax_report(self, *, period_start: date, period_end: date, jurisdiction: str) -> TaxReportRecord:
+    async def get_tax_report(
+        self, *, period_start: date, period_end: date, jurisdiction: str
+    ) -> TaxReportRecord:
         key = f"{jurisdiction}:{period_start.isoformat()}:{period_end.isoformat()}"
         report = self._tax_reports.get(key)
         if not report:
