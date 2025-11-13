@@ -429,11 +429,7 @@ class BusinessPermit(TimestampMixin, Base):
     status: Mapped[PermitStatus] = mapped_column(Enum(PermitStatus), default=PermitStatus.PENDING)
     permit_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
-    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="permits")
-    documents: Mapped[list["DocumentUpload"]] = relationship(
-        "DocumentUpload", back_populates="permit", cascade="all, delete-orphan"
-    )
-
+    business: Mapped[BusinessProfile] = relationship("BusinessProfile")
 
 class PaymentRecord(TimestampMixin, Base):
     __tablename__ = "payment_records"
@@ -451,7 +447,7 @@ class PaymentRecord(TimestampMixin, Base):
     refunded_amount_cents: Mapped[int | None] = mapped_column(Integer)
     payment_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
-    business: Mapped[BusinessProfile | None] = relationship("BusinessProfile", back_populates="payments")
+    business: Mapped[BusinessProfile | None] = relationship("BusinessProfile")
     booking: Mapped[Optional["Booking"]] = relationship("Booking")
 
 

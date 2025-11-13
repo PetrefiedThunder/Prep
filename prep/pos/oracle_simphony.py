@@ -14,7 +14,7 @@ class OracleSimphonyError(RuntimeError):
     """Raised when the Simphony API returns a non-success response."""
 
 
-@dataclass(slots=True)
+@dataclass
 class OracleSimphonyClient:
     """Lightweight client for Oracle Simphony's enterprise REST APIs."""
 

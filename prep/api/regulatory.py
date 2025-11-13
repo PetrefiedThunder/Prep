@@ -1,16 +1,31 @@
-"""Public regulatory endpoints used by the Prep client."""
+"""FastAPI endpoints for regulatory data and compliance analysis."""
 
 from __future__ import annotations
 
-from typing import Optional
+import logging
+import os
+import re
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
 
-from fastapi import APIRouter, Depends, Query
+import httpx
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prep.database.connection import get_db
+from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER, BOOKING_PILOT_BANNER
+from prep.database.connection import AsyncSessionLocal, get_db
+from prep.pilot.utils import is_pilot_location
+from prep.regulatory.analyzer import RegulatoryAnalyzer
+from prep.regulatory.scraper import RegulatoryScraper
 from prep.regulatory.service import get_regulations_for_jurisdiction
+from prep.settings import get_settings
 
 router = APIRouter(prefix="/regulatory", tags=["regulatory"])
+
+if TYPE_CHECKING:  # pragma: no cover - type-checking aid only
+    from prep.regulatory.models import InsuranceRequirement, Regulation, RegulationSource
 
 
 @router.get("/regulations/{state}")
@@ -21,7 +36,7 @@ async def list_regulations(
     country_code: str = Query(default="US", min_length=2, max_length=2),
     state_province: Optional[str] = Query(default=None),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> Dict[str, Any]:
     """Return regulations for the provided jurisdiction."""
 
     regulations = await get_regulations_for_jurisdiction(
@@ -33,32 +48,6 @@ async def list_regulations(
         state_province=state_province,
     )
     return {"regulations": regulations}
-"""FastAPI endpoints for regulatory data and compliance analysis."""
-
-from __future__ import annotations
-
-import logging
-import re
-from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional
-
-import httpx
-import os
-
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from pydantic import BaseModel
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER, BOOKING_PILOT_BANNER
-from prep.database.connection import AsyncSessionLocal, get_db
-from prep.pilot.utils import is_pilot_location
-from prep.regulatory.analyzer import RegulatoryAnalyzer
-from prep.regulatory.models import InsuranceRequirement, Regulation, RegulationSource
-from prep.regulatory.scraper import RegulatoryScraper
-from prep.settings import get_settings
-
-router = APIRouter(prefix="/regulatory")
 
 logger = logging.getLogger(__name__)
 
@@ -314,6 +303,8 @@ async def get_regulations_for_jurisdiction(
 ) -> List[Dict]:
     """Get regulations from database for a jurisdiction."""
 
+    from prep.regulatory.models import Regulation
+
     normalized_country = (country_code or "US").upper()
     province = state_province or state.upper()
     query = select(Regulation).where(
@@ -350,6 +341,8 @@ async def save_regulations_to_db(
     state_province: Optional[str] = None,
 ) -> None:
     """Persist regulation entries to the database."""
+
+    from prep.regulatory.models import Regulation, RegulationSource
 
     if not regulations:
         return
@@ -438,6 +431,8 @@ async def save_insurance_requirements(
     state_province: Optional[str] = None,
 ) -> None:
     """Persist insurance requirements to the database."""
+
+    from prep.regulatory.models import InsuranceRequirement
 
     country = (country_code or "US").upper()
     state_code = state.upper()

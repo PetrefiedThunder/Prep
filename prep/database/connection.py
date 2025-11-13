@@ -10,8 +10,18 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/prepchef"
+def _normalize_database_url(url: str) -> str:
+    """Ensure SQLite URLs use the async driver required by SQLAlchemy."""
+
+    if url.startswith("sqlite://") and not url.startswith("sqlite+aiosqlite://"):
+        return url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+    if url.startswith("sqlite+pysqlite://"):
+        return url.replace("sqlite+pysqlite://", "sqlite+aiosqlite://", 1)
+    return url
+
+
+DATABASE_URL = _normalize_database_url(
+    os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/prepchef")
 )
 
 def _engine_options(url: str) -> dict[str, Any]:

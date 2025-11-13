@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+import warnings
 from datetime import datetime
 
 from sqlalchemy import (
@@ -21,8 +22,17 @@ from sqlalchemy import (
 from sqlalchemy.ext.mutable import MutableDict, MutableList
 from sqlalchemy.orm import relationship
 
+from sqlalchemy.exc import SAWarning
+
 from prep.models import Base
 from prep.models.guid import GUID
+from prep.models.orm import RegDoc as _CoreRegDoc
+
+warnings.filterwarnings(
+    "ignore",
+    "This declarative base already contains a class with the same class name",
+    SAWarning,
+)
 
 
 class RegulationSource(Base):
@@ -82,31 +92,7 @@ class InsuranceRequirement(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
 
-class RegDoc(Base):
-    """Normalized regulatory documents with content hashing."""
-
-    __tablename__ = "regdocs"
-    __table_args__ = (
-        UniqueConstraint("sha256_hash", name="uq_regdocs_sha256_hash"),
-        Index("ix_regdocs_sha256_hash", "sha256_hash"),
-        Index("ix_regdocs_jurisdiction", "jurisdiction"),
-        Index("ix_regdocs_state_doc_type", "state", "doc_type"),
-    )
-
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    sha256_hash = Column(String(64), nullable=False)
-    jurisdiction = Column(String(120))
-    country_code = Column(String(2), nullable=False, default="US")
-    state = Column(String(2))
-    state_province = Column(String(120))
-    city = Column(String(120))
-    doc_type = Column(String(100))
-    title = Column(String(255))
-    summary = Column(Text)
-    source_url = Column(Text)
-    raw_payload = Column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+RegDoc = _CoreRegDoc
 
 
 class CityJurisdiction(Base):

@@ -12,6 +12,13 @@ import pytest
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("SKIP_PREP_DB_INIT", "1")
 
+
+@pytest.fixture
+def anyio_backend() -> str:
+    """Limit AnyIO tests to the asyncio backend when optional deps are unavailable."""
+
+    return "asyncio"
+
 # Optional dependencies -----------------------------------------------------
 
 def _ensure_sqlalchemy_stub() -> None:
