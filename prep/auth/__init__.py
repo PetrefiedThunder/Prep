@@ -36,7 +36,7 @@ class User:
     is_suspended: bool = False
 
 
-def decode_token(token: str, settings: Settings) -> dict[str, Any]:
+def _decode_jwt(token: str, settings: Settings) -> dict[str, Any]:
     try:
         header = jwt.get_unverified_header(token)
     except jwt.PyJWTError as exc:  # pragma: no cover - defensive guard
@@ -61,6 +61,10 @@ def decode_token(token: str, settings: Settings) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token payload")
     return payload
+
+
+def decode_token(token: str, settings: Settings) -> dict[str, Any]:
+    return _decode_jwt(token, settings)
 
 
 def _extract_roles(payload: Mapping[str, Any]) -> list[str]:
@@ -115,6 +119,7 @@ async def get_current_user(
 __all__ = [
     "User",
     "UserRole",
+    "_decode_jwt",
     "decode_token",
     "get_current_admin",
     "get_current_user",

@@ -9,7 +9,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from .oracle_simphony import FranchiseSyncService, OracleSimphonyClient
+
 __all__ = [
+    "OracleSimphonyClient",
+    "FranchiseSyncService",
     "POSAnalyticsService",
     "POSIntegrationRepository",
     "SquarePOSConnector",

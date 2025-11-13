@@ -3,9 +3,33 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, GetCoreSchemaHandler, GetJsonSchemaHandler
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import CoreSchema
+
+try:  # pragma: no cover - exercised indirectly via tests
+    import email_validator  # type: ignore  # noqa: F401
+except ImportError:  # pragma: no cover - environment without optional dependency
+    class EmailStr(str):
+        """Fallback EmailStr implementation when ``email_validator`` is absent."""
+
+        @classmethod
+        def __get_pydantic_core_schema__(
+            cls, source_type: type[Any], handler: GetCoreSchemaHandler
+        ) -> CoreSchema:
+            return handler(str)
+
+        @classmethod
+        def __get_pydantic_json_schema__(
+            cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+        ) -> JsonSchemaValue:
+            return handler(core_schema)
+
+else:  # pragma: no cover - exercised when optional dependency installed
+    from pydantic import EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

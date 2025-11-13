@@ -1,4 +1,4 @@
-"""Helpers for loading regulatory documents into the warehouse."""
+"""Database loader utilities for regulatory documents."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from prep.regulatory.models import RegDoc
+from prep.models.orm import RegDoc
 
 # Columns that can be persisted on ``RegDoc`` records.
 _REGDOC_FIELDS: set[str] = {
@@ -127,13 +127,14 @@ async def load_regdocs(session: AsyncSession, rows: Sequence[Mapping[str, Any]])
         sha_hash = normalized["sha256_hash"]
 
         existing = (
-            await session.execute(select(RegDoc).where(RegDoc.sha256_hash == sha_hash))
-        ).scalar_one_or_none()
+            session.execute(select(RegDoc).where(RegDoc.sha256_hash == sha_hash))
+            .scalars()
+            .one_or_none()
+        )
 
         if existing is None:
             session.add(RegDoc(**normalized))
             inserted += 1
-            summary["inserted"] += 1
             continue
 
         changed = False
