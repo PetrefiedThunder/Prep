@@ -16,13 +16,17 @@ export async function createApp() {
   const userStore = await createUserStore();
   await userStore.ensureDefaultAdmin();
 
-  await app.register(prepSecurityPlugin, {
-    serviceName: 'auth-svc',
-    jwt: {
-      secret: env.JWT_SECRET,
-      sign: { expiresIn: env.AUTH_ACCESS_TOKEN_TTL }
-    }
-  });
+  try {
+    await app.register(prepSecurityPlugin, {
+      serviceName: 'auth-svc',
+      jwt: {
+        secret: env.JWT_SECRET
+      }
+    });
+  } catch (error) {
+    log.error('Failed to register prepSecurityPlugin:', error);
+    throw error;
+  }
 
   app.decorate('userStore', userStore);
 
@@ -41,7 +45,7 @@ export async function createApp() {
   return app;
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number(process.env.PORT || 0) || Math.floor(Math.random() * 1000) + 3000;
   createApp().then(app => app.listen({ port }).then(() => log.info('auth-svc listening', { port })));
 }
