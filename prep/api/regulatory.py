@@ -2,49 +2,6 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER, BOOKING_PILOT_BANNER
-from prep.database.connection import AsyncSessionLocal, get_db
-from prep.pilot.utils import is_pilot_location
-from prep.regulatory.analyzer import RegulatoryAnalyzer
-from prep.regulatory.scraper import RegulatoryScraper
-from prep.regulatory.service import get_regulations_for_jurisdiction
-from prep.settings import get_settings
-
-router = APIRouter(prefix="/regulatory", tags=["regulatory"])
-
-if TYPE_CHECKING:  # pragma: no cover - type-checking aid only
-    from prep.regulatory.models import InsuranceRequirement, Regulation, RegulationSource
-
-
-@router.get("/regulations/{state}")
-async def list_regulations(
-    state: str,
-    city: str | None = Query(default=None),
-    county: str | None = Query(default=None),
-    country_code: str = Query(default="US", min_length=2, max_length=2),
-    state_province: str | None = Query(default=None),
-    db: AsyncSession = Depends(get_db),
-) -> Dict[str, Any]:
-    """Return regulations for the provided jurisdiction."""
-
-    regulations = await get_regulations_for_jurisdiction(
-        db,
-        state,
-        city,
-        county=county,
-        country_code=country_code.upper(),
-        state_province=state_province,
-    )
-    return {"regulations": regulations}
-
-
-"""FastAPI endpoints for regulatory data and compliance analysis."""
-
-from __future__ import annotations
-
 import logging
 import os
 import re

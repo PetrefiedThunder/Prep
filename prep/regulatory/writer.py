@@ -2,21 +2,15 @@
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+import uuid
+from collections.abc import Iterable, Iterator, Mapping, MutableMapping, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
-
-"""Persistence helpers for regulatory requirements and fee schedules."""
-
-from __future__ import annotations
-
-import dataclasses
-import uuid
-from collections.abc import MutableMapping
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
