@@ -17,6 +17,11 @@ async function createTestApp() {
 
 test('registers a new account and returns tokens', async () => {
   const app = await createTestApp();
+  
+  // Debug: check if jwt methods are available
+  console.log('app.jwt:', typeof app.jwt);
+  console.log('Methods on app:', Object.keys(app));
+  
   const res = await app.inject({
     method: 'POST',
     url: '/auth/register',

@@ -16,13 +16,17 @@ export async function createApp() {
   const userStore = await createUserStore();
   await userStore.ensureDefaultAdmin();
 
-  await app.register(prepSecurityPlugin, {
-    serviceName: 'auth-svc',
-    jwt: {
-      secret: env.JWT_SECRET,
-      sign: { expiresIn: env.AUTH_ACCESS_TOKEN_TTL }
-    }
-  });
+  try {
+    await app.register(prepSecurityPlugin, {
+      serviceName: 'auth-svc',
+      jwt: {
+        secret: env.JWT_SECRET
+      }
+    });
+  } catch (error) {
+    log.error('Failed to register prepSecurityPlugin:', error);
+    throw error;
+  }
 
   app.decorate('userStore', userStore);
 
