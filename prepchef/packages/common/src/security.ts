@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import fp from 'fastify-plugin';
 import fastifyCors, { type FastifyCorsOptions } from '@fastify/cors';
 import fastifyHelmet, { type FastifyHelmetOptions } from '@fastify/helmet';
 import fastifyRateLimit, { type FastifyRateLimitOptions } from '@fastify/rate-limit';
@@ -34,7 +35,7 @@ const defaultRateLimit: FastifyRateLimitOptions = {
   timeWindow: '1 minute'
 };
 
-export const prepSecurityPlugin: FastifyPluginAsync<PrepSecurityPluginOptions> = async (
+const prepSecurityPluginImpl: FastifyPluginAsync<PrepSecurityPluginOptions> = async (
   app,
   options
 ) => {
@@ -113,5 +114,10 @@ export const prepSecurityPlugin: FastifyPluginAsync<PrepSecurityPluginOptions> =
     });
   }
 };
+
+export const prepSecurityPlugin = fp(prepSecurityPluginImpl, {
+  name: 'prep-security-plugin',
+  fastify: '4.x'
+});
 
 export default prepSecurityPlugin;
