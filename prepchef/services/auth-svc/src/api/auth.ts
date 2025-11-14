@@ -84,7 +84,7 @@ export default async function (app: FastifyInstance) {
       { expiresIn: env.AUTH_ACCESS_TOKEN_TTL }
     );
     const refreshToken = await reply.jwtSign(
-      { sub: user.id, username: user.username, role: user.role, type: 'refresh' },
+      { sub: user.id, username: user.username, role: user.role, type: 'refresh', jti: randomUUID() },
       { expiresIn: env.AUTH_REFRESH_TOKEN_TTL }
     );
     refreshTokens.set(refreshToken, user.id);
@@ -118,7 +118,7 @@ export default async function (app: FastifyInstance) {
       { expiresIn: env.AUTH_ACCESS_TOKEN_TTL }
     );
     const refreshToken = await reply.jwtSign(
-      { sub: user.id, username: user.username, role: user.role, type: 'refresh' },
+      { sub: user.id, username: user.username, role: user.role, type: 'refresh', jti: randomUUID() },
       { expiresIn: env.AUTH_REFRESH_TOKEN_TTL }
     );
     refreshTokens.set(refreshToken, user.id);
@@ -172,7 +172,7 @@ export default async function (app: FastifyInstance) {
         { expiresIn: env.AUTH_ACCESS_TOKEN_TTL }
       );
       const newRefreshToken = await reply.jwtSign(
-        { sub: user.id, username: user.username, role: user.role, type: 'refresh' },
+        { sub: user.id, username: user.username, role: user.role, type: 'refresh', jti: randomUUID() },
         { expiresIn: env.AUTH_REFRESH_TOKEN_TTL }
       );
       refreshTokens.set(newRefreshToken, user.id);
