@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "fastify": "^4.28.1",
-    "fastify-jwt": "^6.7.1",
+    "@fastify/jwt": "^6.7.1",
     "zod": "^3.23.8",
     "undici": "^6.19.8",
     "@prep/common": "1.0.0",
@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "tsx": "^4.16.2",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.2",
+    "@types/node": "^20.0.0"
   }
 }
