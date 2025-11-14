@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import '@fastify/jwt';
 
 process.env.AUTH_PERSISTENCE = 'memory';
-process.env.JWT_SECRET = 'test-secret';
+process.env.JWT_SECRET = 'test-secret-that-is-long-enough-for-validation-requirements';
 process.env.AUTH_PASSWORD_SALT_ROUNDS = '4';
 
 const { createApp } = await import('../index');

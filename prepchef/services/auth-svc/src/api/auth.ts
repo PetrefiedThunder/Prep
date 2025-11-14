@@ -1,10 +1,12 @@
 import { FastifyInstance } from 'fastify';
 import '@fastify/jwt';
-import { compare, hash } from 'bcryptjs';
+import bcryptjs from 'bcryptjs';
 import { z } from 'zod';
 import { env } from '@prep/config';
 
-type UserRole = 'admin' | 'host' | 'renter';
+const { compare, hash } = bcryptjs;
+
+type UserRole = 'admin' | 'host' | 'renter' | 'support';
 
 const refreshTokens = new Map<string, string>();
 

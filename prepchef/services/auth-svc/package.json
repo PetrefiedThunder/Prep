@@ -9,7 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint": "echo 'lint stub'",
-    "test": "node --test --import tsx src/tests/**/*.test.ts"
+    "test": "node --test --import tsx src/tests"
   },
   "dependencies": {
     "@fastify/jwt": "^7.2.1",
