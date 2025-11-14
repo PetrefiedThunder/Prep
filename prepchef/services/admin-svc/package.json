@@ -9,7 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint": "echo 'lint stub'",
-    "test": "echo \"no tests\""
+    "test": "echo 'no tests'"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.0",
