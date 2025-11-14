@@ -1,0 +1,9 @@
+scope_id,scope_name,cfr_title,cfr_part,cfr_section,fda_guidance_url,fsma_final_rule_date,enforcement_date,state_adoption_notes
+1,Preventive Controls for Human Food (PCHF),21,117,,https://www.fda.gov/food/food-safety-modernization-act-fsma/fsma-final-rule-preventive-controls-human-food,2015-09-17,2016-09-19,Most states adopted by reference; some have additional requirements
+2,Preventive Controls for Animal Food (PCAF),21,507,,https://www.fda.gov/food/food-safety-modernization-act-fsma/fsma-final-rule-preventive-controls-animal-food,2015-09-17,2017-09-18,Federal program; limited state co-regulatory oversight
+3,Produce Safety,21,112,,https://www.fda.gov/food/food-safety-modernization-act-fsma/fsma-final-rule-produce-safety,2015-11-27,2018-01-26,State cooperative agreements for inspection; CA and others have stricter standards
+4,Seafood HACCP,21,123,,https://www.fda.gov/food/hazard-analysis-critical-control-point-haccp/fish-and-fisheries-products-hazards-and-controls-guidance,1995-12-18,1997-12-18,Pre-FSMA regulation; some states conduct concurrent inspections
+5,Juice HACCP,21,120,,https://www.fda.gov/food/hazard-analysis-critical-control-point-haccp/juice-haccp,2001-01-22,2002-01-22,Pre-FSMA regulation; limited state oversight
+6,Low-Acid Canned Foods (LACF),21,113,,https://www.fda.gov/food/guidance-regulation-food-and-dietary-supplements/low-acid-canned-foods,1979-07-01,1979-07-01,Long-established federal program; state inspections in some jurisdictions
+7,Acidified Foods,21,114,,https://www.fda.gov/food/guidance-regulation-food-and-dietary-supplements/acidified-foods,1979-07-01,1979-07-01,Federal jurisdiction; state co-enforcement in limited cases
+8,Infant Formula,21,106 and 107,,https://www.fda.gov/food/infant-formula-guidance-documents-regulatory-information/infant-formula-laws-regulations,1980-09-26,1980-09-26,Highly regulated federal program; state adoption varies

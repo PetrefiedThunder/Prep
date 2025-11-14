@@ -97,9 +97,40 @@ variable "cloudfront_price_class" {
   default = "PriceClass_All"
 }
 
+locals {
+  static_dir   = "${path.module}/../../dist"
+  static_files = try(fileset(local.static_dir, "**"), [])
+  mime_types = {
+    css          = "text/css"
+    html         = "text/html"
+    ico          = "image/x-icon"
+    js           = "application/javascript"
+    json         = "application/json"
+    map          = "application/json"
+    png          = "image/png"
+    svg          = "image/svg+xml"
+    txt          = "text/plain"
+    webmanifest  = "application/manifest+json"
+  }
+}
+
 # S3 bucket for static assets and Lambda code
 resource "aws_s3_bucket" "app" {
   bucket = var.app_bucket_name
+}
+
+resource "aws_s3_object" "static_site" {
+  for_each = { for file in local.static_files : file => file }
+
+  bucket       = aws_s3_bucket.app.id
+  key          = each.value
+  source       = "${local.static_dir}/${each.value}"
+  etag         = filemd5("${local.static_dir}/${each.value}")
+  content_type = lookup(
+    local.mime_types,
+    lower(element(split(".", each.value), length(split(".", each.value)) - 1)),
+    "application/octet-stream"
+  )
 }
 
 # Lambda execution role

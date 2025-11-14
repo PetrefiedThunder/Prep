@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://prep.com/schemas/federal/scope_link.schema.json",
+  "title": "Accreditation Scope Link",
+  "description": "Relationship linking accreditation body, certification body, and scope with validity dates",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer",
+      "description": "Unique identifier for the link",
+      "minimum": 1
+    },
+    "accreditation_body_id": {
+      "type": "integer",
+      "description": "Foreign key to accreditation_bodies table",
+      "minimum": 1
+    },
+    "certification_body_id": {
+      "type": "integer",
+      "description": "Foreign key to certification_bodies table",
+      "minimum": 1
+    },
+    "scope_id": {
+      "type": "integer",
+      "description": "Foreign key to scopes table",
+      "minimum": 1
+    },
+    "recognition_initial_date": {
+      "type": ["string", "null"],
+      "description": "Date when recognition was initially granted",
+      "format": "date"
+    },
+    "recognition_expiration_date": {
+      "type": ["string", "null"],
+      "description": "Date when recognition expires",
+      "format": "date"
+    },
+    "scope_status": {
+      "type": ["string", "null"],
+      "description": "Current status of the scope recognition",
+      "enum": ["active", "suspended", "expired", "pending", "withdrawn", null]
+    },
+    "source": {
+      "type": ["string", "null"],
+      "description": "Source of the recognition data (e.g., 'ANAB Directory', 'IAS Directory')",
+      "maxLength": 255
+    }
+  },
+  "required": ["id", "accreditation_body_id", "certification_body_id", "scope_id"],
+  "additionalProperties": false
+}

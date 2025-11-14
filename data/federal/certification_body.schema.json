@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://prep.com/schemas/federal/certification_body.schema.json",
+  "title": "Certification Body",
+  "description": "Third-party auditor accredited to certify food facilities under FSMA",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer",
+      "description": "Unique identifier for the certification body",
+      "minimum": 1
+    },
+    "name": {
+      "type": "string",
+      "description": "Official name of the certification body",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "url": {
+      "type": ["string", "null"],
+      "description": "Official website URL",
+      "format": "uri"
+    },
+    "email": {
+      "type": ["string", "null"],
+      "description": "Contact email address",
+      "format": "email"
+    }
+  },
+  "required": ["id", "name"],
+  "additionalProperties": false
+}

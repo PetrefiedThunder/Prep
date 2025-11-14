@@ -1,0 +1,13 @@
+{
+  "name": "prep-monorepo",
+  "private": true,
+  "overrides": {
+    "@fastify/websocket": "8.3.1"
+  },
+  "scripts": {
+    "openapi:ts": "openapi-typescript contracts/openapi/prep.yaml --output sdk/typescript/index.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.10.1"
+  }
+}

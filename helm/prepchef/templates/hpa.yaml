@@ -1,0 +1,72 @@
+{{- if .Values.nodeApi.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Values.nodeApi.name }}-hpa
+  labels:
+    app: prepchef
+    component: {{ .Values.nodeApi.name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Values.nodeApi.name }}
+  minReplicas: {{ .Values.nodeApi.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.nodeApi.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.nodeApi.autoscaling.targetCPUUtilizationPercentage }}
+{{- end }}
+---
+{{- if .Values.pythonCompliance.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Values.pythonCompliance.name }}-hpa
+  labels:
+    app: prepchef
+    component: {{ .Values.pythonCompliance.name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Values.pythonCompliance.name }}
+  minReplicas: {{ .Values.pythonCompliance.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.pythonCompliance.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.pythonCompliance.autoscaling.targetCPUUtilizationPercentage }}
+{{- end }}
+---
+{{- if .Values.frontend.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Values.frontend.name }}-hpa
+  labels:
+    app: prepchef
+    component: {{ .Values.frontend.name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Values.frontend.name }}
+  minReplicas: {{ .Values.frontend.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.frontend.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.frontend.autoscaling.targetCPUUtilizationPercentage }}
+{{- end }}

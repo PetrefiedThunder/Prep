@@ -1,19 +1,44 @@
 {
   "name": "prepchef",
+  "version": "0.1.0",
   "private": true,
-  "version": "1.0.0",
+  "description": "PrepChef monorepo workspace",
+  "packageManager": "npm@10.8.1",
+  "engines": {
+    "node": ">=20.11.0"
+  },
   "workspaces": [
     "packages/*",
     "services/*"
   ],
   "scripts": {
-    "build": "npm -ws run build",
-    "dev": "echo 'Run with -w services/<svc>'",
-    "lint": "npm -ws run lint",
-    "test": "npm -ws run test --if-present",
-    "codegen": "node scripts/codegen.js"
+    "build": "npm run tsconfig:sync && npm run codegen && npm -ws --if-present run build",
+    "dev": "npm run tsconfig:sync && npm -ws --if-present run dev",
+    "lint": "npm -ws --if-present run lint",
+    "test": "npm -ws --if-present run test",
+    "typecheck": "npm -ws --if-present run typecheck",
+    "codegen": "node scripts/codegen.js",
+    "tsconfig:sync": "node scripts/sync-tsconfig.mjs",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:create": "prisma migrate dev --create-only",
+    "prisma:studio": "prisma studio",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.20.0",
+    "lucide-react": "^0.447.0"
   },
   "devDependencies": {
-    "openapi-typescript": "^6.7.1"
+    "@aws-sdk/client-s3": "^3.929.0",
+    "@fastify/multipart": "^9.3.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.14.10",
+    "@types/pg": "^8.15.6",
+    "openapi-typescript": "^6.7.1",
+    "prisma": "^5.20.0",
+    "stripe": "^19.3.0",
+    "typescript": "^5.6.3"
   }
 }

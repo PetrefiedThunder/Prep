@@ -1,0 +1,272 @@
+"""Regulatory data helpers shared across API modules."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+
+from sqlalchemy import case, func, select, text
+from sqlalchemy.engine import RowMapping
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from prep.models import Kitchen
+
+REGULATORY_ALERT_WINDOW_DAYS = 30
+
+
+async def _fetch_regulation_rows(
+    db: AsyncSession,
+    state: str,
+    *,
+    city: str | None = None,
+    county: str | None = None,
+) -> list[RowMapping]:
+    """Fetch regulatory updates filtered by the provided jurisdiction metadata."""
+
+    query_lines = [
+        "SELECT state, city, county, regulation_type, change_description, effective_date, created_at",
+        "FROM regulatory_updates",
+        "WHERE state = :state",
+    ]
+    params: dict[str, object] = {"state": state}
+
+    if city is not None:
+        query_lines.append("  AND (city IS NULL OR city = :city)")
+        params["city"] = city
+    elif county is not None:
+        query_lines.append("  AND (county IS NULL OR county = :county)")
+        params["county"] = county
+
+    query_lines.append(
+        "ORDER BY effective_date DESC NULLS LAST, created_at DESC\nLIMIT 25",
+    )
+
+    stmt = text("\n".join(query_lines))
+    result = await db.execute(stmt, params)
+    return result.mappings().all()
+
+
+async def get_regulations_for_jurisdiction(
+    db: AsyncSession,
+    state: str | None,
+    city: str | None = None,
+    *,
+    county: str | None = None,
+    country_code: str = "US",
+    state_province: str | None = None,
+) -> list[dict[str, str]]:
+    """Return regulatory updates for the given jurisdiction."""
+
+    if not state:
+        return []
+
+    normalized_country = (country_code or "US").upper()
+    province = state_province or (state.upper() if state else None)
+    state_upper = state.upper()
+
+    rows: list[RowMapping] = []
+    if city:
+        rows = await _fetch_regulation_rows(db, state_upper, city=city)
+
+    if not rows and county:
+        rows = await _fetch_regulation_rows(db, state_upper, county=county)
+
+    if not rows:
+        rows = await _fetch_regulation_rows(db, state_upper)
+
+    regulations: list[dict[str, str]] = []
+    for row in rows:
+        regulations.append(
+            {
+                "title": f"{row.get('regulation_type', 'Regulation Update')}"
+                if row.get("regulation_type")
+                else "Regulation Update",
+                "description": row.get("change_description", "Updated regulatory guidance."),
+                "jurisdiction": _format_jurisdiction(row),
+                "regulation_type": row.get("regulation_type", "general"),
+                "effective_date": _format_date(row.get("effective_date")),
+                "guidance": row.get("change_description"),
+                "country_code": normalized_country,
+                "state_province": province,
+                "city": row.get("city"),
+                "county": row.get("county"),
+            }
+        )
+
+    if not regulations:
+        regulations.append(
+            {
+                "title": "Food safety compliance checklist",
+                "description": "Maintain active permits, document recent inspections, and upload insurance certificates.",
+                "jurisdiction": _format_fallback_jurisdiction(state, city, county),
+                "regulation_type": "general",
+                "effective_date": None,
+                "guidance": "Schedule a compliance review and ensure all documents are uploaded.",
+                "country_code": normalized_country,
+                "state_province": province,
+                "city": city,
+                "county": county,
+            }
+        )
+
+    return regulations
+
+
+async def summarize_state_compliance(db: AsyncSession) -> dict[str, object]:
+    """Aggregate compliance stats grouped by state."""
+
+    status_case = case(
+        (Kitchen.compliance_status == "compliant", 1),
+        else_=0,
+    )
+    non_compliant_case = case(
+        (Kitchen.compliance_status == "non_compliant", 1),
+        else_=0,
+    )
+
+    stmt = (
+        select(
+            func.upper(Kitchen.state).label("state"),
+            func.count(Kitchen.id).label("total_kitchens"),
+            func.sum(status_case).label("compliant_kitchens"),
+            func.sum(non_compliant_case).label("non_compliant_kitchens"),
+        )
+        .where(Kitchen.state.isnot(None))
+        .group_by(func.upper(Kitchen.state))
+        .order_by(func.upper(Kitchen.state))
+    )
+    result = await db.execute(stmt)
+    rows = result.mappings().all()
+
+    states: list[dict[str, object]] = []
+    total_kitchens = 0
+    compliant_kitchens = 0
+    non_compliant_kitchens = 0
+
+    for row in rows:
+        total_kitchens += row["total_kitchens"] or 0
+        compliant_kitchens += row["compliant_kitchens"] or 0
+        non_compliant_kitchens += row["non_compliant_kitchens"] or 0
+
+        states.append(
+            {
+                "code": row["state"],
+                "name": row["state"],
+                "total_kitchens": row["total_kitchens"] or 0,
+                "compliant_kitchens": row["compliant_kitchens"] or 0,
+                "non_compliant_kitchens": row["non_compliant_kitchens"] or 0,
+            }
+        )
+
+    alerts = await get_regulatory_alerts(db)
+
+    return {
+        "total_kitchens": total_kitchens,
+        "compliant_kitchens": compliant_kitchens,
+        "non_compliant_kitchens": non_compliant_kitchens,
+        "states_covered": len(states),
+        "states": states,
+        "alerts": alerts,
+    }
+
+
+async def get_regulatory_alerts(db: AsyncSession) -> list[dict[str, str]]:
+    """Return regulatory alerts with upcoming effective dates."""
+
+    window_start = datetime.now(UTC)
+    window_end = window_start + timedelta(days=REGULATORY_ALERT_WINDOW_DAYS)
+    stmt = text(
+        """
+        SELECT state, city, regulation_type, change_description, effective_date
+        FROM regulatory_updates
+        WHERE effective_date BETWEEN :start AND :end
+        ORDER BY effective_date ASC
+        LIMIT 50
+        """
+    )
+    result = await db.execute(stmt, {"start": window_start, "end": window_end})
+    rows = result.mappings().all()
+
+    alerts: list[dict[str, str]] = []
+    for row in rows:
+        message = row.get("change_description") or "Regulatory update"
+        alerts.append(
+            {
+                "message": message,
+                "state": _format_jurisdiction(row),
+                "regulation_type": row.get("regulation_type"),
+                "effective_date": _format_date(row.get("effective_date")),
+            }
+        )
+    return alerts
+
+
+async def get_scraping_status_snapshot(db: AsyncSession) -> dict[str, str]:
+    """Return a best-effort scraping status per state."""
+
+    stmt = text(
+        """
+        SELECT state, MAX(created_at) AS last_run
+        FROM regulatory_updates
+        GROUP BY state
+        """
+    )
+    result = await db.execute(stmt)
+    rows = result.mappings().all()
+
+    status: dict[str, str] = {}
+    now = datetime.now(UTC)
+    for row in rows:
+        last_run = row.get("last_run")
+        if last_run is None:
+            status[row["state"]] = "idle"
+            continue
+        delta = now - last_run
+        if delta <= timedelta(hours=1):
+            status[row["state"]] = "running"
+        elif delta <= timedelta(days=7):
+            status[row["state"]] = "recent"
+        else:
+            status[row["state"]] = "idle"
+    return status
+
+
+def _format_jurisdiction(row: RowMapping) -> str:
+    state = row.get("state")
+    city = row.get("city")
+    county = row.get("county")
+    if city and state:
+        return f"{city}, {state}"
+    if county and state:
+        return f"{county}, {state}"
+    if state:
+        return state
+    return "United States"
+
+
+def _format_fallback_jurisdiction(state: str | None, city: str | None, county: str | None) -> str:
+    if city and state:
+        return f"{city}, {state.upper()}"
+    if county and state:
+        return f"{county}, {state.upper()}"
+    if state:
+        return state.upper()
+    return "United States"
+
+
+def _format_date(value) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    try:
+        return datetime.fromisoformat(str(value)).date().isoformat()
+    except ValueError:
+        return str(value)
+
+
+__all__ = [
+    "get_regulations_for_jurisdiction",
+    "summarize_state_compliance",
+    "get_regulatory_alerts",
+    "get_scraping_status_snapshot",
+]

@@ -1,0 +1,160 @@
+services:
+  postgres:
+    image: postgis/postgis:15-3.4
+    container_name: prepchef-postgres
+    restart: unless-stopped
+    platform: linux/arm64/v8
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-prepchef}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/init.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - prepchef-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: prepchef-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - prepchef-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: prepchef-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - prepchef-network
+
+  node-api:
+    build:
+      context: ./prepchef
+      dockerfile: Dockerfile
+    container_name: prepchef-node-api
+    restart: unless-stopped
+    ports:
+      - "${NODE_API_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/prepchef
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - JWT_SECRET=${JWT_SECRET:-super-secret-key-change-in-production}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_placeholder}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./prepchef:/app
+      - /app/node_modules
+    networks:
+      - prepchef-network
+
+  python-compliance:
+    build:
+      context: .
+      dockerfile: Dockerfile.compliance
+    container_name: prepchef-python-compliance
+    restart: unless-stopped
+    ports:
+      - "${PYTHON_API_PORT:-8000}:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prepchef
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./prep:/app/prep
+      - ./dol_reg_compliance_engine:/app/dol_reg_compliance_engine
+      - ./gdpr_ccpa_core:/app/gdpr_ccpa_core
+    networks:
+      - prepchef-network
+
+  compliance-reports:
+    build:
+      context: .
+      dockerfile: Dockerfile.reports
+    container_name: prepchef-compliance-reports
+    restart: "no"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prepchef
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - prepchef-network
+
+  regression-suite:
+    build:
+      context: .
+      dockerfile: Dockerfile.regression
+    container_name: prepchef-regression-suite
+    restart: "no"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prepchef
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - prepchef-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+
+networks:
+  prepchef-network:
+    driver: bridge

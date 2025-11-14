@@ -1,0 +1,32 @@
+:root {
+  /* Canvas & ink */
+  --ink-0: #ffffff;
+  --ink-1: #f6f6f6;
+  --ink-2: #e8e8e8;
+  --ink-6: #6a6a6a;
+  --ink-8: #222222;
+  --ink-9: #111111;
+
+  /* Signal (functional only) */
+  --signal-green: #2ECC71;
+  --signal-amber: #F39C12;
+  --signal-red:   #E74C3C;
+
+  /* Type */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+
+  /* Rhythm */
+  --baseline: 8px;
+
+  /* Motion */
+  --ease: cubic-bezier(.25, .1, .25, 1);
+  --t-fast: 120ms;
+  --t-med: 180ms;
+}
+
+/* Print mode for archival outputs (MET/Louvre vibe) */
+@media print {
+  :root { --ink-9: #000; --ink-8: #000; }
+  * { color-adjust: exact; -webkit-print-color-adjust: exact; }
+  a { text-decoration: none; }
+}

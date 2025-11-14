@@ -1,0 +1,723 @@
+version: 1
+project: "Prep — Municipal Delta (SF/PDX/SEA)"
+owner: "PetrefiedThunder"
+description: "Municipal compliance infrastructure for San Francisco, Portland, and Seattle"
+
+epics:
+
+  - name: "EPIC A — Schema & Data Layers"
+    description: "Add municipal-grade tables for zoning, permits, inspections, insurance, fees, deposits, waste, emergencies"
+    labels: [epic, database, compliance]
+    issues:
+
+      - title: "Migration 008 — Permits, Zoning, and Inspections"
+        body: |
+          ## Overview
+          Implement comprehensive schema for city-specific permits, zoning districts, and inspection tracking.
+
+          ## Files
+          - `/migrations/008_municipal_permits_zoning_inspections.sql`
+
+          ## Schema Tables
+          - `jurisdictions` — Cities we operate in (SF, Portland, Seattle)
+          - `zoning_districts` — Zoning codes and shared kitchen compatibility
+          - `facility_zoning` — Zoning assignments per kitchen
+          - `permit_types` — Types of permits required per jurisdiction
+          - `permits` — Permits issued to facilities
+          - `inspection_types` — Types of inspections and schedules
+          - `inspections` — Inspection events (scheduled and completed)
+          - `inspection_violations` — Violations found during inspections
+
+          ## Acceptance Criteria
+          - [ ] All tables created with proper indexes
+          - [ ] Foreign key constraints established
+          - [ ] Initial jurisdictions seeded (SF, Portland, Seattle)
+          - [ ] Migration runs cleanly on staging DB
+        labels: [database, compliance, priority-high]
+
+      - title: "Migration 009 — Insurance Requirements and COI Validation"
+        body: |
+          ## Overview
+          Implement insurance requirements tracking and Certificate of Insurance (COI) validation.
+
+          ## Files
+          - `/migrations/009_municipal_insurance_coi.sql`
+
+          ## Schema Tables
+          - `municipal_insurance_requirements` — City-specific minimums
+          - `coi_validations` — Validation history
+          - `insurance_policies` — Parsed policy data
+          - `maker_insurance_compliance` — Compliance status per maker per city
+          - Extensions to `compliance_documents` for COI-specific fields
+
+          ## Acceptance Criteria
+          - [ ] All tables created with proper indexes
+          - [ ] Initial insurance requirements seeded for all 3 cities
+          - [ ] Additional insured legal names configured
+          - [ ] Migration runs cleanly
+        labels: [database, insurance, compliance]
+
+      - title: "Migration 010 — Fees, Taxes, Deposits, Penalties"
+        body: |
+          ## Overview
+          Implement municipal fee schedules for CRT, B&O, deposits, and late penalties.
+
+          ## Files
+          - `/migrations/010_municipal_fees_taxes_deposits.sql`
+
+          ## Schema Tables
+          - `municipal_fee_schedules` — City/county tax rates
+          - `municipal_deposit_policies` — Security deposit rules
+          - `late_penalty_policies` — Late payment rules
+          - `booking_municipal_fees` — Computed fees per booking (audit)
+          - `booking_deposits` — Security deposits held/released
+          - `applied_late_penalties` — Penalties applied
+
+          ## Fee Schedules
+          - SF: 3.5% Commercial Rents Tax (CRT)
+          - Portland: 11.5% Lodging Tax
+          - Seattle: 2% King County + 0.44% B&O
+
+          ## Acceptance Criteria
+          - [ ] All fee schedules seeded correctly
+          - [ ] Deposit policies configured
+          - [ ] Migration runs cleanly
+        labels: [database, finance, compliance]
+
+      - title: "Migration 011 — Facility Safety, ADA, Grease Management"
+        body: |
+          ## Overview
+          Implement facility safety profiles, ADA tracking, and grease trap maintenance.
+
+          ## Files
+          - `/migrations/011_facility_safety_ada_grease.sql`
+
+          ## Schema Tables
+          - `facility_safety_profiles` — Comprehensive safety data per kitchen
+          - `grease_service_logs` — Grease trap service history
+          - `fire_equipment_logs` — Fire equipment maintenance
+          - `ventilation_inspections` — Hood certifications
+          - `ada_accommodations` — ADA requests and implementations
+          - `safety_incident_details` — Extended incident tracking
+
+          ## Acceptance Criteria
+          - [ ] All tables created
+          - [ ] Grease service cadence defaults configured
+          - [ ] Migration runs cleanly
+        labels: [database, safety, compliance]
+
+      - title: "Migration 012 — Calendars, Maintenance, Seasonal Restrictions"
+        body: |
+          ## Overview
+          Implement maintenance windows, seasonal restrictions, and blackout calendars.
+
+          ## Files
+          - `/migrations/012_calendars_maintenance_seasonal.sql`
+
+          ## Schema Tables
+          - `maintenance_windows` — Scheduled downtime
+          - `seasonal_restrictions` — Jurisdiction seasonal rules
+          - `jurisdiction_closures` — Holiday/event closures
+          - `booking_blackouts` — Platform blackouts
+          - `inspection_buffer_rules` — Time buffers around inspections
+          - `maker_availability_preferences` — Maker scheduling prefs
+          - `calendar_conflict_logs` — Conflict attempt logs
+
+          ## Acceptance Criteria
+          - [ ] All tables created
+          - [ ] Inspection buffer rules seeded (4h before, 2h after)
+          - [ ] GiST indexes for time range queries
+          - [ ] Migration runs cleanly
+        labels: [database, scheduling, compliance]
+
+      - title: "Migration 013 — Emergency, Waste, Complaints"
+        body: |
+          ## Overview
+          Implement emergency contacts, outbreak protocols, waste compliance, and complaint tracking.
+
+          ## Files
+          - `/migrations/013_emergency_waste_complaints.sql`
+
+          ## Schema Tables
+          - `health_department_contacts` — Emergency contacts per city
+          - `illness_reports` — Foodborne illness tracking
+          - `neighborhood_complaints` — Community complaints
+          - `quiet_hours_violations` — Noise violations
+          - `waste_management_policies` — City waste requirements
+          - `waste_disposal_events` — Disposal logs
+          - `complaint_escalation_rules` — Auto-escalation thresholds
+          - Extensions to `incidents` for outbreak tracking
+
+          ## Acceptance Criteria
+          - [ ] Health dept contacts seeded for all 3 cities
+          - [ ] Waste policies configured
+          - [ ] Complaint escalation rules seeded
+          - [ ] Migration runs cleanly
+        labels: [database, ops, compliance, trust-safety]
+
+  - name: "EPIC B — City Packs & Rule Kernel"
+    description: "City-specific configs, fee schedules, and validation rules"
+    labels: [epic, compliance, rules]
+    issues:
+
+      - title: "City Pack — San Francisco"
+        body: |
+          ## Overview
+          Complete San Francisco city pack with config, fees, rules, and templates.
+
+          ## Files
+          - `/regengine/cities/san_francisco/config.yaml` ✅
+          - `/regengine/cities/san_francisco/rules/` (future: Rego or Python rules)
+          - `/regengine/cities/san_francisco/permit_templates/`
+
+          ## Config Includes
+          - Health Code §6.15
+          - 3.5% Commercial Rents Tax (CRT)
+          - Insurance: $1M/$2M, additional insured "City and County of SF"
+          - Neighborhood notice required (300ft, 30 days)
+          - Quiet hours: 22:00-06:00
+          - Max 12 hours/day rental limit
+          - Grease: 90-day max interval
+          - Outbreak: auto-notify at 3 illnesses
+
+          ## Acceptance Criteria
+          - [ ] Config YAML validated
+          - [ ] All permit types documented
+          - [ ] Fee schedules match SF tax code
+          - [ ] Permit templates uploaded
+        labels: [compliance, rules, san-francisco]
+
+      - title: "City Pack — Portland (Multnomah County)"
+        body: |
+          ## Overview
+          Complete Portland/Multnomah County city pack.
+
+          ## Files
+          - `/regengine/cities/portland/config.yaml` ✅
+          - `/regengine/cities/portland/rules/`
+          - `/regengine/cities/portland/permit_templates/`
+
+          ## Config Includes
+          - Multnomah County Health Code Ch. 5
+          - 11.5% Lodging Tax
+          - Insurance: $1M/$2M, additional insured "City of Portland and Multnomah County"
+          - Community notification (14 days)
+          - Quiet hours: 22:00-07:00
+          - Max 14 hours/day rental limit
+          - Grease: 90-day max interval
+
+          ## Acceptance Criteria
+          - [ ] Config YAML validated
+          - [ ] Fee schedules match county code
+          - [ ] Permit templates uploaded
+        labels: [compliance, rules, portland]
+
+      - title: "City Pack — Seattle (King County)"
+        body: |
+          ## Overview
+          Complete Seattle/King County city pack.
+
+          ## Files
+          - `/regengine/cities/seattle/config.yaml` ✅
+          - `/regengine/cities/seattle/rules/`
+          - `/regengine/cities/seattle/permit_templates/`
+
+          ## Config Includes
+          - Seattle Municipal Code 10.10
+          - 2% King County Lodging + 0.44% B&O
+          - Insurance: $1M/$2M, additional insured "City of Seattle and King County"
+          - Quiet hours: 22:00-07:00
+          - Max 16 hours/day rental limit
+          - Grease: 60-day max interval (stricter)
+          - TFE permit required
+
+          ## Acceptance Criteria
+          - [ ] Config YAML validated
+          - [ ] Dual fee schedules (Lodging + B&O) configured
+          - [ ] Permit templates uploaded
+        labels: [compliance, rules, seattle]
+
+      - title: "Compliance Kernel Service"
+        body: |
+          ## Overview
+          Implement compliance evaluation kernel that loads city pack and validates bookings.
+
+          ## Files
+          - `/regengine/cities/compliance_kernel.py` ✅
+
+          ## Features
+          - Load city config YAML
+          - Evaluate booking against all rules
+          - Return ALLOW | CONDITIONS | DENY
+          - Violations with severity, message, remedy, citation
+          - Checks:
+            - Permits (active, not expired)
+            - Zoning (neighborhood notice if required)
+            - Insurance (minimums, additional insured)
+            - Sound ordinance (quiet hours)
+            - Rental limits (max hours/day)
+            - Seasonal restrictions
+            - ADA requirements
+            - Grease maintenance
+
+          ## Acceptance Criteria
+          - [ ] All rule checks implemented
+          - [ ] Returns structured ComplianceEvaluation
+          - [ ] Unit tests cover pass/fail/conditions for each city
+          - [ ] Integrates with booking confirmation flow
+        labels: [backend, compliance, priority-high]
+
+      - title: "Unit Tests — City Compliance Rules"
+        body: |
+          ## Overview
+          Decision table tests for compliance kernel across SF/PDX/SEA.
+
+          ## Test Coverage
+          - [ ] SF: Missing §6.15 permit → DENY
+          - [ ] SF: Missing neighborhood notice → DENY
+          - [ ] SF: Booking during quiet hours (22:00-06:00) → DENY
+          - [ ] SF: >12 hours/day → DENY
+          - [ ] Portland: Missing commissary permit → DENY
+          - [ ] Portland: COI without "City of Portland and Multnomah County" → DENY
+          - [ ] Seattle: Missing TFE permit → DENY
+          - [ ] Seattle: Insufficient aggregate coverage → DENY
+          - [ ] All cities: Overdue grease maintenance → WARNING
+          - [ ] All cities: Maker needs ADA, kitchen not accessible → DENY/CONDITIONS
+
+          ## Acceptance Criteria
+          - [ ] 30+ test cases covering edge cases
+          - [ ] All critical paths pass
+          - [ ] Golden-path compliant booking → ALLOW
+        labels: [testing, compliance]
+
+  - name: "EPIC C — Calendars & Conflicts"
+    description: "Merge inspections, maintenance, and seasonal restrictions into booking flow"
+    labels: [epic, scheduling, backend]
+    issues:
+
+      - title: "Calendar Conflict Engine"
+        body: |
+          ## Overview
+          Implement conflict detection for inspections, maintenance, blackouts.
+
+          ## Files
+          - `/regengine/cities/calendar_conflict_engine.py` ✅
+
+          ## Features
+          - Check overlaps with existing bookings
+          - Check inspections (with configurable buffer)
+          - Check maintenance windows
+          - Check blackout dates
+          - Check seasonal restrictions
+          - Return structured ConflictCheckResult
+
+          ## Acceptance Criteria
+          - [ ] All conflict types detected
+          - [ ] Buffer logic works for inspections
+          - [ ] Returns conflict type, reason, reference_id
+          - [ ] Unit tests cover all scenarios
+        labels: [backend, scheduling]
+
+      - title: "Booking Confirmation — Conflict Integration"
+        body: |
+          ## Overview
+          Integrate conflict engine into `POST /bookings/confirm` flow.
+
+          ## Changes
+          - Before compliance check, run conflict check
+          - Query: existing bookings, inspections, maintenance, blackouts
+          - If conflicts found → return 409 with conflict details
+          - Log conflict attempts to `calendar_conflict_logs`
+
+          ## Acceptance Criteria
+          - [ ] Booking blocked if overlaps inspection ± buffer
+          - [ ] Booking blocked if overlaps maintenance window
+          - [ ] Error message shows conflict type and alternative slots
+          - [ ] Conflict logged to DB
+        labels: [backend, api, scheduling, priority-high]
+
+      - title: "Inspection Scheduler — Admin Tool"
+        body: |
+          ## Overview
+          Admin UI to schedule/sync inspection events.
+
+          ## Features
+          - Create inspection event (kitchen, type, date/time)
+          - Sync from health dept API (if available)
+          - Mark inspection result (pass/fail/conditional)
+          - Upload inspection report
+          - Auto-unlist kitchen if failed inspection
+
+          ## Acceptance Criteria
+          - [ ] Admin can create inspection
+          - [ ] Inspection blocks bookings ± buffer
+          - [ ] Failed inspection sets `kitchen.listable = false`
+          - [ ] Email notification sent to host
+        labels: [frontend, backend, ops, admin]
+
+      - title: "Seasonal Restriction Checker"
+        body: |
+          ## Overview
+          Check seasonal restrictions by product type and date.
+
+          ## Logic
+          - Query `seasonal_restrictions` for jurisdiction + product_type
+          - Check if booking date falls in restriction period
+          - If `restriction_type = 'prohibited'` → DENY
+          - If `restriction_type = 'conditional'` → CONDITIONS with message
+
+          ## Acceptance Criteria
+          - [ ] Restriction enforced for matching product types
+          - [ ] Annual recurrence handled correctly
+          - [ ] Unit tests cover edge cases (year boundaries, etc.)
+        labels: [backend, compliance]
+
+  - name: "EPIC D — Fees/Taxes/Deposits Engine"
+    description: "Municipal fee schedule integration and quote breakdown"
+    labels: [epic, finance, backend]
+    issues:
+
+      - title: "Fee Engine Service"
+        body: |
+          ## Overview
+          Compute city fees, deposits, late penalties with audit trail.
+
+          ## Files
+          - `/regengine/cities/fee_engine.py` ✅
+
+          ## Features
+          - Load fee schedules from city config
+          - Apply percent/flat fees to line items
+          - Compute security deposit (min/max/percentage)
+          - Compute late penalties (if applicable)
+          - Return FeeQuote with itemized breakdown
+          - Deterministic rounding (ROUND_HALF_UP)
+
+          ## API Contract
+          ```
+          POST /fees/quote
+          {
+            "jurisdiction_id": "san_francisco",
+            "line_items": [
+              {"code": "base", "cents": 19500},
+              {"code": "cleaning", "cents": 2500},
+              {"code": "platform_fee", "cents": 2200}
+            ],
+            "booking_id": "...",
+            "created_at": "..."
+          }
+          → {total_cents, breakdown, deposit_cents, late_penalty_cents}
+          ```
+
+          ## Acceptance Criteria
+          - [ ] SF CRT 3.5% computed correctly
+          - [ ] Portland 11.5% computed correctly
+          - [ ] Seattle dual fees (2% + 0.44%) computed correctly
+          - [ ] Deposit from policy applied
+          - [ ] Golden-path test fixtures pass
+        labels: [backend, finance, priority-high]
+
+      - title: "Booking Checkout — Fee Integration"
+        body: |
+          ## Overview
+          Integrate fee engine into booking checkout flow.
+
+          ## Changes
+          - Call `/fees/quote` at checkout
+          - Display itemized breakdown to user
+          - Store computed fees in `booking_municipal_fees`
+          - Hold security deposit via payment gateway
+          - Track deposit in `booking_deposits`
+
+          ## UI Components
+          - Fee breakdown component (line items with tooltips)
+          - Deposit hold notice ("$X held for Y hours")
+          - Link to city tax code for transparency
+
+          ## Acceptance Criteria
+          - [ ] Fee breakdown visible before confirmation
+          - [ ] Deposit held via Stripe/payment gateway
+          - [ ] Fees stored in DB for audit
+          - [ ] Receipt shows itemized fees
+        labels: [frontend, backend, finance]
+
+      - title: "Finance Math — Golden Tests"
+        body: |
+          ## Overview
+          Comprehensive test fixtures for fee calculations.
+
+          ## Test Cases
+          - SF: $195 base + $25 cleaning + $22 platform → $6.83 CRT (base only)
+          - Portland: Same breakdown → $27.83 Lodging
+          - Seattle: Same breakdown → $4.40 Lodging + $0.10 B&O
+          - Edge: Rounding (e.g., $19.995 → $20.00)
+          - Edge: Deposit below min → use min
+          - Edge: Late penalty cap respected
+
+          ## Acceptance Criteria
+          - [ ] All golden tests pass
+          - [ ] Rounding deterministic and consistent
+          - [ ] No floating-point precision issues
+        labels: [testing, finance]
+
+  - name: "EPIC E — Insurance & COI Validation"
+    description: "Validate limits and additional insured per city"
+    labels: [epic, insurance, compliance]
+    issues:
+
+      - title: "COI Parser — Extract Limits and Additional Insured"
+        body: |
+          ## Overview
+          Extend COI parser to extract coverage amounts and additional insured text.
+
+          ## Extraction Fields
+          - General liability coverage (per occurrence)
+          - Aggregate coverage
+          - Products & completed ops coverage
+          - Additional insured text (free-text search)
+          - Policy effective/expiration dates
+
+          ## Acceptance Criteria
+          - [ ] Extracts limits from ACORD 25 format
+          - [ ] Stores in `compliance_documents.extracted_limits` (JSONB)
+          - [ ] Stores additional insured text
+          - [ ] Unit tests with real COI samples
+        labels: [backend, insurance]
+
+      - title: "Compliance Gate — Insurance Validation"
+        body: |
+          ## Overview
+          Validate insurance against city requirements at booking time.
+
+          ## Validation Rules
+          - General liability >= city minimum
+          - Aggregate >= city minimum
+          - Additional insured text contains exact city name
+          - Policy not expired
+          - Workers comp if employees > threshold
+
+          ## Failure Actions
+          - DENY booking with actionable message
+          - Suggest: "Your COI must list 'City and County of San Francisco' as additional insured"
+          - Offer day-pass insurance purchase (if policy supports)
+
+          ## Acceptance Criteria
+          - [ ] All validation rules enforced
+          - [ ] Clear error messages with remedy steps
+          - [ ] Day-pass purchase flow (if enabled)
+        labels: [compliance, backend, frontend, priority-high]
+
+  - name: "EPIC F — Documents, Templates, Violations"
+    description: "City-specific forms and inspection/violation history"
+    labels: [epic, docs, ops]
+    issues:
+
+      - title: "Permit Templates API"
+        body: |
+          ## Overview
+          Store and serve city-specific permit application templates.
+
+          ## API
+          ```
+          GET /permits/templates?jurisdiction_id=san_francisco&kind=shared_kitchen
+          → {template_url, guidance_url, application_url}
+          ```
+
+          ## Storage
+          - S3 bucket: `prep-permit-templates/{jurisdiction}/{permit_type}/`
+          - PDFs and guidance documents
+          - Links to city portals
+
+          ## Acceptance Criteria
+          - [ ] Templates uploaded for SF/Portland/Seattle
+          - [ ] API returns signed S3 URLs
+          - [ ] UI shows "Download Application" link
+        labels: [api, docs, ops]
+
+      - title: "Inspection Report Tracking"
+        body: |
+          ## Overview
+          Upload, store, and link inspection reports to inspections.
+
+          ## Features
+          - Admin uploads report PDF
+          - Store in `inspections.report_doc_id`
+          - Mark `inspections.result` (pass/fail/conditional)
+          - If fail → auto-set `kitchen.listable = false`
+          - Notify host via email
+
+          ## Acceptance Criteria
+          - [ ] Admin can upload report
+          - [ ] Failed inspection unlists kitchen
+          - [ ] Host receives email with next steps
+          - [ ] Report accessible in admin panel
+        labels: [ops, compliance, backend, frontend]
+
+      - title: "Violations Correlation — Link to Bookings"
+        body: |
+          ## Overview
+          Correlate inspection violations with bookings in affected window.
+
+          ## Logic
+          - When inspection fails, query bookings 7 days prior
+          - Link violations to `inspection_violations` table
+          - Notify affected makers
+          - Flag for follow-up investigation
+
+          ## Acceptance Criteria
+          - [ ] Bookings in violation window identified
+          - [ ] Makers notified if potentially affected
+          - [ ] Admin dashboard shows correlated bookings
+        labels: [ops, compliance, trust-safety]
+
+  - name: "EPIC G — Emergency, Outbreak, Complaints"
+    description: "Incident workflows and neighborhood handling"
+    labels: [epic, ops, trust-safety]
+    issues:
+
+      - title: "Outbreak Protocol — Auto-Notification"
+        body: |
+          ## Overview
+          Automatically notify health dept when illness threshold reached.
+
+          ## Trigger
+          - `POST /incidents` with `category=illness`
+          - If count of illnesses at same kitchen in 7 days >= threshold (e.g., 3)
+          - Auto-send notification to `health_department_contacts.email`
+          - Set `incidents.notified_health_dept_at`
+
+          ## Notification Content
+          - Kitchen name, address
+          - Number of reported illnesses
+          - Symptoms, onset dates
+          - Contact info for investigation
+
+          ## Acceptance Criteria
+          - [ ] Threshold trigger works
+          - [ ] Email sent to correct health dept
+          - [ ] Timestamp recorded
+          - [ ] Admin can manually trigger notification
+        labels: [ops, compliance, trust-safety, priority-high]
+
+      - title: "Complaint Intake — Public & Admin Forms"
+        body: |
+          ## Overview
+          Public complaint form and admin intake for neighborhood issues.
+
+          ## Features
+          - Public form with captcha (noise, odor, traffic, etc.)
+          - Admin intake form (more detail fields)
+          - Store in `neighborhood_complaints`
+          - Auto-escalate if threshold reached (e.g., 3 noise in 30 days)
+          - Soft-block kitchen after 5 complaints in 60 days
+
+          ## Acceptance Criteria
+          - [ ] Public form works with captcha
+          - [ ] Admin can create complaint
+          - [ ] Escalation thresholds enforced
+          - [ ] Host notified of complaint and resolution
+        labels: [frontend, backend, ops, trust-safety]
+
+      - title: "Waste Management Compliance — Booking Checklist"
+        body: |
+          ## Overview
+          Enforce waste compliance via booking completion checklist.
+
+          ## Logic
+          - If jurisdiction `requires_food_waste_recycling = true`
+          - Booking checklist must include waste disposal log
+          - Maker uploads manifest or confirms composting
+          - Store in `waste_disposal_events`
+
+          ## Grease Pickup Alerts
+          - If `last_grease_service_at` + `cadence_days` < today
+          - Alert admin and host
+          - Block new bookings until resolved
+
+          ## Acceptance Criteria
+          - [ ] Checklist item enforced for SF/Portland/Seattle
+          - [ ] Waste event logged
+          - [ ] Grease overdue alert triggers
+        labels: [ops, compliance, backend]
+
+  - name: "EPIC H — UI/UX & Copy"
+    description: "Human-readable compliance outcomes and guidance"
+    labels: [epic, frontend, ux]
+    issues:
+
+      - title: "City-Aware Compliance Messages"
+        body: |
+          ## Overview
+          Map rule failures to clear, actionable steps.
+
+          ## Examples
+          - "Upload SF §6.15 shared kitchen permit (expires 2025-12-31)"
+          - "Provide proof of 300-foot neighborhood notification (required 30 days before listing)"
+          - "Your COI must list 'City and County of San Francisco' as additional insured"
+          - "Booking overlaps quiet hours (22:00-06:00). Please choose a different time."
+
+          ## Message Map
+          - Each rule_id → user-friendly message + remedy
+          - Link to help articles
+          - Link to city portal for permits
+
+          ## Acceptance Criteria
+          - [ ] All rule failures have clear messages
+          - [ ] Remedies actionable (not just "fix this")
+          - [ ] Links to resources included
+        labels: [frontend, ux, compliance]
+
+      - title: "Fee Breakdown Component"
+        body: |
+          ## Overview
+          Display itemized fee breakdown with tooltips and links.
+
+          ## Design
+          - Line items: Base rate, Cleaning, Platform fee, CRT, Deposit
+          - Tooltip on each: "3.5% SF Commercial Rents Tax" [Learn more]
+          - Total fees, total amount, deposit hold window
+          - Link to city tax code citation
+
+          ## Acceptance Criteria
+          - [ ] Component renders in checkout flow
+          - [ ] All fees itemized
+          - [ ] Tooltips and links functional
+          - [ ] Mobile-responsive
+        labels: [frontend, ux, finance]
+
+      - title: "Compliance Status Dashboard — Maker View"
+        body: |
+          ## Overview
+          Maker dashboard showing compliance status across all jurisdictions.
+
+          ## Features
+          - Checklist per city: Permits, Insurance, Zoning, etc.
+          - Green checkmark / Red X / Yellow warning
+          - "Action Required" cards with next steps
+          - Document upload buttons inline
+          - Expiration alerts (30 days before expiry)
+
+          ## Acceptance Criteria
+          - [ ] Dashboard shows status for each city maker operates in
+          - [ ] Action items clear and prioritized
+          - [ ] Upload flow seamless
+        labels: [frontend, ux, compliance]
+
+---
+
+# Meta
+
+Total Issues: 38
+Total Epics: 8
+
+Priority Breakdown:
+- priority-high: 7 issues
+- Other: 31 issues
+
+Label Groups:
+- Database/Schema: 6 issues
+- Backend/API: 12 issues
+- Frontend/UX: 5 issues
+- Testing: 3 issues
+- Compliance: 24 issues (cross-cutting)
+- Ops/Trust & Safety: 6 issues

@@ -1,15 +1,23 @@
 import Fastify from 'fastify';
-import cors from '@fastify/cors';
 import { log } from '@prep/logger';
+import { prepSecurityPlugin } from '@prep/common';
 
-const app = Fastify({ logger: false });
-app.register(cors);
+export async function createApp() {
+  const app = Fastify({ logger: false });
+  await app.register(prepSecurityPlugin, {
+    serviceName: 'audit-svc'
+  });
 
-app.get('/healthz', async () => ({ ok: true, svc: 'audit-svc' }));
+  app.get('/healthz', async () => ({ ok: true, svc: 'audit-svc' }));
 
-app.register(async function routes(instance) {
-  instance.get('/', async () => ({ name: 'audit-svc' }));
-});
+  app.register(async function routes(instance) {
+    instance.get('/', async () => ({ name: 'audit-svc' }));
+  });
 
-const port = Number(process.env.PORT || 0) || (Math.floor(Math.random()*1000)+3000);
-app.listen({ port }).then(() => log.info('audit-svc listening', port));
+  return app;
+}
+
+if (require.main === module) {
+  const port = Number(process.env.PORT || 0) || Math.floor(Math.random() * 1000) + 3000;
+  createApp().then(app => app.listen({ port }).then(() => log.info('audit-svc listening', { port })));
+}

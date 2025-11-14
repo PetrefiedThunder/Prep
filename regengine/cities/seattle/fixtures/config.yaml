@@ -1,0 +1,8 @@
+id: seattle
+display: Seattle (King County)
+permit_kinds: [TFE, commissary, fire, ventilation]
+insurance:
+  liability_min: 1000000
+  aggregate_min: 2000000
+  additional_insured_legal: "City of Seattle and King County"
+sound_ordinance: { quiet_hours: { start: "22:00", end: "07:00" } }

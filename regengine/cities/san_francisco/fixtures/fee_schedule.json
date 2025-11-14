@@ -1,0 +1,21 @@
+{
+  "fees": [
+    {
+      "code": "CRT",
+      "name": "Commercial Rents Tax",
+      "kind": "percent",
+      "value": 0.035,
+      "applies_to": ["base"]
+    }
+  ],
+  "deposits": {
+    "min_cents": 10000,
+    "hold_window_hours": 72
+  },
+  "late_penalties": [
+    {
+      "rule": "PT01H after booking.start",
+      "percent": 0.05
+    }
+  ]
+}

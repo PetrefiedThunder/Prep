@@ -1,33 +1,86 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ApiError } from '@prep/common';
-import { fetch } from 'undici';
+import { BookingService } from '../services/BookingService';
+import { Pool } from 'pg';
+import Redis from 'ioredis';
+
+const CreateBookingSchema = z.object({
+  kitchen_id: z.string().uuid(),
+  user_id: z.string().uuid(),
+  start_time: z.string().datetime(),
+  end_time: z.string().datetime()
+});
 
 export default async function (app: FastifyInstance) {
-  const Body = z.object({ listing_id: z.string().uuid(), starts_at: z.string(), ends_at: z.string() });
-  app.post('/bookings', async (req, reply) => {
-    const parsed = Body.safeParse(req.body);
-    if (!parsed.success) return reply.code(400).send(ApiError('PC-REQ-400','Invalid body'));
-    const { listing_id, starts_at, ends_at } = parsed.data;
+  const db = new Pool({
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/prepchef'
+  });
+
+  const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379/0');
+  await redis.connect().catch(() => {});
+
+  const bookingService = new BookingService(db, redis);
+
+  app.post('/api/bookings', async (req, reply) => {
+    const parsed = CreateBookingSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send(ApiError('PC-REQ-400', 'Invalid request body'));
+    }
+
+    const { kitchen_id, user_id, start_time, end_time } = parsed.data;
+
     try {
-      const comp = await fetch('http://compliance/check', { method: 'POST', body: JSON.stringify({ listing_id }) });
-      if (!comp.ok) return reply.code(412).send(ApiError('PC-COMP-412', 'Compliance check failed'));
+      const booking = await bookingService.createBooking({
+        kitchen_id,
+        user_id,
+        start_time: new Date(start_time),
+        end_time: new Date(end_time)
+      });
 
-      const avail = await fetch('http://availability/check', { method: 'POST', body: JSON.stringify({ listing_id, starts_at, ends_at }) });
-      if (!avail.ok) return reply.code(412).send(ApiError('PC-AVAIL-412', 'Listing not available'));
+      return reply.code(201).send({
+        booking_id: booking.booking_id,
+        status: booking.status,
+        kitchen_id: booking.kitchen_id,
+        start_time: booking.start_time.toISOString(),
+        end_time: booking.end_time.toISOString()
+      });
 
-      const priceRes = await fetch('http://pricing/quote', { method: 'POST', body: JSON.stringify({ listing_id, starts_at, ends_at }) });
-      if (!priceRes.ok) return reply.code(412).send(ApiError('PC-PRICE-412', 'Unable to calculate price'));
-      const price = await priceRes.json();
+    } catch (err: any) {
+      app.log.error(err);
 
-      const payRes = await fetch('http://payments/intents', { method: 'POST', body: JSON.stringify({ listing_id, amount: price.amount }) });
-      if (!payRes.ok) return reply.code(402).send(ApiError('PC-PAY-402', 'Payment failed'));
-      const payment = await payRes.json();
+      if (err.message.includes('not available')) {
+        return reply.code(409).send(ApiError('PC-AVAIL-409', err.message));
+      }
 
-      return reply.code(201).send({ booking_id: crypto.randomUUID(), payment_intent_id: payment.id });
+      if (err.message.includes('Invalid')) {
+        return reply.code(400).send(ApiError('PC-REQ-400', err.message));
+      }
+
+      return reply.code(500).send(ApiError('PC-BOOK-500', 'Unexpected error'));
+    }
+  });
+
+  app.get('/api/bookings/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+
+    try {
+      const booking = await bookingService.getBooking(id);
+
+      if (!booking) {
+        return reply.code(404).send(ApiError('PC-BOOK-404', 'Booking not found'));
+      }
+
+      return reply.code(200).send(booking);
     } catch (err) {
       app.log.error(err);
       return reply.code(500).send(ApiError('PC-BOOK-500', 'Unexpected error'));
     }
+  });
+
+  app.addHook('onClose', async () => {
+    await db.end();
+    await redis.quit();
   });
 }

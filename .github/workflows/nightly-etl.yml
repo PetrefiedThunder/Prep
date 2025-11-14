@@ -1,0 +1,22 @@
+name: Nightly ETL & Freshness
+on:
+  schedule: [{ cron: "15 08 * * *" }] # 08:15 UTC nightly
+  workflow_dispatch:
+jobs:
+  etl:
+    runs-on: ubuntu-latest
+    env:
+      API_BASE_URL: ${{ secrets.STAGING_API_BASE_URL }}
+      ETL_JURISDICTIONS: "san_francisco,los_angeles,san_bernardino_county"
+      DB_URL: ${{ secrets.STAGING_DB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt
+      - name: Run ETL
+        run: |
+          python -m etl.jobs.reg_refresh_worker --jurisdictions $ETL_JURISDICTIONS
+      - name: Freshness check (fails if data is stale)
+        run: |
+          python scripts/check_manifest_freshness.py --db "$DB_URL" --max_age_hours 48

@@ -1,0 +1,116 @@
+name: Codex Auto Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  run-gate:
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       contains(github.event.comment.body, '@pm-run: gate'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Snapshot PR stats
+        id: stats
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.sha }}"
+            PRNUM="${{ github.event.pull_request.number }}"
+          else
+            PRNUM="${{ github.event.issue.number }}"
+            BASE=$(gh pr view $PRNUM --json baseRefOid -q .baseRefOid)
+            HEAD=$(gh pr view $PRNUM --json headRefOid -q .headRefOid)
+          fi
+          DELETIONS=$(git diff --numstat "$BASE" "$HEAD" | awk '{d+=$2} END {print d+0}')
+          ADDITIONS=$(git diff --numstat "$BASE" "$HEAD" | awk '{a+=$1} END {print a+0}')
+          echo "deletions=$DELETIONS" >> $GITHUB_OUTPUT
+          echo "additions=$ADDITIONS" >> $GITHUB_OUTPUT
+          echo "pr=$PRNUM" >> $GITHUB_OUTPUT
+
+      - name: Python toolchain & checks
+        continue-on-error: true
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" || true
+          ruff check prep | tee ruff-report.txt || true
+          mypy prep | tee mypy-report.txt || true
+          pytest -q | tee pytest-report.txt || true
+
+      - name: Parse labels
+        id: labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = (await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request?.number || context.payload.issue.number
+            })).data.map(l => l.name);
+            core.setOutput('labels', labels.join(','));
+
+      - name: Build Gate Decision
+        id: gate
+        run: |
+          BLOCKERS=""
+          # Mass deletion guard
+          if [ "${{ steps.stats.outputs.deletions }}" -gt 5000 ] &&
+             ! echo "${{ steps.labels.outputs.labels }}" | grep -qi "mass-change-approved" &&
+             [ ! -f SAFE_DELETE.md ]; then
+            BLOCKERS="$BLOCKERS\n- Mass deletion without SAFE_DELETE.md or label"
+          fi
+          # Packaging presence
+          [ -f pyproject.toml ] || BLOCKERS="$BLOCKERS\n- Missing pyproject.toml"
+          # Gather CI result heuristically from reports
+          grep -q "passed" pytest-report.txt || BLOCKERS="$BLOCKERS\n- Tests not passing (see pytest-report.txt)"
+          grep -qi "error" mypy-report.txt && BLOCKERS="$BLOCKERS\n- Mypy errors (see mypy-report.txt)"
+          grep -qi "error" ruff-report.txt && BLOCKERS="$BLOCKERS\n- Ruff errors (see ruff-report.txt)"
+          echo -e "BLOCKERS<<EOF" >> $GITHUB_OUTPUT
+          echo -e "${BLOCKERS:-none}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post Codex payload (optional)
+        if: always()
+        env:
+          CODEX_WEBHOOK_URL: ${{ secrets.CODEX_WEBHOOK_URL }}
+        run: |
+          [ -z "$CODEX_WEBHOOK_URL" ] && echo "No CODEX_WEBHOOK_URL; skipping external post." && exit 0
+          jq -n \
+            --arg repo "${{ github.repository }}" \
+            --arg pr   "${{ steps.stats.outputs.pr }}" \
+            --arg additions "${{ steps.stats.outputs.additions }}" \
+            --arg deletions "${{ steps.stats.outputs.deletions }}" \
+            --arg labels "${{ steps.labels.outputs.labels }}" \
+            --arg blockers "${{ steps.gate.outputs.BLOCKERS }}" \
+            --argfile ruff ruff-report.txt \
+            --argfile mypy mypy-report.txt \
+            --argfile pytest pytest-report.txt \
+            '{repo:$repo, pr:($pr|tonumber), diffs:{additions:($additions|tonumber),deletions:($deletions|tonumber)}, labels:($labels|split(",")), blockers:$blockers, reports:{ruff:$ruff, mypy:$mypy, pytest:$pytest}}' \
+          | curl -sS -X POST -H "Content-Type: application/json" -d @- "$CODEX_WEBHOOK_URL" || true
+
+      - name: Comment result
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const blockers = `\`${{ steps.gate.outputs.BLOCKERS }}\``;
+            const body = (blockers === '`none`')
+              ? "✅ **Gate Check Passed**\n\nCI checks completed. No blockers detected. Proceed to merge."
+              : "❌ **Gate Check Failed**\n\nBlockers:\n" + ${{ toJson(steps.gate.outputs.BLOCKERS) }};
+            const prNumber = context.payload.pull_request?.number || context.payload.issue.number;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body
+            });

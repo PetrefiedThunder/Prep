@@ -1,0 +1,9 @@
+id,name,cfr_title_part_section,program_reference,notes
+1,Preventive Controls for Human Food (PCHF),21 CFR 117,FSMA Preventive Controls,Facilities manufacturing/processing/packing/holding food for human consumption
+2,Preventive Controls for Animal Food (PCAF),21 CFR 507,FSMA Preventive Controls,Facilities manufacturing/processing/packing/holding food for animals
+3,Produce Safety,21 CFR 112,FSMA Produce Safety Rule,Farms growing/harvesting/packing/holding produce
+4,Seafood HACCP,21 CFR 123,Seafood HACCP,Processors of fish and fishery products
+5,Juice HACCP,21 CFR 120,Juice HACCP,Processors of juice products
+6,Low-Acid Canned Foods (LACF),21 CFR 113,LACF Regulations,Processors of thermally processed low-acid foods in hermetically sealed containers
+7,Acidified Foods,21 CFR 114,Acidified Foods Regulations,Processors of acidified foods in hermetically sealed containers
+8,Infant Formula,21 CFR 106 and 107,Infant Formula Requirements,Manufacturers of infant formula products

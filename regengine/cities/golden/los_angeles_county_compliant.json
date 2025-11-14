@@ -1,0 +1,79 @@
+{
+  "test_name": "Los Angeles County - Compliant Booking",
+  "description": "A fully compliant booking scenario with all permits, insurance, and requirements met",
+  "jurisdiction_id": "san_francisco",
+  "kitchen_data": {
+    "id": "kitchen_001",
+    "name": "Mission District Commercial Kitchen",
+    "permits": [
+      {
+        "kind": "shared_kitchen",
+        "status": "active",
+        "expires_at": "2026-12-31T23:59:59",
+        "issued_at": "2024-01-15T00:00:00"
+      },
+      {
+        "kind": "fire",
+        "status": "active",
+        "expires_at": "2026-06-30T23:59:59",
+        "issued_at": "2024-07-01T00:00:00"
+      },
+      {
+        "kind": "ventilation",
+        "status": "active",
+        "expires_at": "2026-12-31T23:59:59",
+        "issued_at": "2024-01-15T00:00:00"
+      },
+      {
+        "kind": "health_permit",
+        "status": "active",
+        "expires_at": "2026-12-31T23:59:59",
+        "issued_at": "2024-01-15T00:00:00"
+      }
+    ],
+    "zoning": {
+      "district": "PDR",
+      "neighborhood_notice_doc_id": "notice_abc123",
+      "notice_date": "2024-01-01T00:00:00"
+    },
+    "ada_accessible": true,
+    "grease": {
+      "interceptor_type": "automatic",
+      "last_service_at": "2025-10-15T08:00:00",
+      "service_provider": "Bay Area Grease Services",
+      "manifest_id": "GRS-2025-1015"
+    }
+  },
+  "maker_data": {
+    "id": "maker_001",
+    "name": "Artisan Bakery Co",
+    "insurance": {
+      "general_liability_cents": 100000000,
+      "aggregate_cents": 200000000,
+      "additional_insured_text": "City and County of San Francisco is listed as additional insured",
+      "policy_number": "GL-123456789",
+      "expires_at": "2026-03-31T23:59:59"
+    },
+    "requires_ada_access": false,
+    "certifications": [
+      "food_handler",
+      "servsafe_manager"
+    ]
+  },
+  "booking_data": {
+    "id": "booking_001",
+    "start": "2025-11-15T10:00:00",
+    "end": "2025-11-15T16:00:00",
+    "hours": 6,
+    "product_type": "bakery",
+    "estimated_volume": "50_units_per_day"
+  },
+  "expected_result": {
+    "jurisdiction_id": "san_francisco",
+    "result": "ALLOW",
+    "violations": [],
+    "warnings": [],
+    "conditions": [],
+    "blocking_violations_count": 0
+  }
+}

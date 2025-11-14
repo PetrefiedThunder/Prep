@@ -1,0 +1,712 @@
+# OpenAPI Specification (J32)
+openapi: 3.0.3
+info:
+  title: PrepChef API
+  description: Commercial kitchen marketplace API
+  version: 1.0.0
+  contact:
+    email: api@prepchef.com
+  license:
+    name: MIT
+
+servers:
+  - url: https://api.prepchef.com/v1
+    description: Production
+  - url: https://staging-api.prepchef.com/v1
+    description: Staging
+  - url: http://localhost:3000/v1
+    description: Local development
+
+tags:
+  - name: Bookings
+    description: Kitchen booking operations
+  - name: Payments
+    description: Payment and refund operations
+  - name: Listings
+    description: Kitchen listings
+  - name: Reviews
+    description: Customer feedback collection
+  - name: Admin
+    description: Moderation and back-office endpoints
+  - name: Health
+    description: Health check endpoints
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /api/bookings:
+    post:
+      tags: [Bookings]
+      summary: Create a booking
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+      responses:
+        '201':
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseEnvelope'
+        '409':
+          description: Kitchen not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseEnvelope'
+
+  /api/bookings/{id}:
+    get:
+      tags: [Bookings]
+      summary: Get booking by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Booking found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          description: Booking not found
+
+  /api/bookings/{id}/refund:
+    post:
+      tags: [Payments]
+      summary: Refund a booking
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+      responses:
+        '200':
+          description: Refund processed
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseEnvelope'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseEnvelope'
+
+  /webhooks/stripe:
+    post:
+      tags: [Payments]
+      summary: Stripe webhook handler
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook received
+
+  /api/v1/platform/reviews/kitchens/{kitchen_id}:
+    get:
+      tags: [Listings]
+      summary: List reviews for a kitchen
+      tags: [Reviews]
+      summary: List reviews for a kitchen
+      description: Cursor-paginated list of customer reviews for the specified kitchen.
+      parameters:
+        - name: kitchen_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Cursor returned by a previous request
+          description: Cursor from a previous response's pagination metadata.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: Maximum number of reviews to return
+      responses:
+        '200':
+          description: Paginated reviews
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewCollection'
+        '404':
+          description: Kitchen not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseEnvelope'
+          description: Maximum number of reviews to return.
+      responses:
+        '200':
+          description: Reviews retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewListResponse'
+        '422':
+          description: Invalid cursor supplied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/kitchens/pending:
+    get:
+      tags: [Admin]
+      summary: List kitchens awaiting moderation
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cursor from the previous moderation page.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: Maximum number of kitchens to return.
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Case-insensitive search across kitchen and host name fields.
+        - name: owner_email
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: certification_status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Moderation queue page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminKitchenPage'
+        '422':
+          description: Invalid cursor supplied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/certifications/pending:
+    get:
+      tags: [Admin]
+      summary: List pending certification documents
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cursor from the previous certification page.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: document_type
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Certification review queue page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCertificationPage'
+        '422':
+          description: Invalid cursor supplied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/users:
+    get:
+      tags: [Admin]
+      summary: List user accounts
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: role
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: include_suspended
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User directory page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserPage'
+        '422':
+          description: Invalid cursor supplied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1:
+    get:
+      tags: [Health]
+      summary: API versioning guidance
+      responses:
+        '200':
+          description: Version metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionMetadata'
+      summary: API version guidance
+      responses:
+        '200':
+          description: Current API version information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+                  status:
+                    type: string
+                  guidance:
+                    type: string
+                  sunset:
+                    type: string
+
+components:
+  schemas:
+    CreateBookingRequest:
+      type: object
+      required:
+        - kitchen_id
+        - user_id
+        - start_time
+        - end_time
+      properties:
+        kitchen_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+
+    Booking:
+      type: object
+      properties:
+        booking_id:
+          type: string
+          format: uuid
+        kitchen_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled, rejected]
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    RefundRequest:
+      type: object
+      properties:
+        amount_cents:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+          enum: [requested_by_customer, duplicate, fraudulent]
+
+    HealthStatus:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        service:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        checks:
+          type: object
+
+    ErrorDetail:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Machine readable error identifier
+        message:
+          type: string
+          description: Human readable error description
+        field:
+          type: string
+          nullable: true
+          description: Optional field associated with the error
+
+    ErrorResponseEnvelope:
+        message:
+          type: string
+        target:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required: [request_id, error]
+      properties:
+        request_id:
+          type: string
+          description: Correlated identifier for the request
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+        meta:
+          type: object
+          nullable: true
+          additionalProperties: true
+
+    CursorPagination:
+      type: object
+      required: [limit, total]
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        cursor:
+          type: string
+          format: date-time
+          nullable: true
+        next_cursor:
+          type: string
+          format: date-time
+          nullable: true
+        total:
+          type: integer
+          minimum: 0
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+
+    CursorPageMeta:
+      type: object
+      required: [limit, has_more]
+      properties:
+        cursor:
+          type: string
+          nullable: true
+        next_cursor:
+          type: string
+          nullable: true
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        has_more:
+          type: boolean
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        booking_id:
+          type: string
+          format: uuid
+        kitchen_id:
+          type: string
+          format: uuid
+        host_id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        rating:
+          type: number
+          format: float
+        comment:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    ReviewCollection:
+      type: object
+      required: [items, pagination]
+        rating:
+          type: number
+          format: float
+        comment:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required: [id, rating, created_at]
+
+    ReviewListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Review'
+        pagination:
+          $ref: '#/components/schemas/CursorPageMeta'
+
+    AdminKitchenSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        owner_id:
+          type: string
+          format: uuid
+        owner_email:
+          type: string
+        owner_name:
+          type: string
+        location:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+        moderation_status:
+          type: string
+        certification_status:
+          type: string
+      required: [id, name, owner_id, owner_email, submitted_at, moderation_status, certification_status]
+
+    AdminKitchenPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminKitchenSummary'
+        pagination:
+          $ref: '#/components/schemas/CursorPageMeta'
+
+    AdminCertificationSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kitchen_id:
+          type: string
+          format: uuid
+        kitchen_name:
+          type: string
+        document_type:
+          type: string
+        status:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+      required: [id, kitchen_id, document_type, status, submitted_at]
+
+    AdminCertificationPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Review'
+        pagination:
+          $ref: '#/components/schemas/CursorPagination'
+
+    VersionMetadata:
+      type: object
+      required: [current_version, recommended_base_path, sunset, deprecation_policy]
+      properties:
+        current_version:
+          type: string
+        recommended_base_path:
+          type: string
+        sunset:
+          type: string
+          description: ISO8601 sunset timestamp
+        deprecation_policy:
+          type: string
+          description: Narrative explaining version deprecation expectations
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Unique key guaranteeing idempotent POST and PUT requests
+            $ref: '#/components/schemas/AdminCertificationSummary'
+        pagination:
+          $ref: '#/components/schemas/CursorPageMeta'
+
+    AdminUserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        full_name:
+          type: string
+        role:
+          type: string
+        is_active:
+          type: boolean
+        is_suspended:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required: [id, email, full_name, role, is_active, is_suspended, created_at]
+
+    AdminUserPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUserSummary'
+        pagination:
+          $ref: '#/components/schemas/CursorPageMeta'
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Stable key used to guarantee idempotent processing of POST and PUT requests.
+
+security:
+  - BearerAuth: []

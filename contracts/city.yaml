@@ -1,0 +1,508 @@
+openapi: 3.1.0
+info:
+  title: Prep City Compliance API
+  version: 0.1.0
+security:
+  - ApiKeyAuth: []
+  - OAuth2: [read]
+paths:
+  /city/{city}/regulations:
+    get:
+      parameters:
+        - name: city
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jurisdiction:
+                    type: string
+                  regulations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        category:
+                          type: string
+                        code:
+                          type: string
+                        title:
+                          type: string
+                        summary:
+                          type: string
+                        source:
+                          type: string
+                        url:
+                          type: string
+                          format: uri
+  /city/{city}/fees:
+    get:
+                        category: { type: string }
+                        code: { type: string }
+                        title: { type: string }
+                        summary: { type: string }
+                        source: { type: string }
+                        url: { type: string, format: uri }
+  /city/{city}/fees/summary:
+    get:
+      summary: Get fee totals and validation summary for a city (ETag-enabled)
+  /city/{city}/fees:
+    get:
+      summary: Get normalized fee schedule for a city
+      parameters:
+        - name: city
+          in: path
+          required: true
+          schema: { type: string }
+        - name: If-None-Match
+          in: header
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              schema: { type: string }
+              description: Strong ETag for cache validation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jurisdiction, totals, validation]
+                properties:
+                  jurisdiction: { type: string }
+                required:
+                  - jurisdiction
+                  - paperwork
+                  - fees
+                  - totals
+                  - validation
+                properties:
+                  jurisdiction:
+                    type: string
+                  paperwork:
+                    type: array
+                    items:
+                      type: string
+                required: [jurisdiction, paperwork, fees, totals, validation]
+                properties:
+                  jurisdiction: { type: string }
+                  paperwork:
+                    type: array
+                    items: { type: string }
+                  fees:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - name
+                        - amount_cents
+                        - kind
+                      properties:
+                        name:
+                          type: string
+                        amount_cents:
+                          type: integer
+                        kind:
+                          type: string
+                        cadence:
+                          type: string
+                        unit:
+                          type: string
+                  totals:
+                    type: object
+                    required:
+                      - one_time_cents
+                      - recurring_annualized_cents
+                      - incremental_fee_count
+                    properties:
+                      one_time_cents:
+                        type: integer
+                      recurring_annualized_cents:
+                        type: integer
+                      incremental_fee_count:
+                        type: integer
+                  validation:
+                    type: object
+                    required:
+                      - is_valid
+                      - issues
+                    properties:
+                      is_valid:
+                        type: boolean
+                      issues:
+                        type: array
+                        items:
+                          type: string
+              examples:
+                sample:
+                  value:
+                    jurisdiction: san_francisco
+                    paperwork:
+                      - Application Form A-FOOD
+                      - Plan Review Checklist PRC-12
+                    fees:
+                      - name: Food Facility Plan Review
+                        amount_cents: 45000
+                        kind: one_time
+                      - name: Annual Health Permit
+                        amount_cents: 98000
+                        kind: recurring
+                        cadence: annual
+                      - name: Reinspection Fee
+                        amount_cents: 30000
+                        kind: incremental
+                        unit: per_reinspection
+                    totals:
+                      one_time_cents: 45000
+                      recurring_annualized_cents: 98000
+                      incremental_fee_count: 1
+                    validation:
+                      is_valid: true
+                      issues: []
+  /city/{city}/requirements:
+    get:
+      parameters:
+        - name: city
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - jurisdiction
+                  - version
+                  - requirements
+                  - change_candidates
+                  - validation
+                properties:
+                  jurisdiction:
+                    type: string
+                  version:
+                    type: string
+                  requirements:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - title
+                        - applies_to
+                        - req_type
+                        - authority
+                        - severity
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        applies_to:
+                          type: string
+                        req_type:
+                          type: string
+                        authority:
+                          type: string
+                        severity:
+                          type: string
+                  change_candidates:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        action:
+                          type: string
+                        impact:
+                          type: string
+                  validation:
+                    type: object
+                    required:
+                      - is_valid
+                      - issues
+                      - counts_by_party
+                      - blocking_count
+                      - has_fee_links
+                    properties:
+                      is_valid:
+                        type: boolean
+                      issues:
+                        type: array
+                        items:
+                          type: string
+                      counts_by_party:
+                        type: object
+                        additionalProperties:
+                          type: integer
+                      blocking_count:
+                        type: integer
+                      has_fee_links:
+                        type: boolean
+              examples:
+                sample:
+                  value:
+                    jurisdiction: san_francisco
+                    version: v1
+                    requirements:
+                      - id: SFDPH-FOOD-PERMIT
+                        title: Food Facility Permit
+                        applies_to: food_business
+                        req_type: permit
+                        authority: SF Department of Public Health
+                        severity: blocking
+                      - id: SF-SHARED-KITCHEN-OP
+                        title: Shared Kitchen Operational Requirements
+                        applies_to: kitchen_operator
+                        req_type: inspection
+                        authority: SF Department of Public Health
+                        severity: conditional
+                    change_candidates:
+                      - id: SF-LOW-RISK-FEE-REDUCTION
+                        title: Reduce annual permit fee for low-risk shared kitchens
+                        action: lobby_exemption
+                        impact: high
+                    validation:
+                      is_valid: true
+                      issues: []
+                      counts_by_party:
+                        kitchen_operator: 1
+                        food_business: 1
+                        marketplace_operator: 0
+                        platform_developer: 0
+                      blocking_count: 1
+                      has_fee_links: false
+  /city/{city}/requirements/estimate:
+    post:
+      parameters:
+        - name: city
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/headers/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seats:
+                  type: integer
+                sqft:
+                  type: integer
+                inspections_per_year:
+                  type: integer
+                reinspections_per_year:
+                  type: integer
+                party:
+                  type: string
+            examples:
+              scenario:
+                value:
+                  seats: 25
+                  sqft: 1200
+                  inspections_per_year: 1
+                  reinspections_per_year: 0
+                  party: food_business
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - jurisdiction
+                  - party
+                  - scenario
+                  - estimated_costs
+                  - applicable_requirements
+                properties:
+                  jurisdiction:
+                    type: string
+                  party:
+                    type: string
+                  scenario:
+                    type: object
+                  estimated_costs:
+                    type: object
+                    required:
+                      - one_time_cents
+                      - recurring_annualized_cents
+                      - incremental_cents
+                      - total_first_year_cents
+                      - breakdown
+                    properties:
+                      one_time_cents:
+                        type: integer
+                      recurring_annualized_cents:
+                        type: integer
+                      incremental_cents:
+                        type: integer
+                      total_first_year_cents:
+                        type: integer
+                      breakdown:
+                        type: object
+                  applicable_requirements:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        severity:
+                          type: string
+                        req_type:
+                          type: string
+                        applies_to:
+                          type: string
+                        authority:
+                          type: string
+              examples:
+                sample:
+                  value:
+                    jurisdiction: san_francisco
+                    party: food_business
+                    scenario:
+                      seats: 25
+                      sqft: 1200
+                      inspections_per_year: 1
+                      reinspections_per_year: 0
+                      employees: 0
+                      events_per_year: 0
+                      party: food_business
+                    estimated_costs:
+                      one_time_cents: 45000
+                      recurring_annualized_cents: 98000
+                      incremental_cents: 0
+                      total_first_year_cents: 143000
+                      breakdown:
+                        incremental: []
+                    applicable_requirements:
+                      - id: SFDPH-FOOD-PERMIT
+                        title: Food Facility Permit
+                        severity: blocking
+                        req_type: permit
+                        applies_to: food_business
+                        authority: SF Department of Public Health
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.prep.example/oauth/authorize
+          tokenUrl: https://auth.prep.example/oauth/token
+          scopes:
+            read: Read access
+            write: Write access
+  parameters:
+    PageCursor:
+      in: query
+      name: cursor
+      schema:
+        type: string
+      description: Opaque cursor for pagination
+    PageLimit:
+      in: query
+      name: limit
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+  headers:
+    IdempotencyKey:
+      schema:
+        type: string
+      description: Provide a unique key to make the request idempotent
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+            - request_id
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+            request_id:
+              type: string
+            field_errors:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+                      required: [name, amount_cents, kind]
+                      properties:
+                        name: { type: string }
+                        amount_cents: { type: integer, minimum: 0 }
+                        kind: { type: string, enum: [one_time, recurring, incremental] }
+                        cadence:
+                          type: string
+                          enum: [annual, semi_annual, quarterly, monthly, per_permit, per_inspection, per_application, per_reinspection]
+                          nullable: true
+                        unit: { type: string, nullable: true }
+                        tier_min_inclusive: { type: integer, nullable: true }
+                        tier_max_inclusive: { type: integer, nullable: true }
+                  totals:
+                    type: object
+                    properties:
+                      one_time_cents: { type: integer }
+                      recurring_annualized_cents: { type: integer }
+                      incremental_fee_count: { type: integer }
+                  validation:
+                    type: object
+                    properties:
+                      is_valid: { type: boolean }
+                      issues:
+                        type: array
+                        items: { type: string }
+        "304":
+          description: Not Modified (ETag matched)
+        "404":
+          description: Unsupported city
+        "404": { description: Unsupported city }

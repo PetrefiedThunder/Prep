@@ -1,0 +1,14 @@
+fees:
+  - code: KingCountyLodging
+    name: King County Lodging
+    kind: percent
+    value: 0.02
+    applies_to: [base, cleaning]
+  - code: B&O
+    name: Business & Occupation
+    kind: percent
+    value: 0.0044
+    applies_to: [platform_fee]
+deposits:
+  min_cents: 9000
+  hold_window_hours: 72

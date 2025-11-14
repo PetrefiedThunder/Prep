@@ -1,8 +1,10 @@
 {
   "name": "@prep/tsconfig",
   "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "build": "echo 'No build needed for tsconfig'"
+  "files": [
+    "tsconfig.base.json"
+  ],
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json"
   }
 }

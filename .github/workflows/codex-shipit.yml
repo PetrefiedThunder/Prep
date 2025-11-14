@@ -1,0 +1,32 @@
+name: Codex ShipIt
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  shipit:
+    if: contains(github.event.comment.body, '@pm-run: shipit')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.issue.number;
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+              labels: ['ready-to-merge']
+            });
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+              body: "🔓 Marked **ready-to-merge**. Follow merge protocol (rebase), then tag via Release workflow."
+            });
