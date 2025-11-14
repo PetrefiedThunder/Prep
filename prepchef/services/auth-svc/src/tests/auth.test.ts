@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import '@fastify/jwt';
 
 process.env.AUTH_PERSISTENCE = 'memory';
-process.env.JWT_SECRET = 'test-secret';
+process.env.JWT_SECRET = 'test-secret-key-for-testing-at-least-32-chars-long';
 process.env.AUTH_PASSWORD_SALT_ROUNDS = '4';
 
 const { createApp } = await import('../index');
@@ -29,6 +29,9 @@ test('registers a new account and returns tokens', async () => {
     }
   });
 
+  if (res.statusCode !== 201) {
+    console.error('Register failed:', res.statusCode, res.body);
+  }
   assert.equal(res.statusCode, 201);
   const body = res.json();
   assert.ok(body.token);

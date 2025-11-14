@@ -1,10 +1,10 @@
 import { FastifyInstance } from 'fastify';
 import '@fastify/jwt';
-import { compare, hash } from 'bcryptjs';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { env } from '@prep/config';
 
-type UserRole = 'admin' | 'host' | 'renter';
+type UserRole = 'admin' | 'host' | 'renter' | 'support';
 
 const refreshTokens = new Map<string, string>();
 
@@ -70,7 +70,7 @@ export default async function (app: FastifyInstance) {
       return reply.code(409).send({ error: 'Email is already registered' });
     }
 
-    const passwordHash = await hash(data.password, env.AUTH_PASSWORD_SALT_ROUNDS);
+    const passwordHash = await bcrypt.hash(data.password, env.AUTH_PASSWORD_SALT_ROUNDS);
     const user = await app.userStore.createUser({
       username: data.username,
       email: data.email,
@@ -108,7 +108,7 @@ export default async function (app: FastifyInstance) {
       return reply.code(401).send({ error: 'Invalid credentials' });
     }
 
-    const passwordValid = await compare(password, user.passwordHash);
+    const passwordValid = await bcrypt.compare(password, user.passwordHash);
     if (!passwordValid) {
       return reply.code(401).send({ error: 'Invalid credentials' });
     }

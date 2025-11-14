@@ -41,7 +41,7 @@ export async function createApp() {
   return app;
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number(process.env.PORT || 0) || Math.floor(Math.random() * 1000) + 3000;
   createApp().then(app => app.listen({ port }).then(() => log.info('auth-svc listening', { port })));
 }

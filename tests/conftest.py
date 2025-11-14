@@ -11,6 +11,7 @@ import pytest
 
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("SKIP_PREP_DB_INIT", "1")
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-purposes-only-minimum-32-chars")
 
 
 @pytest.fixture
