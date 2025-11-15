@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { hash } from 'bcryptjs';
+import bcrypt from 'bcryptjs';
 import { env } from '@prep/config';
 import { getPrismaClient, tryConnect, type DatabaseClient } from '@prep/database';
 import { log } from '@prep/logger';
 
-type UserRole = 'admin' | 'host' | 'renter';
+type UserRole = 'admin' | 'host' | 'renter' | 'support';
 
 export interface UserRecord {
   id: string;
@@ -42,7 +42,7 @@ function normaliseEmail(email: string) {
 }
 
 async function createDefaultAdminPayload() {
-  const passwordHash = await hash(env.AUTH_DEMO_PASSWORD, env.AUTH_PASSWORD_SALT_ROUNDS);
+  const passwordHash = await bcrypt.hash(env.AUTH_DEMO_PASSWORD, env.AUTH_PASSWORD_SALT_ROUNDS);
   return {
     username: env.AUTH_DEMO_USERNAME,
     email: env.AUTH_DEMO_EMAIL,

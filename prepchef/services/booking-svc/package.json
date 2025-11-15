@@ -9,7 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint": "echo 'lint stub'",
-    "test": "node --test --import tsx src/tests/**/*.test.ts"
+    "test": "node --test --import tsx src/tests/bookings.test.ts src/tests/routes.test.ts src/tests/BookingService.test.ts"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.0",
@@ -19,11 +19,12 @@
     "fastify": "^4.28.1",
     "ioredis": "^5.3.2",
     "pg": "^8.11.3",
-    "undici": "^6.19.8",
+    "undici": "^7.16.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "tsx": "^4.16.2",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.2",
+    "@types/node": "^20.0.0"
   }
 }

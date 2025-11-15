@@ -184,14 +184,8 @@ async def run_pos_reconciliation(
 
     start_dt = start or (datetime.now(UTC) - timedelta(days=1))
     end_dt = end or datetime.now(UTC)
-    if start_dt.tzinfo is None:
-        start_dt = start_dt.replace(tzinfo=UTC)
-    else:
-        start_dt = start_dt.astimezone(UTC)
-    if end_dt.tzinfo is None:
-        end_dt = end_dt.replace(tzinfo=UTC)
-    else:
-        end_dt = end_dt.astimezone(UTC)
+    start_dt = start_dt.replace(tzinfo=UTC) if start_dt.tzinfo is None else start_dt.astimezone(UTC)
+    end_dt = end_dt.replace(tzinfo=UTC) if end_dt.tzinfo is None else end_dt.astimezone(UTC)
     if end_dt <= start_dt:
         raise RuntimeError("Reconciliation end must be after start")
 

@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /build
 
 # Copy and install Python dependencies
-COPY requirements.txt constraints.txt ./
+COPY requirements.txt ./
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 # ===================================

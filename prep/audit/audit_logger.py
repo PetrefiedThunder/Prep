@@ -11,11 +11,10 @@ Features:
 - Compliance-ready exports
 """
 
-import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -61,7 +60,7 @@ class AuditLog(BaseModel):
     """Audit log entry"""
 
     audit_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Action details
     action: AuditAction
@@ -70,19 +69,19 @@ class AuditLog(BaseModel):
     severity: AuditSeverity = AuditSeverity.LOW
 
     # User details
-    user_id: Optional[str] = None
-    user_email: Optional[str] = None
-    user_ip: Optional[str] = None
-    user_agent: Optional[str] = None
+    user_id: str | None = None
+    user_email: str | None = None
+    user_ip: str | None = None
+    user_agent: str | None = None
 
     # State changes
-    before_state: Optional[Dict[str, Any]] = None
-    after_state: Optional[Dict[str, Any]] = None
-    changes: Optional[Dict[str, Any]] = None  # Computed diff
+    before_state: dict[str, Any] | None = None
+    after_state: dict[str, Any] | None = None
+    changes: dict[str, Any] | None = None  # Computed diff
 
     # Additional context
-    reason: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    reason: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     # Compliance
     compliance_relevant: bool = False
@@ -121,10 +120,10 @@ class AuditLogger:
         self,
         entity_type: AuditEntity,
         entity_id: str,
-        after_state: Dict[str, Any],
-        user_id: Optional[str] = None,
-        user_email: Optional[str] = None,
-        reason: Optional[str] = None,
+        after_state: dict[str, Any],
+        user_id: str | None = None,
+        user_email: str | None = None,
+        reason: str | None = None,
         severity: AuditSeverity = AuditSeverity.MEDIUM,
         **kwargs,
     ) -> AuditLog:
@@ -151,11 +150,11 @@ class AuditLogger:
         self,
         entity_type: AuditEntity,
         entity_id: str,
-        before_state: Dict[str, Any],
-        after_state: Dict[str, Any],
-        user_id: Optional[str] = None,
-        user_email: Optional[str] = None,
-        reason: Optional[str] = None,
+        before_state: dict[str, Any],
+        after_state: dict[str, Any],
+        user_id: str | None = None,
+        user_email: str | None = None,
+        reason: str | None = None,
         severity: AuditSeverity = AuditSeverity.MEDIUM,
         **kwargs,
     ) -> AuditLog:
@@ -185,10 +184,10 @@ class AuditLogger:
         self,
         entity_type: AuditEntity,
         entity_id: str,
-        before_state: Dict[str, Any],
-        user_id: Optional[str] = None,
-        user_email: Optional[str] = None,
-        reason: Optional[str] = None,
+        before_state: dict[str, Any],
+        user_id: str | None = None,
+        user_email: str | None = None,
+        reason: str | None = None,
         severity: AuditSeverity = AuditSeverity.HIGH,
         **kwargs,
     ) -> AuditLog:
@@ -215,8 +214,8 @@ class AuditLogger:
         self,
         entity_type: AuditEntity,
         entity_id: str,
-        user_id: Optional[str] = None,
-        user_email: Optional[str] = None,
+        user_id: str | None = None,
+        user_email: str | None = None,
         severity: AuditSeverity = AuditSeverity.LOW,
         **kwargs,
     ) -> AuditLog:
@@ -241,10 +240,10 @@ class AuditLogger:
         action: AuditAction,
         entity_type: AuditEntity,
         entity_id: str,
-        details: Dict[str, Any],
-        user_id: Optional[str] = None,
-        user_email: Optional[str] = None,
-        reason: Optional[str] = None,
+        details: dict[str, Any],
+        user_id: str | None = None,
+        user_email: str | None = None,
+        reason: str | None = None,
         **kwargs,
     ) -> AuditLog:
         """Log compliance-related actions (approve, reject, etc.)"""
@@ -265,9 +264,7 @@ class AuditLogger:
         await self.storage.save(log_entry)
         return log_entry
 
-    async def get_entity_history(
-        self, entity_type: AuditEntity, entity_id: str
-    ) -> list[AuditLog]:
+    async def get_entity_history(self, entity_type: AuditEntity, entity_id: str) -> list[AuditLog]:
         """Get full audit history for an entity"""
         return await self.storage.get_by_entity(entity_type, entity_id)
 
@@ -279,13 +276,9 @@ class AuditLogger:
         self, start_date: datetime, end_date: datetime
     ) -> list[AuditLog]:
         """Export audit logs for compliance reporting"""
-        return await self.storage.get_by_date_range(
-            start_date, end_date, compliance_only=True
-        )
+        return await self.storage.get_by_date_range(start_date, end_date, compliance_only=True)
 
-    def _compute_diff(
-        self, before: Dict[str, Any], after: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _compute_diff(self, before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
         """Compute diff between before and after states"""
 
         changes = {}
@@ -297,7 +290,7 @@ class AuditLogger:
                 changes[key] = {"before": before_value, "after": after_value}
 
         # Find removed fields
-        for key in before.keys():
+        for key in before:
             if key not in after:
                 changes[key] = {"before": before[key], "after": None}
 
@@ -326,11 +319,11 @@ class DatabaseAuditStorage:
         """Save audit log to database"""
         # Implementation would insert into audit_logs table
         # For now, just log to stdout
-        print(f"[AUDIT] {log_entry.action.value} {log_entry.entity_type.value}:{log_entry.entity_id} by {log_entry.user_email or 'system'}")
+        print(
+            f"[AUDIT] {log_entry.action.value} {log_entry.entity_type.value}:{log_entry.entity_id} by {log_entry.user_email or 'system'}"
+        )
 
-    async def get_by_entity(
-        self, entity_type: AuditEntity, entity_id: str
-    ) -> list[AuditLog]:
+    async def get_by_entity(self, entity_type: AuditEntity, entity_id: str) -> list[AuditLog]:
         """Get all audit logs for an entity"""
         # SELECT * FROM audit_logs WHERE entity_type = ? AND entity_id = ?
         return []
@@ -367,7 +360,9 @@ def audit_log(
     def decorator(func):
         async def wrapper(*args, **kwargs):
             # Extract entity_id and user_id from function args/kwargs
-            entity_id = kwargs.get("entity_id") or kwargs.get("vendor_id") or kwargs.get("facility_id")
+            entity_id = (
+                kwargs.get("entity_id") or kwargs.get("vendor_id") or kwargs.get("facility_id")
+            )
             user_id = kwargs.get("user_id")
 
             # Execute function
@@ -434,9 +429,7 @@ async def example_usage():
     )
 
     # Get entity history
-    history = await audit.get_entity_history(
-        entity_type=AuditEntity.VENDOR, entity_id="vendor-123"
-    )
+    history = await audit.get_entity_history(entity_type=AuditEntity.VENDOR, entity_id="vendor-123")
     print(f"Vendor has {len(history)} audit log entries")
 
 

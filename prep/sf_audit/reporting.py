@@ -64,7 +64,7 @@ def summarize_domains(report: Mapping[str, object]) -> list[DomainStatus]:
             failures[domain].append(case)
 
     summaries: list[DomainStatus] = []
-    for case_name, domain in DOMAIN_LABELS.items():
+    for _case_name, domain in DOMAIN_LABELS.items():
         domain_outcomes = outcomes.get(domain, [])
         passed = bool(domain_outcomes) and all(outcome == "passed" for outcome in domain_outcomes)
         summaries.append(
@@ -83,10 +83,7 @@ def build_audit_report(report: Mapping[str, object]) -> dict[str, object]:
     domains = summarize_domains(report)
     summary_counts = report.get("summary", {})
     created = report.get("created")
-    if isinstance(created, str):
-        generated_at = created
-    else:
-        generated_at = datetime.now(tz=UTC).isoformat()
+    generated_at = created if isinstance(created, str) else datetime.now(tz=UTC).isoformat()
 
     return {
         "generated_at": generated_at,

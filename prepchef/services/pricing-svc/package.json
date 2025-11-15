@@ -9,7 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint": "echo 'lint stub'",
-    "test": "node --test --import tsx src/tests/**/*.test.ts"
+    "test": "node --test --import tsx src/tests/pricing.test.ts"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.0",
@@ -17,7 +17,7 @@
     "@prep/common": "1.0.0",
     "@prep/logger": "1.0.0",
     "fastify": "^4.28.1",
-    "undici": "^6.19.8",
+    "undici": "^7.16.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -10,6 +10,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import httpx
+from defusedxml import ElementTree as ET
 from pydantic import BaseModel, Field
 
 from prep.models.orm import IdentityProvider, IdentityProviderType
@@ -187,15 +188,8 @@ class SAMLProvider(BaseAuthProvider):
         """Very small helper to parse common SAML attributes from an XML document."""
 
         try:
-            # SECURITY FIX: Use defusedxml to prevent XXE attacks
-            try:
-                from defusedxml import ElementTree as ET
-            except ImportError:
-                # Fallback with manual XXE protection
-                import xml.etree.ElementTree as ET
-
             root = ET.fromstring(document)
-        except ET.ParseError as exc:  # type: ignore[attr-defined]
+        except ET.ParseError as exc:
             raise AuthProviderError("Unable to parse SAML response") from exc
 
         ns = {

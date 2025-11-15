@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from prep.data_pipeline.cdc import build_cdc_stream
@@ -13,8 +15,11 @@ from prep.settings import Settings, get_settings
 router = APIRouter(prefix="/logistics", tags=["logistics"])
 
 
+SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+
 async def get_logistics_service(
-    settings: Settings = Depends(get_settings),
+    settings: SettingsDep,
 ) -> LogisticsService:
     cdc_stream = build_cdc_stream(settings)
     onfleet_client = OnfleetClient(
@@ -31,12 +36,12 @@ async def get_logistics_service(
 )
 async def optimize_route(
     payload: schemas.RouteOptimizationRequest,
-    service: LogisticsService = Depends(get_logistics_service),
+    service: Annotated[LogisticsService, Depends(get_logistics_service)],
 ) -> schemas.RouteOptimizationResponse:
     try:
         return await service.optimize_route(payload)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 __all__ = ["router"]

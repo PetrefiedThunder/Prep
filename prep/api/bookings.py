@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
-from datetime import UTC
 from uuid import UUID
 
 from dateutil.rrule import rrulestr
