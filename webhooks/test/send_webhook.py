@@ -3,11 +3,6 @@
 from __future__ import annotations
 
 import argparse
-
-"""Utility for exercising the local Prep webhook receiver."""
-
-from __future__ import annotations
-
 import hashlib
 import hmac
 import json
@@ -15,11 +10,10 @@ import os
 import sys
 import time
 import uuid
+from http import HTTPStatus
 from typing import Any
 
-import requests
-
-from webhooks.server.main import SIGNATURE_HEADER, compute_signature
+import httpx
 
 DEFAULT_EVENT = "fees.updated"
 EVENT_PATHS = {
@@ -85,10 +79,6 @@ def load_payload(path: str | None, event_type: str) -> dict[str, Any]:
         raise ValueError("Payload type does not match the selected event")
     return payload
 
-
-from http import HTTPStatus
-
-import httpx
 
 DEFAULT_EVENT = {
     "type": "fees.updated",
