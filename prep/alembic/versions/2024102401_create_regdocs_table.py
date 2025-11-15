@@ -7,10 +7,18 @@ Create Date: 2024-10-24 00:00:00.000000
 
 from __future__ import annotations
 
-import sqlalchemy as sa
-from alembic import op
+import sys
+from pathlib import Path
 
-from prep.models.guid import GUID
+# Add project root to Python path to allow imports
+project_root = Path(__file__).resolve().parents[3]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+import sqlalchemy as sa  # noqa: E402
+from alembic import op  # noqa: E402
+
+from prep.models.guid import GUID  # noqa: E402
 
 # revision identifiers, used by Alembic.
 revision = "9b4fe8edcf5d"
