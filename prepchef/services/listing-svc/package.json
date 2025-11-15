@@ -19,7 +19,7 @@
     "fastify": "^4.28.1",
     "python-shell": "^5.0.0",
     "undici": "^7.16.0",
-    "zod": "^3.23.8"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "tsx": "^4.16.2",
