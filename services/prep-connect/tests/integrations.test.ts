@@ -5,42 +5,42 @@ import { clearAuthPublicKeyCache } from '../src/config/auth';
 import app from '../src/server';
 
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
-MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCrwFzUu1S0MoM/
-aGDJqJmtiOwCv0To4aQQp39ymQKZyxYzDhQ2fY9ejBnHnptk+fZ2+JUPzaIsE/FG
-1yBmcHkZ4ZbfvY4wJJFjZ1Bc93/xiSCYuqbcZJqDOHZA/U3J/mliMBToi8Ti6v7F
-p3OPLBXhzXjd8Nb+aGQ/yK9YWHbD2vWJ6iO8WjL7bslfnOHa8ve8H5TkKObdZkHK
-V+7CQF3UDfMfGk++Vf8z6y1j7dA4C14EyGT9NP2TKW9qBsY1sPkKJT8ZEpqLzFHV
-NCl4U8gjYe0xxuuw8L84oG1nqE46IAd3Ri/QsT+QCtzflE2kBl9W4pANpoEfkCsp
-mKE2hbJhAgMBAAECggEABB6XeCn/BNEOb1J2Gt5HIfo7lMq8T5y6J1sbPpu3Z+lq
-4RMTeO99s/DLhb+Ys8B+bqq0arcuU6BfYKiT49YB2kLHKqCIr2JNTRrX+UdMCA1a
-uKMb96ygIeOI1MnLXY3FgHh1WCTimoV86f8L37BKku8bCq0T4MbU4UUkSJPN2W9p
-/vdlkXJmKOiTkBzCP6s6Va6FndGeUHskEtGn5JKQHph55BEc5GCA/YS+LFNVOyJt
-f3KEjqb9bD9F2+Rif82g+5qCxqyt7b2D2SgVu5Avmo5skRae8bMgbiC7qXsO00rM
-u3HsmA37GWk2RLX10HofqOxw2G3unYkVWL1X2cCYbwKBgQDeY55VmAdWs0Tj/NF2
-2qNn9cs0r20XHoL8tPLwg27zz6ut42o2CEz8jykOVcgJAbPjgX1Jp6BTwBDSYcS6
-pEDfV56o5/Vhgg6HNepcbqpM3e1T2pLz0JfGs9X6Wrk3edUp1ufQlwDE3nAnJvxo
-YxjRpPZSqN3MCCINXlWnyNvI4wKBgQDRwLNr7OLVCW5h62hzOhN3d9pIwb/9eUQw
-g9tXZXnQ4rE+bXp5T6rBae0iAujnGZ53td1Y4w7DRcx4V6HY2ncvO7wrmXI/6wyv
-R0VbSBknr6mPJV0jZ1TsZ92S/Qb/2XS3Rp36wyeJTO4xu3vhGZf2n+YG3L8ldoes
-vfNa32pIvwKBgEeUpfKTe0kLKLZht6x28nkhqR1b2pknDYbnoXobBZjURxsuvN59
-vr0VSM6ZDy5uFCE3c/QXP1+zMdV71IZqQpKniVr/T5P75+uRkSmG09lkL/CWAPYC
-HA3h4O8Z3ecl40fKDHnw12HzLAV7lHHLN1//P7x/cSfswhAHcZIWECVdAoGAArrf
-TNJ9lRa5n6qolO/8uhk98X9iIJLFca8Xei5Sc6Sy3kKIPnhzd3WVgZbfCg0TajU3
-UDuhrP/B6ScS8HfRH0TE2g19NZ26su2op/3SH9rYQaymYZ4+yI1CzJzXNkj10R0G
-XRhPuIQulRgBaRa+Ql9QvcIKuL8OtzQI0QQ2QfkCgYA0WWVfU/whLy1vhxTS+eTS
-KX9m7LBkOFl42rPr3ckxlI8S+bPaaPrspceHlfI+knFvltMG5JlXDEt2QSbF2Rkf
-qqlVQ9hGsPIfMXUHAiEv7HX3yUpc6kMdKHgSfd7A4TxJuLRiFLNqM3PtEqwUN5nj
-1shk3Ne8N4Fq9y04I5NN1w==
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCpYgEipOHOtAeD
+jKObeOP7wgKAtDzR08zz3HlrsuETGD9sH5xRHcHY0+VREtzYQZ2k106vvqT3GcAl
+HzRqSYHd9k2SkCb26OBwctlSXfWajjrZ7zQlC+k+klhTKgk9gnZxuIm803+khtty
+JMUWOvgE/evZze4JNAtm/085rdCYGzYGraf1QckD+NFh7lz8/uxYQ0qiPgU/Ixwf
+3E8xxFXM2fh/W+x7Sep492O2iKdJQDhemKxuCk2BtSphtlldY7ZZwtn7fMb/JTfh
+y2wZOGU9LEGGoNlfoQJuliEYB4OTdRx6ZQK0TUde4J/sajr7HgjGXWb9LGqdwjsF
+dBOleTszAgMBAAECggEAOFfJWOTP2Bo6hZ+6rHTCIXSfsIBD2uhBPL0SBqkyBVAD
+iMvbC4CCgsW5egZ0P9tTvQmBuyQHa8q9B5whq1lYQaU0mJQq4ecFAWKyt5tZn1fA
+a84N4mTb6Vx01PUerb8/9wQTjSQtSWUyif2BMavb5I0ybvj5PUZ6pIA4sk8HHBEl
+nElujh7hkGM2yLvsaVvu7KgXfP8JR675IOjlpCTGCESkUerSgqL99mc/AFzkxet9
+haHR+htg7m/3R5ADM7xJv3ttplf7WWQgzlEaAxgtwXIQiNjCzJoNia60oOfA10zN
+eqQ9Cq0ziKK3HJL0+GkXfG/qZkuuahNHzDCBQpU7gQKBgQDqepyaKZT+5zgLf+Ep
+G+k2OhEpjTsuUcgFr09SWG3ruEDcniceWxbwpyZuV2v2aMu6OoCT9nr85gse+4+W
+AtgodK0wbIjnzQO7MEfePaSn7Xz6ipkeIfsV/Ca2JCfu01XZ/Ywl/hWwgZkepSiR
+TYt1FkhoxSi14Y9eb5fVPuRleQKBgQC47d/jJlyofRWdcLjfpHx73XqzM19lRNDK
+iJOsv6mHtTZprtyiAGGQxdL2OLyebjcDJ2PR3kXQciFJmJuxLaU7FcgA6ApOCOUm
+DCX7KQ5T4s35Wg3LhjXqhjUxFky5fnt1IWsjXwKIC+WF++Nq+ikT86Ks+jiiuVxE
+9ubjtSMXCwKBgQCTi5n1bAsEp0xd+Bcf/h8u7zUTd3pw+CcsZJc+UsTAWk3+RUqK
+UHlL73JAZqRaBrGDuwJjmOrlLoB6+4Lru1h3hIvid7liW2BorsXac+Gjhc5p/ULC
+clGEEQnu/Stfnf5c0K4azhqp2bMXVIgFfs0tXVstCjtGz+ueWgwptIyVyQKBgG/h
+6sxgzzpYwxUHt7IGsBG4g52bfSGlqrR+QOoI4yZpqkvyMSYKGP0f0myJEwS/JaVQ
+1YGJeq+L/TurirZ9KTRAD0sNF/7yPsDwJKJ5ymNSGs+7fhEeV8xV+iSCm1S2gzbw
+SwORXdS1bd3L8WEtjGC3zDnfARjiEELhJfuqAVrVAoGBAKU5qU1gv5egXYm5cS20
+kinA+eMZtDDw/IlHPRKXLEJ4JrvkuGVk1/3DmG8H/MV9dukFqXnMzGrGqlBf1gMD
+PJOFnysz786vhjCzrV/yxy9Qy2t5STfJe4JggxSvsjNCd+iFhdAwMeKcsztJmHPn
++npdic9frVPwM2aJkw4HWS9E
 -----END PRIVATE KEY-----`;
 
 const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8Bc1LtUtDKDP2hgyaiZ
-rYjsAr9E6OGkEKd/cpkCmcsWMw4UNn2PXowZx56bZPn2dviVD82iLBPxRtcgZnB5
-GeGW372OMCSRY2dQXPd/8YkgmLqm3GSagzh2QP1Nyf5pYjAU6IvE4ur+xadzjywV
-4c143fDW/mhkP8ivWFh2w9r1ieojvFoy+27JX5zh2vL3vB+U5Cjm3WZBylfuwkBd
-1A3zHxpPvlX/M+stY+3QOAteBMhk/TT9kylvagbGNbD5CiU/GRKai8xR1TQpeFPI
-I2HtMcbrsPC/OKBtZ6hOOiAHd0Yv0LE/kArc35RNpAZfVuKQDaaBH5ArKZihNoWy
-YQIDAQAB
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqWIBIqThzrQHg4yjm3jj
++8ICgLQ80dPM89x5a7LhExg/bB+cUR3B2NPlURLc2EGdpNdOr76k9xnAJR80akmB
+3fZNkpAm9ujgcHLZUl31mo462e80JQvpPpJYUyoJPYJ2cbiJvNN/pIbbciTFFjr4
+BP3r2c3uCTQLZv9POa3QmBs2Bq2n9UHJA/jRYe5c/P7sWENKoj4FPyMcH9xPMcRV
+zNn4f1vse0nqePdjtoinSUA4XpisbgpNgbUqYbZZXWO2WcLZ+3zG/yU34ctsGThl
+PSxBhqDZX6ECbpYhGAeDk3UcemUCtE1HXuCf7Go6+x4Ixl1m/SxqncI7BXQTpXk7
+MwIDAQAB
 -----END PUBLIC KEY-----`;
 
 describe('integrations routes', () => {
@@ -75,10 +75,6 @@ describe('integrations routes', () => {
         authMethod: 'oauth2',
         syncFrequency: 'hourly',
       });
-
-    if (createResponse.status !== 201) {
-      console.log('Create response:', createResponse.status, createResponse.body);
-    }
 
     expect(createResponse.status).toBe(201);
     expect(createResponse.body.vendorName).toBe('Salesforce');
