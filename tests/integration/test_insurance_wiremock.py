@@ -2,7 +2,7 @@ import pytest
 
 wiremock = pytest.importorskip("wiremock")
 
-from wiremock.resources.mappings import Mapping, MappingRequest, ResponseDefinition
+from wiremock.resources.mappings import Mapping, MappingRequest, MappingResponse
 from wiremock.server import WireMockServer
 
 from prep.regulatory.apis.insurance import NextInsuranceAPI, ThimbleAPI
@@ -27,7 +27,7 @@ def _register_mapping(server: WireMockServer, *, method: str, path: str, body: d
     mapping = Mapping(
         priority=1,
         request=MappingRequest(method=method, url=path),
-        response=ResponseDefinition(status=200, json_body=body),
+        response=MappingResponse(status=200, json_body=body),
     )
     server.register(mapping)
 
