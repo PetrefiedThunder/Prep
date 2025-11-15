@@ -2,13 +2,16 @@
 
 import uvicorn
 
+from prep.settings import get_settings
+
 from .service import app
 
 
 def run() -> None:
     """Run the Realtime Config Service using uvicorn."""
 
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    settings = get_settings()
+    uvicorn.run(app, host=settings.rcs_bind_host, port=8080)
 
 
 if __name__ == "__main__":

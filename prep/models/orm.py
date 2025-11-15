@@ -1,3 +1,5 @@
+"""Declarative SQLAlchemy models supporting Prep's operational domains."""
+
 from __future__ import annotations
 
 import enum
