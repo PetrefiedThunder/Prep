@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import os
 from collections.abc import Iterable
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from libs.safe_import import safe_import
-from middleware import audit_logger
-from modules.observability import DEFAULT_TARGETED_ROUTES, configure_fastapi_tracing
+from middleware.audit_logger import audit_logger
 from prep.auth.dependencies import enforce_allowlists, require_active_session
-from prep.auth.rbac import RBACMiddleware, RBAC_ROLES
+from prep.auth.rbac import RBAC_ROLES, RBACMiddleware
 from prep.integrations.runtime import configure_integration_event_consumers
 from prep.settings import get_settings
 
@@ -75,8 +76,12 @@ def _build_router(*, include_full: bool = True) -> APIRouter:
         router.include_router(_load_router("prep.mobile.api", "mobile_router"))
         router.include_router(_load_router("prep.admin.api", "admin_router"))
         router.include_router(_load_router("prep.analytics.api", "analytics_router"))
-        router.include_router(_load_router("prep.analytics.host_metrics_api", "host_metrics_router"))
-        router.include_router(_load_router("prep.analytics.advanced_api", "advanced_analytics_router"))
+        router.include_router(
+            _load_router("prep.analytics.host_metrics_api", "host_metrics_router")
+        )
+        router.include_router(
+            _load_router("prep.analytics.advanced_api", "advanced_analytics_router")
+        )
         router.include_router(_load_router("prep.matching.api", "matching_router"))
         router.include_router(_load_router("prep.reviews.api", "reviews_router"))
         router.include_router(_load_router("prep.ratings.api", "ratings_router"))
@@ -88,14 +93,18 @@ def _build_router(*, include_full: bool = True) -> APIRouter:
         router.include_router(_load_router("prep.space_optimizer.api", "space_optimizer_router"))
         router.include_router(_load_router("prep.integrations.api", "integrations_router"))
         router.include_router(_load_router("prep.monitoring.api", "monitoring_router"))
-        router.include_router(_load_router("prep.verification_tasks.api", "verification_tasks_router"))
+        router.include_router(
+            _load_router("prep.verification_tasks.api", "verification_tasks_router")
+        )
         router.include_router(_load_router("api.webhooks.square_kds", "square_kds_router"))
         router.include_router(_load_router("prep.logistics.api", "logistics_router"))
         router.include_router(_load_router("prep.deliveries.api", "deliveries_router"))
         router.include_router(_load_router("prep.orders.api", "orders_router"))
 
     router.include_router(_load_router("api.routes.debug", "debug_router"))
-    router.include_router(_load_router("api.routes.city_fees", "city_fees_router"), prefix="/city", tags=["city"])
+    router.include_router(
+        _load_router("api.routes.city_fees", "city_fees_router"), prefix="/city", tags=["city"]
+    )
     router.include_router(_load_router("api.routes.diff", "city_diff_router"))
     router.include_router(_load_router("api.city.requirements", "city_requirements_router"))
 
@@ -135,12 +144,8 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
         ),
     )
 
-    configure_fastapi_tracing(app, targeted_routes=DEFAULT_TARGETED_ROUTES)
-
     # SECURITY FIX: Use specific origins instead of wildcard to prevent CSRF attacks
     # Configure allowed origins from environment variable
-    import os
-
     allowed_origins = os.getenv(
         "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000"
     ).split(",")
@@ -161,10 +166,10 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
     api_router = _build_router(include_full=include_full_router)
     app.include_router(api_router, dependencies=security_dependencies)
 
-    try:  # pragma: no cover - integrations may require external services
+    with contextlib.suppress(
+        RuntimeError
+    ):  # pragma: no cover - integrations may require external services
         configure_integration_event_consumers(app)
-    except RuntimeError:
-        pass
 
     @app.get("/healthz", include_in_schema=False)
     async def healthcheck() -> dict[str, str]:

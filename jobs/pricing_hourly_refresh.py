@@ -125,14 +125,14 @@ def run_pricing_refresh(
     strategy = strategy or DefaultPricingStrategy()
     observability = observability or EnterpriseObservability()
 
-    start_time = time.perf_counter()
+    time.perf_counter()
     errors: list[str] = []
-    processed = updated = skipped = failures = 0
+    updated = skipped = failures = 0
 
     session = session_factory()
     try:
         kitchens = list(_load_refresh_candidates(session))
-        processed = len(kitchens)
+        len(kitchens)
         updated_models: list[Kitchen] = []
 
         for kitchen in kitchens:

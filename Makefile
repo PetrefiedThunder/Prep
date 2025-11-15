@@ -44,7 +44,7 @@ bootstrap:
 	@echo "Installing Python dependencies..."
 	@. .venv/bin/activate && \
 		python -m pip install --upgrade pip --quiet && \
-		pip install -c constraints.txt -r requirements.txt --quiet && \
+		pip install -r requirements.txt --quiet && \
 		pip install -e . --quiet
 	@# Install pre-commit
 	@echo "Installing pre-commit..."
@@ -243,7 +243,7 @@ format:
 # Legacy setup target (kept for compatibility)
 setup:
 	@python -m pip install --upgrade pip
-	@pip install -c constraints.txt -r requirements.txt
+	@pip install -r requirements.txt
 	@pip install pytest requests pydantic sqlalchemy psycopg2-binary opentelemetry-sdk
 
 # Run specific service (e.g., make run-federal_regulatory_service)

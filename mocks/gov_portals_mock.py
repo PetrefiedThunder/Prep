@@ -9,7 +9,6 @@ Run with: python mocks/gov_portals_mock.py
 
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
@@ -30,8 +29,8 @@ class PermitApplication(BaseModel):
 class PermitStatus(BaseModel):
     permit_number: str
     status: str
-    issued_date: Optional[str]
-    expiration_date: Optional[str]
+    issued_date: str | None
+    expiration_date: str | None
     conditions: list[str]
 
 
@@ -229,6 +228,7 @@ async def sf_debug_reset():
 
 if __name__ == "__main__":
     import asyncio
+
     import uvicorn
 
     print("🏛️  Starting Mock Government Portals...")

@@ -85,7 +85,7 @@ class SchemaValidator:
             properties: Mapping[str, Any] = schema.get("properties", {})
             if schema.get("additionalProperties") is False:
                 allowed = set(properties.keys())
-                for key in value.keys():
+                for key in value:
                     if key not in allowed:
                         errors.append(self._format_error(path + (str(key),), "is not allowed"))
             for key, subschema in properties.items():

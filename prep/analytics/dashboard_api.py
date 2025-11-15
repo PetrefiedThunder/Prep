@@ -243,7 +243,7 @@ class AnalyticsDashboardService:
         cache_key = f"analytics:host:{host_id}:kitchens"
         cached = await self._get_cached_list(cache_key, KitchenPerformance)
         if cached:
-            return [item for item in cached]
+            return list(cached)
         await self._ensure_host(host_id)
         try:
             performances = await self._build_kitchen_performance(host_id)
@@ -304,7 +304,7 @@ class AnalyticsDashboardService:
         cache_key = "analytics:platform:regions"
         cached = await self._get_cached_list(cache_key, RegionPerformance)
         if cached:
-            return [item for item in cached]
+            return list(cached)
         try:
             regions = await self._build_region_performance()
         except SQLAlchemyError as exc:
@@ -915,7 +915,7 @@ class AnalyticsDashboardService:
             return []
         values = [point[1] for point in monthly_points]
         growth_rates = []
-        for previous, current in zip(values, values[1:]):
+        for previous, current in zip(values, values[1:], strict=False):
             if previous != 0:
                 growth_rates.append((current - previous) / previous)
         average_growth = (

@@ -19,10 +19,9 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.exc import SAWarning
 from sqlalchemy.ext.mutable import MutableDict, MutableList
 from sqlalchemy.orm import relationship
-
-from sqlalchemy.exc import SAWarning
 
 from prep.models import Base
 from prep.models.guid import GUID

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 from collections import Counter, defaultdict
 from collections.abc import Iterable
@@ -956,10 +957,8 @@ class AdvancedAnalyticsService:
             return None
 
     async def _persist_cache(self, key: str, value: Any) -> None:
-        try:
+        with contextlib.suppress(Exception):
             await self._redis.setex(key, self.CACHE_TTL_SECONDS, value.model_dump_json())
-        except Exception:
-            pass
 
     async def _notify(self, message: dict[str, Any]) -> None:
         try:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Mapping, MutableMapping
 from datetime import UTC, datetime
 from enum import Enum
@@ -87,16 +88,12 @@ class IntegrationStatus(BaseModel):
         status_payload: Mapping[str, Any] = event.payload
         auth = status_payload.get("auth_status") or status_payload.get("authStatus")
         if auth:
-            try:
+            with contextlib.suppress(ValueError):
                 self.auth_status = IntegrationAuthStatus(auth)
-            except ValueError:
-                pass
         health = status_payload.get("health")
         if health:
-            try:
+            with contextlib.suppress(ValueError):
                 self.health = IntegrationHealth(health)
-            except ValueError:
-                pass
         if "connected" in status_payload:
             self.connected = bool(status_payload["connected"])
         if "last_sync_at" in status_payload:
