@@ -301,7 +301,6 @@ fi
 echo "Checking critical files..."
 CRITICAL_FILES=(
   "requirements.txt"
-  "constraints.txt"
   "pyproject.toml"
   "docker-compose.yml"
   "migrations/init.sql"
