@@ -1015,7 +1015,9 @@ class PlatformService:
             raise PlatformError("Permit not found", status_code=404)
         return permit
 
-    async def get_business_readiness_v2(self, business_id: UUID) -> schemas.BusinessReadinessResponse:
+    async def get_business_readiness_v2(
+        self, business_id: UUID
+    ) -> schemas.BusinessReadinessResponse:
         business = await self._get_business_profile(business_id)
         readiness = await self._evaluate_business_readiness(business)
         await self._session.commit()

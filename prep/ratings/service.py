@@ -678,8 +678,7 @@ class RatingIntegrationService:
             source=provider,
             url=rating.url,
             phone=metadata.get("phone"),
-            address=list(metadata.get("address", []))
-            or [kitchen.city or "", kitchen.state or ""],
+            address=list(metadata.get("address", [])) or [kitchen.city or "", kitchen.state or ""],
             city=kitchen.city,
             state=kitchen.state,
             postal_code=metadata.get("postal_code"),
