@@ -27,5 +27,6 @@ module.exports = {
       },
     ],
     '@typescript-eslint/consistent-type-imports': 'error',
+    'import/no-unresolved': 'off', // TypeScript handles this
   },
 };
