@@ -282,10 +282,7 @@ class RequirementNormalizer:
             return None, "unknown"
 
         amount = fee_data.get("amount")
-        if isinstance(amount, (int, float)):
-            amount = float(amount)
-        else:
-            amount = None
+        amount = float(amount) if isinstance(amount, (int, float)) else None
 
         schedule = fee_data.get("frequency", fee_data.get("schedule", "unknown"))
 

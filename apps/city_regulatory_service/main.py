@@ -315,7 +315,7 @@ async def list_requirements(
             CityAgency,
             CityRequirement.agency_id == CityAgency.id,
         )
-        .filter(CityRequirement.is_active == True)
+        .filter(CityRequirement.is_active)
     )
 
     if jurisdiction:
@@ -378,7 +378,7 @@ async def query_compliance_requirements(
         )
         .filter(
             CityRequirement.jurisdiction_id == jurisdiction.id,
-            CityRequirement.is_active == True,
+            CityRequirement.is_active,
         )
     )
 

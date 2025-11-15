@@ -24,17 +24,29 @@ REQUIRED_MODULES: Iterable[str] = (
 
 # Optional router modules (from api/index.py OPTIONAL_ROUTERS)
 OPTIONAL_ROUTER_MODULES: Iterable[str] = (
-    "api.routes.city_fees",
-    "api.routes.diff",
     "api.city.requirements",
+    "api.routes.city_fees",
     "api.routes.debug",
+    "api.routes.diff",
     "api.webhooks.square_kds",
+    "prep.analytics.advanced_api",
+    "prep.analytics.api",
     "prep.analytics.dashboard_api",
     "prep.analytics.host_metrics_api",
+    "prep.cities.api",
+    "prep.deliveries.api",
+    "prep.integrations.api",
+    "prep.kitchen_cam.api",
+    "prep.logistics.api",
     "prep.matching.api",
+    "prep.monitoring.api",
+    "prep.orders.api",
     "prep.payments.api",
+    "prep.pos.api",
     "prep.ratings.api",
     "prep.reviews.api",
+    "prep.space_optimizer.api",
+    "prep.test_data.api",
     "prep.verification_tasks.api",
 )
 

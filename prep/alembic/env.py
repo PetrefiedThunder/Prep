@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from prep.models.db import get_db_url
-from prep.models.orm import Base
+# Add project root to Python path to allow imports
+project_root = Path(__file__).resolve().parents[2]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from prep.models.db import get_db_url  # noqa: E402
+from prep.models.orm import Base  # noqa: E402
 
 
 def _configure_sqlalchemy_url(cfg) -> None:

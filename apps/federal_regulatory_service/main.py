@@ -610,7 +610,7 @@ async def match_certifiers(request: MatchRequest) -> MatchResponse:
 
         # Collect CFR references
         cfr_references = list(
-            set(s.cfr_title_part_section for s in matched_scopes if s.cfr_title_part_section)
+            {s.cfr_title_part_section for s in matched_scopes if s.cfr_title_part_section}
         )
 
         return MatchResponse(
