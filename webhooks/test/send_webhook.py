@@ -86,37 +86,6 @@ def load_payload(path: str | None, event_type: str) -> dict[str, Any]:
     return payload
 
 
-def main() -> int:
-    args = parse_args()
-
-    if not args.secret:
-        print(
-            "Webhook secret must be provided via --secret or PREP_WEBHOOK_SECRET", file=sys.stderr
-        )
-        return 1
-
-    payload = load_payload(args.payload, args.event)
-    body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-
-    timestamp = str(args.timestamp or int(time.time()))
-    signature = compute_signature(args.secret, timestamp, body)
-    signature_header = f"t={timestamp},v1={signature}"
-
-    url = args.url.rstrip("/") + EVENT_PATHS[args.event]
-    response = requests.post(
-        url,
-        data=body,
-        headers={
-            "content-type": "application/json",
-            SIGNATURE_HEADER: signature_header,
-        },
-        timeout=10,
-    )
-    print(f"Response status: {response.status_code}")
-    print(response.text)
-    return 0 if response.ok else 2
-
-
 from http import HTTPStatus
 
 import httpx
