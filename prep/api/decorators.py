@@ -2,11 +2,11 @@
 
 import functools
 import logging
+from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Optional
 
-from fastapi import Header, HTTPException, Request, Response
+from fastapi import HTTPException, Request, Response
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -25,11 +25,11 @@ class APIMetadata(BaseModel):
 
     stability: APIStability
     version: str
-    since: Optional[str] = None
+    since: str | None = None
     deprecated: bool = False
-    sunset_date: Optional[str] = None
-    service: Optional[str] = None
-    feature: Optional[str] = None
+    sunset_date: str | None = None
+    service: str | None = None
+    feature: str | None = None
 
 
 # Global registry of API endpoints with their metadata
@@ -40,7 +40,7 @@ def public_api(
     version: str,
     since: str,
     deprecated: bool = False,
-    sunset_date: Optional[str] = None,
+    sunset_date: str | None = None,
 ):
     """
     Decorator for Public APIs.
@@ -74,15 +74,13 @@ def public_api(
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
             # Add API metadata headers to response
-            response: Optional[Response] = kwargs.get("response")
+            response: Response | None = kwargs.get("response")
 
             # Check if API is sunsetted
             if sunset_date:
                 sunset_dt = datetime.fromisoformat(sunset_date)
                 if datetime.now() >= sunset_dt:
-                    logger.warning(
-                        f"Sunsetted API called: {endpoint_name} (sunset: {sunset_date})"
-                    )
+                    logger.warning(f"Sunsetted API called: {endpoint_name} (sunset: {sunset_date})")
                     raise HTTPException(
                         status_code=410,
                         detail={
@@ -93,7 +91,11 @@ def public_api(
                     )
 
             # Execute the endpoint
-            result = await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
+            result = (
+                await func(*args, **kwargs)
+                if asyncio.iscoroutinefunction(func)
+                else func(*args, **kwargs)
+            )
 
             # Add headers if response object is available
             if response:
@@ -103,7 +105,9 @@ def public_api(
                     response.headers["X-API-Deprecated"] = "true"
                     if sunset_date:
                         response.headers["X-API-Sunset"] = sunset_date
-                        response.headers["Link"] = f'</docs/migrations/{version}>; rel="deprecation"'
+                        response.headers["Link"] = (
+                            f'</docs/migrations/{version}>; rel="deprecation"'
+                        )
 
             # Log usage for metrics
             logger.info(
@@ -153,10 +157,14 @@ def internal_service_api(service: str, version: str = "v1"):
 
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            response: Optional[Response] = kwargs.get("response")
+            response: Response | None = kwargs.get("response")
 
             # Execute the endpoint
-            result = await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
+            result = (
+                await func(*args, **kwargs)
+                if asyncio.iscoroutinefunction(func)
+                else func(*args, **kwargs)
+            )
 
             # Add headers
             if response:
@@ -211,16 +219,14 @@ def experimental_api(feature: str):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
             # Require explicit opt-in via header
-            request: Optional[Request] = kwargs.get("request")
+            request: Request | None = kwargs.get("request")
             x_experimental_api = None
 
             if request:
                 x_experimental_api = request.headers.get("X-Experimental-API")
 
             if x_experimental_api != "true":
-                logger.warning(
-                    f"Experimental API called without opt-in header: {endpoint_name}"
-                )
+                logger.warning(f"Experimental API called without opt-in header: {endpoint_name}")
                 raise HTTPException(
                     status_code=400,
                     detail={
@@ -230,15 +236,21 @@ def experimental_api(feature: str):
                     },
                 )
 
-            response: Optional[Response] = kwargs.get("response")
+            response: Response | None = kwargs.get("response")
 
             # Execute the endpoint
-            result = await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
+            result = (
+                await func(*args, **kwargs)
+                if asyncio.iscoroutinefunction(func)
+                else func(*args, **kwargs)
+            )
 
             # Add warning headers
             if response:
                 response.headers["X-API-Stability"] = "experimental"
-                response.headers["X-API-Warning"] = "This API may change or be removed without notice"
+                response.headers["X-API-Warning"] = (
+                    "This API may change or be removed without notice"
+                )
                 response.headers["X-API-Feature"] = feature
 
             # Log usage
@@ -263,7 +275,7 @@ def get_api_registry() -> dict[str, APIMetadata]:
     return API_REGISTRY
 
 
-def get_api_metadata(func: Callable) -> Optional[APIMetadata]:
+def get_api_metadata(func: Callable) -> APIMetadata | None:
     """Get API metadata from a decorated function."""
     return getattr(func, "_api_metadata", None)
 

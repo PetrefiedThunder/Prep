@@ -18,19 +18,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prep.auth.providers import IdentityProfile
 from prep.cache import RedisProtocol
 from prep.models.orm import (
+    APIKey,
     Booking,
     BusinessPermit,
     BusinessProfile,
+    BusinessReadinessSnapshot,
+    CheckoutPayment,
+    CheckoutPaymentStatus,
     ComplianceDocument,
+    DocumentOCRStatus,
     DocumentProcessingStatus,
     DocumentUpload,
+    DocumentUploadStatus,
+    IdentityProvider,
+    IdentityProviderType,
     Kitchen,
     PaymentRecord,
     PaymentStatus,
     Permit,
     PermitStatus,
+    RefreshToken,
     Review,
     User,
+    UserIdentity,
     UserRole,
 )
 from prep.platform import schemas
@@ -314,9 +324,8 @@ class PlatformService:
         await self._session.refresh(user)
 
         return user, token, new_refresh_token, expires_at
-        return user, token, expires_at, refresh_token, refresh_expires
 
-    async def refresh_access_token(
+    async def refresh_access_token_v2(
         self,
         refresh_token: str,
         *,
@@ -960,7 +969,7 @@ class PlatformService:
         )
         return document
 
-    async def create_document_upload(
+    async def create_document_upload_v2(
         self, payload: schemas.DocumentUploadCreateRequest
     ) -> DocumentUpload:
         business = await self._get_business_profile(payload.business_id)
@@ -1000,13 +1009,15 @@ class PlatformService:
 
         return upload
 
-    async def get_permit(self, permit_id: UUID) -> Permit:
+    async def get_permit_v2(self, permit_id: UUID) -> Permit:
         permit = await self._session.get(Permit, permit_id)
         if permit is None:
             raise PlatformError("Permit not found", status_code=404)
         return permit
 
-    async def get_business_readiness(self, business_id: UUID) -> schemas.BusinessReadinessResponse:
+    async def get_business_readiness_v2(
+        self, business_id: UUID
+    ) -> schemas.BusinessReadinessResponse:
         business = await self._get_business_profile(business_id)
         readiness = await self._evaluate_business_readiness(business)
         await self._session.commit()
@@ -1129,7 +1140,7 @@ class PlatformService:
         await self._session.refresh(api_key)
         return api_key, raw_key
 
-    async def rotate_api_key(self, user_id: UUID, key_id: UUID) -> tuple[APIKey, str]:
+    async def rotate_api_key_v2(self, user_id: UUID, key_id: UUID) -> tuple[APIKey, str]:
         api_key = await self._session.get(APIKey, key_id)
         if api_key is None or api_key.user_id != user_id:
             raise PlatformError("API key not found", status_code=404)

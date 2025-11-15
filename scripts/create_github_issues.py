@@ -12,21 +12,21 @@ Requirements:
     pip install requests
 """
 
+import argparse
 import os
 import sys
-import json
-import argparse
-import requests
-from typing import Dict, List, Optional
 from dataclasses import dataclass
+
+import requests
 
 
 @dataclass
 class Issue:
     """Represents a GitHub issue"""
+
     title: str
     body: str
-    labels: List[str]
+    labels: list[str]
     milestone: str
     epic_id: str
     task_id: str
@@ -41,7 +41,7 @@ class GitHubIssueCreator:
         self.base_url = f"https://api.github.com/repos/{repo}"
         self.headers = {
             "Authorization": f"token {token}",
-            "Accept": "application/vnd.github.v3+json"
+            "Accept": "application/vnd.github.v3+json",
         }
         self.milestones = {}
         self.labels = {}
@@ -52,23 +52,23 @@ class GitHubIssueCreator:
             {
                 "title": "Sprint 1: Golden Path + System Clarity",
                 "description": "One reproducible end-to-end flow and clear system documentation",
-                "state": "open"
+                "state": "open",
             },
             {
                 "title": "Sprint 2: Jurisdiction Clarity + MVP",
                 "description": "Explicit city-by-city regulatory coverage and MVP definition",
-                "state": "open"
+                "state": "open",
             },
             {
                 "title": "Sprint 3: Data Model, Payments, Compliance Engine",
                 "description": "Data model clarity, payment architecture, and compliance engine improvements",
-                "state": "open"
+                "state": "open",
             },
             {
                 "title": "Sprint 4: Observability + Cleanup",
                 "description": "SLOs, monitoring, and repository hygiene",
-                "state": "open"
-            }
+                "state": "open",
+            },
         ]
 
         for milestone_data in milestones_data:
@@ -76,7 +76,7 @@ class GitHubIssueCreator:
             if milestone:
                 self.milestones[milestone_data["title"]] = milestone
 
-    def _create_milestone(self, data: Dict) -> Optional[Dict]:
+    def _create_milestone(self, data: dict) -> dict | None:
         """Create a single milestone"""
         # Check if milestone already exists
         existing = self._get_existing_milestone(data["title"])
@@ -95,7 +95,7 @@ class GitHubIssueCreator:
             print(f"✗ Failed to create milestone: {data['title']} - {response.text}")
             return None
 
-    def _get_existing_milestone(self, title: str) -> Optional[Dict]:
+    def _get_existing_milestone(self, title: str) -> dict | None:
         """Check if milestone already exists"""
         url = f"{self.base_url}/milestones"
         response = requests.get(url, headers=self.headers, params={"state": "all"})
@@ -111,14 +111,38 @@ class GitHubIssueCreator:
         """Create labels for epics and sprints"""
         labels_data = [
             {"name": "epic-a-golden-path", "color": "0E8A16", "description": "Golden Path Demo"},
-            {"name": "epic-b-system-map", "color": "0E8A16", "description": "System Map & Service Classification"},
-            {"name": "epic-c-jurisdiction", "color": "0E8A16", "description": "Jurisdiction Clarity"},
+            {
+                "name": "epic-b-system-map",
+                "color": "0E8A16",
+                "description": "System Map & Service Classification",
+            },
+            {
+                "name": "epic-c-jurisdiction",
+                "color": "0E8A16",
+                "description": "Jurisdiction Clarity",
+            },
             {"name": "epic-d-mvp", "color": "0E8A16", "description": "MVP Definition"},
-            {"name": "epic-e-data-model", "color": "0E8A16", "description": "Data Model & ERD Clarity"},
+            {
+                "name": "epic-e-data-model",
+                "color": "0E8A16",
+                "description": "Data Model & ERD Clarity",
+            },
             {"name": "epic-g-payments", "color": "0E8A16", "description": "Payments Architecture"},
-            {"name": "epic-h-compliance", "color": "0E8A16", "description": "Compliance Engine Architecture"},
-            {"name": "epic-i-observability", "color": "0E8A16", "description": "Observability & SLOs"},
-            {"name": "epic-j-cleanup", "color": "0E8A16", "description": "Cleanup & Repository Hygiene"},
+            {
+                "name": "epic-h-compliance",
+                "color": "0E8A16",
+                "description": "Compliance Engine Architecture",
+            },
+            {
+                "name": "epic-i-observability",
+                "color": "0E8A16",
+                "description": "Observability & SLOs",
+            },
+            {
+                "name": "epic-j-cleanup",
+                "color": "0E8A16",
+                "description": "Cleanup & Repository Hygiene",
+            },
             {"name": "sprint-1", "color": "D4C5F9", "description": "Sprint 1"},
             {"name": "sprint-2", "color": "D4C5F9", "description": "Sprint 2"},
             {"name": "sprint-3", "color": "D4C5F9", "description": "Sprint 3"},
@@ -133,7 +157,7 @@ class GitHubIssueCreator:
             if label:
                 self.labels[label_data["name"]] = label
 
-    def _create_label(self, data: Dict) -> Optional[Dict]:
+    def _create_label(self, data: dict) -> dict | None:
         """Create a single label"""
         # Check if label already exists
         existing = self._get_existing_label(data["name"])
@@ -152,7 +176,7 @@ class GitHubIssueCreator:
             print(f"✗ Failed to create label: {data['name']} - {response.text}")
             return None
 
-    def _get_existing_label(self, name: str) -> Optional[Dict]:
+    def _get_existing_label(self, name: str) -> dict | None:
         """Check if label already exists"""
         url = f"{self.base_url}/labels/{name}"
         response = requests.get(url, headers=self.headers)
@@ -161,7 +185,7 @@ class GitHubIssueCreator:
             return response.json()
         return None
 
-    def create_issue(self, issue: Issue) -> Optional[Dict]:
+    def create_issue(self, issue: Issue) -> dict | None:
         """Create a single GitHub issue"""
         milestone_number = None
         if issue.milestone in self.milestones:
@@ -171,7 +195,7 @@ class GitHubIssueCreator:
             "title": issue.title,
             "body": issue.body,
             "labels": issue.labels,
-            "milestone": milestone_number
+            "milestone": milestone_number,
         }
 
         url = f"{self.base_url}/issues"
@@ -185,7 +209,7 @@ class GitHubIssueCreator:
             print(f"✗ Failed to create issue: {issue.title} - {response.text}")
             return None
 
-    def create_all_issues(self, issues: List[Issue], dry_run: bool = True) -> None:
+    def create_all_issues(self, issues: list[Issue], dry_run: bool = True) -> None:
         """Create all issues"""
         if dry_run:
             print("\n=== DRY RUN MODE ===")
@@ -208,21 +232,22 @@ class GitHubIssueCreator:
             else:
                 failed += 1
 
-        print(f"\n=== SUMMARY ===")
+        print("\n=== SUMMARY ===")
         print(f"Created: {created}")
         print(f"Failed: {failed}")
         print(f"Total: {len(issues)}")
 
 
-def get_all_issues() -> List[Issue]:
+def get_all_issues() -> list[Issue]:
     """Define all issues from the sprint plan"""
     issues = []
 
     # Sprint 1 - Epic A: Golden Path Demo
-    issues.extend([
-        Issue(
-            title="Create Golden Path Documentation",
-            body="""Create comprehensive documentation for the Golden Path demo flow that demonstrates the complete LA Vendor → Compliance → Booking scenario.
+    issues.extend(
+        [
+            Issue(
+                title="Create Golden Path Documentation",
+                body="""Create comprehensive documentation for the Golden Path demo flow that demonstrates the complete LA Vendor → Compliance → Booking scenario.
 
 **Acceptance Criteria:**
 - [ ] Create docs/GOLDEN_PATH_DEMO.md
@@ -234,14 +259,14 @@ def get_all_issues() -> List[Issue]:
 **Epic Context:**
 Part of Epic A: Golden Path Demo - establishing one reproducible, end-to-end working flow.
 """,
-            labels=["epic-a-golden-path", "sprint-1", "documentation"],
-            milestone="Sprint 1: Golden Path + System Clarity",
-            epic_id="A",
-            task_id="A1"
-        ),
-        Issue(
-            title="Create Golden Path Fixtures",
-            body="""Create sample data fixtures to support the Golden Path demo, enabling consistent and reproducible testing of the LA vendor flow.
+                labels=["epic-a-golden-path", "sprint-1", "documentation"],
+                milestone="Sprint 1: Golden Path + System Clarity",
+                epic_id="A",
+                task_id="A1",
+            ),
+            Issue(
+                title="Create Golden Path Fixtures",
+                body="""Create sample data fixtures to support the Golden Path demo, enabling consistent and reproducible testing of the LA vendor flow.
 
 **Acceptance Criteria:**
 - [ ] Create vendor license sample data
@@ -253,14 +278,14 @@ Part of Epic A: Golden Path Demo - establishing one reproducible, end-to-end wor
 **Epic Context:**
 Part of Epic A: Golden Path Demo - providing test data for the end-to-end flow.
 """,
-            labels=["epic-a-golden-path", "sprint-1", "testing"],
-            milestone="Sprint 1: Golden Path + System Clarity",
-            epic_id="A",
-            task_id="A2"
-        ),
-        Issue(
-            title="Fix Service Boot Consistency Issues",
-            body="""Ensure all services boot consistently and reliably during docker compose up, with proper environment variable configuration.
+                labels=["epic-a-golden-path", "sprint-1", "testing"],
+                milestone="Sprint 1: Golden Path + System Clarity",
+                epic_id="A",
+                task_id="A2",
+            ),
+            Issue(
+                title="Fix Service Boot Consistency Issues",
+                body="""Ensure all services boot consistently and reliably during docker compose up, with proper environment variable configuration.
 
 **Acceptance Criteria:**
 - [ ] Verify all required env vars exist across services
@@ -272,14 +297,14 @@ Part of Epic A: Golden Path Demo - providing test data for the end-to-end flow.
 **Epic Context:**
 Part of Epic A: Golden Path Demo - ensuring reliable service startup for demos.
 """,
-            labels=["epic-a-golden-path", "sprint-1", "infrastructure"],
-            milestone="Sprint 1: Golden Path + System Clarity",
-            epic_id="A",
-            task_id="A3"
-        ),
-        Issue(
-            title="Add Observability for Golden Path Demo",
-            body="""Implement observability and monitoring for the Golden Path flow to track events and validate the compliance → booking pipeline.
+                labels=["epic-a-golden-path", "sprint-1", "infrastructure"],
+                milestone="Sprint 1: Golden Path + System Clarity",
+                epic_id="A",
+                task_id="A3",
+            ),
+            Issue(
+                title="Add Observability for Golden Path Demo",
+                body="""Implement observability and monitoring for the Golden Path flow to track events and validate the compliance → booking pipeline.
 
 **Acceptance Criteria:**
 - [ ] Add Grafana dashboard for Golden Path event flow
@@ -291,18 +316,20 @@ Part of Epic A: Golden Path Demo - ensuring reliable service startup for demos.
 **Epic Context:**
 Part of Epic A: Golden Path Demo - providing visibility into the end-to-end flow.
 """,
-            labels=["epic-a-golden-path", "sprint-1", "infrastructure", "testing"],
-            milestone="Sprint 1: Golden Path + System Clarity",
-            epic_id="A",
-            task_id="A4"
-        )
-    ])
+                labels=["epic-a-golden-path", "sprint-1", "infrastructure", "testing"],
+                milestone="Sprint 1: Golden Path + System Clarity",
+                epic_id="A",
+                task_id="A4",
+            ),
+        ]
+    )
 
     # Sprint 1 - Epic B: System Map & Service Classification
-    issues.extend([
-        Issue(
-            title="Create System Map Documentation",
-            body="""Create a comprehensive system map that documents all services, their purposes, owners, and current status.
+    issues.extend(
+        [
+            Issue(
+                title="Create System Map Documentation",
+                body="""Create a comprehensive system map that documents all services, their purposes, owners, and current status.
 
 **Acceptance Criteria:**
 - [ ] List all services with purpose and owners
@@ -314,14 +341,14 @@ Part of Epic A: Golden Path Demo - providing visibility into the end-to-end flow
 **Epic Context:**
 Part of Epic B: System Map & Service Classification - making the repo understandable.
 """,
-            labels=["epic-b-system-map", "sprint-1", "documentation"],
-            milestone="Sprint 1: Golden Path + System Clarity",
-            epic_id="B",
-            task_id="B1"
-        ),
-        Issue(
-            title="Implement Service Status Classification",
-            body="""Add status labels to all services and reorganize the repository structure based on service maturity.
+                labels=["epic-b-system-map", "sprint-1", "documentation"],
+                milestone="Sprint 1: Golden Path + System Clarity",
+                epic_id="B",
+                task_id="B1",
+            ),
+            Issue(
+                title="Implement Service Status Classification",
+                body="""Add status labels to all services and reorganize the repository structure based on service maturity.
 
 **Acceptance Criteria:**
 - [ ] Add #Status to every service README
@@ -333,18 +360,20 @@ Part of Epic B: System Map & Service Classification - making the repo understand
 **Epic Context:**
 Part of Epic B: System Map & Service Classification - clarifying service maturity.
 """,
-            labels=["epic-b-system-map", "sprint-1", "documentation"],
-            milestone="Sprint 1: Golden Path + System Clarity",
-            epic_id="B",
-            task_id="B2"
-        )
-    ])
+                labels=["epic-b-system-map", "sprint-1", "documentation"],
+                milestone="Sprint 1: Golden Path + System Clarity",
+                epic_id="B",
+                task_id="B2",
+            ),
+        ]
+    )
 
     # Sprint 2 - Epic C: Jurisdiction Clarity
-    issues.extend([
-        Issue(
-            title="Document Jurisdiction Coverage Status",
-            body="""Create comprehensive documentation of regulatory coverage for each jurisdiction (city).
+    issues.extend(
+        [
+            Issue(
+                title="Document Jurisdiction Coverage Status",
+                body="""Create comprehensive documentation of regulatory coverage for each jurisdiction (city).
 
 **Acceptance Criteria:**
 - [ ] List cities with coverage completeness
@@ -356,14 +385,14 @@ Part of Epic B: System Map & Service Classification - clarifying service maturit
 **Epic Context:**
 Part of Epic C: Jurisdiction Clarity - making regulatory coverage explicit.
 """,
-            labels=["epic-c-jurisdiction", "sprint-2", "documentation"],
-            milestone="Sprint 2: Jurisdiction Clarity + MVP",
-            epic_id="C",
-            task_id="C1"
-        ),
-        Issue(
-            title="Implement Per-Jurisdiction Regression Tests",
-            body="""Create comprehensive regression test suites for LA and SF jurisdictions.
+                labels=["epic-c-jurisdiction", "sprint-2", "documentation"],
+                milestone="Sprint 2: Jurisdiction Clarity + MVP",
+                epic_id="C",
+                task_id="C1",
+            ),
+            Issue(
+                title="Implement Per-Jurisdiction Regression Tests",
+                body="""Create comprehensive regression test suites for LA and SF jurisdictions.
 
 **Acceptance Criteria:**
 - [ ] Add LA compliance tests
@@ -375,14 +404,14 @@ Part of Epic C: Jurisdiction Clarity - making regulatory coverage explicit.
 **Epic Context:**
 Part of Epic C: Jurisdiction Clarity - validating regulatory logic per city.
 """,
-            labels=["epic-c-jurisdiction", "sprint-2", "testing"],
-            milestone="Sprint 2: Jurisdiction Clarity + MVP",
-            epic_id="C",
-            task_id="C2"
-        ),
-        Issue(
-            title="Define and Implement MVP Jurisdiction Scope",
-            body="""Clearly define the MVP jurisdiction scope (LA + SF) and adjust infrastructure accordingly.
+                labels=["epic-c-jurisdiction", "sprint-2", "testing"],
+                milestone="Sprint 2: Jurisdiction Clarity + MVP",
+                epic_id="C",
+                task_id="C2",
+            ),
+            Issue(
+                title="Define and Implement MVP Jurisdiction Scope",
+                body="""Clearly define the MVP jurisdiction scope (LA + SF) and adjust infrastructure accordingly.
 
 **Acceptance Criteria:**
 - [ ] Define MVP = LA + SF
@@ -394,18 +423,20 @@ Part of Epic C: Jurisdiction Clarity - validating regulatory logic per city.
 **Epic Context:**
 Part of Epic C: Jurisdiction Clarity - focusing on MVP jurisdictions.
 """,
-            labels=["epic-c-jurisdiction", "sprint-2", "documentation"],
-            milestone="Sprint 2: Jurisdiction Clarity + MVP",
-            epic_id="C",
-            task_id="C3"
-        )
-    ])
+                labels=["epic-c-jurisdiction", "sprint-2", "documentation"],
+                milestone="Sprint 2: Jurisdiction Clarity + MVP",
+                epic_id="C",
+                task_id="C3",
+            ),
+        ]
+    )
 
     # Sprint 2 - Epic D: MVP Definition
-    issues.extend([
-        Issue(
-            title="Document MVP Scope and Boundaries",
-            body="""Create clear documentation defining what is included, excluded, and planned for future in the MVP.
+    issues.extend(
+        [
+            Issue(
+                title="Document MVP Scope and Boundaries",
+                body="""Create clear documentation defining what is included, excluded, and planned for future in the MVP.
 
 **Acceptance Criteria:**
 - [ ] Define Included in MVP
@@ -417,14 +448,14 @@ Part of Epic C: Jurisdiction Clarity - focusing on MVP jurisdictions.
 **Epic Context:**
 Part of Epic D: MVP Definition - establishing clear product boundaries.
 """,
-            labels=["epic-d-mvp", "sprint-2", "documentation"],
-            milestone="Sprint 2: Jurisdiction Clarity + MVP",
-            epic_id="D",
-            task_id="D1"
-        ),
-        Issue(
-            title="Reorganize Repository for MVP Focus",
-            body="""Restructure the repository to clearly separate MVP services from experimental/future work.
+                labels=["epic-d-mvp", "sprint-2", "documentation"],
+                milestone="Sprint 2: Jurisdiction Clarity + MVP",
+                epic_id="D",
+                task_id="D1",
+            ),
+            Issue(
+                title="Reorganize Repository for MVP Focus",
+                body="""Restructure the repository to clearly separate MVP services from experimental/future work.
 
 **Acceptance Criteria:**
 - [ ] Move non-MVP services to /experimental/
@@ -436,18 +467,20 @@ Part of Epic D: MVP Definition - establishing clear product boundaries.
 **Epic Context:**
 Part of Epic D: MVP Definition - physically organizing code to match MVP scope.
 """,
-            labels=["epic-d-mvp", "sprint-2", "infrastructure"],
-            milestone="Sprint 2: Jurisdiction Clarity + MVP",
-            epic_id="D",
-            task_id="D2"
-        )
-    ])
+                labels=["epic-d-mvp", "sprint-2", "infrastructure"],
+                milestone="Sprint 2: Jurisdiction Clarity + MVP",
+                epic_id="D",
+                task_id="D2",
+            ),
+        ]
+    )
 
     # Sprint 3 - Epic E: Data Model & ERD Clarity
-    issues.extend([
-        Issue(
-            title="Create ERD Documentation",
-            body="""Generate comprehensive Entity Relationship Diagrams for all core entities in the system.
+    issues.extend(
+        [
+            Issue(
+                title="Create ERD Documentation",
+                body="""Generate comprehensive Entity Relationship Diagrams for all core entities in the system.
 
 **Acceptance Criteria:**
 - [ ] Create ERD diagrams for core entities
@@ -459,14 +492,14 @@ Part of Epic D: MVP Definition - physically organizing code to match MVP scope.
 **Epic Context:**
 Part of Epic E: Data Model & ERD Clarity - visualizing data relationships.
 """,
-            labels=["epic-e-data-model", "sprint-3", "documentation"],
-            milestone="Sprint 3: Data Model, Payments, Compliance Engine",
-            epic_id="E",
-            task_id="E1"
-        ),
-        Issue(
-            title="Document Complete Data Model",
-            body="""Create comprehensive documentation of the data model, including entities, relationships, and consistency rules.
+                labels=["epic-e-data-model", "sprint-3", "documentation"],
+                milestone="Sprint 3: Data Model, Payments, Compliance Engine",
+                epic_id="E",
+                task_id="E1",
+            ),
+            Issue(
+                title="Document Complete Data Model",
+                body="""Create comprehensive documentation of the data model, including entities, relationships, and consistency rules.
 
 **Acceptance Criteria:**
 - [ ] Document each core entity
@@ -478,14 +511,14 @@ Part of Epic E: Data Model & ERD Clarity - visualizing data relationships.
 **Epic Context:**
 Part of Epic E: Data Model & ERD Clarity - documenting data structures.
 """,
-            labels=["epic-e-data-model", "sprint-3", "documentation"],
-            milestone="Sprint 3: Data Model, Payments, Compliance Engine",
-            epic_id="E",
-            task_id="E2"
-        ),
-        Issue(
-            title="Implement Data Model Consistency Tests",
-            body="""Create automated tests to validate data model consistency across services and languages.
+                labels=["epic-e-data-model", "sprint-3", "documentation"],
+                milestone="Sprint 3: Data Model, Payments, Compliance Engine",
+                epic_id="E",
+                task_id="E2",
+            ),
+            Issue(
+                title="Implement Data Model Consistency Tests",
+                body="""Create automated tests to validate data model consistency across services and languages.
 
 **Acceptance Criteria:**
 - [ ] Validate Postgres schema matches entity model
@@ -497,18 +530,20 @@ Part of Epic E: Data Model & ERD Clarity - documenting data structures.
 **Epic Context:**
 Part of Epic E: Data Model & ERD Clarity - ensuring model consistency.
 """,
-            labels=["epic-e-data-model", "sprint-3", "testing"],
-            milestone="Sprint 3: Data Model, Payments, Compliance Engine",
-            epic_id="E",
-            task_id="E3"
-        )
-    ])
+                labels=["epic-e-data-model", "sprint-3", "testing"],
+                milestone="Sprint 3: Data Model, Payments, Compliance Engine",
+                epic_id="E",
+                task_id="E3",
+            ),
+        ]
+    )
 
     # Sprint 3 - Epic G: Payments Architecture
-    issues.extend([
-        Issue(
-            title="Document Payments Architecture",
-            body="""Create comprehensive documentation of the payments architecture, including Stripe Connect integration and fee structures.
+    issues.extend(
+        [
+            Issue(
+                title="Document Payments Architecture",
+                body="""Create comprehensive documentation of the payments architecture, including Stripe Connect integration and fee structures.
 
 **Acceptance Criteria:**
 - [ ] Document Stripe Connect workflow
@@ -520,14 +555,14 @@ Part of Epic E: Data Model & ERD Clarity - ensuring model consistency.
 **Epic Context:**
 Part of Epic G: Payments Architecture - clarifying payment flows.
 """,
-            labels=["epic-g-payments", "sprint-3", "documentation"],
-            milestone="Sprint 3: Data Model, Payments, Compliance Engine",
-            epic_id="G",
-            task_id="G1"
-        ),
-        Issue(
-            title="Implement Payments and Fees Testing",
-            body="""Create comprehensive test suite for payment calculations, fees, and ledger operations.
+                labels=["epic-g-payments", "sprint-3", "documentation"],
+                milestone="Sprint 3: Data Model, Payments, Compliance Engine",
+                epic_id="G",
+                task_id="G1",
+            ),
+            Issue(
+                title="Implement Payments and Fees Testing",
+                body="""Create comprehensive test suite for payment calculations, fees, and ledger operations.
 
 **Acceptance Criteria:**
 - [ ] Add fee calculation tests
@@ -539,18 +574,20 @@ Part of Epic G: Payments Architecture - clarifying payment flows.
 **Epic Context:**
 Part of Epic G: Payments Architecture - validating payment logic.
 """,
-            labels=["epic-g-payments", "sprint-3", "testing"],
-            milestone="Sprint 3: Data Model, Payments, Compliance Engine",
-            epic_id="G",
-            task_id="G2"
-        )
-    ])
+                labels=["epic-g-payments", "sprint-3", "testing"],
+                milestone="Sprint 3: Data Model, Payments, Compliance Engine",
+                epic_id="G",
+                task_id="G2",
+            ),
+        ]
+    )
 
     # Sprint 3 - Epic H: Compliance Engine Architecture
-    issues.extend([
-        Issue(
-            title="Create Compliance Engine Documentation",
-            body="""Document the compliance engine architecture, rule formats, and decision logic.
+    issues.extend(
+        [
+            Issue(
+                title="Create Compliance Engine Documentation",
+                body="""Document the compliance engine architecture, rule formats, and decision logic.
 
 **Acceptance Criteria:**
 - [ ] Create regengine/README.md
@@ -562,14 +599,14 @@ Part of Epic G: Payments Architecture - validating payment logic.
 **Epic Context:**
 Part of Epic H: Compliance Engine Architecture - documenting regulatory logic.
 """,
-            labels=["epic-h-compliance", "sprint-3", "documentation"],
-            milestone="Sprint 3: Data Model, Payments, Compliance Engine",
-            epic_id="H",
-            task_id="H1"
-        ),
-        Issue(
-            title="Convert Hard-Coded Rules to Data-Driven Configuration",
-            body="""Refactor compliance engine to use data-driven rule configuration instead of hard-coded logic.
+                labels=["epic-h-compliance", "sprint-3", "documentation"],
+                milestone="Sprint 3: Data Model, Payments, Compliance Engine",
+                epic_id="H",
+                task_id="H1",
+            ),
+            Issue(
+                title="Convert Hard-Coded Rules to Data-Driven Configuration",
+                body="""Refactor compliance engine to use data-driven rule configuration instead of hard-coded logic.
 
 **Acceptance Criteria:**
 - [ ] Convert hard-coded rules to configs
@@ -581,14 +618,14 @@ Part of Epic H: Compliance Engine Architecture - documenting regulatory logic.
 **Epic Context:**
 Part of Epic H: Compliance Engine Architecture - making rules maintainable.
 """,
-            labels=["epic-h-compliance", "sprint-3", "infrastructure"],
-            milestone="Sprint 3: Data Model, Payments, Compliance Engine",
-            epic_id="H",
-            task_id="H2"
-        ),
-        Issue(
-            title="Implement Compliance Engine Test Matrix",
-            body="""Create comprehensive test matrix for compliance rules across all jurisdictions.
+                labels=["epic-h-compliance", "sprint-3", "infrastructure"],
+                milestone="Sprint 3: Data Model, Payments, Compliance Engine",
+                epic_id="H",
+                task_id="H2",
+            ),
+            Issue(
+                title="Implement Compliance Engine Test Matrix",
+                body="""Create comprehensive test matrix for compliance rules across all jurisdictions.
 
 **Acceptance Criteria:**
 - [ ] Build compliance test matrix
@@ -600,18 +637,20 @@ Part of Epic H: Compliance Engine Architecture - making rules maintainable.
 **Epic Context:**
 Part of Epic H: Compliance Engine Architecture - validating regulatory logic.
 """,
-            labels=["epic-h-compliance", "sprint-3", "testing"],
-            milestone="Sprint 3: Data Model, Payments, Compliance Engine",
-            epic_id="H",
-            task_id="H3"
-        )
-    ])
+                labels=["epic-h-compliance", "sprint-3", "testing"],
+                milestone="Sprint 3: Data Model, Payments, Compliance Engine",
+                epic_id="H",
+                task_id="H3",
+            ),
+        ]
+    )
 
     # Sprint 4 - Epic I: Observability & SLOs
-    issues.extend([
-        Issue(
-            title="Document SLOs for Core Services",
-            body="""Define and document Service Level Objectives for all core services.
+    issues.extend(
+        [
+            Issue(
+                title="Document SLOs for Core Services",
+                body="""Define and document Service Level Objectives for all core services.
 
 **Acceptance Criteria:**
 - [ ] Create docs/SLO.md
@@ -623,14 +662,14 @@ Part of Epic H: Compliance Engine Architecture - validating regulatory logic.
 **Epic Context:**
 Part of Epic I: Observability & SLOs - establishing reliability standards.
 """,
-            labels=["epic-i-observability", "sprint-4", "documentation"],
-            milestone="Sprint 4: Observability + Cleanup",
-            epic_id="I",
-            task_id="I1"
-        ),
-        Issue(
-            title="Create Grafana Dashboards for SLOs",
-            body="""Implement comprehensive Grafana dashboards to monitor SLOs and service health.
+                labels=["epic-i-observability", "sprint-4", "documentation"],
+                milestone="Sprint 4: Observability + Cleanup",
+                epic_id="I",
+                task_id="I1",
+            ),
+            Issue(
+                title="Create Grafana Dashboards for SLOs",
+                body="""Implement comprehensive Grafana dashboards to monitor SLOs and service health.
 
 **Acceptance Criteria:**
 - [ ] Add Grafana SLO dashboards
@@ -642,18 +681,20 @@ Part of Epic I: Observability & SLOs - establishing reliability standards.
 **Epic Context:**
 Part of Epic I: Observability & SLOs - monitoring service reliability.
 """,
-            labels=["epic-i-observability", "sprint-4", "infrastructure"],
-            milestone="Sprint 4: Observability + Cleanup",
-            epic_id="I",
-            task_id="I2"
-        )
-    ])
+                labels=["epic-i-observability", "sprint-4", "infrastructure"],
+                milestone="Sprint 4: Observability + Cleanup",
+                epic_id="I",
+                task_id="I2",
+            ),
+        ]
+    )
 
     # Sprint 4 - Epic J: Cleanup & Repository Hygiene
-    issues.extend([
-        Issue(
-            title="Clean Up Repository Structure",
-            body="""Clean up repository by removing outdated code, organizing prototypes, and establishing ownership.
+    issues.extend(
+        [
+            Issue(
+                title="Clean Up Repository Structure",
+                body="""Clean up repository by removing outdated code, organizing prototypes, and establishing ownership.
 
 **Acceptance Criteria:**
 - [ ] Move prototypes to /experimental/
@@ -665,14 +706,14 @@ Part of Epic I: Observability & SLOs - monitoring service reliability.
 **Epic Context:**
 Part of Epic J: Cleanup & Repository Hygiene - reducing technical debt.
 """,
-            labels=["epic-j-cleanup", "sprint-4", "infrastructure"],
-            milestone="Sprint 4: Observability + Cleanup",
-            epic_id="J",
-            task_id="J1"
-        ),
-        Issue(
-            title="Create Consistent Service Documentation",
-            body="""Ensure every service has consistent, comprehensive documentation following a standard template.
+                labels=["epic-j-cleanup", "sprint-4", "infrastructure"],
+                milestone="Sprint 4: Observability + Cleanup",
+                epic_id="J",
+                task_id="J1",
+            ),
+            Issue(
+                title="Create Consistent Service Documentation",
+                body="""Ensure every service has consistent, comprehensive documentation following a standard template.
 
 **Acceptance Criteria:**
 - [ ] Add README to every service
@@ -684,12 +725,13 @@ Part of Epic J: Cleanup & Repository Hygiene - reducing technical debt.
 **Epic Context:**
 Part of Epic J: Cleanup & Repository Hygiene - standardizing documentation.
 """,
-            labels=["epic-j-cleanup", "sprint-4", "documentation"],
-            milestone="Sprint 4: Observability + Cleanup",
-            epic_id="J",
-            task_id="J2"
-        )
-    ])
+                labels=["epic-j-cleanup", "sprint-4", "documentation"],
+                milestone="Sprint 4: Observability + Cleanup",
+                epic_id="J",
+                task_id="J2",
+            ),
+        ]
+    )
 
     return issues
 
@@ -697,7 +739,9 @@ Part of Epic J: Cleanup & Repository Hygiene - standardizing documentation.
 def main():
     parser = argparse.ArgumentParser(description="Create GitHub issues from sprint plan")
     parser.add_argument("--repo", required=True, help="GitHub repository (e.g., owner/repo)")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would be created without creating")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Show what would be created without creating"
+    )
     parser.add_argument("--execute", action="store_true", help="Actually create the issues")
     parser.add_argument("--milestones-only", action="store_true", help="Only create milestones")
     parser.add_argument("--labels-only", action="store_true", help="Only create labels")

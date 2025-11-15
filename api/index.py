@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 from collections.abc import Iterable
@@ -14,7 +15,6 @@ from libs.safe_import import safe_import
 from middleware.audit_logger import audit_logger
 from prep.auth.dependencies import enforce_allowlists, require_active_session
 from prep.auth.rbac import RBAC_ROLES, RBACMiddleware
-from prep.database import get_session_factory
 from prep.integrations.runtime import configure_integration_event_consumers
 from prep.settings import get_settings
 
@@ -116,16 +116,41 @@ def _build_router(*, include_full: bool = True) -> APIRouter:
     router = APIRouter(dependencies=[Depends(enforce_allowlists), Depends(require_active_session)])
 
     if include_full:
-        for module_path, attr in CORE_ROUTER_MODULES:
-            router.include_router(_load_router(module_path, attr))
-
-        for module_path, attr in OPTIONAL_ROUTER_MODULES:
-            candidate = _load_router(module_path, attr)
-            if candidate.routes:
-                router.include_router(candidate)
+        router.include_router(_load_router("prep.ledger.api", "ledger_router"))
+        router.include_router(_load_router("prep.auth.api", "auth_router"))
+        router.include_router(_load_router("prep.platform.api", "platform_router"))
+        router.include_router(_load_router("prep.mobile.api", "mobile_router"))
+        router.include_router(_load_router("prep.admin.api", "admin_router"))
+        router.include_router(_load_router("prep.analytics.api", "analytics_router"))
+        router.include_router(
+            _load_router("prep.analytics.host_metrics_api", "host_metrics_router")
+        )
+        router.include_router(
+            _load_router("prep.analytics.advanced_api", "advanced_analytics_router")
+        )
+        router.include_router(_load_router("prep.matching.api", "matching_router"))
+        router.include_router(_load_router("prep.reviews.api", "reviews_router"))
+        router.include_router(_load_router("prep.ratings.api", "ratings_router"))
+        router.include_router(_load_router("prep.cities.api", "cities_router"))
+        router.include_router(_load_router("prep.kitchen_cam.api", "kitchen_cam_router"))
+        router.include_router(_load_router("prep.payments.api", "payments_router"))
+        router.include_router(_load_router("prep.pos.api", "pos_router"))
+        router.include_router(_load_router("prep.test_data.api", "test_data_router"))
+        router.include_router(_load_router("prep.space_optimizer.api", "space_optimizer_router"))
+        router.include_router(_load_router("prep.integrations.api", "integrations_router"))
+        router.include_router(_load_router("prep.monitoring.api", "monitoring_router"))
+        router.include_router(
+            _load_router("prep.verification_tasks.api", "verification_tasks_router")
+        )
+        router.include_router(_load_router("api.webhooks.square_kds", "square_kds_router"))
+        router.include_router(_load_router("prep.logistics.api", "logistics_router"))
+        router.include_router(_load_router("prep.deliveries.api", "deliveries_router"))
+        router.include_router(_load_router("prep.orders.api", "orders_router"))
 
     router.include_router(_load_router("api.routes.debug", "debug_router"))
-    router.include_router(_load_router("api.routes.city_fees", "city_fees_router"), prefix="/city", tags=["city"])
+    router.include_router(
+        _load_router("api.routes.city_fees", "city_fees_router"), prefix="/city", tags=["city"]
+    )
     router.include_router(_load_router("api.routes.diff", "city_diff_router"))
     router.include_router(_load_router("api.city.requirements", "city_requirements_router"))
 
@@ -163,8 +188,8 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
         ),
     )
 
-    configure_fastapi_tracing(app, targeted_routes=DEFAULT_TARGETED_ROUTES)
-
+    # SECURITY FIX: Use specific origins instead of wildcard to prevent CSRF attacks
+    # Configure allowed origins from environment variable
     allowed_origins = os.getenv(
         "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000"
     ).split(",")
@@ -185,7 +210,9 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
     api_router = _build_router(include_full=include_full_router)
     app.include_router(api_router, dependencies=security_dependencies)
 
-    with suppress(RuntimeError):  # pragma: no cover - integrations may require external services
+    with contextlib.suppress(
+        RuntimeError
+    ):  # pragma: no cover - integrations may require external services
         configure_integration_event_consumers(app)
 
     @app.get("/healthz", include_in_schema=False)

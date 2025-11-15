@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, AlertTriangle, Info, CheckCircle } from 'lucide-react';
+import { X, AlertTriangle, Info, CheckCircle, Shield, Clock, MapPin, Star } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import ComplianceScoreCard from './ComplianceScoreCard';
-import { Shield, AlertTriangle, CheckCircle, Clock, MapPin, Star } from 'lucide-react';
 
 const ComplianceDashboard = ({ kitchenId }) => {
   const { token } = useAuth();
@@ -117,6 +116,21 @@ const ComplianceDashboard = ({ kitchenId }) => {
   useEffect(() => {
     if (toasts.length === 0) {
       return undefined;
+    }
+
+    const timers = toasts
+      .filter((toast) => !toast.persist)
+      .map((toast) =>
+        setTimeout(() => {
+          setToasts((current) => current.filter((item) => item.id !== toast.id));
+        }, toast.duration)
+      );
+
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+    };
+  }, [toasts]);
+
   const renderPlanStatus = () => {
     const status = complianceData?.subscription_status;
     if (!status) {
@@ -152,19 +166,7 @@ const ComplianceDashboard = ({ kitchenId }) => {
       default:
         return <Shield className="text-gray-500" size={24} />;
     }
-
-    const timers = toasts
-      .filter((toast) => !toast.persist)
-      .map((toast) =>
-        setTimeout(() => {
-          setToasts((current) => current.filter((item) => item.id !== toast.id));
-        }, toast.duration)
-      );
-
-    return () => {
-      timers.forEach((timer) => clearTimeout(timer));
-    };
-  }, [toasts]);
+  };
 
   const dismissToast = useCallback((id) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));

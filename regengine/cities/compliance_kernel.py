@@ -309,7 +309,7 @@ class MunicipalComplianceKernel:
         """Check seasonal restrictions."""
         restrictions = self.config.get("seasonal_restrictions", [])
 
-        booking_date = datetime.fromisoformat(booking_data["start"]).date()
+        datetime.fromisoformat(booking_data["start"]).date()
         product_type = booking_data.get("product_type")
 
         for restriction in restrictions:

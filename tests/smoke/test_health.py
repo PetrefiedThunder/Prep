@@ -6,8 +6,10 @@ Run after `make up && make migrate` to verify the stack is operational.
 """
 
 import os
+from urllib.parse import urlparse
 
 import asyncpg
+from asyncpg import sql
 import boto3
 import pytest
 import requests
@@ -24,6 +26,23 @@ DB_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:543
 # MinIO config
 MINIO_ACCESS_KEY = os.getenv("MINIO_ROOT_USER", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_ROOT_PASSWORD", "minioadmin")
+
+
+def _connection_settings(db_url: str) -> dict[str, object]:
+    """Normalize *db_url* into keyword arguments for ``asyncpg.connect``."""
+
+    normalized = db_url
+    if normalized.startswith("postgresql+asyncpg://"):
+        normalized = normalized.replace("postgresql+asyncpg://", "postgresql://", 1)
+
+    parsed = urlparse(normalized)
+    return {
+        "user": parsed.username or "postgres",
+        "password": parsed.password or "postgres",
+        "database": (parsed.path or "/prepchef").lstrip("/") or "prepchef",
+        "host": parsed.hostname or "localhost",
+        "port": parsed.port or 5432,
+    }
 
 
 class TestServiceHealth:
@@ -72,34 +91,7 @@ class TestDatabaseConnectivity:
     @pytest.mark.asyncio
     async def test_database_connection(self):
         """Database should accept connections."""
-        # Parse DATABASE_URL to get connection params
-        # Format: postgresql://user:pass@host:port/dbname
-        if DB_URL.startswith("postgresql://"):
-            db_url = DB_URL.replace("postgresql://", "")
-        elif DB_URL.startswith("postgresql+asyncpg://"):
-            db_url = DB_URL.replace("postgresql+asyncpg://", "")
-        else:
-            db_url = DB_URL
-
-        # Extract components
-        if "@" in db_url:
-            auth, rest = db_url.split("@", 1)
-            user, password = auth.split(":", 1) if ":" in auth else (auth, "")
-            host_port, database = rest.split("/", 1)
-            host, port = host_port.split(":", 1) if ":" in host_port else (host_port, "5432")
-        else:
-            # Fallback defaults
-            user, password, host, port, database = (
-                "postgres",
-                "postgres",
-                "localhost",
-                "5432",
-                "prepchef",
-            )
-
-        conn = await asyncpg.connect(
-            user=user, password=password, database=database, host=host, port=int(port)
-        )
+        conn = await asyncpg.connect(**_connection_settings(DB_URL))
         try:
             # Simple connectivity test
             result = await conn.fetchval("SELECT 1")
@@ -110,40 +102,20 @@ class TestDatabaseConnectivity:
     @pytest.mark.asyncio
     async def test_core_tables_exist(self):
         """Core database tables should exist after migrations."""
-        # Parse DB_URL
-        if DB_URL.startswith("postgresql://"):
-            db_url = DB_URL.replace("postgresql://", "")
-        elif DB_URL.startswith("postgresql+asyncpg://"):
-            db_url = DB_URL.replace("postgresql+asyncpg://", "")
-        else:
-            db_url = DB_URL
-
-        if "@" in db_url:
-            auth, rest = db_url.split("@", 1)
-            user, password = auth.split(":", 1) if ":" in auth else (auth, "")
-            host_port, database = rest.split("/", 1)
-            host, port = host_port.split(":", 1) if ":" in host_port else (host_port, "5432")
-        else:
-            user, password, host, port, database = (
-                "postgres",
-                "postgres",
-                "localhost",
-                "5432",
-                "prepchef",
-            )
-
-        conn = await asyncpg.connect(
-            user=user, password=password, database=database, host=host, port=int(port)
-        )
+        conn = await asyncpg.connect(**_connection_settings(DB_URL))
         try:
             # Core tables from init.sql
             core_tables = ["users", "kitchens", "bookings", "reviews", "compliance_documents"]
 
             for table_name in core_tables:
+                exists = await conn.fetchval("SELECT to_regclass($1)", table_name)
+                assert exists is not None, f"Missing table: {table_name}"
+
                 # Check table exists and is queryable
-                result = await conn.fetchval(
-                    f"SELECT COUNT(*) FROM {table_name}"  # noqa: S608
+                count_query = sql.SQL("SELECT COUNT(*) FROM {}").format(
+                    sql.Identifier(table_name)
                 )
+                result = await conn.fetchval(count_query)
                 assert result is not None
                 # Don't assert count > 0 as tables may be empty initially
                 assert result >= 0

@@ -184,6 +184,7 @@ class Settings(BaseModel):
     integration_health_timeout_seconds: int = Field(
         default=10, ge=1, alias="INTEGRATION_HEALTH_TIMEOUT_SECONDS"
     )
+    rcs_bind_host: str = Field(default="0.0.0.0", alias="RCS_BIND_HOST")
     ip_allowlist: list[str] = Field(default_factory=list, alias="IP_ALLOWLIST")
     device_allowlist: list[str] = Field(default_factory=list, alias="DEVICE_ALLOWLIST")
     session_optional_paths: list[str] = Field(

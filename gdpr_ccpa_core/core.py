@@ -40,7 +40,7 @@ class GDPRCCPACore:
             raise ValueError("Configuration not loaded")
 
         records_list = list(records)
-        allowed_regions = {region for region in self.config["allowed_regions"]}
+        allowed_regions = set(self.config["allowed_regions"])
         retention = timedelta(days=int(self.config["data_retention_days"]))
         now = datetime.now(UTC)
 

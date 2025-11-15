@@ -184,7 +184,7 @@ class TestInsuranceEndpoints:
         assert response.status_code == 200
         data = response.json()
         for ins in data:
-            assert ins["is_mandatory"] == True
+            assert ins["is_mandatory"]
 
     def test_get_insurance_by_facility_type(self):
         """Test filtering insurance by facility type"""
@@ -267,11 +267,11 @@ class TestComplianceCheck:
         response = client.post("/city/San Francisco/CA/compliance-check", json=compliance_request)
         assert response.status_code == 200
         data = response.json()
-        assert data["overall_compliant"] == False
+        assert not data["overall_compliant"]
         assert data["compliance_score"] < 100.0
         assert len(data["non_compliant_regulations"]) > 0
         assert len(data["missing_requirements"]) > 0
-        assert data["insurance_compliant"] == False
+        assert not data["insurance_compliant"]
         assert len(data["insurance_gaps"]) > 0
         assert len(data["recommended_actions"]) > 0
 
@@ -320,7 +320,7 @@ class TestDataIngestion:
         response = client.post("/city/data/ingest", json=ingestion_request)
         assert response.status_code == 200
         data = response.json()
-        assert data["success"] == True
+        assert data["success"]
         assert data["regulations_imported"] == 1
         assert data["insurance_requirements_imported"] == 1
 
@@ -358,7 +358,7 @@ class TestDataIngestion:
         response2 = client.post("/city/data/ingest", json=ingestion_request)
         assert response2.status_code == 200
         data = response2.json()
-        assert data["success"] == True
+        assert data["success"]
         # Should have warnings about updates
         if data.get("warnings"):
             assert len(data["warnings"]) > 0
