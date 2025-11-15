@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,9 +17,13 @@ from .service import PaymentsError, PaymentsService
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 
+SessionDep = Annotated[AsyncSession, Depends(get_db)]
+SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+
 async def get_payments_service(
-    session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    session: SessionDep,
+    settings: SettingsDep,
 ) -> PaymentsService:
     """Dependency that provisions the payments service."""
 
@@ -40,7 +46,7 @@ def _handle_payments_error(request: Request, exc: PaymentsError) -> None:
 async def connect_stripe_account(
     payload: PaymentsConnectRequest,
     request: Request,
-    service: PaymentsService = Depends(get_payments_service),
+    service: Annotated[PaymentsService, Depends(get_payments_service)],
 ) -> PaymentsConnectResponse:
     """Create a Stripe Connect account and return the onboarding link."""
 
@@ -60,7 +66,7 @@ async def connect_stripe_account(
 @router.post("/webhook", status_code=status.HTTP_204_NO_CONTENT)
 async def handle_webhook(
     request: Request,
-    service: PaymentsService = Depends(get_payments_service),
+    service: Annotated[PaymentsService, Depends(get_payments_service)],
 ) -> Response:
     """Handle incoming Stripe webhook calls."""
 

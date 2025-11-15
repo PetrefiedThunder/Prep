@@ -3,15 +3,38 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Iterable
+from contextlib import suppress
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from libs.safe_import import safe_import
+from middleware.audit_logger import audit_logger
 from prep.auth.dependencies import enforce_allowlists, require_active_session
+from prep.auth.rbac import RBAC_ROLES, RBACMiddleware
+from prep.database import get_session_factory
+from prep.integrations.runtime import configure_integration_event_consumers
+from prep.settings import get_settings
 
 logger = logging.getLogger(__name__)
+
+
+ObservabilityModule = safe_import("modules.observability", optional=True)
+if ObservabilityModule is not None:
+    configure_fastapi_tracing = ObservabilityModule.configure_fastapi_tracing
+    DEFAULT_TARGETED_ROUTES = getattr(ObservabilityModule, "DEFAULT_TARGETED_ROUTES", ("/healthz",))
+else:
+    DEFAULT_TARGETED_ROUTES = ("/healthz",)
+
+    def configure_fastapi_tracing(app: FastAPI, *, targeted_routes: Iterable[str] | None = None) -> None:
+        """Fallback no-op tracing configurator when observability hooks are unavailable."""
+
+        _ = targeted_routes
+
+
+RouterSpec = tuple[str, str]
 
 
 def _load_router(module_path: str, attr: str = "router") -> APIRouter:
@@ -42,19 +65,48 @@ def _load_router(module_path: str, attr: str = "router") -> APIRouter:
     return router_obj
 
 
-OPTIONAL_ROUTERS: Iterable[str] = (
-    "api.routes.city_fees",
-    "api.routes.diff",
-    "api.city.requirements",
-    "api.routes.debug",
-    "api.webhooks.square_kds",
-    "prep.analytics.dashboard_api",
-    "prep.analytics.host_metrics_api",
-    "prep.matching.api",
-    "prep.payments.api",
-    "prep.ratings.api",
-    "prep.reviews.api",
-    "prep.verification_tasks.api",
+CORE_ROUTER_MODULES: tuple[RouterSpec, ...] = (
+    ("prep.ledger.api", "ledger_router"),
+    ("prep.auth.api", "auth_router"),
+    ("prep.platform.api", "platform_router"),
+    ("prep.mobile.api", "mobile_router"),
+    ("prep.admin.api", "admin_router"),
+)
+
+OPTIONAL_ROUTER_MODULES: tuple[RouterSpec, ...] = (
+    ("prep.analytics.api", "analytics_router"),
+    ("prep.analytics.host_metrics_api", "router"),
+    ("prep.analytics.advanced_api", "router"),
+    ("prep.matching.api", "router"),
+    ("prep.reviews.api", "router"),
+    ("prep.ratings.api", "router"),
+    ("prep.cities.api", "router"),
+    ("prep.kitchen_cam.api", "router"),
+    ("prep.payments.api", "router"),
+    ("prep.pos.api", "router"),
+    ("prep.test_data.api", "router"),
+    ("prep.space_optimizer.api", "router"),
+    ("prep.integrations.api", "router"),
+    ("prep.monitoring.api", "router"),
+    ("prep.verification_tasks.api", "router"),
+    ("api.webhooks.square_kds", "router"),
+    ("prep.logistics.api", "router"),
+    ("prep.deliveries.api", "router"),
+    ("prep.orders.api", "router"),
+)
+
+OPTIONAL_ROUTERS: Iterable[RouterSpec] = (
+    ("api.routes.city_fees", "city_fees_router"),
+    ("api.routes.diff", "city_diff_router"),
+    ("api.city.requirements", "city_requirements_router"),
+    ("api.routes.debug", "debug_router"),
+    ("prep.analytics.dashboard_api", "router"),
+    ("prep.analytics.host_metrics_api", "router"),
+    ("prep.matching.api", "router"),
+    ("prep.payments.api", "router"),
+    ("prep.ratings.api", "router"),
+    ("prep.reviews.api", "router"),
+    ("prep.verification_tasks.api", "router"),
 )
 
 
@@ -64,30 +116,13 @@ def _build_router(*, include_full: bool = True) -> APIRouter:
     router = APIRouter(dependencies=[Depends(enforce_allowlists), Depends(require_active_session)])
 
     if include_full:
-        router.include_router(_load_router("prep.ledger.api", "ledger_router"))
-        router.include_router(_load_router("prep.auth.api", "auth_router"))
-        router.include_router(_load_router("prep.platform.api", "platform_router"))
-        router.include_router(_load_router("prep.mobile.api", "mobile_router"))
-        router.include_router(_load_router("prep.admin.api", "admin_router"))
-        router.include_router(_load_router("prep.analytics.api", "analytics_router"))
-        router.include_router(_load_router("prep.analytics.host_metrics_api", "host_metrics_router"))
-        router.include_router(_load_router("prep.analytics.advanced_api", "advanced_analytics_router"))
-        router.include_router(_load_router("prep.matching.api", "matching_router"))
-        router.include_router(_load_router("prep.reviews.api", "reviews_router"))
-        router.include_router(_load_router("prep.ratings.api", "ratings_router"))
-        router.include_router(_load_router("prep.cities.api", "cities_router"))
-        router.include_router(_load_router("prep.kitchen_cam.api", "kitchen_cam_router"))
-        router.include_router(_load_router("prep.payments.api", "payments_router"))
-        router.include_router(_load_router("prep.pos.api", "pos_router"))
-        router.include_router(_load_router("prep.test_data.api", "test_data_router"))
-        router.include_router(_load_router("prep.space_optimizer.api", "space_optimizer_router"))
-        router.include_router(_load_router("prep.integrations.api", "integrations_router"))
-        router.include_router(_load_router("prep.monitoring.api", "monitoring_router"))
-        router.include_router(_load_router("prep.verification_tasks.api", "verification_tasks_router"))
-        router.include_router(_load_router("api.webhooks.square_kds", "square_kds_router"))
-        router.include_router(_load_router("prep.logistics.api", "logistics_router"))
-        router.include_router(_load_router("prep.deliveries.api", "deliveries_router"))
-        router.include_router(_load_router("prep.orders.api", "orders_router"))
+        for module_path, attr in CORE_ROUTER_MODULES:
+            router.include_router(_load_router(module_path, attr))
+
+        for module_path, attr in OPTIONAL_ROUTER_MODULES:
+            candidate = _load_router(module_path, attr)
+            if candidate.routes:
+                router.include_router(candidate)
 
     router.include_router(_load_router("api.routes.debug", "debug_router"))
     router.include_router(_load_router("api.routes.city_fees", "city_fees_router"), prefix="/city", tags=["city"])
@@ -104,8 +139,6 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
     app = FastAPI(title="Prep API Gateway", version="1.0.0")
 
     if settings.environment.lower() == "staging":
-        from prep.database import get_session_factory
-
         app.state.db = get_session_factory()
         app.middleware("http")(audit_logger)
 
@@ -132,10 +165,6 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
 
     configure_fastapi_tracing(app, targeted_routes=DEFAULT_TARGETED_ROUTES)
 
-    # SECURITY FIX: Use specific origins instead of wildcard to prevent CSRF attacks
-    # Configure allowed origins from environment variable
-    import os
-
     allowed_origins = os.getenv(
         "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000"
     ).split(",")
@@ -148,18 +177,16 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
         allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
     )
 
-    for module_path in OPTIONAL_ROUTERS:
-        router = _load_router(module_path)
+    for module_path, attr in OPTIONAL_ROUTERS:
+        router = _load_router(module_path, attr)
         if router.routes:
             app.include_router(router)
-    security_dependencies = [Depends(enforce_client_allowlist), Depends(enforce_active_session)]
+    security_dependencies = [Depends(enforce_allowlists), Depends(require_active_session)]
     api_router = _build_router(include_full=include_full_router)
     app.include_router(api_router, dependencies=security_dependencies)
 
-    try:  # pragma: no cover - integrations may require external services
+    with suppress(RuntimeError):  # pragma: no cover - integrations may require external services
         configure_integration_event_consumers(app)
-    except RuntimeError:
-        pass
 
     @app.get("/healthz", include_in_schema=False)
     async def healthcheck() -> dict[str, str]:
