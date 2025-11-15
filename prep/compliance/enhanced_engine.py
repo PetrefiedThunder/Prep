@@ -124,23 +124,22 @@ class ComplianceEngine:
                 )
 
         # Rule 3: Document completeness (signature, seal)
-        if certificate_type == "health_permit":
-            if not self._has_signature(document_text):
-                violations.append(
-                    ViolationDetail(
-                        violation_code="HP-003",
-                        severity="medium",
-                        description="Missing signature or seal",
-                        rule_id="signature_present",
-                        confidence=0.8,
-                        remediation_steps=[
-                            "Ensure document includes official signature",
-                            "Verify seal is visible and legible",
-                            "Upload higher quality scan if needed",
-                        ],
-                        detected_at=datetime.now(UTC).isoformat(),
-                    )
+        if certificate_type == "health_permit" and not self._has_signature(document_text):
+            violations.append(
+                ViolationDetail(
+                    violation_code="HP-003",
+                    severity="medium",
+                    description="Missing signature or seal",
+                    rule_id="signature_present",
+                    confidence=0.8,
+                    remediation_steps=[
+                        "Ensure document includes official signature",
+                        "Verify seal is visible and legible",
+                        "Upload higher quality scan if needed",
+                    ],
+                    detected_at=datetime.now(UTC).isoformat(),
                 )
+            )
 
         # Calculate overall confidence and pass/fail
         overall_pass = len([v for v in violations if v.severity in ["critical", "high"]]) == 0

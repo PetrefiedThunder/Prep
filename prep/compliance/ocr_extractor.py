@@ -46,7 +46,7 @@ class CertificateMetadataExtractor:
 
             # OCR each page
             full_text = ""
-            for i, image in enumerate(images):
+            for _i, image in enumerate(images):
                 text = pytesseract.image_to_string(image, lang="eng")
                 full_text += text + "\n"
 

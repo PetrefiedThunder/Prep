@@ -277,8 +277,6 @@ async def get_regulations_for_jurisdiction(
 ) -> list[dict]:
     """Get regulations from database for a jurisdiction."""
 
-    from prep.regulatory.models import Regulation
-
     normalized_country = (country_code or "US").upper()
     province = state_province or state.upper()
     query = select(Regulation).where(
@@ -315,8 +313,6 @@ async def save_regulations_to_db(
     state_province: str | None = None,
 ) -> None:
     """Persist regulation entries to the database."""
-
-    from prep.regulatory.models import Regulation, RegulationSource
 
     if not regulations:
         return
@@ -405,8 +401,6 @@ async def save_insurance_requirements(
     state_province: str | None = None,
 ) -> None:
     """Persist insurance requirements to the database."""
-
-    from prep.regulatory.models import InsuranceRequirement
 
     country = (country_code or "US").upper()
     state_code = state.upper()

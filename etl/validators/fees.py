@@ -114,10 +114,7 @@ def validate_fee_schedule(schedule: object, *, raise_on_error: bool = True) -> F
             issues.append(f"Fee '{name}' must have a non-negative integer amount_cents")
 
         cadence = _get_attr(fee, "cadence")
-        if cadence in (None, ""):
-            cadence_str = None
-        else:
-            cadence_str = str(cadence).lower()
+        cadence_str = None if cadence in (None, "") else str(cadence).lower()
 
         if kind == "recurring":
             if not cadence_str:
