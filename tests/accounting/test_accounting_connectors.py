@@ -40,7 +40,7 @@ async def test_quickbooks_connector_syncs_revenue_and_expenses(session: AsyncSes
     summaries = [
         DailyRevenueSummary(
             booking_id=booking_id,
-            date=date(2024, 4, 1),
+            revenue_date=date(2024, 4, 1),
             total_amount=Decimal("200.00"),
             currency="usd",
             description="Shared shelf rental",
@@ -49,7 +49,7 @@ async def test_quickbooks_connector_syncs_revenue_and_expenses(session: AsyncSes
         ),
         DailyRevenueSummary(
             booking_id=uuid4(),
-            date=date(2024, 4, 1),
+            revenue_date=date(2024, 4, 1),
             total_amount=Decimal("350.00"),
             currency="usd",
             description="Delivery program revenue",

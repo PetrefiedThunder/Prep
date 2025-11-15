@@ -7,7 +7,7 @@ import os
 from typing import Any
 
 import aiohttp
-from Prep.docusign_client import DocuSignClient, DocuSignError
+from docusign_client import DocuSignClient, DocuSignError
 
 DEFAULT_BASE_URL = "https://demo.docusign.net/restapi"
 ENV_BASE_URL = "DOCUSIGN_SANDBOX_BASE_URL"

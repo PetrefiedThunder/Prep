@@ -59,7 +59,7 @@ class GAAPLedgerService:
         entry = LedgerEntry(
             booking_id=summary.booking_id,
             source=source,
-            entry_date=summary.date,
+            entry_date=summary.revenue_date,
             description=summary.description,
             debit_account="Accounts Receivable",
             credit_account=f"{revenue_type.value}_revenue",
