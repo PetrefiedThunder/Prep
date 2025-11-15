@@ -9,7 +9,12 @@ from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from libs.safe_import import safe_import
+from middleware import audit_logger
+from modules.observability import DEFAULT_TARGETED_ROUTES, configure_fastapi_tracing
 from prep.auth.dependencies import enforce_allowlists, require_active_session
+from prep.auth.rbac import RBACMiddleware, RBAC_ROLES
+from prep.integrations.runtime import configure_integration_event_consumers
+from prep.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +157,7 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
         router = _load_router(module_path)
         if router.routes:
             app.include_router(router)
-    security_dependencies = [Depends(enforce_client_allowlist), Depends(enforce_active_session)]
+    security_dependencies = [Depends(enforce_allowlists), Depends(require_active_session)]
     api_router = _build_router(include_full=include_full_router)
     app.include_router(api_router, dependencies=security_dependencies)
 
