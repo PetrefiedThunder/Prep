@@ -1,6 +1,7 @@
-import request from 'supertest';
 import jwt from 'jsonwebtoken';
+import request from 'supertest';
 
+import { clearAuthPublicKeyCache } from '../src/config/auth';
 import app from '../src/server';
 
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
@@ -33,18 +34,24 @@ qqlVQ9hGsPIfMXUHAiEv7HX3yUpc6kMdKHgSfd7A4TxJuLRiFLNqM3PtEqwUN5nj
 -----END PRIVATE KEY-----`;
 
 const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsaQKGi8YZuZb1j36VNKn
-EqfeXKMSZAEQEC3J5m9P0iRha2GvoaQTUEYvU4+xXl/OHD+l1vSc+ZkTnE8zuA98
-nwujfn860Yg5VqpOirkwgIpOSQH7f/RlwoNg0VREAoPDzR9RJFY2hYpc8/nj1Y8w
-tYG+UOxAvRkbBPfSxoNLKU4O2NbHQ6Ibv+XzVDPyCSpoKMUfxwbem2OtcbszQ5sr
-CdtitRlHr3Z/UJZahl9nBQLXifPhhSwIAs3FttD1vnuGnPye3EO3ebYQ3utLHKfe
-KYSkyTp49Hrrq+An1+hWOHIA5O06Ghdqf8xG3mV9pYzPpQBI+LzeJ599jfZLdO0Z
-AwIDAQAB
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8Bc1LtUtDKDP2hgyaiZ
+rYjsAr9E6OGkEKd/cpkCmcsWMw4UNn2PXowZx56bZPn2dviVD82iLBPxRtcgZnB5
+GeGW372OMCSRY2dQXPd/8YkgmLqm3GSagzh2QP1Nyf5pYjAU6IvE4ur+xadzjywV
+4c143fDW/mhkP8ivWFh2w9r1ieojvFoy+27JX5zh2vL3vB+U5Cjm3WZBylfuwkBd
+1A3zHxpPvlX/M+stY+3QOAteBMhk/TT9kylvagbGNbD5CiU/GRKai8xR1TQpeFPI
+I2HtMcbrsPC/OKBtZ6hOOiAHd0Yv0LE/kArc35RNpAZfVuKQDaaBH5ArKZihNoWy
+YQIDAQAB
 -----END PUBLIC KEY-----`;
 
 describe('integrations routes', () => {
   beforeAll(() => {
+    clearAuthPublicKeyCache();
     process.env.AUTH_SERVICE_PUBLIC_KEY = PUBLIC_KEY;
+  });
+
+  afterAll(() => {
+    delete process.env.AUTH_SERVICE_PUBLIC_KEY;
+    clearAuthPublicKeyCache();
   });
 
   afterEach(() => {
@@ -68,6 +75,10 @@ describe('integrations routes', () => {
         authMethod: 'oauth2',
         syncFrequency: 'hourly',
       });
+
+    if (createResponse.status !== 201) {
+      console.log('Create response:', createResponse.status, createResponse.body);
+    }
 
     expect(createResponse.status).toBe(201);
     expect(createResponse.body.vendorName).toBe('Salesforce');

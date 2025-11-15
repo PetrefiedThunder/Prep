@@ -1,4 +1,5 @@
-import { OpenApiBuilder, SchemaObject } from 'openapi3-ts';
+import type { SchemaObject } from 'openapi3-ts/oas30';
+import { OpenApiBuilder } from 'openapi3-ts/oas30';
 
 const integrationSchema: SchemaObject = {
   type: 'object',
@@ -148,18 +149,12 @@ export function buildOpenApiSchema() {
     },
   });
 
-  builder.addComponents({
-    schemas: {
-      Integration: integrationSchema,
-      IntegrationInput: integrationInputSchema,
-    },
-    securitySchemes: {
-      bearerAuth: {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-      },
-    },
+  builder.addSchema('Integration', integrationSchema);
+  builder.addSchema('IntegrationInput', integrationInputSchema);
+  builder.addSecurityScheme('bearerAuth', {
+    type: 'http',
+    scheme: 'bearer',
+    bearerFormat: 'JWT',
   });
 
   return builder.getSpec();

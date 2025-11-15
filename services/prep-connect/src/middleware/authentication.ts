@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
-import jwt, { JwtHeader, JwtPayload } from 'jsonwebtoken';
+import type { JwtHeader, JwtPayload } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
 import { getAuthPublicKey } from '../config/auth';
 
@@ -17,20 +18,21 @@ function isSupportedAlgorithm(header: JwtHeader): header is JwtHeader & { alg: S
 }
 
 function verifyToken(token: string): VerifiedPayload {
-  let header: JwtHeader;
+  let header: JwtHeader | undefined;
   try {
-    header = jwt.decode(token, { complete: true })?.header ?? {};
+    const decoded = jwt.decode(token, { complete: true });
+    header = decoded?.header;
   } catch (error) {
     throw new Error('Invalid token header');
   }
 
-  if (!isSupportedAlgorithm(header)) {
+  if (!header || !isSupportedAlgorithm(header)) {
     throw new Error('Unsupported token algorithm');
   }
 
   const publicKey = getAuthPublicKey();
   const payload = jwt.verify(token, publicKey, {
-    algorithms: SUPPORTED_ALGORITHMS,
+    algorithms: [...SUPPORTED_ALGORITHMS],
   });
 
   if (!payload || typeof payload !== 'object') {

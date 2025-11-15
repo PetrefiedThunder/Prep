@@ -27,3 +27,7 @@ export function getAuthPublicKey(): string {
 
   throw new Error('Auth service public key is not configured');
 }
+
+export function clearAuthPublicKeyCache(): void {
+  cachedKey = null;
+}
