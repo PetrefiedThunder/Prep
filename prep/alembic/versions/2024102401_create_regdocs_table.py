@@ -15,10 +15,10 @@ project_root = Path(__file__).resolve().parents[3]
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-import sqlalchemy as sa
-from alembic import op
+import sqlalchemy as sa  # noqa: E402
+from alembic import op  # noqa: E402
 
-from prep.models.guid import GUID
+from prep.models.guid import GUID  # noqa: E402
 
 # revision identifiers, used by Alembic.
 revision = "9b4fe8edcf5d"
