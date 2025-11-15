@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
-"""FastAPI application that verifies and routes Prep webhook events."""
-
-from __future__ import annotations
-
 import hashlib
 import hmac
 import json
 import logging
 import os
 import time
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, ValidationError
 
 LOG_LEVEL = os.getenv("PREP_WEBHOOK_LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=LOG_LEVEL)
@@ -37,7 +37,7 @@ class Settings:
 
 
 @lru_cache(maxsize=1)
-def get_settings() -> Settings:
+def get_settings_v2() -> SettingsV2:
     """Load and cache application settings.
 
     Raises:
@@ -178,14 +178,6 @@ __all__ = [
     "parse_signature_header",
     "verify_webhook_request",
 ]
-from collections.abc import Awaitable, Callable, Mapping
-from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
-from functools import lru_cache
-
-from fastapi import Depends, FastAPI, Header
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, ValidationError
 
 
 def _configure_logging() -> None:
@@ -212,7 +204,7 @@ logger = logging.getLogger("prep.webhooks")
 
 
 @dataclass(slots=True)
-class Settings:
+class SettingsV2:
     """Runtime configuration for the webhook receiver."""
 
     secret: str
