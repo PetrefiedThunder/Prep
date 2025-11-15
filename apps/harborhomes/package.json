@@ -29,7 +29,7 @@
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
     "framer-motion": "^11.0.3",
-    "lucide-react": "^0.305.0",
+    "lucide-react": "^0.553.0",
     "mapbox-gl": "^3.1.2",
     "next": "14.2.32",
     "next-intl": "^3.8.2",
