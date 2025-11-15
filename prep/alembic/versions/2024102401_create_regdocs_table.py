@@ -7,6 +7,14 @@ Create Date: 2024-10-24 00:00:00.000000
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path to allow imports
+project_root = Path(__file__).resolve().parents[3]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 import sqlalchemy as sa
 from alembic import op
 
