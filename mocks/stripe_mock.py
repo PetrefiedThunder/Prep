@@ -8,24 +8,20 @@ Implements key endpoints needed for Prep platform.
 Run with: python mocks/stripe_mock.py
 """
 
-import json
 import secrets
 import time
-import uuid
-from datetime import datetime
-from typing import Dict, Any
+from typing import Any
 
-from fastapi import FastAPI, HTTPException, Header, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel
 
 app = FastAPI(title="Mock Stripe API", version="1.0.0")
 
 # In-memory storage
-ACCOUNTS: Dict[str, Dict[str, Any]] = {}
-PAYMENT_INTENTS: Dict[str, Dict[str, Any]] = {}
-TRANSFERS: Dict[str, Dict[str, Any]] = {}
-WEBHOOKS: list[Dict[str, Any]] = []
+ACCOUNTS: dict[str, dict[str, Any]] = {}
+PAYMENT_INTENTS: dict[str, dict[str, Any]] = {}
+TRANSFERS: dict[str, dict[str, Any]] = {}
+WEBHOOKS: list[dict[str, Any]] = []
 
 
 # Models
@@ -34,15 +30,15 @@ class CreateAccountRequest(BaseModel):
     country: str
     email: str
     business_type: str = None
-    metadata: Dict[str, str] = {}
+    metadata: dict[str, str] = {}
 
 
 class CreatePaymentIntentRequest(BaseModel):
     amount: int
     currency: str
     application_fee_amount: int = None
-    transfer_data: Dict[str, str] = None
-    metadata: Dict[str, str] = {}
+    transfer_data: dict[str, str] = None
+    metadata: dict[str, str] = {}
     description: str = None
     statement_descriptor: str = None
 
@@ -51,7 +47,7 @@ class CreateTransferRequest(BaseModel):
     amount: int
     currency: str
     destination: str
-    metadata: Dict[str, str] = {}
+    metadata: dict[str, str] = {}
 
 
 # Helper functions
@@ -276,7 +272,9 @@ async def list_balance_transactions(
                     "amount": intent["amount"],
                     "currency": intent["currency"],
                     "type": "charge",
-                    "source": intent["charges"]["data"][0]["id"] if intent["charges"]["data"] else None,
+                    "source": intent["charges"]["data"][0]["id"]
+                    if intent["charges"]["data"]
+                    else None,
                     "created": intent["created"],
                 }
             )
@@ -303,7 +301,7 @@ async def register_webhook(request: Request, authorization: str = Header(None)):
 
 
 # Internal webhook helper
-def _trigger_webhook(event_type: str, data: Dict[str, Any]):
+def _trigger_webhook(event_type: str, data: dict[str, Any]):
     """Simulate webhook delivery"""
 
     event = {

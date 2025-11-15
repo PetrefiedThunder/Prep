@@ -428,7 +428,7 @@ def _build_compliance_packet_metadata(booking: Booking) -> CompliancePacket:
         )
 
     documents = sorted(
-        list(kitchen.compliance_documents),
+        kitchen.compliance_documents,
         key=lambda document: document.submitted_at,
     )
 

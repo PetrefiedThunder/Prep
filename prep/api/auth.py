@@ -13,6 +13,7 @@ from pydantic_core import CoreSchema
 try:  # pragma: no cover - exercised indirectly via tests
     import email_validator  # type: ignore  # noqa: F401
 except ImportError:  # pragma: no cover - environment without optional dependency
+
     class EmailStr(str):
         """Fallback EmailStr implementation when ``email_validator`` is absent."""
 

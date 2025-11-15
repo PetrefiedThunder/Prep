@@ -173,10 +173,7 @@ def run_expiry_check(
 
     if now is None:
         now = datetime.now(UTC)
-    if now.tzinfo is None:
-        now = now.replace(tzinfo=UTC)
-    else:
-        now = now.astimezone(UTC)
+    now = now.replace(tzinfo=UTC) if now.tzinfo is None else now.astimezone(UTC)
 
     cutoff = now + timedelta(days=30)
 
