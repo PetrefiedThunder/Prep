@@ -1,7 +1,5 @@
 """Connector for synchronising inventory data from MarketMan."""
 
-"""Connector for synchronising inventory data from MarketMan."""
-
 from __future__ import annotations
 
 import logging
