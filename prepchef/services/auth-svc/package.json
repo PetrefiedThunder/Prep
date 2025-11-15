@@ -20,7 +20,7 @@
     "bcryptjs": "^2.4.3",
     "fastify": "^4.28.1",
     "undici": "^7.16.0",
-    "zod": "^3.23.8"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "tsx": "^4.16.2",
