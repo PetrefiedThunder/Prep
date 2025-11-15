@@ -17,7 +17,7 @@
     "@prep/config": "1.0.0",
     "@prep/database": "1.0.0",
     "@prep/logger": "1.0.0",
-    "bcryptjs": "^2.4.3",
+    "bcryptjs": "^3.0.3",
     "fastify": "^4.28.1",
     "undici": "^7.16.0",
     "zod": "^3.23.8"
