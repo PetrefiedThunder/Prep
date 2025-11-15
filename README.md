@@ -1,102 +1,158 @@
-# Prep
+# Prep – Enterprise Compliance Orchestration Platform
 
-**Enterprise Compliance Orchestration for Commercial Kitchen Sharing**
+**Technical Platform for Regulatory Compliance, Booking Orchestration & Payment Processing**
 
-Prep is a production-ready compliance and marketplace platform that automates regulatory verification, booking management, and payment processing for the commercial kitchen sharing economy. Built for scale with comprehensive security hardening, extensive testing, and enterprise-grade infrastructure.
+Production microservices platform with hybrid Python/Node.js architecture, comprehensive compliance rule engines, and enterprise-grade infrastructure. Federal and municipal regulatory automation with multi-layer verification, atomic booking transactions, Stripe payment integration, and full audit trail logging.
 
-**Recent Quality Milestone (November 2025):** 87 bugs resolved, zero high-severity security issues, 2,480+ code quality improvements, and comprehensive test coverage across all services.
+---
+
+## Quick Summary
+
+| Aspect | Details |
+|--------|---------|
+| **Core Architecture** | Microservices: Python (FastAPI + async) + Node.js (TypeScript/Fastify) |
+| **Data Layer** | PostgreSQL 15 + PostGIS, Redis 7, Neo4j, MinIO, SQLite |
+| **Deployment** | Docker Compose (dev), Kubernetes/Helm (prod) |
+| **APIs** | OpenAPI 3.0 with Pydantic/Zod validation, async request handling |
+| **Services** | 13 Node.js μ-services + 6+ Python backends + Next.js frontend |
+| **Test Coverage** | Unit, integration, E2E, smoke, load testing, golden-file regression |
+| **CI/CD** | 23 GitHub Actions workflows, pre-commit hooks, security scanning |
+| **Security Model** | JWT auth + RBAC, TLS, encryption-at-rest, audit logging, secret scanning |
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Architecture](#architecture)
+- [Technical Stack](#technical-stack)
+- [System Architecture](#system-architecture)
 - [Core Services](#core-services)
-- [Technology Stack](#technology-stack)
-- [Getting Started](#getting-started)
-- [Development](#development)
-- [Testing](#testing)
-- [Security](#security)
-- [Documentation](#documentation)
+- [Critical Implementation Details](#critical-implementation-details)
+- [Known Issues & Active Bugs](#known-issues--active-bugs)
+- [Testing & Validation](#testing--validation)
+- [Security Architecture](#security-architecture)
+- [Development Setup](#development-setup)
+- [Operations & Monitoring](#operations--monitoring)
+- [Known Technical Debt](#known-technical-debt)
 - [Contributing](#contributing)
 - [License](#license)
 
 ---
 
-## Overview
+## Technical Stack
 
-Prep solves the complex regulatory compliance challenges in commercial kitchen sharing by automating:
+### Backend Languages & Frameworks
 
-- **Federal & Municipal Compliance**: Automated tracking of FDA accreditation chains and city-specific permit requirements across major U.S. cities
-- **Document Verification**: OCR-powered processing of licenses, certifications, and food safety records
-- **Booking Management**: Atomic reservations with concurrency safety and availability holds
-- **Payment Processing**: Full Stripe integration with charges, refunds, platform fees, and Connect payouts
-- **Regulatory Intelligence**: Real-time monitoring of certification expiration and authority chain validation
+**Python 3.10+**
+- FastAPI 0.121+ (async ASGI web framework)
+- SQLAlchemy 2.0 (ORM with type-safe queries)
+- Pydantic v2 (runtime validation with discriminated unions)
+- Alembic (versioned migrations with branching)
+- Celery (async task queue with Redis broker)
+- httpx (async HTTP client with connection pooling)
+- pytest + hypothesis (property-based testing)
 
-### Key Differentiators
+**Node.js 20+ / TypeScript 5.6+**
+- Fastify (high-performance HTTP framework)
+- Prisma (type-safe ORM with query builder)
+- Zod (runtime schema validation)
+- Jest + Supertest (test framework)
+- Winston (structured logging)
+- OpenTelemetry (distributed tracing)
 
-- **Hybrid Architecture**: Python microservices for regulatory logic + Node.js services for business flows
-- **Multi-Layer Compliance**: Federal (FDA/FSMA) + Municipal (8 major cities) + Facility-level verification
-- **Production Hardened**:
-  - Comprehensive bug fixes (87 issues resolved in November 2025)
-  - Zero high-severity security vulnerabilities (down from 9 critical issues)
-  - Docker security with non-root users and minimal attack surface
-  - Secret scanning with Gitleaks on every commit
-  - 2,480+ linting errors auto-fixed for code quality
-  - Comprehensive test harness with RegEngine regression testing
-- **Developer Experience**:
-  - One-command bootstrap with `make bootstrap`
-  - Extensive documentation with 15+ comprehensive reports
-  - Automated migrations and pre-commit quality checks
-  - 23 CI/CD workflows for continuous validation
-  - Structured logging across all services
+### Data Layer
+
+| Database | Purpose | Configuration |
+|----------|---------|----------------|
+| **PostgreSQL 15** | Primary OLTP, ACID transactions | `postgresql://...` with connection pooling |
+| **PostGIS** | Geospatial queries (location-based kitchen search) | Extension loaded, geometry/geography types |
+| **Redis 7** | Session storage, cache, pub/sub, distributed locks | Sentinel-enabled with persistence (RDB/AOF) |
+| **Neo4j** | Regulatory authority relationship graphs | Bolt protocol, Cypher queries |
+| **SQLite** | Immutable reference data (FDA, municipal codes) | Read-only in production, embedded |
+| **MinIO** | S3-compatible object storage | IAM credentials, bucket policies |
+
+### Async & Concurrency
+
+- **FastAPI**: ASGI with async/await, Starlette middleware pipeline
+- **Uvicorn**: ASGI server with worker pool (typically 4 workers × CPU cores)
+- **Gunicorn**: WSGI fallback (production deployment option)
+- **asyncio**: Event loop for concurrent I/O operations
+- **aioredis**: Async Redis client with connection pooling
+- **httpx**: Non-blocking HTTP client for third-party APIs
+
+### Deployment & Infrastructure
+
+- **Docker**: Multi-stage builds, non-root users, minimal attack surface
+- **Docker Compose**: Local development (postgres, redis, minio)
+- **Kubernetes**: Helm charts for production deployment
+- **GitHub Actions**: 23 CI/CD workflows (unit, integration, security, deployment)
+- **Prometheus**: Metrics collection and time-series storage
+- **Grafana**: Metric visualization and alerting
+- **Gitleaks**: Secret scanning on every commit (pre-commit + GHA)
 
 ---
 
-## Architecture
-
-Prep uses a **microservices architecture** with clear separation of concerns:
+## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         API Gateway                              │
-│                    (FastAPI Orchestration)                       │
-└────────────┬────────────────────────────────────────────────────┘
-             │
-      ┌──────┴──────┐
-      │             │
-┌─────▼─────┐  ┌───▼────────────────────────────────────┐
-│  Python   │  │         Node.js Backend                 │
-│ Services  │  │          (PrepChef)                     │
-│           │  │                                         │
-│ • Federal │  │  • Authentication    • Notifications    │
-│   Reg Svc │  │  • Bookings         • Pricing          │
-│ • City    │  │  • Listings         • Access Control   │
-│   Reg Svc │  │  • Payments         • Admin            │
-│ • Compli  │  │  • Availability     • Audit            │
-│   ance    │  │                                         │
-└─────┬─────┘  └───┬────────────────────────────────────┘
-      │            │
-      └─────┬──────┘
-            │
-┌───────────▼──────────────────────────────────────────────────┐
-│                    Data & Infrastructure                      │
-│                                                               │
-│  • PostgreSQL 15 (PostGIS)    • Redis 7 (Caching)           │
-│  • MinIO (S3-compatible)      • Neo4j (Graph DB)            │
-│  • SQLite (Regulatory Data)   • Prometheus (Monitoring)     │
-└───────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Load Balancer / Ingress                       │
+└───────────────┬────────────────────────────┬───────────────────────┘
+                │                            │
+        ┌───────▼─────────┐        ┌────────▼──────────────┐
+        │  API Gateway    │        │  Next.js Frontend     │
+        │  (FastAPI)      │        │  (SSR/ISR)            │
+        │  :8000          │        │  :3001                │
+        └───────┬─────────┘        └────────┬──────────────┘
+                │                            │
+        ┌───────▼────────────────────────────▼──────────┐
+        │     Service Mesh / Internal Networking        │
+        │  (Service discovery via Docker DNS)           │
+        └───────┬────────────────────────┬──────────────┘
+                │                        │
+    ┌───────────┴──────────┬─────────────▼────────────┐
+    │                      │                          │
+┌───▼──────────┐  ┌───────▼────────┐  ┌─────────────▼──────┐
+│ Python       │  │  Node.js       │  │   Batch/Workers    │
+│ Microsvcs    │  │  (PrepChef)    │  │   (Celery)         │
+│              │  │  13 services   │  │                    │
+│ • Federal    │  │  • auth        │  │ • ETL              │
+│ • City       │  │  • booking     │  │ • Reconciliation   │
+│ • Compliance │  │  • payments    │  │ • Notifications    │
+│ • Bookings   │  │  • listings    │  │ • Analytics        │
+│ • Pricing    │  │  • admin       │  └────────────────────┘
+└─────────────┘  └────────────────┘
+        │                │
+        │                │
+    ┌───┴────────────────┴──────────────────────┐
+    │       Persistence & Cache Layer            │
+    ├──────────────────────────────────────────┤
+    │ PostgreSQL 15 │ Redis 7 │ Neo4j │ MinIO  │
+    │ (ACID OPS)    │ (Cache) │(Graph)│(Files) │
+    └────────────────────────────────────────────┘
+        │
+        └─────────► Observability
+                   (Prometheus/Grafana/OpenTelemetry)
 ```
 
-### Design Principles
+### Request Flow
 
-- **Domain-Driven Design**: Clear bounded contexts for regulatory, booking, and payment domains
-- **Event Sourcing**: Audit logs for all compliance decisions and state transitions
-- **Immutable Infrastructure**: Containerized services with declarative configuration
-- **Defense in Depth**: Multiple security layers from network to application to data
+1. **Ingress** → Load balancer routes to appropriate service
+2. **Authentication** → FastAPI middleware validates JWT token
+3. **Authorization** → RBAC middleware checks permissions
+4. **Validation** → Pydantic schemas validate request body
+5. **Business Logic** → Service handler (async function)
+6. **Database** → SQLAlchemy queries with connection pooling
+7. **Cache** → Redis check-then-set for frequently accessed data
+8. **Response** → Pydantic model serialization → JSON
+9. **Audit Trail** → Middleware logs operation with context
 
-For detailed architecture documentation including SPOF analysis and RTO/RPO targets, see [`docs/architecture.md`](docs/architecture.md).
+### Bounded Contexts (DDD)
+
+- **Regulatory Domain**: Federal/city compliance verification
+- **Booking Domain**: Reservation creation, conflict detection, holds
+- **Payment Domain**: Stripe integration, reconciliation, settlements
+- **Compliance Domain**: Document processing, OCR, admin review
+- **Access Domain**: User authentication, authorization, role management
 
 ---
 
@@ -191,595 +247,469 @@ Modern TypeScript microservices architecture with **13 specialized services**:
 
 ---
 
-## Technology Stack
+## Critical Implementation Details
 
-### Backend
+### Database & Query Patterns
 
-**Python** (Microservices)
-- FastAPI 0.121+ (async web framework)
-- SQLAlchemy 2.0 (ORM)
-- Alembic (migrations)
-- Pydantic (data validation)
-- Celery (task queue)
-- pytest + hypothesis (testing)
+**PostgreSQL Connection Management**
+- Uses SQLAlchemy connection pooling (default 5 connections)
+- Async connections via `asyncpg` for FastAPI
+- All queries use parameterized statements (Pydantic validators ensure no SQL injection)
+- Transaction isolation level: `REPEATABLE_READ` for booking operations
 
-**Node.js 20+** (Business Services)
-- TypeScript 5.6+
-- Fastify (high-performance HTTP)
-- Prisma (type-safe ORM)
-- Zod (runtime validation)
-- Jest + Supertest (testing)
+**N+1 Query Prevention**
+- Use `selectinload()` or `joinedload()` for relationship loading
+- Common pitfall: Iterating `result.all()` then accessing related objects in loop
+- See `jobs/reconciliation_engine.py` for pattern examples
 
-### Databases
+**PostGIS Spatial Queries**
+- Kitchen locations stored as `geometry(Point, 4326)` (WGS84)
+- Distance calculations use `ST_Distance()` and `ST_DWithin()`
+- Index on location field: `CREATE INDEX idx_kitchen_location ON kitchens USING GIST(location)`
 
-- **PostgreSQL 15** with PostGIS (geospatial)
-- **Redis 7** with persistence (caching, sessions)
-- **Neo4j** (regulatory relationship graphs)
-- **SQLite** (immutable regulatory reference data)
-- **MinIO** (S3-compatible object storage)
+**Redis Locking Pattern**
+- Distributed locks via `SET key value NX EX timeout`
+- Used for: Booking holds, idempotency checks, session validation
+- Lock ownership: Each lock includes request UUID to prevent cross-request release
 
-### Infrastructure
+### Async Patterns & Pitfalls
 
-- **Docker** & **Docker Compose** (local development)
-- **Helm Charts** (Kubernetes deployment)
-- **GitHub Actions** (CI/CD with 23 workflows)
-- **Prometheus** + **Grafana** (monitoring)
-- **OpenTelemetry** (distributed tracing)
-- **Gitleaks** (secret scanning)
+**Safe Patterns**
+```python
+# ✅ Correct: Awaiting in async function
+async def handler(request):
+    result = await db.query(...).execute()
+    return result
 
-### External Integrations
+# ✅ Correct: Dependency injection ensures scope
+async def get_user(session: Session = Depends(get_session)):
+    return await session.get_user()
+```
 
-- **Stripe** (payments, Connect payouts)
-- **AWS** (S3, SES, Secrets Manager)
-- **Resend** (transactional email)
-- **Twilio** (SMS notifications)
+**Unsafe Patterns**
+```python
+# ❌ Wrong: Setting global state in async context
+stripe.api_key = secret_key  # Race condition!
+
+# ❌ Wrong: Non-atomic check-then-set
+if redis.exists(key):  # Line 1
+    # Another request could modify redis here
+    redis.set(key, value)  # Line 2
+
+# ❌ Wrong: Creating cache without sync
+if _CACHE_CLIENT is None:  # Line 1
+    # Multiple async tasks could reach here
+    _CACHE_CLIENT = initialize()  # Line 2
+```
+
+### Request Context Tracking
+
+- **Request ID**: Added by `prep/middleware/request_context.py` (X-Request-ID header)
+- **User Context**: JWT claims extracted to FastAPI security dependencies
+- **Audit Trail**: Middleware logs all request/response pairs
+- **Error Context**: Failed requests capture stack trace with sanitized sensitive data
+
+### Payment Integration (Stripe)
+
+**Webhook Validation**
+- Signature validation using `stripe.Webhook.construct_event()`
+- Idempotency key in request headers prevents duplicate charges
+- All webhook handlers are async, non-blocking
+
+**Charge Flow**
+1. Booking confirmed → Create payment intent
+2. Client-side payment submission
+3. Stripe webhook fires → Update booking status
+4. Async task reconciles payment record with booking
+
+### Compliance Rule Engine
+
+**Authority Chain Validation**
+- FDA → Accreditation Body (AB) → Certification Body (CB) → Facility
+- Each link verified against NEO4j relationship graph
+- Expiration dates checked against SQLite reference data
+
+**City-Specific Rules**
+- Configuration per city in `apps/city_regulatory_service/`
+- Rules include: License types, renewal intervals, fee structures
+- Rules loaded at startup, cached in Redis with TTL
+
+### Testing Infrastructure
+
+**Test Layers**
+- **Unit**: Fast, isolated, mocked dependencies
+- **Integration**: Real databases, Redis, external APIs mocked
+- **E2E**: Full request flow through all services
+- **Smoke**: Import validation across all modules
+- **Regression**: Golden-file testing via RIC test harness
+
+**Database Testing**
+- Each test gets isolated transaction (rolled back)
+- Fixtures pre-populate reference data
+- Alembic migrations tested before applying to production
 
 ---
 
-## Getting Started
+## Known Issues & Active Bugs
+
+### 🔴 CRITICAL Bugs (Active Bug Hunt Required)
+
+| ID | Issue | Location | Impact | Workaround |
+|----|-------|----------|--------|-----------|
+| **BUG-001** | Duplicate `get_current_admin()` function definition | `prep/admin/certification_api.py:289,321` | Second definition overrides first, endpoint may use wrong field names | Remove duplicate, merge implementations |
+| **BUG-002** | Race condition in idempotency middleware (non-atomic check-set) | `prep/api/middleware/idempotency.py:55-71` | Concurrent requests with same idempotency key could bypass protection | Use Redis Lua script for atomic operation |
+| **BUG-003** | Thread-unsafe global Stripe API key | `prep/payments/service.py:70` | Concurrent payment requests may use incorrect API key | Pass API key per-request instead of setting globally |
+
+### 🔴 HIGH Severity Issues
+
+| ID | Issue | Location | Impact | Fix |
+|----|-------|----------|--------|-----|
+| **BUG-004** | CORS origin whitespace not stripped | `api/index.py:193-195` | Valid CORS origins with whitespace fail validation | Strip each origin after split |
+| **BUG-005** | Unsafe falsy checks on Stripe fields | `prep/payments/service.py:77,114` | Valid Stripe responses with falsy IDs cause errors | Use `is None` instead of truthiness |
+| **BUG-006** | Incomplete DAG implementation | `dags/foodcode_ingest.py:18,32,46` | ETL pipeline non-functional (raises NotImplementedError) | Implement functions or remove DAG |
+| **BUG-007** | Silent exception handling in audit logger | `middleware/audit_logger.py:61-63` | Audit trail failures go undetected | Log exception and emit metrics before returning |
+| **BUG-008** | Stripe webhook idempotency not enforced | `prep/payments/service.py` | Duplicate webhook deliveries could create duplicate charges | Validate idempotency key before processing |
+
+### 🟡 MEDIUM Severity Issues
+
+| ID | Issue | Location | Category | Priority |
+|----|-------|----------|----------|----------|
+| **BUG-009** | Potential N+1 queries in reconciliation | `jobs/reconciliation_engine.py:102,125,149` | Performance | High |
+| **BUG-010** | Race condition in global cache initialization | `prep/cache.py:79-102` | Concurrency | High |
+| **BUG-011** | Configuration whitespace normalization inconsistent | `prep/settings.py:271,301,325` | Security | Medium |
+| **BUG-012** | Token validation error lacks diagnostic logging | `prep/auth/rbac.py:116-120` | Debugging | Medium |
+| **BUG-013** | Audit logger silently skips when session unavailable | `middleware/audit_logger.py:35-36` | Logging | Medium |
+| **BUG-014** | Session cache validation not atomic | `prep/auth/dependencies.py:57-71` | Concurrency | Medium |
+| **BUG-015** | Duplicate AdminUser model definitions | `prep/admin/certification_api.py:289-296,321-329` | Type Safety | Medium |
+| **BUG-016** | Missing validation for critical Stripe config | `prep/settings.py:84,116-117` | Configuration | Medium |
+| **BUG-017** | Response schema validation doesn't fail requests | `prep/api/middleware/schema_validation.py:199-204` | API Contract | Medium |
+
+**See [`CRITICAL_BUGS_HUNTING_LIST.md`](CRITICAL_BUGS_HUNTING_LIST.md) for detailed bug hunt with reproduction steps, affected code paths, and recommended fixes.**
+
+---
+
+## Development Setup
 
 ### Prerequisites
 
-- **Docker** 24+ and **Docker Compose** 2+
-- **Python** 3.10+ with pip
-- **Node.js** 20+ with npm
-- **PostgreSQL** 15+ (or use Docker)
-- **Redis** 7+ (or use Docker)
+- **Docker** 24+ with Docker Compose 2+
+- **Python** 3.10+ (or use `pyenv` for multiple versions)
+- **Node.js** 20+ and npm 10+
+- **PostgreSQL** 15+ (via Docker Compose)
+- **Redis** 7+ (via Docker Compose)
 
-### Quick Start (Recommended)
-
-Bootstrap the entire development environment with one command:
+### Quick Bootstrap
 
 ```bash
-# Clone the repository
-git clone <repo-url>
-cd Prep
-
-# Bootstrap environment (installs deps, starts services, runs migrations)
-make bootstrap
-
-# Verify all services are healthy
-make health
+git clone <repo-url> && cd Prep
+make bootstrap      # Installs deps, starts services, runs migrations, health checks
+make health         # Verify all services ready
 ```
-
-This will:
-1. Install Python and Node.js dependencies
-2. Start PostgreSQL, Redis, and MinIO via Docker Compose
-3. Run database migrations
-4. Start all microservices
-5. Verify connectivity and health checks
 
 ### Manual Setup
 
-If you prefer step-by-step setup:
-
-#### 1. Install Dependencies
-
 ```bash
-# Python dependencies
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -e .
+# 1. Install Python dependencies
+python -m venv .venv && source .venv/bin/activate
+pip install -e . && pip install -r requirements.txt
 
-# Node.js dependencies (prepchef backend)
-cd prepchef
-npm install
+# 2. Install Node.js dependencies
+cd prepchef && npm install
+cd ../apps/harborhomes && npm install
 
-# Frontend dependencies
-cd apps/harborhomes
-npm install
-```
-
-#### 2. Configure Environment
-
-```bash
-# Copy example environment file
+# 3. Configure environment
 cp .env.example .env.local
+# Edit .env.local with your settings
 
-# Edit with your local settings
-nano .env.local
-
-# Export environment variables
-export $(cat .env.local | xargs)
-```
-
-Required environment variables:
-- `DATABASE_URL`: PostgreSQL connection string
-- `REDIS_URL`: Redis connection string
-- `STRIPE_SECRET_KEY`: Stripe API key
-- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`: AWS credentials
-- `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`: MinIO credentials
-
-#### 3. Start Infrastructure Services
-
-```bash
-# Start PostgreSQL, Redis, MinIO
+# 4. Start infrastructure
 docker-compose up -d postgres redis minio
 
-# Verify connectivity
-make check-db
-```
-
-#### 4. Run Database Migrations
-
-```bash
-# Run all migrations (SQL + Alembic)
+# 5. Run migrations
 make migrate
 
-# Or manually:
-psql $DATABASE_URL < migrations/init.sql
-for file in migrations/00*.sql; do
-  [ "$(basename "$file")" = "init.sql" ] && continue
-  psql $DATABASE_URL < "$file"
-done
+# 6. Start services (each in separate terminal)
+# Terminal 1: API Gateway
+uvicorn api.index:create_app --reload --port 8000
+
+# Terminal 2: Node.js backend
+cd prepchef && npm run dev
+
+# Terminal 3: Frontend
+cd apps/harborhomes && npm run dev
 ```
 
-#### 5. Start Services
-
-```bash
-# Terminal 1: Federal Regulatory Service
-uvicorn apps.federal_regulatory_service.main:app --reload --port 8000
-
-# Terminal 2: City Regulatory Service
-uvicorn apps.city_regulatory_service.main:app --reload --port 8001
-
-# Terminal 3: Compliance Service
-uvicorn apps.compliance_service.main:app --reload --port 8002
-
-# Terminal 4: Node.js Backend
-cd prepchef
-npm run dev
-
-# Terminal 5: Frontend
-cd apps/harborhomes
-npm run dev
-```
-
-#### 6. Access Services
-
-- Frontend: http://localhost:3001
-- API Gateway: http://localhost:8000/docs
-- Node.js Backend: http://localhost:3000/docs
-- MinIO Console: http://localhost:9001
+**Service Endpoints:**
+- Frontend: `http://localhost:3001`
+- API Gateway: `http://localhost:8000/docs` (OpenAPI)
+- Node Backend: `http://localhost:3000/docs`
+- MinIO: `http://localhost:9001`
 
 ---
 
-## Development
+## Development Workflow
 
-### Development Commands
+### Essential Commands
 
 ```bash
-# Start all services
-make up
-
-# Stop all services
-make down
-
-# View logs
-make logs
-
-# Restart services
-make restart
-
-# Clean environment (removes volumes!)
-make clean
+make up              # Start all services
+make down            # Stop all services
+make test            # Run all tests (unit + integration + E2E)
+make lint            # Run linters (ruff, eslint, mypy)
+make format          # Auto-format code (black, prettier)
+make quality-check   # Full lint + type check + security scan
+make health          # Health check all services
+make logs            # Tail all service logs
+make db-reset        # ⚠️  Destroy and reinitialize database
 ```
 
-### Database Operations
+### Database Migrations
 
 ```bash
-# Run migrations
-make migrate
-
-# Rollback last migration
-make migrate-down
-
-# Create new migration
-alembic revision -m "description"
-
-# Reset database (WARNING: destroys data)
-make db-reset
+make migrate                    # Run pending migrations
+make migrate-down               # Rollback last migration
+alembic revision -m "descrip"   # Create new migration
+alembic downgrade -1            # Downgrade one revision
 ```
 
 ### Code Quality
 
-Recent improvements (November 2025):
-- 2,480 linting errors auto-fixed (68% reduction)
-- 283 files reformatted for PEP 8 compliance
-- 200+ unsafe TypeScript `any` types eliminated
-- All `console.log` replaced with structured logging
-- Zero high-severity Bandit security issues
-
 ```bash
-# Run all linters
-make lint
+# Individual tools
+ruff check .               # Python linting
+black prep/ apps/ --check  # Python formatting
+mypy .                     # Python type checking
+npm run lint               # TypeScript linting (prepchef)
+npm run typecheck          # TypeScript type checking
 
-# Run type checking (MyPy for Python, tsc for TypeScript)
-make typecheck
-
-# Format code (Black for Python, Prettier for TypeScript)
-make format
-
-# Run pre-commit hooks manually
-pre-commit run --all-files
-
-# Security scanning
-make security-scan
-
-# Full quality check (lint + typecheck + security)
-make quality-check
+# Integrated checks
+make lint                  # All linters
+make typecheck             # All type checkers
+make format                # All formatters
+pre-commit run --all-files # Pre-commit hooks
 ```
 
-### Development Workflow
+### Testing Commands
 
-1. **Create a feature branch** from `main`
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
+```bash
+pytest                          # All Python tests
+pytest -m integration           # Integration tests only
+pytest --cov=prep              # Coverage report
+cd prepchef && npm test        # Node.js tests
+npm run test:e2e               # E2E tests (Playwright)
+make smoke-test                # Import validation
+```
 
-2. **Make changes** with frequent commits
-   ```bash
-   git add .
-   git commit -m "feat: add new feature"
-   ```
+### Git Workflow
 
-3. **Run tests** before pushing
-   ```bash
-   make test
-   make lint
-   make typecheck
-   ```
-
-4. **Push and create PR**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
+```bash
+git checkout -b feature/name
+# ... make changes ...
+make lint && make typecheck && make test
+git add .
+git commit -m "feat: description"
+git push origin feature/name
+# Create pull request
+```
 
 ### Troubleshooting
 
-If you encounter issues, see [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) for solutions to:
-- Missing environment variables
+See [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) for:
+- Environment configuration issues
 - Database connection failures
 - Module import errors
-- Docker Compose networking issues
+- Docker networking problems
 - Port conflicts
-- Memory/resource constraints
+- Performance debugging
 
 ---
 
-## Testing
+## Testing & Validation
 
-Prep has **comprehensive test coverage** across multiple layers with recent improvements to test infrastructure and reliability.
+### Test Coverage
 
-### Recent Test Improvements (November 2025)
-- ✅ Fixed all TypeScript compilation errors in test files
-- ✅ Resolved Jest configuration issues across 13 microservices
-- ✅ Fixed RegEngine datetime comparison edge cases
-- ✅ Improved smoke test coverage for import validation
-- ✅ Added comprehensive test fixtures and factories
-- ✅ Enhanced CI/CD test automation with 23 workflows
+| Layer | Tools | Command | Notes |
+|-------|-------|---------|-------|
+| **Unit** | pytest, Jest | `make test` | Fast, mocked dependencies, ~51% coverage |
+| **Integration** | pytest, Supertest | `pytest -m integration` | Real DB, mocked external APIs |
+| **E2E** | Playwright | `npm run test:e2e` | Full flow through all services |
+| **Smoke** | Import validation | `make smoke-test` | Validates all modules load correctly |
+| **Regression** | Golden-file tests | `cd regengine && pytest -v` | RIC test harness for compliance rules |
+| **Load** | k6, locust | `make test:load` | Performance/scalability testing |
 
-### Test Commands
+### CI/CD Pipeline (23 Workflows)
 
-```bash
-# Run all tests (Python + Node.js)
-make test
-
-# Python tests only
-pytest
-
-# Python tests with coverage
-pytest --cov=prep --cov-report=html
-
-# Node.js tests only
-cd prepchef && npm test
-
-# E2E tests
-npm run test:e2e
-
-# Smoke tests (validates imports)
-make smoke-test
-
-# Load/performance tests
-make test:load
-
-# RegEngine compliance tests (golden file testing)
-cd regengine && pytest -v
-```
+| Stage | Checks | Failure = Blocker |
+|-------|--------|-------------------|
+| **Lint** | ruff, black, eslint, prettier | ✅ Yes |
+| **Type** | mypy, tsc strict mode | ✅ Yes |
+| **Test** | pytest, jest, e2e | ✅ Yes |
+| **Security** | gitleaks, bandit, dependabot | ✅ Yes |
+| **Build** | Docker image build & scan | ✅ Yes |
+| **Contract** | OpenAPI validation | ✅ Yes |
 
 ### Test Organization
 
 ```
 tests/
-├── unit/           # Fast, isolated unit tests
-├── integration/    # Service integration tests
-├── e2e/           # End-to-end user flows
-├── smoke/         # Import and basic functionality
-├── perf/          # Performance benchmarks
-├── load/          # Load testing scenarios
-├── contract/      # API contract tests
-└── regression/    # Regression test suite
+├── unit/               # Isolated, mocked tests
+├── integration/        # Real DB/Redis, mocked APIs
+├── e2e/               # Full request flows
+├── smoke/             # Import validation
+├── perf/              # Benchmarks
+├── load/              # Scalability tests
+├── contract/          # API contracts
+└── regression/        # Golden-file tests
 ```
-
-### Test Markers
-
-Use pytest markers to run specific test categories:
-
-```bash
-# Integration tests only
-pytest -m integration
-
-# Skip slow tests
-pytest -m "not slow"
-
-# E2E tests only
-pytest -m e2e
-
-# Compliance-specific tests
-pytest tests/compliance/
-```
-
-### Continuous Integration
-
-**23 comprehensive GitHub Actions workflows** run on every push:
-
-**Code Quality & Testing**
-- ✅ Unit and integration tests (Python + Node.js)
-- ✅ Linting (Ruff for Python, ESLint for TypeScript)
-- ✅ Type checking (MyPy, TypeScript strict mode)
-- ✅ Code formatting validation (Black, Prettier)
-- ✅ Smoke tests (import validation across all modules)
-
-**Security Scanning**
-- ✅ Gitleaks (secret scanning on every commit)
-- ✅ Bandit (Python security linting)
-- ✅ Dependency scanning (Dependabot alerts)
-- ✅ Docker image vulnerability scanning
-- ✅ Container security benchmarks
-
-**Integration & E2E**
-- ✅ Contract tests (OpenAPI validation)
-- ✅ E2E tests (Playwright browser automation)
-- ✅ Database migration testing
-- ✅ Service health checks
-
-**Recent CI/CD Improvements** (November 2025)
-- Fixed all TypeScript compilation errors in CI
-- Added RegEngine compliance test validation
-- Enhanced security scanning with fail-fast on critical issues
-- Improved test parallelization for faster feedback
-
-See `.github/workflows/` for all workflow definitions.
 
 ---
 
-## Security
+## Security Architecture
 
-Prep implements **defense-in-depth security** with multiple layers and comprehensive recent hardening.
+### Authentication & Authorization
 
-### Recent Security Hardening (November 2025)
+| Component | Implementation | Details |
+|-----------|-----------------|---------|
+| **Auth Flow** | JWT + Refresh Tokens | Access token: 15min, Refresh: 7 days |
+| **Validation** | FastAPI security dependencies | `Depends(require_active_session)` |
+| **RBAC** | Role-based access control | Roles: admin, host, renter, support |
+| **Scopes** | JWT claims | Fine-grained permission checks |
 
-✅ **Critical Vulnerability Fixes**
-- Fixed SQL injection vulnerabilities in dynamic query construction
-- Replaced weak `random.random()` with cryptographically secure `secrets.SystemRandom()` for token generation
-- Fixed all Docker containers running as root (migrated to non-root users)
-- Removed hardcoded secrets from production code paths
-- Enhanced audit logging to prevent silent failures
+### Input Validation & Sanitization
 
-✅ **Infrastructure Security**
-- **Docker Security**: Multi-stage builds, non-root users, minimal base images
-- **Secret Scanning**: Gitleaks pre-commit hooks + GitHub Actions on every push
-- **Container Scanning**: Automated vulnerability scanning in CI/CD
-- **Image Hardening**: Read-only file systems, dropped capabilities, security profiles
+```python
+# ✅ All inputs validated via Pydantic/Zod schemas
+class BookingRequest(BaseModel):
+    kitchen_id: UUID  # UUID not string
+    duration_hours: PositiveInt  # Positive integers only
+    notes: str = Field(..., max_length=500)  # Length limits
 
-✅ **Application Security**
-- **Input Validation**: Enhanced Pydantic/Zod schemas with strict validation
-- **Authentication**: JWT with refresh token rotation, email verification
-- **Authorization**: Fine-grained RBAC with role enforcement middleware
-- **Webhook Security**: Added signature validation and idempotency checks for Stripe webhooks
-- **Error Handling**: Structured error logging without information leakage
-
-✅ **Testing & Validation**
-- **RIC Test Harness**: Regression testing for compliance engine
-- **Pre-commit Hooks**: Ruff, Black, Bandit, MyPy, Hadolint, yamllint
-- **Security Audit Scripts**: Weekly checks, monthly comprehensive audits
-- **Bandit Scanning**: Python security linting (1,632 checks, 0 high-severity issues)
-
-✅ **Documentation & Compliance**
-- **Architecture Documentation**: SPOF analysis, incident response procedures
-- **Security Audit Reports**: Comprehensive vulnerability assessments
-- **Remediation Tracking**: Documented fixes for all identified issues
-- **Security Policies**: Updated credential management and rotation procedures
-
-### Security Features
-
-- **Authentication**: JWT tokens with refresh rotation, email verification
-- **Authorization**: Role-based access control (RBAC) with fine-grained permissions
-- **Data Encryption**: TLS in transit, encryption at rest for PII
-- **Secret Management**: AWS Secrets Manager integration, no secrets in code
-- **Audit Logging**: Comprehensive audit trails for all sensitive operations
-- **Input Validation**: Pydantic/Zod schemas, SQL injection prevention
-- **Rate Limiting**: Per-endpoint rate limits, DDoS protection
-- **Dependency Scanning**: Dependabot alerts, automated updates
-
-### Security Scripts
-
-```bash
-# Run comprehensive security verification
-./verify_security.sh
-
-# Weekly security check
-./security_weekly_check.sh
-
-# Monthly security audit
-./security_monthly_audit.sh
-
-# Check for secrets before commit
-./scripts/check_secrets.sh
+# ✅ SQL injection prevention (parameterized queries)
+# ❌ Never: f"SELECT * FROM bookings WHERE id = {user_input}"
+# ✅ Always: "SELECT * FROM bookings WHERE id = ?" with [user_input]
 ```
 
-### Reporting Security Issues
+### Data Protection
 
-See [`SECURITY.md`](SECURITY.md) for:
-- Vulnerability reporting process
-- Credential rotation procedures
-- Security policies
-- Incident response plans
+- **Encryption at Rest**: PII fields encrypted with AES-256
+- **TLS in Transit**: All external communication over HTTPS
+- **Secrets Management**: AWS Secrets Manager (no hardcoded secrets)
+- **Audit Logging**: All sensitive operations logged with user context
+
+### Compliance Scanning
+
+```bash
+./verify_security.sh          # Full security audit
+./security_weekly_check.sh    # Weekly automated check
+./security_monthly_audit.sh   # Comprehensive monthly audit
+```
+
+**Bandit Results (Python security linting)**
+- 1,632 checks run
+- 0 high-severity issues
+- 11 medium-severity findings (XML parsing, network binding)
+
+### Dependency Management
+
+- **Automated Scanning**: Dependabot pulls on security updates
+- **Pre-commit Hooks**: Gitleaks scans for secrets before commit
+- **GitHub Actions**: Secret scanning on every push
+- **Image Scanning**: Docker image vulnerability scanning in CI/CD
 
 ---
 
-## Documentation
+## Operations & Monitoring
 
-Comprehensive documentation is available in multiple locations:
+### Health Checks
 
-### Root Documentation
+```bash
+make health     # Check all services
+# Returns health status for: API, PostgreSQL, Redis, MinIO, Node.js services
+```
 
-- **[DEVELOPER_ONBOARDING.md](DEVELOPER_ONBOARDING.md)** – Complete developer setup guide
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** – Common issues and solutions
-- **[README.local.md](README.local.md)** – Local development deep-dive
-- **[RUNBOOK.md](RUNBOOK.md)** – Operational procedures and incident response
-- **[SECURITY.md](SECURITY.md)** – Security policies and credential management
-- **[PRIVACY.md](PRIVACY.md)** – Data handling and privacy guidelines
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** – Contribution guidelines and PR process
-- **[CHANGELOG.md](CHANGELOG.md)** – Version history and release notes
-- **[ROADMAP.md](ROADMAP.md)** – Product roadmap and future plans
+### Observability
 
-### Quality & Security Reports
+**Monitoring Stack**
+- **Prometheus**: Metrics scraping (port 9090)
+- **Grafana**: Dashboards and alerting (port 3000)
+- **OpenTelemetry**: Distributed tracing via OTLP collector
 
-**Bug Hunt & Fixes (November 2025)**
-- **[BUG_HUNT_REPORT_2025-11-11.md](BUG_HUNT_REPORT_2025-11-11.md)** – Comprehensive bug audit (78 issues identified)
-- **[COMPREHENSIVE_BUG_HUNT_REPORT_2025-11-11.md](COMPREHENSIVE_BUG_HUNT_REPORT_2025-11-11.md)** – Detailed findings across all categories
-- **[BUG_FIXES_SUMMARY.md](BUG_FIXES_SUMMARY.md)** – Summary of 87 bugs fixed
-- **[REMAINING_ISSUES_REPORT.md](REMAINING_ISSUES_REPORT.md)** – Tracking remaining work items
-- **[BUG_SCAN_INDEX.md](BUG_SCAN_INDEX.md)** – Index of all bug scan reports
-- **[BUG_SCAN_EXECUTIVE_SUMMARY.md](BUG_SCAN_EXECUTIVE_SUMMARY.md)** – Executive overview
+**Key Metrics**
+- `http_request_duration_seconds` – API latency
+- `database_connection_pool_size` – DB connection usage
+- `redis_commands_processed_total` – Cache operations
+- `stripe_api_calls_total` – Payment API usage
 
-**Code Quality Analysis**
-- **[CODE_QUALITY_ANALYSIS.md](CODE_QUALITY_ANALYSIS.md)** – Comprehensive quality assessment (839 files analyzed)
-- **[CODE_QUALITY_FIXES.md](CODE_QUALITY_FIXES.md)** – Actionable refactoring guide
-- **[CODE_QUALITY_ISSUES_DETAILS.md](CODE_QUALITY_ISSUES_DETAILS.md)** – Detailed issue breakdown
-- **[CODE_QUALITY_SCAN_2025-11-11.md](CODE_QUALITY_SCAN_2025-11-11.md)** – Latest scan results
-- **[QUALITY_ANALYSIS_README.md](QUALITY_ANALYSIS_README.md)** – Quality metrics overview
+### Deployment
 
-**Security Audits**
-- **[SECURITY_AUDIT_REPORT_2025-11-11.md](SECURITY_AUDIT_REPORT_2025-11-11.md)** – Comprehensive security audit
-- **[SECURITY_VULNERABILITY_REPORT.md](SECURITY_VULNERABILITY_REPORT.md)** – Vulnerability assessment and remediation
-- **[CONFIG_AUDIT_REPORT.md](CONFIG_AUDIT_REPORT.md)** – Configuration security audit
-- **[COMPREHENSIVE_BUG_SCAN_REPORT.md](COMPREHENSIVE_BUG_SCAN_REPORT.md)** – Cross-cutting security and quality issues
+**Local Development**
+```bash
+docker-compose up    # Start all services
+```
 
-### Technical Documentation (`docs/`)
+**Production (Kubernetes)**
+```bash
+helm install prep ./infra/helm/prep -f values.production.yaml
+kubectl logs -f deployment/prep-api-gateway
+```
 
-- **[architecture.md](docs/architecture.md)** – System architecture with Mermaid diagrams
-- **[compliance_engine.md](docs/compliance_engine.md)** – Compliance rule engine design
-- **[etl_crawler.md](docs/etl_crawler.md)** – Regulatory data ETL pipeline
-- **[testing_validation_plan.md](docs/testing_validation_plan.md)** – QA strategy
-- **observability/** – Monitoring and alerting setup
-- **city_summaries/** – City-specific regulatory summaries
+**Required Environment Variables**
+```
+DATABASE_URL=postgresql://user:pass@postgres:5432/prep
+REDIS_URL=redis://redis:6379
+STRIPE_SECRET_KEY=sk_live_...
+JWT_SECRET_KEY=<random-256-bit-value>
+ENVIRONMENT=production
+```
 
-### Service Documentation
+---
 
-Each service has its own README:
-- `apps/federal_regulatory_service/README.md`
-- `apps/city_regulatory_service/README.md`
-- `apps/compliance_service/README.md`
-- `apps/harborhomes/README.md`
-- `prepchef/README.md`
+## Known Technical Debt
 
-### API Documentation
+| Item | Impact | Effort | Priority |
+|------|--------|--------|----------|
+| **Ruff linting errors** (974 remaining) | Code consistency | Medium | Low |
+| **Type coverage** (missing stubs for third-party libs) | IDE support | High | Medium |
+| **N+1 query patterns** (potential) | Performance | High | High |
+| **Race condition fixes** (3 critical) | Data integrity | Medium | Critical |
+| **DAG implementation** (incomplete) | ETL non-functional | High | High |
+| **Test coverage** (target 85%, current 51%) | Reliability | High | Medium |
+| **Audit logging robustness** | Compliance | Medium | Medium |
 
-- **OpenAPI Docs**: Available at `/docs` endpoint for each service
-- **Postman Collection**: Import from `docs/postman/Prep.postman_collection.json`
-- **API Reference**: Generated TypeScript types in `prepchef/packages/types/`
+See [`CRITICAL_BUGS_HUNTING_LIST.md`](CRITICAL_BUGS_HUNTING_LIST.md) and [`REMAINING_ISSUES_REPORT.md`](REMAINING_ISSUES_REPORT.md).
 
 ---
 
 ## Contributing
 
-We welcome contributions! Please follow these guidelines:
-
-### 1. Setup Development Environment
+### Setup & Branch Workflow
 
 ```bash
-# Fork and clone the repository
-git clone https://github.com/your-username/Prep.git
-cd Prep
+git clone https://github.com/PetrefiedThunder/Prep.git && cd Prep
+pre-commit install                  # Install pre-commit hooks
+make bootstrap                      # Setup dev environment
 
-# Bootstrap environment
-make bootstrap
-
-# Install pre-commit hooks
-pre-commit install
+git checkout -b feature/your-name   # Create feature branch
+# ... make changes ...
+make test && make lint && make typecheck
+git push origin feature/your-name   # Create pull request
 ```
 
-### 2. Create a Feature Branch
+### Code Standards
 
-```bash
-git checkout -b feature/your-feature-name
-```
+| Language | Style | Type Check | Tests |
+|----------|-------|-----------|-------|
+| **Python** | PEP 8 + Black | mypy strict | pytest >80% |
+| **TypeScript** | Prettier | tsc --strict | jest + supertest |
+| **YAML** | yamllint | - | - |
+| **Docker** | hadolint | - | - |
 
-Branch naming conventions:
-- `feature/` – New features
-- `fix/` – Bug fixes
-- `docs/` – Documentation updates
-- `refactor/` – Code refactoring
-- `test/` – Test additions/improvements
+### Commit & PR Requirements
 
-### 3. Make Changes
-
-- Write clear, descriptive commit messages following [Conventional Commits](https://www.conventionalcommits.org/)
-- Add tests for new functionality
-- Update documentation as needed
-- Ensure code passes linting and type checking
-
-```bash
-# Verify your changes
-make test
-make lint
-make typecheck
-```
-
-### 4. Submit a Pull Request
-
-- Provide a clear PR description using the template in `PR_DESCRIPTION.md`
-- Link related issues
-- Describe implementation approach
-- Include screenshots for UI changes
-- List testing performed
-
-### Code Review Process
-
-1. Automated CI checks must pass
-2. At least one maintainer approval required
-3. Address review feedback
-4. Squash commits before merge (if requested)
-
-### Development Guidelines
-
-- **Python**: Follow PEP 8, use type hints, document with docstrings
-- **TypeScript**: Strict mode enabled, use interfaces over types
-- **Testing**: Aim for >80% coverage, write meaningful tests
-- **Security**: Never commit secrets, validate all inputs
-- **Documentation**: Update docs for API changes
+- **Commits**: Conventional Commits format (`feat:`, `fix:`, `docs:`, etc.)
+- **PR Description**: Use template in `PR_DESCRIPTION.md`
+- **Tests**: All new code must have test coverage
+- **CI**: All 23 workflows must pass
+- **Secrets**: Never commit `.env`, credentials, or API keys
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for detailed guidelines.
 
@@ -850,184 +780,6 @@ Prep/
 ├── pytest.ini                # Pytest configuration
 └── README.md                 # This file
 ```
-
----
-
-## Deployment
-
-### Local Development
-
-```bash
-make up          # Start all services via Docker Compose
-make health      # Verify all services are healthy
-```
-
-### Production Deployment
-
-The API gateway is deployed as a containerized application:
-
-```bash
-# Build production image
-docker build -t prep:latest .
-
-# Run with Gunicorn (WSGI)
-gunicorn run_api:app --workers 4 --bind 0.0.0.0:8000
-
-# Or with Uvicorn (ASGI)
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
-```
-
-Both `main:app` and `run_api:app` call `api.index.create_app()` internally.
-
-### Kubernetes Deployment
-
-```bash
-# Deploy with Helm
-helm install prep ./infra/helm/prep -f values.production.yaml
-
-# Verify deployment
-kubectl get pods -n prep
-kubectl logs -f deployment/prep-api-gateway
-```
-
-### Environment Variables
-
-Required in production:
-- `DATABASE_URL` – PostgreSQL connection string
-- `REDIS_URL` – Redis connection string
-- `STRIPE_SECRET_KEY` – Stripe API key
-- `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
-- `JWT_SECRET_KEY` – JWT signing key
-- `ENVIRONMENT` – `production` or `staging`
-
-See [`RUNBOOK.md`](RUNBOOK.md) for operational procedures.
-
----
-
-## Roadmap
-
-### Recent Achievements (November 2025)
-
-#### **Major Bug Fixes & Quality Improvements**
-- ✅ **Comprehensive bug hunt completed** – 87 bugs resolved across 150+ files
-  - **9 CRITICAL** issues: Duplicate function definitions, middleware registration, router conflicts
-  - **9 HIGH** severity: Resource leaks, audit logging failures, webhook validation
-  - **42 MEDIUM** severity: Type safety, error handling, performance issues
-  - **18 LOW** severity: Code quality and maintainability improvements
-
-- ✅ **Critical System Fixes**
-  - Fixed ETL crawler variable mismatches causing data loss
-  - Resolved Stripe webhook validation and idempotency issues
-  - Fixed Redis lock leaks in booking service preventing resource exhaustion
-  - Eliminated duplicate `create_app()` definitions causing unpredictable behavior
-  - Resolved N+1 query performance issues across services
-
-- ✅ **TypeScript/Node.js Improvements**
-  - Fixed all TypeScript compilation errors across 13 microservices
-  - Eliminated 200+ unsafe `any` types with proper type definitions
-  - Replaced all `console.log` statements with structured logging (Winston)
-  - Added proper error boundaries and cleanup handlers
-  - Fixed test configuration and Jest setup issues
-
-- ✅ **Python Code Quality**
-  - Auto-fixed 2,480 linting errors (68% reduction)
-  - Reformatted 283 files for PEP 8 compliance
-  - Resolved syntax errors in 11 critical service files
-  - Fixed undefined name errors and missing imports
-  - Modernized type hints across 50+ modules
-
-- ✅ **Security Hardening** (See detailed [Security Audit Report](SECURITY_AUDIT_REPORT_2025-11-11.md))
-  - Fixed SQL injection vulnerabilities in dynamic query construction
-  - Replaced weak `random.random()` with `secrets.SystemRandom()` for tokens
-  - Fixed Docker containers running as root (all Node services)
-  - Enhanced audit logging with structured error tracking
-  - Removed hardcoded secrets and improved credential management
-  - Added Gitleaks pre-commit hooks and GitHub Actions scanning
-  - Implemented comprehensive security verification scripts
-
-- ✅ **Infrastructure & Testing**
-  - RIC test harness for compliance engine regression testing
-  - Fixed RegEngine datetime comparison edge cases
-  - Improved smoke test coverage for import validation
-  - Enhanced CI/CD with 23 comprehensive workflows
-  - Added security scanning to all pull request checks
-
-- ✅ **Documentation**
-  - Comprehensive bug hunt report with 78 detailed findings
-  - Code quality analysis covering 839 files
-  - Security vulnerability assessment and remediation guide
-  - Configuration audit report
-  - Remaining issues tracker for ongoing work
-
-#### **In Progress**
-- 🚧 Remaining 974 linting errors (down from 3,454)
-- 🚧 Multi-city expansion (LA, Chicago, Austin)
-- 🚧 Mobile app (React Native)
-- 🚧 Real-time notifications (WebSockets)
-
-### Upcoming Features
-
-- **Q4 2025**: Automated insurance verification, production deployment hardening
-- **Q1 2026**: AI-powered compliance recommendations
-- **Q2 2026**: International expansion (Canada, UK)
-- **Q3-Q4 2026**: Supply chain and delivery management
-
-See [`ROADMAP.md`](ROADMAP.md) for detailed plans.
-
----
-
-## Known Issues & Ongoing Work
-
-### Active Improvements (Tracked in [REMAINING_ISSUES_REPORT.md](REMAINING_ISSUES_REPORT.md))
-
-**Linting & Code Quality** (In Progress)
-- 974 remaining linting errors (down from 3,454)
-  - 451 function call defaults (B008) - modernizing to `Annotated` pattern
-  - 186 import ordering issues (E402)
-  - 115 undefined name errors (F821) - adding missing imports
-- Target: Reduce to <100 by Q1 2026
-
-**Security Hardening** (Low Priority)
-- 11 medium-severity Bandit findings
-  - XML parsing hardening (migrate to `defusedxml`)
-  - Network binding configuration improvements
-- All high-severity issues resolved ✅
-
-**Type Safety** (Ongoing)
-- Migrating remaining `Any` types to proper type definitions
-- Adding missing type stubs for third-party libraries
-- Improving Pydantic model type hints
-
-**Test Coverage** (Target: 85%)
-- Current: 51.9% of service files have tests
-- Adding unit tests for 97 untested modules
-- Expanding E2E test scenarios
-
-**Performance Optimization** (Q1 2026)
-- Database query optimization (N+1 queries resolved ✅)
-- Redis caching strategy improvements
-- API response time optimization
-
-See [ROADMAP.md](ROADMAP.md) for detailed quarterly plans.
-
----
-
-## Support
-
-### Getting Help
-
-- **Documentation**: Check docs/ for guides and troubleshooting
-- **GitHub Issues**: Open an issue for bugs or feature requests
-- **Discussions**: Use GitHub Discussions for questions
-- **Email**: [Insert support email]
-
-### Common Issues
-
-See [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) for solutions to:
-- Environment setup problems
-- Database connection issues
-- Import errors
-- Docker networking problems
 
 ---
 
