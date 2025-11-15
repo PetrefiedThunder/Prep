@@ -48,7 +48,7 @@ class RegulatoryChangeDetector:
 
         differ = Differ()
         changes: list[Change] = []
-        for index, (old_reg, new_reg) in enumerate(zip(old, new)):
+        for index, (old_reg, new_reg) in enumerate(zip(old, new, strict=False)):
             old_text = old_reg.get("text", "")
             new_text = new_reg.get("text", "")
             diff = list(differ.compare(old_text.split(), new_text.split()))

@@ -1013,10 +1013,7 @@ class CityExpansionService:
                 for i in range(1, 4)
             ]
 
-        if len(trends) >= 2:
-            growth = trends[-1].bookings - trends[-2].bookings
-        else:
-            growth = 0
+        growth = trends[-1].bookings - trends[-2].bookings if len(trends) >= 2 else 0
         avg_revenue = mean(point.revenue for point in trends) if trends else 0
         last_date = trends[-1].period_start
         last_bookings = trends[-1].bookings

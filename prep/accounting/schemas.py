@@ -19,7 +19,7 @@ class DailyRevenueSummary(BaseModel):
     """Normalized representation of daily revenue totals."""
 
     booking_id: UUID | None = Field(default=None)
-    date: date = Field(default_factory=date.today)
+    revenue_date: date = Field(default_factory=date.today)
     total_amount: Decimal = Field(gt=Decimal("0"))
     currency: str = Field(default="USD", min_length=3, max_length=3)
     description: str = Field(min_length=1)

@@ -333,7 +333,7 @@ async def _wait_for_services():
         ("python-compliance", "http://localhost:8000/health"),
     ]
 
-    for service, url in services:
+    for _service, _url in services:
         max_retries = 30
         for i in range(max_retries):
             try:

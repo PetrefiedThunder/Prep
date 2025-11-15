@@ -84,7 +84,7 @@ class DoorDashDriveClient:
 
         data = response.json()
         return DeliveryIntegrationResult(
-            provider_delivery_id=str(data.get("delivery_id" or data.get("id"))),
+            provider_delivery_id=str(data.get("delivery_id")),
             status=_map_doordash_status(data.get("status")),
             eta=_parse_timestamp(data.get("dropoff_time")),
             tracking_url=data.get("tracking_url"),
@@ -160,7 +160,7 @@ class UberDirectClient:
 
         data = response.json()
         return DeliveryIntegrationResult(
-            provider_delivery_id=str(data.get("delivery_id" or data.get("id"))),
+            provider_delivery_id=str(data.get("delivery_id")),
             status=_map_uber_status(data.get("status")),
             eta=_parse_timestamp(data.get("estimated_dropoff")),
             tracking_url=data.get("tracking_url"),
@@ -265,7 +265,7 @@ def hmac_compare(expected: str, actual: str) -> bool:
     if len(expected) != len(actual):
         return False
     result = 0
-    for x, y in zip(expected.encode("utf-8"), actual.encode("utf-8")):
+    for x, y in zip(expected.encode("utf-8"), actual.encode("utf-8"), strict=False):
         result |= x ^ y
     return result == 0
 
