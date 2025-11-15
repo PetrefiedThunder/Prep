@@ -2,6 +2,8 @@ import pytest
 
 wiremock = pytest.importorskip("wiremock")
 
+from wiremock.client import Mappings
+from wiremock.constants import Config
 from wiremock.resources.mappings import Mapping, MappingRequest, MappingResponse
 from wiremock.server import WireMockServer
 
@@ -15,10 +17,17 @@ def wiremock_server():
         server.start()
     except Exception:  # pragma: no cover - infrastructure guard
         pytest.skip("WireMock server not available in CI environment")
+    
+    # Configure wiremock client to use the server's port
+    Config.base_url = f"http://localhost:{server.port}/__admin"
+    
+    # Reset any existing mappings using the client API
+    mappings_client = Mappings()
     try:
-        server.reset_mappings()
-    except AttributeError:  # pragma: no cover - library differences
-        server.reset()
+        mappings_client.reset_mappings()
+    except Exception:  # pragma: no cover - may not be available
+        pass
+    
     yield server
     server.stop()
 
@@ -27,15 +36,20 @@ def _register_mapping(server: WireMockServer, *, method: str, path: str, body: d
     mapping = Mapping(
         priority=1,
         request=MappingRequest(method=method, url=path),
-        response=MappingResponse(status=200, json_body=body),
+        response=MappingResponse(
+            status=200,
+            json_body=body,
+            headers={"Content-Type": "application/json"}
+        ),
     )
-    server.register(mapping)
+    mappings_client = Mappings()
+    mappings_client.create_mapping(mapping)
 
 
 @pytest.mark.asyncio
 async def test_next_insurance_certificate_via_wiremock(wiremock_server: WireMockServer) -> None:
     policy_number = "NEXT-123"
-    base_url = wiremock_server.base_url
+    base_url = f"http://localhost:{wiremock_server.port}"
     _register_mapping(
         wiremock_server,
         method="GET",
@@ -71,7 +85,7 @@ async def test_next_insurance_certificate_via_wiremock(wiremock_server: WireMock
 @pytest.mark.asyncio
 async def test_thimble_certificate_via_wiremock(wiremock_server: WireMockServer) -> None:
     policy_number = "THIM-987"
-    base_url = wiremock_server.base_url
+    base_url = f"http://localhost:{wiremock_server.port}"
     _register_mapping(
         wiremock_server,
         method="GET",
