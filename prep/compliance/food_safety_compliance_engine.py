@@ -724,9 +724,7 @@ class FoodSafetyComplianceEngine(ComplianceEngine):
                 return True
 
         severity = str(violation.get("severity", "")).lower()
-        if severity == "critical":
-            return True
-        return False
+        return severity == "critical"
 
     @_segment_guard("certifications")
     def _validate_certifications(self, data: dict[str, Any]) -> list[ComplianceViolation]:

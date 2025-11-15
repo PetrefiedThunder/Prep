@@ -335,6 +335,8 @@ def write_reg_requirements(
 
 
 __all__ = ["write_fee_schedule", "write_reg_requirements"]
+import contextlib
+
 from prep.regulatory.models import FeeSchedule as FeeScheduleModel
 
 _CADENCE_FACTORS: dict[str, int] = {
@@ -477,10 +479,8 @@ def _compute_fee_totals(fees: list[dict[str, Any]]) -> dict[str, int]:
             elif kind == "incremental":
                 incremental += 1
         else:
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 one_time += int(fee.get("one_time_cents") or 0)
-            except (TypeError, ValueError):
-                pass
             recurring += _annualise_pydantic_fee(fee)
             if fee.get("incremental"):
                 incremental += 1
