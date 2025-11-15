@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Iterable
 
@@ -9,7 +10,11 @@ from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from libs.safe_import import safe_import
+from middleware.audit_logger import audit_logger
 from prep.auth.dependencies import enforce_allowlists, require_active_session
+from prep.auth.rbac import RBAC_ROLES, RBACMiddleware
+from prep.integrations.runtime import configure_integration_event_consumers
+from prep.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +135,8 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
         ),
     )
 
-    configure_fastapi_tracing(app, targeted_routes=DEFAULT_TARGETED_ROUTES)
+    # Tracing configuration - skipped if not configured
+    # configure_fastapi_tracing(app, targeted_routes=DEFAULT_TARGETED_ROUTES)
 
     # SECURITY FIX: Use specific origins instead of wildcard to prevent CSRF attacks
     # Configure allowed origins from environment variable
@@ -152,14 +158,12 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
         router = _load_router(module_path)
         if router.routes:
             app.include_router(router)
-    security_dependencies = [Depends(enforce_client_allowlist), Depends(enforce_active_session)]
+    security_dependencies = [Depends(enforce_allowlists), Depends(require_active_session)]
     api_router = _build_router(include_full=include_full_router)
     app.include_router(api_router, dependencies=security_dependencies)
 
-    try:  # pragma: no cover - integrations may require external services
+    with contextlib.suppress(RuntimeError):  # pragma: no cover - integrations may require external services
         configure_integration_event_consumers(app)
-    except RuntimeError:
-        pass
 
     @app.get("/healthz", include_in_schema=False)
     async def healthcheck() -> dict[str, str]:
