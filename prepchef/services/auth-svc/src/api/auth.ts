@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import '@fastify/jwt';
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { env } from '@prep/config';
 
