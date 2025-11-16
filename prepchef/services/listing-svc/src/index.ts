@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import { log } from '@prep/logger';
 import { prepSecurityPlugin } from '@prep/common';
+import listings from './api/listings';
 
 export async function createApp() {
   const app = Fastify({ logger: false });
@@ -13,6 +14,8 @@ export async function createApp() {
   app.register(async function routes(instance) {
     instance.get('/', async () => ({ name: 'listing-svc' }));
   });
+
+  await app.register(listings);
 
   return app;
 }
