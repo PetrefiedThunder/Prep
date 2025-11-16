@@ -1,93 +1,32 @@
 import Fastify from 'fastify';
+import Stripe from 'stripe';
+import { getPrismaClient } from '@prep/database';
 import { log } from '@prep/logger';
 import { prepSecurityPlugin } from '@prep/common';
-import crypto from 'node:crypto';
+import { z } from 'zod';
 
-interface StoredPaymentIntent {
-  id: string;
-  amount: number;
-  currency: string;
-  status: string;
-  client_secret: string;
-  metadata: Record<string, unknown>;
-  created: number;
-  paid: boolean;
-  bookingId?: string;
-}
-
-interface BookingPaymentState {
-  paid: boolean;
-  paymentIntentId?: string;
-}
-
-type StripeEvent = {
-  id?: string;
-  type?: string;
-  data?: {
-    object?: {
-      id?: string;
-      metadata?: Record<string, unknown>;
-      [key: string]: unknown;
-    };
-    [key: string]: unknown;
-  };
-  [key: string]: unknown;
-};
+const CreatePaymentIntentSchema = z.object({
+  booking_id: z.string().uuid(),
+  amount_cents: z.number().int().positive()
+});
 
 type RawStripeBody = {
   raw: string;
-  parsed: StripeEvent;
+  parsed: Stripe.Event;
 };
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    paymentIntents: Map<string, StoredPaymentIntent>;
-    bookingPayments: Map<string, BookingPaymentState>;
-  }
+// Initialize Stripe with API key from env
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
+if (!stripeSecretKey) {
+  log.warn('[payments-svc] STRIPE_SECRET_KEY not configured, payments will fail');
 }
 
-function parseStripeSignatureHeader(header: string): { timestamp?: string; signature?: string } {
-  const parts = header.split(',');
-  let timestamp: string | undefined;
-  let signature: string | undefined;
+const stripe = new Stripe(stripeSecretKey, {
+  apiVersion: '2024-11-20.acacia',
+  typescript: true
+});
 
-  for (const part of parts) {
-    const [key, value] = part.split('=');
-    if (key === 't' && value) {
-      timestamp = value;
-    } else if (key === 'v1' && value) {
-      signature = value;
-    }
-  }
-
-  return { timestamp, signature };
-}
-
-function verifyStripeSignature(payload: string, header: string, secret: string): boolean {
-  const { timestamp, signature } = parseStripeSignatureHeader(header);
-  if (!timestamp || !signature) return false;
-
-  const signedPayload = `${timestamp}.${payload}`;
-  const expected = crypto.createHmac('sha256', secret).update(signedPayload, 'utf8').digest('hex');
-
-  let actual: Buffer;
-  try {
-    actual = Buffer.from(signature, 'hex');
-  } catch {
-    return false;
-  }
-
-  if (actual.length === 0 || actual.length !== expected.length / 2) {
-    return false;
-  }
-
-  const expectedBuffer = Buffer.from(expected, 'hex');
-  if (expectedBuffer.length !== actual.length) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(expectedBuffer, actual);
-}
+const prisma = getPrismaClient();
 
 export async function createApp() {
   const app = Fastify({ logger: false });
@@ -95,61 +34,83 @@ export async function createApp() {
     serviceName: 'payments-svc'
   });
 
-  app.decorate('paymentIntents', new Map<string, StoredPaymentIntent>());
-  app.decorate('bookingPayments', new Map<string, BookingPaymentState>());
-
   app.get('/healthz', async () => ({ ok: true, svc: 'payments-svc' }));
 
+  // Create payment intent for booking
   app.post('/intents', async (req, reply) => {
-    const { amount_cents, metadata } = req.body as any;
-    if (!amount_cents || amount_cents <= 0) {
+    const parsed = CreatePaymentIntentSchema.safeParse(req.body);
+
+    if (!parsed.success) {
       return reply.code(400).send({
-        error: 'Invalid amount',
-        message: 'Amount must be positive'
-      });
-    }
-    const sanitizedMetadata = (metadata && typeof metadata === 'object' && !Array.isArray(metadata))
-      ? metadata as Record<string, unknown>
-      : {};
-    const bookingIdFromSnake = typeof sanitizedMetadata['booking_id'] === 'string'
-      ? sanitizedMetadata['booking_id'] as string
-      : undefined;
-    const bookingIdFromCamel = typeof sanitizedMetadata['bookingId'] === 'string'
-      ? sanitizedMetadata['bookingId'] as string
-      : undefined;
-    const bookingId = bookingIdFromSnake ?? bookingIdFromCamel;
-
-    const paymentIntent = {
-      id: `pi_${crypto.randomUUID().replace(/-/g, '')}`,
-      amount: amount_cents,
-      currency: 'usd',
-      status: 'requires_payment_method',
-      client_secret: `pi_secret_${crypto.randomUUID().replace(/-/g, '')}`,
-      metadata: sanitizedMetadata,
-      created: Date.now()
-    };
-    app.paymentIntents.set(paymentIntent.id, {
-      ...paymentIntent,
-      metadata: paymentIntent.metadata,
-      paid: false,
-      bookingId
-    });
-
-    if (bookingId) {
-      app.bookingPayments.set(bookingId, {
-        paid: false,
-        paymentIntentId: paymentIntent.id
+        error: 'Invalid request body',
+        details: parsed.error.flatten().fieldErrors
       });
     }
 
-    return reply.code(201).send(paymentIntent);
+    const { booking_id, amount_cents } = parsed.data;
+
+    if (!stripeSecretKey) {
+      return reply.code(503).send({ error: 'Stripe not configured' });
+    }
+
+    try {
+      // Verify booking exists and is in correct state
+      const booking = await prisma.booking.findUnique({
+        where: { id: booking_id }
+      });
+
+      if (!booking) {
+        return reply.code(404).send({ error: 'Booking not found' });
+      }
+
+      if (booking.status !== 'requested') {
+        return reply.code(400).send({ error: 'Booking not in valid state for payment' });
+      }
+
+      // Create Stripe PaymentIntent
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount_cents,
+        currency: 'usd',
+        metadata: {
+          booking_id,
+          renter_id: booking.renterId,
+          listing_id: booking.listingId
+        },
+        automatic_payment_methods: {
+          enabled: true
+        }
+      });
+
+      // Update booking with payment intent ID
+      await prisma.booking.update({
+        where: { id: booking_id },
+        data: {
+          stripePaymentIntentId: paymentIntent.id,
+          paymentStatus: 'pending'
+        }
+      });
+
+      log.info('[payments-svc] Created PaymentIntent', {
+        booking_id,
+        payment_intent_id: paymentIntent.id,
+        amount_cents
+      });
+
+      return reply.code(201).send({
+        payment_intent_id: paymentIntent.id,
+        client_secret: paymentIntent.client_secret,
+        status: paymentIntent.status
+      });
+
+    } catch (error: any) {
+      log.error('[payments-svc] Failed to create payment intent', { error: error.message, booking_id });
+      return reply.code(500).send({ error: 'Failed to create payment intent' });
+    }
   });
 
-  app.register(async function routes(instance) {
-    instance.get('/', async () => ({ name: 'payments-svc' }));
-  });
-
-  await app.register(async function webhookRoutes(instance) {
+  // Stripe webhook handler
+  app.register(async function webhookRoutes(instance) {
+    // Custom content type parser for webhooks (need raw body)
     instance.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
       try {
         const bodyStr = typeof body === 'string' ? body : body.toString();
@@ -165,78 +126,113 @@ export async function createApp() {
 
     instance.post('/webhook', async (req, reply) => {
       const stripeSignature = req.headers['stripe-signature'];
+      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
       if (typeof stripeSignature !== 'string') {
         return reply.code(400).send({ error: 'Missing Stripe-Signature header' });
       }
 
-      const secret = process.env.STRIPE_WEBHOOK_SECRET;
-      if (!secret) {
-        instance.log.error('STRIPE_WEBHOOK_SECRET is not configured');
+      if (!webhookSecret) {
+        instance.log.error('[payments-svc] STRIPE_WEBHOOK_SECRET not configured');
         return reply.code(500).send({ error: 'Webhook secret not configured' });
       }
 
       const body = req.body as RawStripeBody;
-      if (!body || typeof body.raw !== 'string' || typeof body.parsed !== 'object' || body.parsed === null) {
+      if (!body || typeof body.raw !== 'string') {
         return reply.code(400).send({ error: 'Invalid webhook payload' });
       }
 
-      if (!verifyStripeSignature(body.raw, stripeSignature, secret)) {
-        return reply.code(400).send({ error: 'Invalid Stripe signature' });
+      let event: Stripe.Event;
+
+      try {
+        // Verify webhook signature
+        event = stripe.webhooks.constructEvent(body.raw, stripeSignature, webhookSecret);
+      } catch (err: any) {
+        instance.log.error('[payments-svc] Webhook signature verification failed', { error: err.message });
+        return reply.code(400).send({ error: 'Invalid signature' });
       }
 
-      if (body.parsed.type === 'payment_intent.succeeded' && body.parsed.data?.object) {
-        const paymentIntentId = typeof body.parsed.data.object.id === 'string' ? body.parsed.data.object.id : undefined;
-        const rawMetadata = body.parsed.data.object.metadata;
-        const metadata = (rawMetadata && typeof rawMetadata === 'object' && !Array.isArray(rawMetadata))
-          ? (rawMetadata as Record<string, unknown>)
-          : {};
-        const bookingIdFromSnake = typeof metadata['booking_id'] === 'string' ? metadata['booking_id'] as string : undefined;
-        const bookingIdFromCamel = typeof metadata['bookingId'] === 'string' ? metadata['bookingId'] as string : undefined;
-        const bookingId = bookingIdFromSnake
-          ? bookingIdFromSnake
-          : bookingIdFromCamel
-            ? bookingIdFromCamel
-            : app.paymentIntents.get(paymentIntentId ?? '')?.bookingId;
+      // Idempotency check - prevent duplicate processing
+      const existingEvent = await prisma.$queryRaw<Array<{ event_id: string }>>`
+        SELECT event_id FROM stripe_webhook_events WHERE event_id = ${event.id}
+      `;
 
-        if (paymentIntentId) {
-          const storedIntent = app.paymentIntents.get(paymentIntentId);
-          if (storedIntent) {
-            storedIntent.status = 'succeeded';
-            storedIntent.paid = true;
-            if (bookingId) {
-              storedIntent.bookingId = bookingId;
-              storedIntent.metadata = {
-                ...storedIntent.metadata,
-                booking_id: bookingId
-              };
-            }
-            app.paymentIntents.set(paymentIntentId, storedIntent);
-          } else {
-            app.paymentIntents.set(paymentIntentId, {
-              id: paymentIntentId,
-              amount: typeof body.parsed.data.object.amount === 'number' ? body.parsed.data.object.amount : 0,
-              currency: typeof body.parsed.data.object.currency === 'string' ? body.parsed.data.object.currency : 'usd',
-              status: typeof body.parsed.data.object.status === 'string' ? body.parsed.data.object.status : 'succeeded',
-              client_secret: typeof body.parsed.data.object.client_secret === 'string' ? body.parsed.data.object.client_secret : '',
-              metadata,
-              created: typeof body.parsed.data.object.created === 'number' ? body.parsed.data.object.created : Date.now(),
-              paid: true,
-              bookingId
+      if (existingEvent.length > 0) {
+        log.info('[payments-svc] Webhook event already processed', { event_id: event.id });
+        return reply.code(200).send({ received: true });
+      }
+
+      // Store event for idempotency
+      await prisma.$executeRaw`
+        INSERT INTO stripe_webhook_events (event_id, type, data, created_at)
+        VALUES (${event.id}, ${event.type}, ${JSON.stringify(event.data.object)}::jsonb, NOW())
+      `;
+
+      // Handle payment_intent.succeeded
+      if (event.type === 'payment_intent.succeeded') {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const bookingId = paymentIntent.metadata.booking_id;
+
+        if (bookingId) {
+          try {
+            await prisma.booking.update({
+              where: { id: bookingId },
+              data: {
+                paymentStatus: 'captured',
+                status: 'confirmed',
+                paidAt: new Date()
+              }
+            });
+
+            log.info('[payments-svc] Booking confirmed after payment', {
+              booking_id: bookingId,
+              payment_intent_id: paymentIntent.id
+            });
+
+            // TODO: Trigger notification service
+          } catch (error: any) {
+            log.error('[payments-svc] Failed to update booking after payment', {
+              booking_id: bookingId,
+              error: error.message
             });
           }
         }
+      }
+
+      // Handle payment_intent.payment_failed
+      if (event.type === 'payment_intent.payment_failed') {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const bookingId = paymentIntent.metadata.booking_id;
 
         if (bookingId) {
-          app.bookingPayments.set(bookingId, {
-            paid: true,
-            paymentIntentId: paymentIntentId
-          });
+          try {
+            await prisma.booking.update({
+              where: { id: bookingId },
+              data: {
+                paymentStatus: 'failed'
+              }
+            });
+
+            log.warn('[payments-svc] Payment failed for booking', {
+              booking_id: bookingId,
+              payment_intent_id: paymentIntent.id
+            });
+          } catch (error: any) {
+            log.error('[payments-svc] Failed to update booking after payment failure', {
+              booking_id: bookingId,
+              error: error.message
+            });
+          }
         }
       }
 
       return reply.code(200).send({ received: true });
     });
   }, { prefix: '/payments' });
+
+  app.addHook('onClose', async () => {
+    await prisma.$disconnect();
+  });
 
   return app;
 }

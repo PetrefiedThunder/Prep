@@ -434,3 +434,13 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+model StripeWebhookEvent {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId   String   @unique @map("event_id")
+  type      String
+  data      Json     @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("stripe_webhook_events")
+}
