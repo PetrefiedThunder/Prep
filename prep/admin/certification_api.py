@@ -286,14 +286,8 @@ def get_certification_verification_api() -> CertificationVerificationAPI:
     return _certification_api
 
 
-async def get_current_admin() -> AdminUser:
-    """Dependency stub returning the current authenticated admin user."""
-
-    return AdminUser(
-        id=UUID("55555555-5555-5555-5555-555555555555"),
-        email="admin@example.com",
-        name="Prep Admin",
-    )
+# Duplicate get_current_admin() function removed (BUG-001 fix)
+# The correct definition is below at line ~321 with proper field names
 
 
 @certification_router.get("/pending", response_model=PendingCertificationsResponse)
