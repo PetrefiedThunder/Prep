@@ -225,6 +225,7 @@ async def test_webhook_marks_booking_paid(
 async def test_webhook_is_idempotent(
     app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Test sequential duplicate webhook deliveries are handled idempotently."""
     host = await _create_host(app)
     customer = await _create_customer(app)
     booking = await _create_booking(app, host=host, customer=customer, payment_intent_id="pi_456")
@@ -253,6 +254,66 @@ async def test_webhook_is_idempotent(
 
         events = await session.scalars(select(StripeWebhookEvent))
         assert [event.event_id for event in events] == ["evt_456"]
+
+
+@pytest.mark.anyio("asyncio")
+async def test_webhook_concurrent_delivery_race_condition(
+    app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Webhook idempotency regression test: Concurrent webhook deliveries.
+
+    Tests the fix for race condition where two concurrent webhook deliveries
+    for the same event_id could both pass the existence check and cause:
+    1. Duplicate payment processing (double charge)
+    2. IntegrityError crash (500 error instead of 204)
+
+    The fix uses IntegrityError handling on unique event_id constraint.
+    """
+    host = await _create_host(app)
+    customer = await _create_customer(app)
+    booking = await _create_booking(app, host=host, customer=customer, payment_intent_id="pi_race")
+
+    event_payload = {
+        "id": "evt_race_123",
+        "type": "payment_intent.succeeded",
+        "data": {"object": {"id": "pi_race"}},
+    }
+    construct_event = Mock(return_value=event_payload)
+    monkeypatch.setattr("stripe.Webhook.construct_event", construct_event)
+
+    # Simulate concurrent webhook deliveries from Stripe
+    import asyncio
+    responses = await asyncio.gather(
+        client.post(
+            "/payments/webhook",
+            content=b"{}",
+            headers={"stripe-signature": "sig_race_1"},
+        ),
+        client.post(
+            "/payments/webhook",
+            content=b"{}",
+            headers={"stripe-signature": "sig_race_2"},
+        ),
+        return_exceptions=True,
+    )
+
+    # Both requests should succeed (one processes, one detects duplicate)
+    for response in responses:
+        assert not isinstance(response, Exception), f"Webhook raised exception: {response}"
+        assert response.status_code == 204
+
+    # Verify booking was marked paid exactly once (not double-processed)
+    state_factory: _AsyncSessionFactory = app.state.sessions
+    async with state_factory.session() as session:
+        refreshed = await session.get(Booking, booking.id)
+        assert refreshed is not None
+        assert refreshed.paid is True
+
+        # Verify only one event record exists
+        events = await session.scalars(select(StripeWebhookEvent))
+        event_ids = [event.event_id for event in events]
+        assert event_ids == ["evt_race_123"], f"Expected 1 event, got {len(event_ids)}: {event_ids}"
 
 
 @pytest.mark.anyio("asyncio")
