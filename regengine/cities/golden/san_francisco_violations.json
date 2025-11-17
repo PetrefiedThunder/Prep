@@ -44,35 +44,35 @@
         "severity": "critical",
         "message": "Missing or expired fire permit",
         "remedy": "Upload current fire permit for this facility",
-        "citation": "§6.15 Shared Kitchen Facilities"
+        "citation": "\u00a76.15 Shared Kitchen Facilities"
       },
       {
         "rule_id": "PERMIT_VENTILATION",
         "severity": "critical",
         "message": "Missing or expired ventilation permit",
         "remedy": "Upload current ventilation permit for this facility",
-        "citation": "§6.15 Shared Kitchen Facilities"
+        "citation": "\u00a76.15 Shared Kitchen Facilities"
       },
       {
         "rule_id": "PERMIT_HEALTH_PERMIT",
         "severity": "critical",
         "message": "Missing or expired health_permit permit",
         "remedy": "Upload current health_permit permit for this facility",
-        "citation": "§6.15 Shared Kitchen Facilities"
+        "citation": "\u00a76.15 Shared Kitchen Facilities"
       },
       {
         "rule_id": "ZONING_NOTICE",
         "severity": "high",
         "message": "Neighborhood notice required (30 days)",
         "remedy": "Provide proof of 300-foot radius neighborhood notification",
-        "citation": "§6.15 Shared Kitchen Facilities"
+        "citation": "\u00a76.15 Shared Kitchen Facilities"
       },
       {
         "rule_id": "INSURANCE_LIABILITY",
         "severity": "critical",
         "message": "General liability coverage below minimum ($1000000 required, $500000 provided)",
         "remedy": "Obtain general liability insurance of at least $1000000",
-        "citation": "§6.15 Shared Kitchen Facilities"
+        "citation": "\u00a76.15 Shared Kitchen Facilities"
       },
       {
         "rule_id": "INSURANCE_AGGREGATE",
@@ -98,13 +98,14 @@
       {
         "rule_id": "GREASE_MAINTENANCE",
         "severity": "medium",
-        "message": "Grease trap overdue for service (619 days since last service)",
+        "message": "Grease trap overdue for service (614 days since last service)",
         "remedy": "Schedule grease trap service (required every 180 days)",
         "citation": null
       }
     ],
     "warnings": [],
     "conditions": [],
+    "evaluated_at": "2025-11-05T09:00:00+00:00",
     "blocking_violations_count": 8
   }
 }

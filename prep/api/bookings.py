@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timedelta
-from decimal import ROUND_HALF_UP, Decimal
-
 import re
-from datetime import UTC
+import uuid
+from datetime import UTC, datetime, timedelta
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
 from dateutil.rrule import rrulestr

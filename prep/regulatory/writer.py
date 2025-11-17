@@ -1,28 +1,23 @@
-"""Persistence helpers for city-level regulatory requirements and fee schedules."""
+"""Persistence helpers for regulatory requirements and fee schedules."""
 
 from __future__ import annotations
 
+import contextlib
+import dataclasses
 import hashlib
 import json
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+import uuid
+from collections.abc import Iterable, Iterator, Mapping, MutableMapping, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-"""Persistence helpers for regulatory requirements and fee schedules."""
-
-from __future__ import annotations
-
-import dataclasses
-import uuid
-from collections.abc import MutableMapping
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from prep.models.db import SessionLocal
-from prep.regulatory.models import FeeSchedule, RegRequirement
+from prep.regulatory.models import FeeSchedule, FeeSchedule as FeeScheduleModel, RegRequirement
 
 
 def _json_ready(value: Any) -> Any:
@@ -347,7 +342,6 @@ def write_reg_requirements(
 
 
 __all__ = ["write_fee_schedule", "write_reg_requirements"]
-from prep.regulatory.models import FeeSchedule as FeeScheduleModel
 
 _CADENCE_FACTORS: dict[str, int] = {
     "annual": 1,
@@ -489,10 +483,8 @@ def _compute_fee_totals(fees: list[dict[str, Any]]) -> dict[str, int]:
             elif kind == "incremental":
                 incremental += 1
         else:
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 one_time += int(fee.get("one_time_cents") or 0)
-            except (TypeError, ValueError):
-                pass
             recurring += _annualise_pydantic_fee(fee)
             if fee.get("incremental"):
                 incremental += 1
@@ -724,7 +716,7 @@ def _apply_changes(model: Any, values: Mapping[str, Any]) -> bool:
     return changed
 
 
-def write_fee_schedule(
+def write_fee_schedule_v2(
     schedule: Any,
     *,
     session: Session | None = None,
@@ -776,7 +768,7 @@ def write_reg_requirement(
         return existing
 
 
-def write_reg_requirements(
+def write_reg_requirements_v2(
     requirements: Iterable[Any],
     *,
     session: Session | None = None,
@@ -808,6 +800,8 @@ def write_reg_requirements(
 
 __all__ = [
     "write_fee_schedule",
+    "write_fee_schedule_v2",
     "write_reg_requirement",
     "write_reg_requirements",
+    "write_reg_requirements_v2",
 ]

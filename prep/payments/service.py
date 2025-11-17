@@ -11,7 +11,7 @@ from uuid import UUID
 
 import stripe
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from stripe.error import SignatureVerificationError, StripeError
 
@@ -67,15 +67,18 @@ class PaymentsService:
         if not secret_key:
             raise PaymentsError("Stripe secret key is not configured", status_code=500)
 
-        stripe.api_key = secret_key
-
+        # Pass API key per-request to avoid thread-unsafe global state (BUG-003 fix)
         created_new_account = False
         account_id = user.stripe_account_id
         try:
             if account_id is None:
-                account = await asyncio.to_thread(stripe.Account.create, type="custom")
+                account = await asyncio.to_thread(
+                    stripe.Account.create,
+                    type="custom",
+                    api_key=secret_key,
+                )
                 account_id = getattr(account, "id", None)
-                if not account_id:
+                if account_id is None:  # BUG-005 fix: explicit None check
                     raise PaymentsError("Stripe did not return an account id", status_code=502)
                 user.stripe_account_id = account_id
                 created_new_account = True
@@ -86,6 +89,7 @@ class PaymentsService:
                 refresh_url=str(self._settings.stripe_connect_refresh_url),
                 return_url=str(self._settings.stripe_connect_return_url),
                 type="account_onboarding",
+                api_key=secret_key,
             )
         except StripeError as exc:  # pragma: no cover - network errors handled uniformly
             logger.exception(
@@ -114,7 +118,7 @@ class PaymentsService:
         onboarding_url = getattr(account_link, "url", None)
         if onboarding_url is None and hasattr(account_link, "get"):
             onboarding_url = account_link.get("url")
-        if not onboarding_url:
+        if onboarding_url is None:  # BUG-005 fix: explicit None check
             raise PaymentsError("Stripe did not return an onboarding link", status_code=502)
 
         return account_id, onboarding_url
@@ -160,6 +164,15 @@ class PaymentsService:
 
         try:
             await self._session.commit()
+        except IntegrityError as exc:
+            # Race condition: Another request already processed this event
+            # Unique constraint on event_id makes this idempotent - return success
+            await self._session.rollback()
+            logger.info(
+                "Webhook event already processed (duplicate delivery)",
+                extra={"event_id": event_id},
+            )
+            return
         except SQLAlchemyError as exc:  # pragma: no cover - commit failures are exceptional
             await self._session.rollback()
             logger.exception(

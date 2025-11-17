@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+
 def _normalize_database_url(url: str) -> str:
     """Ensure SQLite URLs use the async driver required by SQLAlchemy."""
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { Globe2, Heart, Menu, MessageCircle, UserRound } from "lucide-react";
+import { Globe2, Heart, Menu, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -68,9 +68,7 @@ export function SiteHeader() {
                 <Link href="/demo/sf-and-jt" className="text-sm font-medium" onClick={() => setOpen(false)}>
                   {t("complianceDemo")}
                 </Link>
-                <Link href="/inbox" className="text-sm font-medium" onClick={() => setOpen(false)}>
-                  <MessageCircle className="mr-2 inline h-4 w-4" /> {t("inbox")}
-                </Link>
+                <span className="text-sm font-medium text-muted-ink">{t("inbox")}</span>
                 <Link href="/host" className="text-sm font-medium" onClick={() => setOpen(false)}>
                   {t("becomeHost")}
                 </Link>
@@ -125,12 +123,8 @@ function AccountMenu() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem asChild>
-          <Link href="/auth/sign-up">Sign up</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/auth/sign-in">Log in</Link>
-        </DropdownMenuItem>
+        <DropdownMenuItem disabled>Sign up (coming soon)</DropdownMenuItem>
+        <DropdownMenuItem disabled>Log in (coming soon)</DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/account">Account</Link>
         </DropdownMenuItem>
@@ -140,9 +134,7 @@ function AccountMenu() {
         <DropdownMenuItem asChild>
           <Link href="/trips">Trips</Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/inbox">Inbox</Link>
-        </DropdownMenuItem>
+        <DropdownMenuItem disabled>Inbox (coming soon)</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

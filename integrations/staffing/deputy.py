@@ -87,8 +87,7 @@ class DeputyClient:
             payload = self._parse_json(response)
 
             data = self._extract_items(payload)
-            for item in data:
-                yield item
+            yield from data
 
             next_offset = self._next_offset(payload, params["offset"], len(data), page_size)
             if next_offset is None:
@@ -218,10 +217,7 @@ class DeputyClient:
 
     @staticmethod
     def _format_datetime(value: datetime) -> str:
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=UTC)
-        else:
-            value = value.astimezone(UTC)
+        value = value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
         return value.isoformat().replace("+00:00", "Z")
 
 

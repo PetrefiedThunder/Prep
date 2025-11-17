@@ -2,8 +2,9 @@
 
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 import jsonschema
 from fastapi import Request, Response
@@ -13,11 +14,11 @@ from starlette.types import ASGIApp
 logger = logging.getLogger(__name__)
 
 # Global schema cache
-_SCHEMA_CACHE: Dict[str, Dict[str, Any]] = {}
+_SCHEMA_CACHE: dict[str, dict[str, Any]] = {}
 _SCHEMA_DIR = Path(__file__).parent.parent.parent.parent / "schemas"
 
 
-def load_schema(schema_name: str) -> Dict[str, Any]:
+def load_schema(schema_name: str) -> dict[str, Any]:
     """
     Load and cache a JSON schema.
 
@@ -46,7 +47,7 @@ def load_schema(schema_name: str) -> Dict[str, Any]:
     return schema
 
 
-def validate_against_schema(data: Dict[str, Any], schema_name: str) -> tuple[bool, Optional[str]]:
+def validate_against_schema(data: dict[str, Any], schema_name: str) -> tuple[bool, str | None]:
     """
     Validate data against a JSON schema.
 
@@ -73,22 +74,22 @@ def validate_against_schema(data: Dict[str, Any], schema_name: str) -> tuple[boo
         return False, f"Validation error: {str(e)}"
 
 
-def validate_vendor(data: Dict[str, Any]) -> tuple[bool, Optional[str]]:
+def validate_vendor(data: dict[str, Any]) -> tuple[bool, str | None]:
     """Validate vendor data against vendor schema."""
     return validate_against_schema(data, "vendor")
 
 
-def validate_facility(data: Dict[str, Any]) -> tuple[bool, Optional[str]]:
+def validate_facility(data: dict[str, Any]) -> tuple[bool, str | None]:
     """Validate facility data against facility schema."""
     return validate_against_schema(data, "facility")
 
 
-def validate_booking(data: Dict[str, Any]) -> tuple[bool, Optional[str]]:
+def validate_booking(data: dict[str, Any]) -> tuple[bool, str | None]:
     """Validate booking data against booking schema."""
     return validate_against_schema(data, "booking")
 
 
-def validate_ledger_entry(data: Dict[str, Any]) -> tuple[bool, Optional[str]]:
+def validate_ledger_entry(data: dict[str, Any]) -> tuple[bool, str | None]:
     """Validate ledger entry data against ledger_entry schema."""
     return validate_against_schema(data, "ledger_entry")
 
@@ -146,7 +147,7 @@ def validate_request_schema(schema_name: str):
     def decorator(func: Callable) -> Callable:
         async def wrapper(*args, **kwargs):
             # Extract request from kwargs
-            request: Optional[Request] = kwargs.get("request")
+            request: Request | None = kwargs.get("request")
             if not request:
                 # Try to find request in args
                 for arg in args:
@@ -161,7 +162,10 @@ def validate_request_schema(schema_name: str):
                     if not is_valid:
                         from fastapi import HTTPException
 
-                        raise HTTPException(status_code=400, detail={"error": "SCHEMA_VALIDATION_FAILED", "message": error_msg})
+                        raise HTTPException(
+                            status_code=400,
+                            detail={"error": "SCHEMA_VALIDATION_FAILED", "message": error_msg},
+                        )
                 except HTTPException:
                     raise
                 except Exception as e:
@@ -193,7 +197,10 @@ def validate_response_schema(schema_name: str):
             if isinstance(result, dict):
                 is_valid, error_msg = validate_against_schema(result, schema_name)
                 if not is_valid:
-                    logger.error(f"Response schema validation failed: {error_msg}", extra={"schema": schema_name, "endpoint": func.__name__})
+                    logger.error(
+                        f"Response schema validation failed: {error_msg}",
+                        extra={"schema": schema_name, "endpoint": func.__name__},
+                    )
                     # Log but don't fail the request (developer error, not user error)
 
             return result

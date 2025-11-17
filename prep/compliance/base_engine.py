@@ -81,10 +81,7 @@ class ComplianceEngine(ABC):
         passed_rules = [rule.id for rule in self.rules if rule.id not in violation_rule_ids]
 
         total_rules = len(self.rules)
-        if total_rules == 0:
-            score = 1.0
-        else:
-            score = max(0.0, min(1.0, len(passed_rules) / total_rules))
+        score = 1.0 if total_rules == 0 else max(0.0, min(1.0, len(passed_rules) / total_rules))
 
         critical_violations = [v for v in violations if v.severity == "critical"]
         high_violations = [v for v in violations if v.severity == "high"]

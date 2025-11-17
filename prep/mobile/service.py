@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import math
 import secrets
@@ -854,10 +855,8 @@ class MobileGatewayService:
         snapshot_raw = await self.redis.get(cache_key)
         basis = "historical-average"
         if isinstance(snapshot_raw, str):
-            try:
-                snapshot = json.loads(snapshot_raw)
-            except ValueError:
-                snapshot = {}
+            with contextlib.suppress(ValueError):
+                json.loads(snapshot_raw)
             size = len(snapshot_raw.encode())
             estimated_kbps = round((size * 8) / 1024, 2)
             basis = "offline-cache"

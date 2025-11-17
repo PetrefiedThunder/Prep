@@ -10,9 +10,12 @@ from prep.integrations.runtime import configure_integration_event_consumers
 from prep.monitoring.api import router as monitoring_router
 from prep.observability.metrics import MetricsMiddleware, create_metrics_router
 from prep.payments.api import router as payments_router
+from prep.settings import get_settings
 
 app = FastAPI(title="Prep Platform API", version="1.0.0")
 app.add_middleware(MetricsMiddleware, app_name="prep-api")
+
+settings = get_settings()
 
 app.include_router(create_metrics_router())
 app.include_router(auth.router)
@@ -24,7 +27,8 @@ app.include_router(admin_regulatory.router)
 app.include_router(integrations.router)
 app.include_router(payments_router)
 app.include_router(admin_router)
-app.include_router(analytics_router)
+if settings.analytics_endpoints_enabled:
+    app.include_router(analytics_router)
 app.include_router(integrations_router)
 app.include_router(monitoring_router)
 configure_integration_event_consumers(app)

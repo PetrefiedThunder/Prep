@@ -17,6 +17,7 @@ Exit codes:
 import json
 import os
 import sys
+from datetime import UTC, datetime
 from difflib import unified_diff
 from pathlib import Path
 from typing import Any
@@ -58,6 +59,12 @@ class TestHarness:
 
         with open(filepath) as f:
             return json.load(f)
+
+    @property
+    def reference_time(self) -> datetime:
+        """Deterministic reference timestamp for kernel evaluations."""
+
+        return datetime(2025, 11, 5, 9, 0, tzinfo=UTC)
 
     def normalize_evaluation(self, evaluation: dict[str, Any]) -> dict[str, Any]:
         """Normalize evaluation for comparison (remove timestamps)"""
@@ -134,7 +141,10 @@ class TestHarness:
         try:
             kernel = MunicipalComplianceKernel(jurisdiction_id)
             evaluation = kernel.evaluate_booking(
-                kitchen_data=kitchen_data, maker_data=maker_data, booking_data=booking_data
+                kitchen_data=kitchen_data,
+                maker_data=maker_data,
+                booking_data=booking_data,
+                now=self.reference_time,
             )
             actual_result = evaluation.to_dict()
         except Exception as e:
