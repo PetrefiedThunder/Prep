@@ -6,10 +6,6 @@ import uuid
 from datetime import datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-"""Booking API endpoints with compliance validation."""
-
-from __future__ import annotations
-
 import re
 from datetime import UTC
 from uuid import UUID
