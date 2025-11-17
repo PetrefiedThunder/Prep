@@ -1,40 +1,32 @@
-import { Pool, PoolClient } from 'pg';
+import type { PrismaClient, Booking as PrismaBooking, BookingStatus } from '@prisma/client';
 import Redis from 'ioredis';
-import { randomUUID } from 'crypto';
 import { log } from '@prep/logger';
 import { AvailabilityService } from './AvailabilityService';
 
 export interface CreateBookingParams {
-  kitchen_id: string;
-  user_id: string;
-  start_time: Date;
-  end_time: Date;
-  listing_id?: string;
+  listingId: string;
+  renterId: string;
+  startTime: Date;
+  endTime: Date;
+  hourlyRateCents: number;
+  subtotalCents: number;
+  serviceFeeCents: number;
+  totalCents: number;
 }
 
 export interface Booking {
-  booking_id: string;
-  kitchen_id: string;
-  user_id: string;
-  start_time: Date;
-  end_time: Date;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'rejected';
-  created_at: Date;
-  updated_at: Date;
-}
-
-// Database row type from query results
-interface BookingRow {
-  booking_id: string;
-  kitchen_id: string;
-  user_id: string;
-  start_time: string;
-  end_time: string;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'rejected';
-  created_at: string;
-  updated_at: string;
-  payment_intent_id: string | null;
-  amount_cents: number | null;
+  id: string;
+  listingId: string;
+  renterId: string;
+  startTime: Date;
+  endTime: Date;
+  status: BookingStatus;
+  hourlyRateCents: number;
+  subtotalCents: number;
+  serviceFeeCents: number;
+  totalCents: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Custom error types for better error handling
@@ -66,133 +58,118 @@ export class BookingService {
   private availabilityService: AvailabilityService;
 
   constructor(
-    private db: Pool,
+    private prisma: PrismaClient,
     private redis: Redis
   ) {
-    this.availabilityService = new AvailabilityService(db, redis);
+    this.availabilityService = new AvailabilityService(prisma, redis);
   }
 
   /**
-   * Create a new booking with status 'pending'.
+   * Create a new booking with status 'requested'.
    *
    * Process:
    * 1. Validate request parameters
    * 2. Check availability atomically
    * 3. Create Redis lock for the timeslot
    * 4. Insert booking record into database
-   * 5. Return booking ID
+   * 5. Return booking
    *
    * On failure, automatically releases Redis lock to prevent resource leaks.
    *
    * @param params - Booking creation parameters
    * @returns Created booking
-   * @throws {BookingConflictError} If kitchen not available
+   * @throws {BookingConflictError} If listing not available
    * @throws {BookingLockError} If unable to acquire lock
    * @throws {BookingCreationError} For other creation errors
    */
   async createBooking(params: CreateBookingParams): Promise<Booking> {
-    const { kitchen_id, user_id, start_time, end_time } = params;
+    const { listingId, renterId, startTime, endTime } = params;
 
     // Step 1: Validate request
     this.validateBookingParams(params);
 
-    let client: PoolClient | null = null;
     let lockAcquired = false;
-    let booking_id: string | null = null;
+    let bookingId: string | null = null;
 
     try {
-      client = await this.db.connect();
-      await client.query('BEGIN');
-
       // Step 2: Check availability with database lock
       const availabilityCheck = await this.availabilityService.check({
-        kitchen_id,
-        start: start_time,
-        end: end_time
+        listingId,
+        start: startTime,
+        end: endTime
       });
 
       if (!availabilityCheck.available) {
-        throw new BookingConflictError('Kitchen not available for selected time range');
+        throw new BookingConflictError('Listing not available for selected time range');
       }
 
-      // Step 3: Create Redis lock
-      booking_id = randomUUID();
-      lockAcquired = await this.availabilityService.createLock(
-        kitchen_id,
-        start_time,
-        end_time,
-        booking_id
-      );
+      // Step 3: Create booking with Prisma transaction
+      const booking = await this.prisma.$transaction(async (tx) => {
+        // Create booking record
+        const newBooking = await tx.booking.create({
+          data: {
+            listingId,
+            renterId,
+            startTime,
+            endTime,
+            status: 'requested',
+            hourlyRateCents: params.hourlyRateCents,
+            subtotalCents: params.subtotalCents,
+            serviceFeeCents: params.serviceFeeCents,
+            totalCents: params.totalCents,
+            paymentStatus: 'pending'
+          }
+        });
 
-      if (!lockAcquired) {
-        throw new BookingLockError('Failed to acquire booking lock');
-      }
+        bookingId = newBooking.id;
 
-      // Step 4: Insert booking record
-      const insertResult = await client.query<BookingRow>(
-        `INSERT INTO bookings (
-          booking_id,
-          kitchen_id,
-          user_id,
-          start_time,
-          end_time,
-          status,
-          created_at,
-          updated_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-        RETURNING *`,
-        [booking_id, kitchen_id, user_id, start_time.toISOString(), end_time.toISOString(), 'pending']
-      );
+        // Create Redis lock
+        lockAcquired = await this.availabilityService.createLock(
+          listingId,
+          startTime,
+          endTime,
+          bookingId
+        );
 
-      await client.query('COMMIT');
+        if (!lockAcquired) {
+          throw new BookingLockError('Failed to acquire booking lock');
+        }
 
-      const booking = this.mapRowToBooking(insertResult.rows[0]);
-
-      log.info('Booking created successfully', {
-        booking_id,
-        kitchen_id,
-        user_id,
-        start_time: start_time.toISOString(),
-        end_time: end_time.toISOString(),
+        return newBooking;
       });
 
-      return booking;
+      log.info('Booking created successfully', {
+        bookingId: booking.id,
+        listingId,
+        renterId,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+      });
+
+      return this.mapPrismaBooking(booking);
 
     } catch (error) {
-      // Rollback database transaction
-      if (client) {
-        await client.query('ROLLBACK').catch(rollbackError => {
-          log.error('Database rollback failed', rollbackError as Error, {
-            booking_id,
-            kitchen_id,
-          });
-        });
-      }
-
       // Release Redis lock if acquired
-      if (lockAcquired && booking_id) {
+      if (lockAcquired && bookingId) {
         await this.availabilityService.releaseLock(
-          kitchen_id,
-          start_time,
-          end_time,
-          booking_id
+          listingId,
+          startTime,
+          endTime,
+          bookingId
         ).catch(lockError => {
           log.error('Failed to release lock after error', lockError as Error, {
-            booking_id,
-            kitchen_id,
-            start_time: start_time.toISOString(),
-            end_time: end_time.toISOString(),
+            bookingId,
+            listingId,
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
           });
-          // Emit metric for monitoring - manual intervention may be needed
-          // metrics.increment('booking.lock.release.failure');
         });
       }
 
       log.error('Booking creation failed', error as Error, {
-        kitchen_id,
-        user_id,
-        booking_id,
+        listingId,
+        renterId,
+        bookingId,
       });
 
       // Rethrow with appropriate error type
@@ -201,11 +178,6 @@ export class BookingService {
       }
 
       throw new BookingCreationError('Failed to create booking', error);
-
-    } finally {
-      if (client) {
-        client.release();
-      }
     }
   }
 
@@ -214,41 +186,41 @@ export class BookingService {
    * @throws {Error} If parameters are invalid
    */
   private validateBookingParams(params: CreateBookingParams): void {
-    const { kitchen_id, user_id, start_time, end_time } = params;
+    const { listingId, renterId, startTime, endTime } = params;
 
-    if (!kitchen_id || typeof kitchen_id !== 'string') {
-      throw new Error('Invalid kitchen_id');
+    if (!listingId || typeof listingId !== 'string') {
+      throw new Error('Invalid listingId');
     }
 
-    if (!user_id || typeof user_id !== 'string') {
-      throw new Error('Invalid user_id');
+    if (!renterId || typeof renterId !== 'string') {
+      throw new Error('Invalid renterId');
     }
 
-    if (!(start_time instanceof Date) || isNaN(start_time.getTime())) {
-      throw new Error('Invalid start_time');
+    if (!(startTime instanceof Date) || isNaN(startTime.getTime())) {
+      throw new Error('Invalid startTime');
     }
 
-    if (!(end_time instanceof Date) || isNaN(end_time.getTime())) {
-      throw new Error('Invalid end_time');
+    if (!(endTime instanceof Date) || isNaN(endTime.getTime())) {
+      throw new Error('Invalid endTime');
     }
 
-    if (start_time >= end_time) {
-      throw new Error('start_time must be before end_time');
+    if (startTime >= endTime) {
+      throw new Error('startTime must be before endTime');
     }
 
-    if (start_time < new Date()) {
+    if (startTime < new Date()) {
       throw new Error('Cannot book in the past');
     }
 
     // Minimum booking duration: 1 hour
     const MIN_DURATION_MS = 60 * 60 * 1000;
-    if (end_time.getTime() - start_time.getTime() < MIN_DURATION_MS) {
+    if (endTime.getTime() - startTime.getTime() < MIN_DURATION_MS) {
       throw new Error('Booking duration must be at least 1 hour');
     }
 
     // Maximum booking duration: 30 days
     const MAX_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
-    if (end_time.getTime() - start_time.getTime() > MAX_DURATION_MS) {
+    if (endTime.getTime() - startTime.getTime() > MAX_DURATION_MS) {
       throw new Error('Booking duration cannot exceed 30 days');
     }
   }
@@ -256,51 +228,47 @@ export class BookingService {
   /**
    * Get booking by ID.
    */
-  async getBooking(booking_id: string): Promise<Booking | null> {
-    const result = await this.db.query<BookingRow>(
-      'SELECT * FROM bookings WHERE booking_id = $1',
-      [booking_id]
-    );
+  async getBooking(bookingId: string): Promise<Booking | null> {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId }
+    });
 
-    if (result.rows.length === 0) {
+    if (!booking) {
       return null;
     }
 
-    return this.mapRowToBooking(result.rows[0]);
+    return this.mapPrismaBooking(booking);
   }
 
   /**
    * Update booking status.
    */
-  async updateBookingStatus(booking_id: string, status: Booking['status']): Promise<Booking> {
-    const result = await this.db.query<BookingRow>(
-      `UPDATE bookings
-       SET status = $1, updated_at = NOW()
-       WHERE booking_id = $2
-       RETURNING *`,
-      [status, booking_id]
-    );
+  async updateBookingStatus(bookingId: string, status: BookingStatus): Promise<Booking> {
+    const booking = await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: { status }
+    });
 
-    if (result.rows.length === 0) {
-      throw new Error('Booking not found');
-    }
-
-    return this.mapRowToBooking(result.rows[0]);
+    return this.mapPrismaBooking(booking);
   }
 
   /**
-   * Map database row to Booking object.
+   * Map Prisma booking to Booking interface.
    */
-  private mapRowToBooking(row: BookingRow): Booking {
+  private mapPrismaBooking(booking: PrismaBooking): Booking {
     return {
-      booking_id: row.booking_id,
-      kitchen_id: row.kitchen_id,
-      user_id: row.user_id,
-      start_time: new Date(row.start_time),
-      end_time: new Date(row.end_time),
-      status: row.status,
-      created_at: new Date(row.created_at),
-      updated_at: new Date(row.updated_at),
+      id: booking.id,
+      listingId: booking.listingId,
+      renterId: booking.renterId,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      status: booking.status,
+      hourlyRateCents: booking.hourlyRateCents,
+      subtotalCents: booking.subtotalCents,
+      serviceFeeCents: booking.serviceFeeCents,
+      totalCents: booking.totalCents,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt,
     };
   }
 }

@@ -1,206 +1,228 @@
 import { FastifyInstance } from 'fastify';
-import { getPrismaClient } from '@prep/database';
 import { z } from 'zod';
+import { ApiError } from '@prep/common';
+import { ListingService } from '../services/ListingService';
+import { getPrismaClient } from '@prep/database';
 
-const SearchListingsSchema = z.object({
-  location: z.string().optional(),
-  date: z.string().datetime().optional(),
-  min_price: z.coerce.number().optional(),
-  max_price: z.coerce.number().optional(),
-  equipment: z.array(z.string()).optional(),
-  limit: z.coerce.number().default(20),
-  offset: z.coerce.number().default(0)
+const ListingsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  is_active: z.coerce.boolean().optional(),
+  is_featured: z.coerce.boolean().optional(),
+  min_hourly_rate: z.coerce.number().int().nonnegative().optional(),
+  max_hourly_rate: z.coerce.number().int().positive().optional(),
+  kitchen_types: z.string().optional().transform(val => val ? val.split(',') : undefined)
 });
+
+const CreateListingSchema = z.object({
+  venue_id: z.string().uuid(),
+  title: z.string().min(1).max(255),
+  description: z.string().optional(),
+  kitchen_type: z.array(z.string()).min(1),
+  equipment: z.any().optional(),
+  hourly_rate_cents: z.number().int().positive(),
+  daily_rate_cents: z.number().int().positive().optional(),
+  weekly_rate_cents: z.number().int().positive().optional(),
+  monthly_rate_cents: z.number().int().positive().optional(),
+  minimum_hours: z.number().int().positive().default(2),
+  cleaning_fee_cents: z.number().int().nonnegative().default(0),
+  security_deposit_cents: z.number().int().nonnegative().default(0),
+  features: z.array(z.string()).default([]),
+  restrictions: z.array(z.string()).default([]),
+  photos: z.array(z.string().url()).default([])
+});
+
+const UpdateListingSchema = CreateListingSchema.partial().omit({ venue_id: true });
 
 export default async function (app: FastifyInstance) {
   const prisma = getPrismaClient();
+  const listingService = new ListingService(prisma);
 
-  // Search kitchen listings
-  app.get('/listings', async (req, reply) => {
-    const parsed = SearchListingsSchema.safeParse(req.query);
-
-    if (!parsed.success) {
-      return reply.code(400).send({
-        error: 'Invalid query parameters',
-        details: parsed.error.flatten().fieldErrors
-      });
-    }
-
-    const { min_price, max_price, limit, offset } = parsed.data;
-
+  // List all kitchen listings
+  app.get('/api/listings', async (req, reply) => {
     try {
-      const where: any = {
-        isActive: true,
-        deletedAt: null
-      };
+      const query = ListingsQuerySchema.parse(req.query);
 
-      // Price filtering
-      if (min_price || max_price) {
-        where.hourlyRateCents = {};
-        if (min_price) where.hourlyRateCents.gte = min_price * 100;
-        if (max_price) where.hourlyRateCents.lte = max_price * 100;
-      }
-
-      const listings = await prisma.kitchenListing.findMany({
-        where,
-        include: {
-          venue: {
-            include: {
-              business: {
-                select: {
-                  id: true,
-                  name: true
-                }
-              }
-            }
-          }
+      const result = await listingService.listListings(
+        {
+          isActive: query.is_active,
+          isFeatured: query.is_featured,
+          minHourlyRate: query.min_hourly_rate,
+          maxHourlyRate: query.max_hourly_rate,
+          kitchenTypes: query.kitchen_types
         },
-        take: limit,
-        skip: offset,
-        orderBy: {
-          createdAt: 'desc'
+        {
+          page: query.page,
+          limit: query.limit
         }
-      });
+      );
 
-      return reply.send({
-        listings: listings.map(listing => ({
+      return reply.code(200).send({
+        listings: result.listings.map(listing => ({
           id: listing.id,
+          venue_id: listing.venueId,
           title: listing.title,
           description: listing.description,
-          hourly_rate_cents: listing.hourlyRateCents,
-          daily_rate_cents: listing.dailyRateCents,
-          cleaning_fee_cents: listing.cleaningFeeCents,
-          photos: listing.photos,
+          kitchen_type: listing.kitchenType,
           equipment: listing.equipment,
-          features: listing.features,
-          venue: {
-            id: listing.venue.id,
-            name: listing.venue.name,
-            address: listing.venue.address,
-            business_name: listing.venue.business.name
-          },
+          hourly_rate_cents: listing.hourlyRateCents,
+          minimum_hours: listing.minimumHours,
+          is_active: listing.isActive,
+          is_featured: listing.isFeatured,
           average_rating: listing.averageRating,
-          total_reviews: listing.totalReviews
+          total_reviews: listing.totalReviews,
+          photos: listing.photos,
+          features: listing.features,
+          created_at: listing.createdAt.toISOString(),
+          updated_at: listing.updatedAt.toISOString()
         })),
-        total: listings.length,
-        limit,
-        offset
+        pagination: {
+          total: result.total,
+          page: result.page,
+          limit: query.limit,
+          total_pages: result.totalPages
+        }
       });
+    } catch (err: any) {
+      app.log.error(err);
 
-    } catch (error: any) {
-      app.log.error('[listing-svc] Search failed', { error: error.message });
-      return reply.code(500).send({ error: 'Failed to search listings' });
+      if (err instanceof z.ZodError) {
+        return reply.code(400).send(ApiError('PC-REQ-400', 'Invalid query parameters'));
+      }
+
+      return reply.code(500).send(ApiError('PC-LIST-500', 'Unexpected error'));
     }
   });
 
-  // Get listing by ID
-  app.get('/listings/:id', async (req, reply) => {
+  // Get single listing by ID
+  app.get('/api/listings/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
 
     try {
-      const listing = await prisma.kitchenListing.findUnique({
-        where: { id },
-        include: {
-          venue: {
-            include: {
-              business: {
-                select: {
-                  id: true,
-                  name: true,
-                  verified: true
-                }
-              }
-            }
-          },
-          availabilityWindows: true,
-          reviews: {
-            where: { deletedAt: null },
-            orderBy: { createdAt: 'desc' },
-            take: 10,
-            include: {
-              reviewer: {
-                select: {
-                  id: true,
-                  fullName: true
-                }
-              }
-            }
-          }
-        }
-      });
+      const listing = await listingService.getListing(id);
 
-      if (!listing || listing.deletedAt || !listing.isActive) {
-        return reply.code(404).send({ error: 'Listing not found' });
+      if (!listing) {
+        return reply.code(404).send(ApiError('PC-LIST-404', 'Listing not found'));
       }
 
-      return reply.send({
+      return reply.code(200).send({
         id: listing.id,
+        venue_id: listing.venueId,
         title: listing.title,
         description: listing.description,
         kitchen_type: listing.kitchenType,
         equipment: listing.equipment,
-        certifications: listing.certifications,
-        photos: listing.photos,
-        video_url: listing.videoUrl,
         hourly_rate_cents: listing.hourlyRateCents,
-        daily_rate_cents: listing.dailyRateCents,
-        weekly_rate_cents: listing.weeklyRateCents,
-        monthly_rate_cents: listing.monthlyRateCents,
         minimum_hours: listing.minimumHours,
-        cleaning_fee_cents: listing.cleaningFeeCents,
-        security_deposit_cents: listing.securityDepositCents,
-        advance_notice_hours: listing.advanceNoticeHours,
-        max_booking_hours: listing.maxBookingHours,
-        cancellation_policy: listing.cancellationPolicy,
-        features: listing.features,
-        restrictions: listing.restrictions,
-        accessibility_features: listing.accessibilityFeatures,
+        is_active: listing.isActive,
         is_featured: listing.isFeatured,
         average_rating: listing.averageRating,
         total_reviews: listing.totalReviews,
-        venue: {
-          id: listing.venue.id,
-          name: listing.venue.name,
-          address: listing.venue.address,
-          timezone: listing.venue.timezone,
-          capacity: listing.venue.capacity,
-          square_footage: listing.venue.squareFootage,
-          business: {
-            id: listing.venue.business.id,
-            name: listing.venue.business.name,
-            verified: listing.venue.business.verified
-          }
-        },
-        availability_windows: listing.availabilityWindows.map(window => ({
-          id: window.id,
-          day_of_week: window.dayOfWeek,
-          start_time: window.startTime,
-          end_time: window.endTime,
-          start_date: window.startDate,
-          end_date: window.endDate,
-          is_recurring: window.isRecurring
-        })),
-        reviews: listing.reviews.map(review => ({
-          id: review.id,
-          overall_rating: review.overallRating,
-          cleanliness_rating: review.cleanlinessRating,
-          equipment_rating: review.equipmentRating,
-          location_rating: review.locationRating,
-          value_rating: review.valueRating,
-          title: review.title,
-          comment: review.comment,
-          photos: review.photos,
-          reviewer: {
-            id: review.reviewer.id,
-            name: review.reviewer.fullName
-          },
-          created_at: review.createdAt
-        }))
+        photos: listing.photos,
+        features: listing.features,
+        created_at: listing.createdAt.toISOString(),
+        updated_at: listing.updatedAt.toISOString()
+      });
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send(ApiError('PC-LIST-500', 'Unexpected error'));
+    }
+  });
+
+  // Create new listing (host only - auth required)
+  app.post('/api/listings', async (req, reply) => {
+    try {
+      const parsed = CreateListingSchema.parse(req.body);
+
+      const listing = await listingService.createListing({
+        venueId: parsed.venue_id,
+        title: parsed.title,
+        description: parsed.description,
+        kitchenType: parsed.kitchen_type,
+        equipment: parsed.equipment,
+        hourlyRateCents: parsed.hourly_rate_cents,
+        dailyRateCents: parsed.daily_rate_cents,
+        weeklyRateCents: parsed.weekly_rate_cents,
+        monthlyRateCents: parsed.monthly_rate_cents,
+        minimumHours: parsed.minimum_hours,
+        cleaningFeeCents: parsed.cleaning_fee_cents,
+        securityDepositCents: parsed.security_deposit_cents,
+        features: parsed.features,
+        restrictions: parsed.restrictions,
+        photos: parsed.photos
       });
 
-    } catch (error: any) {
-      app.log.error('[listing-svc] Get listing failed', { error: error.message, id });
-      return reply.code(500).send({ error: 'Failed to retrieve listing' });
+      return reply.code(201).send({
+        id: listing.id,
+        venue_id: listing.venueId,
+        title: listing.title,
+        created_at: listing.createdAt.toISOString()
+      });
+    } catch (err: any) {
+      app.log.error(err);
+
+      if (err instanceof z.ZodError) {
+        return reply.code(400).send(ApiError('PC-REQ-400', 'Invalid request body'));
+      }
+
+      if (err.message === 'Venue not found') {
+        return reply.code(404).send(ApiError('PC-VENUE-404', 'Venue not found'));
+      }
+
+      return reply.code(500).send(ApiError('PC-LIST-500', 'Unexpected error'));
+    }
+  });
+
+  // Update listing (host only - auth required)
+  app.patch('/api/listings/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+
+    try {
+      const parsed = UpdateListingSchema.parse(req.body);
+
+      const updates: any = {};
+      if (parsed.title !== undefined) updates.title = parsed.title;
+      if (parsed.description !== undefined) updates.description = parsed.description;
+      if (parsed.kitchen_type !== undefined) updates.kitchenType = parsed.kitchen_type;
+      if (parsed.equipment !== undefined) updates.equipment = parsed.equipment;
+      if (parsed.hourly_rate_cents !== undefined) updates.hourlyRateCents = parsed.hourly_rate_cents;
+      if (parsed.daily_rate_cents !== undefined) updates.dailyRateCents = parsed.daily_rate_cents;
+      if (parsed.weekly_rate_cents !== undefined) updates.weeklyRateCents = parsed.weekly_rate_cents;
+      if (parsed.monthly_rate_cents !== undefined) updates.monthlyRateCents = parsed.monthly_rate_cents;
+      if (parsed.minimum_hours !== undefined) updates.minimumHours = parsed.minimum_hours;
+      if (parsed.cleaning_fee_cents !== undefined) updates.cleaningFeeCents = parsed.cleaning_fee_cents;
+      if (parsed.security_deposit_cents !== undefined) updates.securityDepositCents = parsed.security_deposit_cents;
+      if (parsed.features !== undefined) updates.features = parsed.features;
+      if (parsed.restrictions !== undefined) updates.restrictions = parsed.restrictions;
+      if (parsed.photos !== undefined) updates.photos = parsed.photos;
+
+      const listing = await listingService.updateListing(id, updates);
+
+      return reply.code(200).send({
+        id: listing.id,
+        updated_at: listing.updatedAt.toISOString()
+      });
+    } catch (err: any) {
+      app.log.error(err);
+
+      if (err instanceof z.ZodError) {
+        return reply.code(400).send(ApiError('PC-REQ-400', 'Invalid request body'));
+      }
+
+      return reply.code(500).send(ApiError('PC-LIST-500', 'Unexpected error'));
+    }
+  });
+
+  // Delete listing (soft delete)
+  app.delete('/api/listings/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+
+    try {
+      await listingService.deleteListing(id);
+      return reply.code(204).send();
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send(ApiError('PC-LIST-500', 'Unexpected error'));
     }
   });
 

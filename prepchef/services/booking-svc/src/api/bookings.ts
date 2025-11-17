@@ -1,14 +1,20 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ApiError } from '@prep/common';
+import { BookingService } from '../services/BookingService';
 import { getPrismaClient } from '@prep/database';
 import Redis from 'ioredis';
+import { env } from '@prep/config';
 
 const CreateBookingSchema = z.object({
   listing_id: z.string().uuid(),
   renter_id: z.string().uuid(),
   start_time: z.string().datetime(),
-  end_time: z.string().datetime()
+  end_time: z.string().datetime(),
+  hourly_rate_cents: z.number().int().positive(),
+  subtotal_cents: z.number().int().nonnegative(),
+  service_fee_cents: z.number().int().nonnegative(),
+  total_cents: z.number().int().positive()
 });
 
 const ConfirmBookingSchema = z.object({
@@ -18,10 +24,12 @@ const ConfirmBookingSchema = z.object({
 export default async function (app: FastifyInstance) {
   const prisma = getPrismaClient();
 
-  const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379/0');
+  const redis = new Redis(env.REDIS_URL || 'redis://localhost:6379/0');
   await redis.connect().catch(() => {});
 
-  app.post('/bookings', async (req, reply) => {
+  const bookingService = new BookingService(prisma, redis);
+
+  app.post('/api/bookings', async (req, reply) => {
     const parsed = CreateBookingSchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -31,92 +39,33 @@ export default async function (app: FastifyInstance) {
       });
     }
 
-    const { listing_id, renter_id, start_time, end_time } = parsed.data;
-    const startDate = new Date(start_time);
-    const endDate = new Date(end_time);
+    const { listing_id, renter_id, start_time, end_time, hourly_rate_cents, subtotal_cents, service_fee_cents, total_cents } = parsed.data;
 
     try {
-      // Check if listing exists
-      const listing = await prisma.kitchenListing.findUnique({
-        where: { id: listing_id },
-        include: { venue: true }
-      });
-
-      if (!listing || !listing.isActive) {
-        return reply.code(404).send({ error: 'Kitchen listing not found or inactive' });
-      }
-
-      // Check for booking conflicts (simplified - real implementation would use Redis locks)
-      const conflictingBookings = await prisma.booking.findMany({
-        where: {
-          listingId: listing_id,
-          status: { in: ['requested', 'payment_authorized', 'confirmed', 'active'] },
-          OR: [
-            {
-              AND: [
-                { startTime: { lte: startDate } },
-                { endTime: { gt: startDate } }
-              ]
-            },
-            {
-              AND: [
-                { startTime: { lt: endDate } },
-                { endTime: { gte: endDate } }
-              ]
-            },
-            {
-              AND: [
-                { startTime: { gte: startDate } },
-                { endTime: { lte: endDate } }
-              ]
-            }
-          ]
-        }
-      });
-
-      if (conflictingBookings.length > 0) {
-        return reply.code(409).send({ error: 'Kitchen not available for selected time' });
-      }
-
-      // Calculate pricing
-      const hours = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
-      const subtotalCents = Math.round(hours * listing.hourlyRateCents);
-      const serviceFeeCents = Math.round(subtotalCents * 0.20); // 20% platform fee
-      const taxCents = Math.round((subtotalCents + serviceFeeCents) * 0.085); // 8.5% tax
-      const totalCents = subtotalCents + listing.cleaningFeeCents + serviceFeeCents + taxCents;
-
-      // Create booking
-      const booking = await prisma.booking.create({
-        data: {
-          listingId: listing_id,
-          renterId: renter_id,
-          startTime: startDate,
-          endTime: endDate,
-          status: 'requested',
-          hourlyRateCents: listing.hourlyRateCents,
-          subtotalCents,
-          cleaningFeeCents: listing.cleaningFeeCents,
-          serviceFeeCents,
-          taxCents,
-          totalCents,
-          securityDepositCents: listing.securityDepositCents,
-          paymentStatus: 'pending'
-        }
+      const booking = await bookingService.createBooking({
+        listingId: listing_id,
+        renterId: renter_id,
+        startTime: new Date(start_time),
+        endTime: new Date(end_time),
+        hourlyRateCents: hourly_rate_cents,
+        subtotalCents: subtotal_cents,
+        serviceFeeCents: service_fee_cents,
+        totalCents: total_cents
       });
 
       return reply.code(201).send({
         id: booking.id,
         listing_id: booking.listingId,
-        status: booking.status,
+        renter_id: booking.renterId,
         start_time: booking.startTime.toISOString(),
         end_time: booking.endTime.toISOString(),
+        status: booking.status,
+        hourly_rate_cents: booking.hourlyRateCents,
+        subtotal_cents: booking.subtotalCents,
+        service_fee_cents: booking.serviceFeeCents,
         total_cents: booking.totalCents,
-        breakdown: {
-          subtotal_cents: booking.subtotalCents,
-          cleaning_fee_cents: booking.cleaningFeeCents,
-          service_fee_cents: booking.serviceFeeCents,
-          tax_cents: booking.taxCents
-        }
+        created_at: booking.createdAt.toISOString(),
+        updated_at: booking.updatedAt.toISOString()
       });
 
     } catch (err: any) {
@@ -170,19 +119,20 @@ export default async function (app: FastifyInstance) {
         return reply.code(404).send({ error: 'Booking not found' });
       }
 
-      if (booking.status !== 'requested') {
-        return reply.code(400).send({ error: 'Booking cannot be confirmed in current state' });
-      }
-
-      // This will be called from frontend to initiate payment
-      // We'll return the booking details and total for Stripe payment
       return reply.code(200).send({
         id: booking.id,
+        listing_id: booking.listingId,
+        renter_id: booking.renterId,
+        start_time: booking.startTime.toISOString(),
+        end_time: booking.endTime.toISOString(),
+        status: booking.status,
+        hourly_rate_cents: booking.hourlyRateCents,
+        subtotal_cents: booking.subtotalCents,
+        service_fee_cents: booking.serviceFeeCents,
         total_cents: booking.totalCents,
-        // client_secret will be added by payments-svc
-        ready_for_payment: true
+        created_at: booking.createdAt.toISOString(),
+        updated_at: booking.updatedAt.toISOString()
       });
-
     } catch (err) {
       app.log.error(err);
       return reply.code(500).send({ error: 'Failed to confirm booking' });
@@ -190,7 +140,7 @@ export default async function (app: FastifyInstance) {
   });
 
   app.addHook('onClose', async () => {
-    await prisma.$disconnect();
     await redis.quit();
+    await prisma.$disconnect();
   });
 }
