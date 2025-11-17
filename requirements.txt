@@ -13,7 +13,7 @@ bcrypt==5.0.0
 aiohttp==3.13.2
 aioschedule==0.5.2
 beautifulsoup4==4.14.2
-sentence-transformers==3.0.1
+sentence-transformers==5.1.2
 lxml==6.0.2
 defusedxml==0.7.1
 neo4j==5.25.0
