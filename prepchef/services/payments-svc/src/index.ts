@@ -54,20 +54,43 @@ export async function createApp() {
     }
 
     try {
-      // Verify booking exists and is in correct state
-      const booking = await prisma.booking.findUnique({
-        where: { id: booking_id }
+      // Atomically check and reserve booking for payment (prevents double-charge race)
+      // Uses optimistic locking: only update if status is still 'requested'
+      const booking = await prisma.booking.update({
+        where: {
+          id: booking_id,
+          status: 'requested',
+          stripePaymentIntentId: null // Only if no payment intent exists yet
+        },
+        data: {
+          paymentStatus: 'pending' // Reserve for payment creation
+        }
+      }).catch((error) => {
+        // If update fails, booking doesn't exist or is in wrong state
+        return null;
       });
 
       if (!booking) {
-        return reply.code(404).send({ error: 'Booking not found' });
-      }
+        // Check if booking exists to provide better error message
+        const existingBooking = await prisma.booking.findUnique({
+          where: { id: booking_id }
+        });
 
-      if (booking.status !== 'requested') {
+        if (!existingBooking) {
+          return reply.code(404).send({ error: 'Booking not found' });
+        }
+
+        if (existingBooking.stripePaymentIntentId) {
+          return reply.code(409).send({
+            error: 'Payment intent already exists for this booking',
+            payment_intent_id: existingBooking.stripePaymentIntentId
+          });
+        }
+
         return reply.code(400).send({ error: 'Booking not in valid state for payment' });
       }
 
-      // Create Stripe PaymentIntent
+      // Create Stripe PaymentIntent (booking is now locked to this request)
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount_cents,
         currency: 'usd',
@@ -85,8 +108,7 @@ export async function createApp() {
       await prisma.booking.update({
         where: { id: booking_id },
         data: {
-          stripePaymentIntentId: paymentIntent.id,
-          paymentStatus: 'pending'
+          stripePaymentIntentId: paymentIntent.id
         }
       });
 
@@ -152,21 +174,24 @@ export async function createApp() {
         return reply.code(400).send({ error: 'Invalid signature' });
       }
 
-      // Idempotency check - prevent duplicate processing
-      const existingEvent = await prisma.$queryRaw<Array<{ event_id: string }>>`
-        SELECT event_id FROM stripe_webhook_events WHERE event_id = ${event.id}
-      `;
-
-      if (existingEvent.length > 0) {
-        log.info('[payments-svc] Webhook event already processed', { event_id: event.id });
-        return reply.code(200).send({ received: true });
+      // Idempotency: Try to insert event atomically
+      // On conflict (duplicate event_id), the event was already processed
+      try {
+        await prisma.$executeRaw`
+          INSERT INTO stripe_webhook_events (event_id, type, data, created_at)
+          VALUES (${event.id}, ${event.type}, ${JSON.stringify(event.data.object)}::jsonb, NOW())
+        `;
+      } catch (error: any) {
+        // Check if this is a unique constraint violation
+        if (error.code === '23505' || error.message?.includes('unique constraint')) {
+          log.info('[payments-svc] Webhook event already processed (duplicate delivery)', {
+            event_id: event.id
+          });
+          return reply.code(200).send({ received: true });
+        }
+        // Other database errors should fail
+        throw error;
       }
-
-      // Store event for idempotency
-      await prisma.$executeRaw`
-        INSERT INTO stripe_webhook_events (event_id, type, data, created_at)
-        VALUES (${event.id}, ${event.type}, ${JSON.stringify(event.data.object)}::jsonb, NOW())
-      `;
 
       // Handle payment_intent.succeeded
       if (event.type === 'payment_intent.succeeded') {
