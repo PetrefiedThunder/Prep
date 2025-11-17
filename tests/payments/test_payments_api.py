@@ -284,6 +284,7 @@ async def test_webhook_concurrent_delivery_race_condition(
 
     # Simulate concurrent webhook deliveries from Stripe
     import asyncio
+
     responses = await asyncio.gather(
         client.post(
             "/payments/webhook",
@@ -345,6 +346,7 @@ async def test_connect_endpoint_thread_safe_api_key(
 
     # Make concurrent requests
     import asyncio
+
     responses = await asyncio.gather(
         client.post("/payments/connect", json={"user_id": str(host1.id)}),
         client.post("/payments/connect", json={"user_id": str(host2.id)}),

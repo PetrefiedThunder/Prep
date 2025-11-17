@@ -19,6 +19,9 @@ from dataclasses import dataclass
 
 import requests
 
+# Set a reasonable timeout for all HTTP requests (30 seconds)
+REQUEST_TIMEOUT = 30
+
 
 @dataclass
 class Issue:
@@ -85,7 +88,7 @@ class GitHubIssueCreator:
             return existing
 
         url = f"{self.base_url}/milestones"
-        response = requests.post(url, headers=self.headers, json=data)
+        response = requests.post(url, headers=self.headers, json=data, timeout=REQUEST_TIMEOUT)
 
         if response.status_code == 201:
             milestone = response.json()
@@ -98,7 +101,9 @@ class GitHubIssueCreator:
     def _get_existing_milestone(self, title: str) -> dict | None:
         """Check if milestone already exists"""
         url = f"{self.base_url}/milestones"
-        response = requests.get(url, headers=self.headers, params={"state": "all"})
+        response = requests.get(
+            url, headers=self.headers, params={"state": "all"}, timeout=REQUEST_TIMEOUT
+        )
 
         if response.status_code == 200:
             milestones = response.json()
@@ -166,7 +171,7 @@ class GitHubIssueCreator:
             return existing
 
         url = f"{self.base_url}/labels"
-        response = requests.post(url, headers=self.headers, json=data)
+        response = requests.post(url, headers=self.headers, json=data, timeout=REQUEST_TIMEOUT)
 
         if response.status_code == 201:
             label = response.json()
@@ -179,7 +184,7 @@ class GitHubIssueCreator:
     def _get_existing_label(self, name: str) -> dict | None:
         """Check if label already exists"""
         url = f"{self.base_url}/labels/{name}"
-        response = requests.get(url, headers=self.headers)
+        response = requests.get(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
 
         if response.status_code == 200:
             return response.json()
@@ -199,7 +204,7 @@ class GitHubIssueCreator:
         }
 
         url = f"{self.base_url}/issues"
-        response = requests.post(url, headers=self.headers, json=data)
+        response = requests.post(url, headers=self.headers, json=data, timeout=REQUEST_TIMEOUT)
 
         if response.status_code == 201:
             created_issue = response.json()

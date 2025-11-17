@@ -184,10 +184,7 @@ class MunicipalComplianceKernel:
             p["kind"]
             for p in kitchen_permits
             if p.get("status") == "active"
-            and (
-                not p.get("expires_at")
-                or parse_datetime_safe(p["expires_at"]) > current_time
-            )
+            and (not p.get("expires_at") or parse_datetime_safe(p["expires_at"]) > current_time)
         }
 
         for permit_type in required_permits:

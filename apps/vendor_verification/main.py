@@ -6,19 +6,18 @@ FastAPI microservice for onboarding and verifying vendors for shared/commercial 
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 from collections.abc import Generator
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Header, Query, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from apps.vendor_verification.auth import get_current_tenant, hash_api_key
+from apps.vendor_verification.auth import hash_api_key
 from apps.vendor_verification.models import (
     DocumentListResponse,
     DocumentRequest,
@@ -87,7 +86,9 @@ def get_storage_config() -> dict[str, str]:
     }
 
 
-def generate_presigned_upload_url(storage_key: str, content_type: str, expires_in: int = 3600) -> str:
+def generate_presigned_upload_url(
+    storage_key: str, content_type: str, expires_in: int = 3600
+) -> str:
     """
     Generate a presigned URL for uploading a document.
 
@@ -119,7 +120,9 @@ def generate_presigned_upload_url(storage_key: str, content_type: str, expires_i
     # )
 
     # For v1, return a mock presigned URL
-    return f"{config['endpoint']}/{config['bucket']}/{storage_key}?signature=mock&expires={expires_in}"
+    return (
+        f"{config['endpoint']}/{config['bucket']}/{storage_key}?signature=mock&expires={expires_in}"
+    )
 
 
 def create_audit_event(
@@ -320,7 +323,9 @@ async def list_vendors(
                 doing_business_as=vendor.doing_business_as,
                 status=VendorStatus(vendor.status),
                 primary_location=Location(**vendor.primary_location),
-                contact=None if vendor.contact is None else BaseModel.model_validate(vendor.contact),
+                contact=None
+                if vendor.contact is None
+                else BaseModel.model_validate(vendor.contact),
                 tax_id_last4=vendor.tax_id_last4,
                 created_at=vendor.created_at,
                 updated_at=vendor.updated_at,
@@ -411,7 +416,9 @@ async def create_vendor_document(
         vendor_id=vendor_id,
         type=request.type.value,
         jurisdiction=request.jurisdiction.model_dump(),
-        expires_on=datetime.combine(request.expires_on, datetime.min.time(), tzinfo=UTC) if request.expires_on else None,
+        expires_on=datetime.combine(request.expires_on, datetime.min.time(), tzinfo=UTC)
+        if request.expires_on
+        else None,
         storage_key=storage_key,
         file_name=request.file_name,
         content_type=request.content_type,
@@ -546,7 +553,9 @@ async def create_verification(
         )
 
         if existing_run:
-            logger.info(f"Returning existing verification run: {existing_run.id} (idempotency key: {idempotency_key})")
+            logger.info(
+                f"Returning existing verification run: {existing_run.id} (idempotency key: {idempotency_key})"
+            )
             return VerificationResponse(
                 verification_id=existing_run.id,
                 vendor_id=existing_run.vendor_id,
@@ -613,7 +622,9 @@ async def create_verification(
     db.commit()
     db.refresh(verification)
 
-    logger.info(f"Verification created: {verification.id} for vendor {vendor_id}, status: {verification.status}")
+    logger.info(
+        f"Verification created: {verification.id} for vendor {vendor_id}, status: {verification.status}"
+    )
 
     return VerificationResponse(
         verification_id=verification.id,
@@ -681,8 +692,16 @@ async def get_verification(
 
     from apps.vendor_verification.models import Decision, Recommendation
 
-    decision = Decision(**decision_data) if decision_data else Decision(overall="fail", score=0.0, check_results=[])
-    recommendation = Recommendation(**recommendation_data) if recommendation_data else Recommendation(summary="No recommendation available")
+    decision = (
+        Decision(**decision_data)
+        if decision_data
+        else Decision(overall="fail", score=0.0, check_results=[])
+    )
+    recommendation = (
+        Recommendation(**recommendation_data)
+        if recommendation_data
+        else Recommendation(summary="No recommendation available")
+    )
 
     return VerificationDetail(
         verification_id=verification.id,
@@ -710,4 +729,6 @@ async def get_verification(
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8003)
+    # Bind to localhost by default for security; allow override via environment variable
+    host = os.getenv("BIND_HOST", "127.0.0.1")
+    uvicorn.run(app, host=host, port=8003)

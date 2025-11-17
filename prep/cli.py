@@ -149,7 +149,9 @@ def vendor_onboard(business_name: str, email: str, city: str, demo: bool):
     }
 
     try:
-        response = requests.post("http://localhost:8000/api/v1/vendors", json=vendor_data)
+        response = requests.post(
+            "http://localhost:8000/api/v1/vendors", json=vendor_data, timeout=30
+        )
         response.raise_for_status()
 
         vendor = response.json()
@@ -183,6 +185,7 @@ def compliance_check(facility_id: str | None, jurisdiction: str, demo: bool):
         response = requests.post(
             "http://localhost:8000/api/v1/compliance/check",
             json={"facility_id": facility_id, "jurisdiction": jurisdiction},
+            timeout=30,
         )
         response.raise_for_status()
 
@@ -400,7 +403,9 @@ def _create_demo_property(vendor_id: str, city: str):
     }
 
     try:
-        response = requests.post("http://localhost:8000/api/v1/facilities", json=property_data)
+        response = requests.post(
+            "http://localhost:8000/api/v1/facilities", json=property_data, timeout=30
+        )
         response.raise_for_status()
         facility = response.json()
         console.print(f"[green]✓ Demo property created: {facility['facility_id']}[/green]")

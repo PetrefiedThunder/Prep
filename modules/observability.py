@@ -65,9 +65,7 @@ def configure_fastapi_tracing(
 
     app.state._prep_tracing_configured = True
 
-    logger.info(
-        "Tracing middleware configured", targeted_routes=list(routes)
-    )
+    logger.info("Tracing middleware configured", targeted_routes=list(routes))
 
 
 __all__ = ["DEFAULT_TARGETED_ROUTES", "configure_fastapi_tracing"]

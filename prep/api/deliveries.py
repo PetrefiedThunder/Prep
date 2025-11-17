@@ -23,9 +23,7 @@ SessionDep = Annotated[AsyncSession, Depends(get_db)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
-async def _get_service(
-    session: SessionDep, settings: SettingsDep
-) -> DeliveryService:
+async def _get_service(session: SessionDep, settings: SettingsDep) -> DeliveryService:
     return DeliveryService(session, settings)
 
 
