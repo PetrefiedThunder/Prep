@@ -242,9 +242,7 @@ async def test_load_active_user_success(db_session: AsyncSession, active_admin_u
 @pytest.mark.anyio
 async def test_load_user_with_role_check_success(db_session: AsyncSession, active_admin_user: User):
     """Test loading a user with correct role succeeds."""
-    user = await load_user_from_db(
-        active_admin_user.id, db_session, require_role=UserRole.ADMIN
-    )
+    user = await load_user_from_db(active_admin_user.id, db_session, require_role=UserRole.ADMIN)
 
     assert user.role == UserRole.ADMIN
 
@@ -375,9 +373,7 @@ async def test_full_auth_flow_deleted_user(db_session: AsyncSession):
 
 
 @pytest.mark.anyio
-async def test_full_auth_flow_suspended_after_jwt_issued(
-    db_session: AsyncSession, host_user: User
-):
+async def test_full_auth_flow_suspended_after_jwt_issued(db_session: AsyncSession, host_user: User):
     """Test that user suspended after JWT issuance cannot authenticate (real-time enforcement)."""
     # Create valid JWT while user is active
     token = create_test_jwt(str(host_user.id))

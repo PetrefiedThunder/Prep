@@ -76,9 +76,7 @@ async def list_tasks(session: SessionDep) -> VerificationTaskListResponse:
 
 
 @router.get("/{task_id}", response_model=VerificationTaskResponse)
-async def get_task(
-    task_id: UUID, session: SessionDep
-) -> VerificationTaskResponse:
+async def get_task(task_id: UUID, session: SessionDep) -> VerificationTaskResponse:
     """Retrieve a single verification task."""
 
     task = await _get_task_or_404(session, task_id)

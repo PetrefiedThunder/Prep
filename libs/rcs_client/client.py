@@ -68,7 +68,7 @@ class RCSClient:
                 transport=self._stream_transport_factory(),
                 base_url=self._base_url,
                 trust_env=False,
-                timeout=None,
+                timeout=httpx.Timeout(60.0, connect=10.0),  # 60s total, 10s connect
             )
             owns_stream_client = True
 

@@ -2,21 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import (
     Column,
     DateTime,
-    Enum,
     ForeignKey,
-    Integer,
     String,
-    Text,
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from prep.models.guid import GUID
@@ -51,10 +47,14 @@ class Vendor(Base):
     """Vendor being onboarded and verified."""
 
     __tablename__ = "vendors"
-    __table_args__ = (UniqueConstraint("tenant_id", "external_id", name="uq_vendor_tenant_external"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "external_id", name="uq_vendor_tenant_external"),
+    )
 
     id = Column(GUID(), primary_key=True, default=uuid4)
-    tenant_id = Column(GUID(), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(
+        GUID(), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     external_id = Column(String(255), nullable=False)
     legal_name = Column(String(255), nullable=False)
     doing_business_as = Column(String(255), nullable=True)
@@ -84,7 +84,9 @@ class Vendor(Base):
 
     # Relationships
     tenant = relationship("Tenant", back_populates="vendors")
-    documents = relationship("VendorDocument", back_populates="vendor", cascade="all, delete-orphan")
+    documents = relationship(
+        "VendorDocument", back_populates="vendor", cascade="all, delete-orphan"
+    )
     verification_runs = relationship(
         "VerificationRun", back_populates="vendor", cascade="all, delete-orphan"
     )
@@ -96,7 +98,9 @@ class VendorDocument(Base):
     __tablename__ = "vendor_documents"
 
     id = Column(GUID(), primary_key=True, default=uuid4)
-    vendor_id = Column(GUID(), ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+    vendor_id = Column(
+        GUID(), ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     type = Column(String(50), nullable=False, index=True)
 
     # Jurisdiction stored as JSON (country, state, city)
@@ -119,8 +123,12 @@ class VerificationRun(Base):
     __tablename__ = "verification_runs"
 
     id = Column(GUID(), primary_key=True, default=uuid4)
-    tenant_id = Column(GUID(), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    vendor_id = Column(GUID(), ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(
+        GUID(), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    vendor_id = Column(
+        GUID(), ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     status = Column(
         String(50),
@@ -170,19 +178,25 @@ class AuditEvent(Base):
     __tablename__ = "audit_events"
 
     id = Column(GUID(), primary_key=True, default=uuid4)
-    tenant_id = Column(GUID(), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(
+        GUID(), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     actor_type = Column(String(50), nullable=False)  # api, ui
     actor_id = Column(String(255), nullable=True)
 
-    event_type = Column(String(100), nullable=False, index=True)  # vendor_created, verification_completed, etc.
+    event_type = Column(
+        String(100), nullable=False, index=True
+    )  # vendor_created, verification_completed, etc.
     entity_type = Column(String(50), nullable=False)  # vendor, verification, document
     entity_id = Column(String(255), nullable=False)
 
     # Event payload as JSONB
     payload = Column(JSONB, nullable=True)
 
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
 
     # Relationships
     tenant = relationship("Tenant", back_populates="audit_events")
