@@ -15,10 +15,11 @@
     "@fastify/cors": "^9.0.0",
     "@fastify/jwt": "^7.2.1",
     "@prep/common": "1.0.0",
+    "@prep/database": "1.0.0",
     "@prep/logger": "1.0.0",
+    "@prisma/client": "^5.20.0",
     "fastify": "^4.28.1",
     "ioredis": "^5.3.2",
-    "pg": "^8.11.3",
     "undici": "^7.16.0",
     "zod": "^4.1.12"
   },

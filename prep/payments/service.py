@@ -11,7 +11,7 @@ from uuid import UUID
 
 import stripe
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from stripe.error import SignatureVerificationError, StripeError
 
@@ -164,6 +164,15 @@ class PaymentsService:
 
         try:
             await self._session.commit()
+        except IntegrityError as exc:
+            # Race condition: Another request already processed this event
+            # Unique constraint on event_id makes this idempotent - return success
+            await self._session.rollback()
+            logger.info(
+                "Webhook event already processed (duplicate delivery)",
+                extra={"event_id": event_id},
+            )
+            return
         except SQLAlchemyError as exc:  # pragma: no cover - commit failures are exceptional
             await self._session.rollback()
             logger.exception(
