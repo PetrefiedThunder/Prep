@@ -5,15 +5,14 @@ from __future__ import annotations
 import os
 from uuid import UUID
 
-import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prep.auth.core import decode_and_validate_jwt, load_user_from_db
 from prep.database import get_db
 from prep.models.admin import AdminUser
-from prep.models.db import User, UserRole
+from prep.models.db import UserRole
 
 _security = HTTPBearer(auto_error=False)
 
@@ -40,18 +39,13 @@ async def get_current_admin(
 
     secret, audience, algorithm = _get_jwt_settings()
 
-    try:
-        payload = jwt.decode(
-            credentials.credentials,
-            secret,
-            algorithms=[algorithm],
-            audience=audience,
-        )
-    except jwt.PyJWTError as exc:  # pragma: no cover - defensive handling
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-        ) from exc
+    # Use shared JWT validation helper
+    payload = decode_and_validate_jwt(
+        token=credentials.credentials,
+        secret=secret,
+        audience=audience,
+        algorithms=[algorithm],
+    )
 
     subject = payload.get("sub")
     if not subject:
@@ -66,14 +60,13 @@ async def get_current_admin(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject"
         ) from exc
 
-    result = await db.execute(
-        select(User).where(
-            User.id == admin_id, User.role == UserRole.ADMIN, User.is_active.is_(True)
-        )
+    # Use shared DB user lookup helper with admin role requirement
+    admin = await load_user_from_db(
+        user_id=admin_id,
+        session=db,
+        require_active=True,
+        require_role=UserRole.ADMIN,
     )
-    admin = result.scalar_one_or_none()
-    if admin is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin not authorized")
 
     permissions = payload.get("permissions", [])
     if not isinstance(permissions, list):
