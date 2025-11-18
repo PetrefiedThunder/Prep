@@ -70,8 +70,12 @@ def _build_router(*, include_full: bool = True) -> APIRouter:
         router.include_router(_load_router("prep.mobile.api", "mobile_router"))
         router.include_router(_load_router("prep.admin.api", "admin_router"))
         router.include_router(_load_router("prep.analytics.api", "analytics_router"))
-        router.include_router(_load_router("prep.analytics.host_metrics_api", "host_metrics_router"))
-        router.include_router(_load_router("prep.analytics.advanced_api", "advanced_analytics_router"))
+        router.include_router(
+            _load_router("prep.analytics.host_metrics_api", "host_metrics_router")
+        )
+        router.include_router(
+            _load_router("prep.analytics.advanced_api", "advanced_analytics_router")
+        )
         router.include_router(_load_router("prep.matching.api", "matching_router"))
         router.include_router(_load_router("prep.reviews.api", "reviews_router"))
         router.include_router(_load_router("prep.ratings.api", "ratings_router"))
@@ -83,14 +87,18 @@ def _build_router(*, include_full: bool = True) -> APIRouter:
         router.include_router(_load_router("prep.space_optimizer.api", "space_optimizer_router"))
         router.include_router(_load_router("prep.integrations.api", "integrations_router"))
         router.include_router(_load_router("prep.monitoring.api", "monitoring_router"))
-        router.include_router(_load_router("prep.verification_tasks.api", "verification_tasks_router"))
+        router.include_router(
+            _load_router("prep.verification_tasks.api", "verification_tasks_router")
+        )
         router.include_router(_load_router("api.webhooks.square_kds", "square_kds_router"))
         router.include_router(_load_router("prep.logistics.api", "logistics_router"))
         router.include_router(_load_router("prep.deliveries.api", "deliveries_router"))
         router.include_router(_load_router("prep.orders.api", "orders_router"))
 
     router.include_router(_load_router("api.routes.debug", "debug_router"))
-    router.include_router(_load_router("api.routes.city_fees", "city_fees_router"), prefix="/city", tags=["city"])
+    router.include_router(
+        _load_router("api.routes.city_fees", "city_fees_router"), prefix="/city", tags=["city"]
+    )
     router.include_router(_load_router("api.routes.diff", "city_diff_router"))
     router.include_router(_load_router("api.city.requirements", "city_requirements_router"))
 
