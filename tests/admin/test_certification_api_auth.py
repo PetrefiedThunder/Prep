@@ -109,10 +109,11 @@ def _create_admin_token(admin_id: UUID, permissions: list[str] | None = None) ->
 
     payload = {
         "sub": str(admin_id),
+        "aud": audience,
         "permissions": permissions or ["certifications:verify"],
     }
 
-    return jwt.encode(payload, secret, algorithm="HS256", headers={"aud": audience})
+    return jwt.encode(payload, secret, algorithm="HS256")
 
 
 async def test_list_pending_certifications_without_auth(client: AsyncClient) -> None:
