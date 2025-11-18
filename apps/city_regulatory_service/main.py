@@ -315,7 +315,7 @@ async def list_requirements(
             CityAgency,
             CityRequirement.agency_id == CityAgency.id,
         )
-        .filter(CityRequirement.is_active == True)
+        .filter(CityRequirement.is_active)
     )
 
     if jurisdiction:
@@ -378,7 +378,7 @@ async def query_compliance_requirements(
         )
         .filter(
             CityRequirement.jurisdiction_id == jurisdiction.id,
-            CityRequirement.is_active == True,
+            CityRequirement.is_active,
         )
     )
 
@@ -522,6 +522,10 @@ async def trigger_etl(
 # ============================================================================
 
 if __name__ == "__main__":
+    import os
+
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8002)
+    # Bind to localhost by default for security; allow override via environment variable
+    host = os.getenv("BIND_HOST", "127.0.0.1")
+    uvicorn.run(app, host=host, port=8002)

@@ -19,10 +19,9 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.exc import SAWarning
 from sqlalchemy.ext.mutable import MutableDict, MutableList
 from sqlalchemy.orm import relationship
-
-from sqlalchemy.exc import SAWarning
 
 from prep.models import Base
 from prep.models.guid import GUID
@@ -39,6 +38,7 @@ class RegulationSource(Base):
     """Source metadata for a collection of regulations."""
 
     __tablename__ = "regulation_sources"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     country_code = Column(String(2), nullable=False, default="US")
@@ -56,6 +56,7 @@ class Regulation(Base):
     """Individual regulation entries scraped from government sources."""
 
     __tablename__ = "regulations"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     source_id = Column(GUID(), ForeignKey("regulation_sources.id"))
@@ -78,6 +79,7 @@ class InsuranceRequirement(Base):
     """Insurance coverage expectations by jurisdiction."""
 
     __tablename__ = "insurance_requirements"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     country_code = Column(String(2), nullable=False, default="US")
@@ -103,6 +105,7 @@ class CityJurisdiction(Base):
         UniqueConstraint("city", "state", name="uq_city_state"),
         Index("ix_city_jurisdictions_state", "state"),
         Index("ix_city_jurisdictions_fips", "fips_code"),
+        {"extend_existing": True},
     )
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
@@ -124,7 +127,10 @@ class CityAgency(Base):
     """Government agencies that enforce city regulations."""
 
     __tablename__ = "city_agencies"
-    __table_args__ = (Index("ix_city_agencies_jurisdiction", "jurisdiction_id"),)
+    __table_args__ = (
+        Index("ix_city_agencies_jurisdiction", "jurisdiction_id"),
+        {"extend_existing": True},
+    )
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     jurisdiction_id = Column(GUID(), ForeignKey("city_jurisdictions.id"), nullable=False)
@@ -146,6 +152,7 @@ class CityRequirement(Base):
         Index("ix_city_requirements_jurisdiction", "jurisdiction_id"),
         Index("ix_city_requirements_type", "requirement_type"),
         Index("ix_city_requirements_applies_to", "applies_to"),
+        {"extend_existing": True},
     )
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
@@ -181,6 +188,7 @@ class CityFeeSchedule(Base):
     __table_args__ = (
         UniqueConstraint("jurisdiction_id", name="uq_city_fee_schedule_jurisdiction"),
         Index("ix_city_fee_schedules_jurisdiction", "jurisdiction_id"),
+        {"extend_existing": True},
     )
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
@@ -200,6 +208,7 @@ class CityRequirementLink(Base):
     __table_args__ = (
         Index("ix_city_requirement_links_city", "city_requirement_id"),
         Index("ix_city_requirement_links_federal", "federal_scope_name"),
+        {"extend_existing": True},
     )
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
@@ -215,6 +224,7 @@ class PolicyDecision(Base):
         Index("ix_policy_decisions_request_hash", "request_hash"),
         Index("ix_policy_decisions_region_jurisdiction", "region", "jurisdiction"),
         Index("ix_policy_decisions_decision_created", "decision", "created_at"),
+        {"extend_existing": True},
     )
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
@@ -247,7 +257,10 @@ class CityComplianceTemplate(Base):
     """Pre-built compliance checklists for city onboarding."""
 
     __tablename__ = "city_compliance_templates"
-    __table_args__ = (Index("ix_city_compliance_templates_jurisdiction", "jurisdiction_id"),)
+    __table_args__ = (
+        Index("ix_city_compliance_templates_jurisdiction", "jurisdiction_id"),
+        {"extend_existing": True},
+    )
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     jurisdiction_id = Column(GUID(), ForeignKey("city_jurisdictions.id"), nullable=False)
@@ -267,6 +280,7 @@ class CityETLRun(Base):
     __table_args__ = (
         Index("ix_city_etl_runs_jurisdiction", "jurisdiction_id"),
         Index("ix_city_etl_runs_status", "status"),
+        {"extend_existing": True},
     )
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
@@ -288,6 +302,7 @@ class FeeSchedule(Base):
     __table_args__ = (
         UniqueConstraint("jurisdiction", name="uq_fee_schedules_jurisdiction"),
         Index("ix_fee_schedules_jurisdiction", "jurisdiction"),
+        {"extend_existing": True},
     )
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
@@ -297,7 +312,7 @@ class FeeSchedule(Base):
     fees = Column(MutableList.as_mutable(JSON), nullable=False, default=list)
     notes = Column(Text)
     source_url = Column(Text)
-    metadata = Column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
+    metadata_json = Column("metadata", MutableDict.as_mutable(JSON), nullable=False, default=dict)
     effective_date = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -322,6 +337,7 @@ class RegRequirement(Base):
         ),
         Index("ix_reg_requirements_jurisdiction", "jurisdiction"),
         Index("ix_reg_requirements_requirement_type", "requirement_type"),
+        {"extend_existing": True},
     )
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
@@ -333,7 +349,7 @@ class RegRequirement(Base):
     documents = Column(MutableList.as_mutable(JSON), nullable=False, default=list)
     applies_to = Column(MutableList.as_mutable(JSON), nullable=False, default=list)
     tags = Column(MutableList.as_mutable(JSON), nullable=False, default=list)
-    metadata = Column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
+    metadata_json = Column("metadata", MutableDict.as_mutable(JSON), nullable=False, default=dict)
     source_url = Column(Text)
     status = Column(String(50), nullable=False, default="active")
     last_seen_at = Column(DateTime, default=datetime.utcnow, nullable=False)

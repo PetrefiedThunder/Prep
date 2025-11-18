@@ -52,9 +52,15 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         cache_key = self._cache_key(request, idempotency_key)
 
         redis: RedisProtocol = await get_redis()
-        cached_signature = await redis.get(cache_key)
-        if cached_signature is not None:
-            if cached_signature != signature:
+
+        # BUG-002 fix: Use atomic SET NX to prevent race conditions
+        # Try to set the cache key atomically, only if it doesn't exist
+        was_set = await redis.set(cache_key, signature, ex=self._ttl_seconds, nx=True)
+
+        if not was_set:
+            # Key already exists, check if it's the same signature
+            cached_signature = await redis.get(cache_key)
+            if cached_signature is not None and cached_signature != signature:
                 return json_error_response(
                     request,
                     status_code=status.HTTP_409_CONFLICT,
@@ -67,8 +73,6 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 code="api.idempotency.replayed",
                 message="Request with this Idempotency-Key has already been processed",
             )
-
-        await redis.setex(cache_key, self._ttl_seconds, signature)
 
         response = await call_next(request)
         response.headers.setdefault("Idempotency-Key", idempotency_key)

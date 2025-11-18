@@ -1,10 +1,11 @@
 import { FastifyInstance } from 'fastify';
 import '@fastify/jwt';
-import { compare, hash } from 'bcryptjs';
+import bcrypt from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { env } from '@prep/config';
 
-type UserRole = 'admin' | 'host' | 'renter';
+type UserRole = 'admin' | 'host' | 'renter' | 'support';
 
 const refreshTokens = new Map<string, string>();
 
@@ -70,7 +71,7 @@ export default async function (app: FastifyInstance) {
       return reply.code(409).send({ error: 'Email is already registered' });
     }
 
-    const passwordHash = await hash(data.password, env.AUTH_PASSWORD_SALT_ROUNDS);
+    const passwordHash = await bcrypt.hash(data.password, env.AUTH_PASSWORD_SALT_ROUNDS);
     const user = await app.userStore.createUser({
       username: data.username,
       email: data.email,
@@ -84,7 +85,7 @@ export default async function (app: FastifyInstance) {
       { expiresIn: env.AUTH_ACCESS_TOKEN_TTL }
     );
     const refreshToken = await reply.jwtSign(
-      { sub: user.id, username: user.username, role: user.role, type: 'refresh' },
+      { sub: user.id, username: user.username, role: user.role, type: 'refresh', jti: randomUUID() },
       { expiresIn: env.AUTH_REFRESH_TOKEN_TTL }
     );
     refreshTokens.set(refreshToken, user.id);
@@ -108,7 +109,7 @@ export default async function (app: FastifyInstance) {
       return reply.code(401).send({ error: 'Invalid credentials' });
     }
 
-    const passwordValid = await compare(password, user.passwordHash);
+    const passwordValid = await bcrypt.compare(password, user.passwordHash);
     if (!passwordValid) {
       return reply.code(401).send({ error: 'Invalid credentials' });
     }
@@ -118,7 +119,7 @@ export default async function (app: FastifyInstance) {
       { expiresIn: env.AUTH_ACCESS_TOKEN_TTL }
     );
     const refreshToken = await reply.jwtSign(
-      { sub: user.id, username: user.username, role: user.role, type: 'refresh' },
+      { sub: user.id, username: user.username, role: user.role, type: 'refresh', jti: randomUUID() },
       { expiresIn: env.AUTH_REFRESH_TOKEN_TTL }
     );
     refreshTokens.set(refreshToken, user.id);
@@ -172,7 +173,7 @@ export default async function (app: FastifyInstance) {
         { expiresIn: env.AUTH_ACCESS_TOKEN_TTL }
       );
       const newRefreshToken = await reply.jwtSign(
-        { sub: user.id, username: user.username, role: user.role, type: 'refresh' },
+        { sub: user.id, username: user.username, role: user.role, type: 'refresh', jti: randomUUID() },
         { expiresIn: env.AUTH_REFRESH_TOKEN_TTL }
       );
       refreshTokens.set(newRefreshToken, user.id);

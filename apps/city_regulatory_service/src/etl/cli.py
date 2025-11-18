@@ -22,7 +22,7 @@ def _canonicalize_city(city: str, adapters: Mapping[str, type]) -> tuple[str, st
     if not normalized:
         return city, None
 
-    lookup = {key.lower(): key for key in adapters.keys()}
+    lookup = {key.lower(): key for key in adapters}
     return city, lookup.get(normalized.lower())
 
 
@@ -139,7 +139,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.list_cities:
-        for city in CITY_ADAPTERS.keys():
+        for city in CITY_ADAPTERS:
             print(city)
         return 0
 

@@ -1,15 +1,8 @@
 """Point of sale integrations."""
 
-from .oracle_simphony import FranchiseSyncService, OracleSimphonyClient
-
-__all__ = ["OracleSimphonyClient", "FranchiseSyncService"]
-"""POS integration utilities for Prep."""
-
 from __future__ import annotations
 
 from typing import Any
-
-from .oracle_simphony import FranchiseSyncService, OracleSimphonyClient
 
 __all__ = [
     "OracleSimphonyClient",

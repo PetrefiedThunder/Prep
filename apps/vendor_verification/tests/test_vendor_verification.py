@@ -9,7 +9,6 @@ Tests cover:
 
 from __future__ import annotations
 
-import hashlib
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -24,20 +23,12 @@ from apps.vendor_verification.main import app, get_db
 from apps.vendor_verification.orm_models import (
     Base,
     Tenant,
-    Vendor,
-    VendorDocument,
-    VerificationRun,
 )
 
 # Create in-memory SQLite database for testing
 # Use StaticPool to ensure all connections share the same in-memory database
 TEST_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False
-)
+engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False}, echo=False)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -460,9 +451,7 @@ class TestFailurePath:
         failed_checks = [
             check for check in detail["decision"]["check_results"] if check["status"] == "fail"
         ]
-        food_handler_checks = [
-            check for check in failed_checks if "food_handler" in check["code"]
-        ]
+        food_handler_checks = [check for check in failed_checks if "food_handler" in check["code"]]
         assert len(food_handler_checks) > 0
         assert "expired" in food_handler_checks[0]["details"].lower()
 
@@ -485,9 +474,7 @@ class TestAPIBasics:
 
     def test_invalid_api_key(self, client):
         """Test that requests with invalid API key are rejected."""
-        response = client.get(
-            "/api/v1/vendors", headers={"X-Prep-Api-Key": "invalid-key"}
-        )
+        response = client.get("/api/v1/vendors", headers={"X-Prep-Api-Key": "invalid-key"})
         assert response.status_code == 401
 
     def test_vendor_upsert_idempotency(self, client, tenant_a):

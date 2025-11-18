@@ -18,7 +18,6 @@ import asyncio
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 import requests
@@ -53,7 +52,9 @@ def dev(detach: bool, build: bool, logs: bool):
     """
     console.print(Panel.fit("🚀 Starting Prep Development Environment", style="bold blue"))
 
-    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}")) as progress:
+    with Progress(
+        SpinnerColumn(), TextColumn("[progress.description]{task.description}")
+    ) as progress:
         # Step 1: Docker Compose up
         task = progress.add_task("Starting Docker Compose services...", total=None)
         cmd = ["docker", "compose", "up"]
@@ -78,7 +79,16 @@ def dev(detach: bool, build: bool, logs: bool):
         progress.update(task, description="Running database migrations...")
         try:
             subprocess.run(
-                ["docker", "compose", "exec", "-T", "python-compliance", "alembic", "upgrade", "head"],
+                [
+                    "docker",
+                    "compose",
+                    "exec",
+                    "-T",
+                    "python-compliance",
+                    "alembic",
+                    "upgrade",
+                    "head",
+                ],
                 check=True,
                 cwd=Path.cwd(),
             )
@@ -90,7 +100,17 @@ def dev(detach: bool, build: bool, logs: bool):
         progress.update(task, description="Seeding test data...")
         try:
             subprocess.run(
-                ["docker", "compose", "exec", "-T", "python-compliance", "python", "-m", "prep.cli", "db:seed"],
+                [
+                    "docker",
+                    "compose",
+                    "exec",
+                    "-T",
+                    "python-compliance",
+                    "python",
+                    "-m",
+                    "prep.cli",
+                    "db:seed",
+                ],
                 check=True,
                 cwd=Path.cwd(),
             )
@@ -129,7 +149,9 @@ def vendor_onboard(business_name: str, email: str, city: str, demo: bool):
     }
 
     try:
-        response = requests.post("http://localhost:8000/api/v1/vendors", json=vendor_data)
+        response = requests.post(
+            "http://localhost:8000/api/v1/vendors", json=vendor_data, timeout=30
+        )
         response.raise_for_status()
 
         vendor = response.json()
@@ -147,7 +169,7 @@ def vendor_onboard(business_name: str, email: str, city: str, demo: bool):
 @click.option("--facility-id", help="Facility ID to check")
 @click.option("--jurisdiction", default="San Francisco", help="Jurisdiction to check against")
 @click.option("--demo", is_flag=True, help="Run demo compliance check")
-def compliance_check(facility_id: Optional[str], jurisdiction: str, demo: bool):
+def compliance_check(facility_id: str | None, jurisdiction: str, demo: bool):
     """Run compliance check for a facility."""
 
     if demo:
@@ -161,8 +183,9 @@ def compliance_check(facility_id: Optional[str], jurisdiction: str, demo: bool):
 
     try:
         response = requests.post(
-            f"http://localhost:8000/api/v1/compliance/check",
+            "http://localhost:8000/api/v1/compliance/check",
             json={"facility_id": facility_id, "jurisdiction": jurisdiction},
+            timeout=30,
         )
         response.raise_for_status()
 
@@ -177,15 +200,17 @@ def compliance_check(facility_id: Optional[str], jurisdiction: str, demo: bool):
         for check in result.get("checks", []):
             status = "✓ Pass" if check["passed"] else "✗ Fail"
             style = "green" if check["passed"] else "red"
-            table.add_row(check["rule_name"], f"[{style}]{status}[/{style}]", check.get("details", ""))
+            table.add_row(
+                check["rule_name"], f"[{style}]{status}[/{style}]", check.get("details", "")
+            )
 
         console.print(table)
 
         overall = result.get("overall_status", "unknown")
         if overall == "compliant":
-            console.print(f"\n[green]✓ Facility is COMPLIANT[/green]")
+            console.print("\n[green]✓ Facility is COMPLIANT[/green]")
         else:
-            console.print(f"\n[red]✗ Facility is NON-COMPLIANT[/red]")
+            console.print("\n[red]✗ Facility is NON-COMPLIANT[/red]")
 
     except requests.RequestException as e:
         console.print(f"[red]✗ Failed to run compliance check: {e}[/red]")
@@ -251,7 +276,7 @@ def test_commands():
 
 @test_commands.command()
 @click.option("--scenario", help="Specific scenario to run")
-def scenario(scenario: Optional[str]):
+def scenario(scenario: str | None):
     """Run end-to-end scenario tests."""
 
     if scenario:
@@ -311,7 +336,7 @@ async def _wait_for_services():
         ("python-compliance", "http://localhost:8000/health"),
     ]
 
-    for service, url in services:
+    for _service, _url in services:
         max_retries = 30
         for i in range(max_retries):
             try:
@@ -378,7 +403,9 @@ def _create_demo_property(vendor_id: str, city: str):
     }
 
     try:
-        response = requests.post("http://localhost:8000/api/v1/facilities", json=property_data)
+        response = requests.post(
+            "http://localhost:8000/api/v1/facilities", json=property_data, timeout=30
+        )
         response.raise_for_status()
         facility = response.json()
         console.print(f"[green]✓ Demo property created: {facility['facility_id']}[/green]")

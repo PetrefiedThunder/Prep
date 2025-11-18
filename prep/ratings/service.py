@@ -496,7 +496,7 @@ class RatingIntegrationService:
         average_score = sum(scores) / len(scores)
         positive = sum(1 for value in labels if value >= 0.25)
         negative = sum(1 for value in labels if value <= -0.25)
-        neutral = len(labels) - positive - negative
+        len(labels) - positive - negative
         positive_ratio = positive / len(labels)
         negative_ratio = negative / len(labels)
         neutral_ratio = max(0.0, 1.0 - positive_ratio - negative_ratio)
@@ -678,8 +678,7 @@ class RatingIntegrationService:
             source=provider,
             url=rating.url,
             phone=metadata.get("phone"),
-            address=[line for line in metadata.get("address", [])]
-            or [kitchen.city or "", kitchen.state or ""],
+            address=list(metadata.get("address", [])) or [kitchen.city or "", kitchen.state or ""],
             city=kitchen.city,
             state=kitchen.state,
             postal_code=metadata.get("postal_code"),
@@ -830,7 +829,7 @@ class RatingIntegrationService:
     def _cache_key(self, *parts: Any, **kwargs: Any) -> str:
         flattened = [str(part) for part in parts if part is not None]
         if kwargs:
-            serialized = json.dumps({k: v for k, v in sorted(kwargs.items())}, sort_keys=True)
+            serialized = json.dumps(dict(sorted(kwargs.items())), sort_keys=True)
             flattened.append(serialized)
         return ":".join(["ratings", *flattened])
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,16 +19,18 @@ from prep.settings import Settings, get_settings
 router = APIRouter(prefix="/deliveries", tags=["deliveries"])
 
 
-async def _get_service(
-    session: AsyncSession = Depends(get_db), settings: Settings = Depends(get_settings)
-) -> DeliveryService:
+SessionDep = Annotated[AsyncSession, Depends(get_db)]
+SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+
+async def _get_service(session: SessionDep, settings: SettingsDep) -> DeliveryService:
     return DeliveryService(session, settings)
 
 
 @router.post("/create", response_model=DeliveryCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_delivery(
     payload: DeliveryCreateRequest,
-    service: DeliveryService = Depends(_get_service),
+    service: Annotated[DeliveryService, Depends(_get_service)],
 ) -> DeliveryCreateResponse:
     """Create a delivery with the specified provider."""
 
@@ -40,7 +44,7 @@ async def create_delivery(
 async def deliveries_status_webhook(
     payload: DeliveryStatusUpdate,
     request: Request,
-    service: DeliveryService = Depends(_get_service),
+    service: Annotated[DeliveryService, Depends(_get_service)],
     doordash_signature: str | None = Header(default=None, alias="X-DoorDash-Signature"),
 ) -> dict[str, str]:
     """Accept status callbacks from delivery providers."""

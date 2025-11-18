@@ -7,9 +7,9 @@ Mock implementations of LA County and SF Planning portals for local development.
 Run with: python mocks/gov_portals_mock.py
 """
 
+import os
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
@@ -30,8 +30,8 @@ class PermitApplication(BaseModel):
 class PermitStatus(BaseModel):
     permit_number: str
     status: str
-    issued_date: Optional[str]
-    expiration_date: Optional[str]
+    issued_date: str | None
+    expiration_date: str | None
     conditions: list[str]
 
 
@@ -229,6 +229,7 @@ async def sf_debug_reset():
 
 if __name__ == "__main__":
     import asyncio
+
     import uvicorn
 
     print("🏛️  Starting Mock Government Portals...")
@@ -236,8 +237,10 @@ if __name__ == "__main__":
     print("📍 SF Planning Portal: http://localhost:8003")
 
     async def run_servers():
-        la_config = uvicorn.Config(la_app, host="0.0.0.0", port=8002, log_level="info")
-        sf_config = uvicorn.Config(sf_app, host="0.0.0.0", port=8003, log_level="info")
+        # Bind to localhost by default for security; allow override via environment variable
+        host = os.getenv("BIND_HOST", "127.0.0.1")
+        la_config = uvicorn.Config(la_app, host=host, port=8002, log_level="info")
+        sf_config = uvicorn.Config(sf_app, host=host, port=8003, log_level="info")
 
         la_server = uvicorn.Server(la_config)
         sf_server = uvicorn.Server(sf_config)

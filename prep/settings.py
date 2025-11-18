@@ -116,6 +116,7 @@ class Settings(BaseModel):
     stripe_api_key: str | None = Field(default=None, alias="STRIPE_API_KEY")
     stripe_currency: str = Field(default="usd", alias="STRIPE_CURRENCY")
     use_fixtures: bool = Field(default=False, alias="USE_FIXTURES")
+    analytics_endpoints_enabled: bool = Field(default=False, alias="ANALYTICS_ENDPOINTS_ENABLED")
     compliance_controls_enabled: bool = Field(default=False, alias="COMPLIANCE_CONTROLS_ENABLED")
     twilio_from_number: str | None = Field(default=None, alias="TWILIO_FROM_NUMBER")
     compliance_ops_phone: str | None = Field(default=None, alias="COMPLIANCE_OPS_PHONE")
@@ -184,6 +185,7 @@ class Settings(BaseModel):
     integration_health_timeout_seconds: int = Field(
         default=10, ge=1, alias="INTEGRATION_HEALTH_TIMEOUT_SECONDS"
     )
+    rcs_bind_host: str = Field(default="127.0.0.1", alias="RCS_BIND_HOST")
     ip_allowlist: list[str] = Field(default_factory=list, alias="IP_ALLOWLIST")
     device_allowlist: list[str] = Field(default_factory=list, alias="DEVICE_ALLOWLIST")
     session_optional_paths: list[str] = Field(

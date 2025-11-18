@@ -48,16 +48,38 @@ class ComplianceViolation:
         }
 
 
+def parse_datetime_safe(value: Any) -> datetime:
+    """Parse ISO 8601 datetimes into timezone-aware UTC values."""
+
+    if isinstance(value, datetime):
+        dt = value
+    elif isinstance(value, str):
+        text = value.strip()
+        if text.endswith("Z"):
+            text = f"{text[:-1]}+00:00"
+        try:
+            dt = datetime.fromisoformat(text)
+        except ValueError as exc:
+            raise ValueError(f"Invalid ISO datetime value: {value!r}") from exc
+    else:
+        raise TypeError(f"Unsupported datetime value: {value!r}")
+
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+
+    return dt
+
+
 class ComplianceEvaluation:
     """Complete compliance evaluation result."""
 
-    def __init__(self, jurisdiction_id: str):
+    def __init__(self, jurisdiction_id: str, *, evaluated_at: datetime | None = None):
         self.jurisdiction_id = jurisdiction_id
         self.result: ComplianceResult = ComplianceResult.ALLOW
         self.violations: list[ComplianceViolation] = []
         self.warnings: list[ComplianceViolation] = []
         self.conditions: list[str] = []
-        self.evaluated_at: datetime = datetime.now(UTC)
+        self.evaluated_at: datetime = evaluated_at or datetime.now(UTC)
 
     def add_violation(self, violation: ComplianceViolation):
         """Add a violation."""
@@ -117,7 +139,12 @@ class MunicipalComplianceKernel:
             self.config = yaml.safe_load(f)
 
     def evaluate_booking(
-        self, kitchen_data: dict[str, Any], maker_data: dict[str, Any], booking_data: dict[str, Any]
+        self,
+        kitchen_data: dict[str, Any],
+        maker_data: dict[str, Any],
+        booking_data: dict[str, Any],
+        *,
+        now: datetime | None = None,
     ) -> ComplianceEvaluation:
         """
         Evaluate a booking request against all city rules.
@@ -130,21 +157,25 @@ class MunicipalComplianceKernel:
         Returns:
             ComplianceEvaluation with result and violations/warnings
         """
-        eval = ComplianceEvaluation(self.jurisdiction_id)
+        current_time = now or datetime.now(UTC)
+
+        eval = ComplianceEvaluation(self.jurisdiction_id, evaluated_at=current_time)
 
         # Run all checks
-        self._check_permits(kitchen_data, eval)
+        self._check_permits(kitchen_data, eval, current_time)
         self._check_zoning(kitchen_data, eval)
         self._check_insurance(maker_data, eval)
         self._check_sound_ordinance(booking_data, eval)
         self._check_rental_limits(kitchen_data, booking_data, eval)
         self._check_seasonal_restrictions(booking_data, eval)
         self._check_ada_requirements(kitchen_data, maker_data, eval)
-        self._check_grease_maintenance(kitchen_data, eval)
+        self._check_grease_maintenance(kitchen_data, eval, current_time)
 
         return eval
 
-    def _check_permits(self, kitchen_data: dict[str, Any], eval: ComplianceEvaluation):
+    def _check_permits(
+        self, kitchen_data: dict[str, Any], eval: ComplianceEvaluation, current_time: datetime
+    ):
         """Check facility has all required permits."""
         required_permits = self.config.get("permit_kinds", [])
         kitchen_permits = kitchen_data.get("permits", [])
@@ -153,10 +184,7 @@ class MunicipalComplianceKernel:
             p["kind"]
             for p in kitchen_permits
             if p.get("status") == "active"
-            and (
-                not p.get("expires_at")
-                or datetime.fromisoformat(p["expires_at"]) > datetime.now(UTC)
-            )
+            and (not p.get("expires_at") or parse_datetime_safe(p["expires_at"]) > current_time)
         }
 
         for permit_type in required_permits:
@@ -244,8 +272,8 @@ class MunicipalComplianceKernel:
         if not quiet_hours:
             return
 
-        booking_start = datetime.fromisoformat(booking_data["start"])
-        booking_end = datetime.fromisoformat(booking_data["end"])
+        booking_start = parse_datetime_safe(booking_data["start"])
+        booking_end = parse_datetime_safe(booking_data["end"])
 
         quiet_start = datetime.strptime(quiet_hours["start"], "%H:%M").time()
         quiet_end = datetime.strptime(quiet_hours["end"], "%H:%M").time()
@@ -309,7 +337,7 @@ class MunicipalComplianceKernel:
         """Check seasonal restrictions."""
         restrictions = self.config.get("seasonal_restrictions", [])
 
-        booking_date = datetime.fromisoformat(booking_data["start"]).date()
+        datetime.fromisoformat(booking_data["start"]).date()
         product_type = booking_data.get("product_type")
 
         for restriction in restrictions:
@@ -346,7 +374,9 @@ class MunicipalComplianceKernel:
                 )
             )
 
-    def _check_grease_maintenance(self, kitchen_data: dict[str, Any], eval: ComplianceEvaluation):
+    def _check_grease_maintenance(
+        self, kitchen_data: dict[str, Any], eval: ComplianceEvaluation, current_time: datetime
+    ):
         """Check grease trap maintenance is current."""
         grease_config = self.config.get("grease", {})
         if not grease_config.get("interceptor_required"):
@@ -367,7 +397,7 @@ class MunicipalComplianceKernel:
             )
         else:
             last_service_date = parse_datetime_safe(last_service)
-            days_since = (datetime.now(UTC) - last_service_date).days
+            days_since = (current_time - last_service_date).days
 
             if days_since > max_interval_days:
                 eval.add_violation(

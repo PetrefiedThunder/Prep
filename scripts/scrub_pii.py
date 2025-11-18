@@ -24,7 +24,6 @@ def scrub_pii(input_file: str, output_file: str):
         content = f.read()
 
     # Track progress
-    lines_processed = 0
 
     # Anonymize email addresses
     content = re.sub(

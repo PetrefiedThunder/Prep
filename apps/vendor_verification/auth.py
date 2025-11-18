@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any
 
 from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session

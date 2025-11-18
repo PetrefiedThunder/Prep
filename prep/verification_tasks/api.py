@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -19,6 +20,9 @@ from .schemas import (
 )
 
 router = APIRouter(prefix="/api/v1/verification-tasks", tags=["verification-tasks"])
+
+
+SessionDep = Annotated[AsyncSession, Depends(get_db)]
 
 
 async def _get_task_or_404(session: AsyncSession, task_id: UUID) -> VerificationTask:
@@ -45,7 +49,7 @@ async def _list_tasks(session: AsyncSession) -> list[VerificationTask]:
 @router.post("", response_model=VerificationTaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(
     payload: VerificationTaskCreate,
-    session: AsyncSession = Depends(get_db),
+    session: SessionDep,
 ) -> VerificationTaskResponse:
     """Create a new verification task."""
 
@@ -64,7 +68,7 @@ async def create_task(
 
 
 @router.get("", response_model=VerificationTaskListResponse)
-async def list_tasks(session: AsyncSession = Depends(get_db)) -> VerificationTaskListResponse:
+async def list_tasks(session: SessionDep) -> VerificationTaskListResponse:
     """Return all verification tasks ordered by due date."""
 
     tasks = await _list_tasks(session)
@@ -72,9 +76,7 @@ async def list_tasks(session: AsyncSession = Depends(get_db)) -> VerificationTas
 
 
 @router.get("/{task_id}", response_model=VerificationTaskResponse)
-async def get_task(
-    task_id: UUID, session: AsyncSession = Depends(get_db)
-) -> VerificationTaskResponse:
+async def get_task(task_id: UUID, session: SessionDep) -> VerificationTaskResponse:
     """Retrieve a single verification task."""
 
     task = await _get_task_or_404(session, task_id)
@@ -85,7 +87,7 @@ async def get_task(
 async def update_task(
     task_id: UUID,
     payload: VerificationTaskUpdate,
-    session: AsyncSession = Depends(get_db),
+    session: SessionDep,
 ) -> VerificationTaskResponse:
     """Apply a partial update to a verification task."""
 
@@ -118,7 +120,7 @@ async def update_task(
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_task(task_id: UUID, session: AsyncSession = Depends(get_db)) -> Response:
+async def delete_task(task_id: UUID, session: SessionDep) -> Response:
     """Delete a verification task."""
 
     task = await _get_task_or_404(session, task_id)

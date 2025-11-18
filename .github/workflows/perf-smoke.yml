@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure BASE_URL
         env:
@@ -37,7 +37,7 @@ jobs:
 
       - name: Upload k6 summary
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: k6-smoke-summary
           path: k6-smoke-summary.json
