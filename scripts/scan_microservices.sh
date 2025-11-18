@@ -123,28 +123,62 @@ scan_service() {
         
         # Install ESLint and security plugin if not present
         if [ ! -d "node_modules/eslint-plugin-security" ]; then
-            npm install --no-save --silent eslint eslint-plugin-security 2>/dev/null || true
+            npm install --no-save --silent eslint eslint-plugin-security @typescript-eslint/parser 2>/dev/null || true
         fi
         
-        # Run ESLint with security rules
-        if npx eslint src --ext .ts,.js \
-            --plugin security \
-            --rule 'security/detect-object-injection: warn' \
-            --rule 'security/detect-non-literal-regexp: warn' \
-            --rule 'security/detect-unsafe-regex: error' \
-            --rule 'security/detect-buffer-noassert: error' \
-            --rule 'security/detect-child-process: warn' \
-            --rule 'security/detect-eval-with-expression: error' \
-            --rule 'security/detect-non-literal-fs-filename: warn' \
-            --rule 'security/detect-non-literal-require: warn' \
-            --rule 'security/detect-possible-timing-attacks: warn' \
-            --rule 'security/detect-pseudoRandomBytes: error' \
+        # Create ESLint flat config for security scanning
+        cat > eslint.config.scan.mjs <<'EOF'
+import security from 'eslint-plugin-security';
+import tsParser from '@typescript-eslint/parser';
+
+export default [
+  {
+    files: ['src/**/*.ts', 'src/**/*.js'],
+    languageOptions: {
+      parser: tsParser,
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        exports: 'readonly'
+      }
+    },
+    plugins: {
+      security
+    },
+    rules: {
+      'security/detect-object-injection': 'warn',
+      'security/detect-non-literal-regexp': 'warn',
+      'security/detect-unsafe-regex': 'error',
+      'security/detect-buffer-noassert': 'error',
+      'security/detect-child-process': 'warn',
+      'security/detect-eval-with-expression': 'error',
+      'security/detect-non-literal-fs-filename': 'warn',
+      'security/detect-non-literal-require': 'warn',
+      'security/detect-possible-timing-attacks': 'warn',
+      'security/detect-pseudoRandomBytes': 'error'
+    }
+  }
+];
+EOF
+        
+        # Run ESLint with the temporary config
+        if ESLINT_USE_FLAT_CONFIG=true npx eslint src -c eslint.config.scan.mjs \
             > "$RESULTS_DIR/${service}_eslint.txt" 2>&1; then
             print_success "No security issues found in code"
         else
             print_warning "Security issues found in code (see $RESULTS_DIR/${service}_eslint.txt)"
             has_vulnerabilities=true
         fi
+        
+        # Clean up temporary config
+        rm -f eslint.config.scan.mjs
     fi
     
     # Scan Dockerfile if it exists
