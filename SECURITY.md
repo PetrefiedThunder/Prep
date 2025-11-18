@@ -218,6 +218,27 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
 
 ## Security Best Practices
 
+### Automated Security Scanning
+
+**Microservices Security Scanning**
+
+All Node.js microservices are automatically scanned for vulnerabilities:
+- **Dependency scanning**: `npm audit` checks for CVEs in dependencies
+- **Code security**: ESLint with security rules detects anti-patterns
+- **Image scanning**: Trivy scans Docker images for OS/runtime vulnerabilities
+
+Run local scans before committing:
+```bash
+make scan-microservices
+```
+
+See [Microservices Security Scanning](docs/MICROSERVICES_SECURITY_SCANNING.md) for details.
+
+**Python Security Scanning**
+- Bandit for static code analysis
+- Safety for dependency vulnerability checks
+- CodeQL for advanced security analysis
+
 ### Code Review Checklist
 - [ ] No hardcoded credentials
 - [ ] All secrets use environment variables or secret manager

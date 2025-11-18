@@ -6,6 +6,9 @@
 
 .venv
 
+# Security scan results
+scan-results/
+
 # Python cache and build artifacts
 __pycache__/
 *.py[cod]

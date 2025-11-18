@@ -1,4 +1,4 @@
-.PHONY: help bootstrap up down migrate check-db smoke-test test lint typecheck health format setup policy.build opa.up db.migrate codex-verify etl.validate api.summary.test api.test api.run run-% clean preflight
+.PHONY: help bootstrap up down migrate check-db smoke-test test lint typecheck health format setup policy.build opa.up db.migrate codex-verify etl.validate api.summary.test api.test api.run run-% clean preflight scan-microservices
 
 # Default target
 help:
@@ -22,6 +22,9 @@ help:
 	@echo "  typecheck      Run mypy type checking"
 	@echo "  health         Check health of all running services"
 	@echo "  format         Auto-format code with ruff and black"
+	@echo ""
+	@echo "Security:"
+	@echo "  scan-microservices  Scan all Node.js microservices for security vulnerabilities"
 	@echo ""
 	@echo "Running Services:"
 	@echo "  api.run        Run main API gateway (port 8080)"
@@ -273,6 +276,11 @@ api.summary.test:
 api.test:
 	@. .venv/bin/activate && pytest -q tests/api/test_city_fees.py
 
+# Scan microservices for security vulnerabilities
+scan-microservices:
+	@echo "Scanning microservices for security vulnerabilities..."
+	@bash scripts/scan_microservices.sh
+
 # Clean up generated files
 clean:
 	@echo "Cleaning up..."
@@ -282,5 +290,5 @@ clean:
 	@find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
 	@find . -type d -name .mypy_cache -exec rm -rf {} + 2>/dev/null || true
 	@find . -type d -name .ruff_cache -exec rm -rf {} + 2>/dev/null || true
-	@rm -rf dist/ build/ .coverage htmlcov/ 2>/dev/null || true
+	@rm -rf dist/ build/ .coverage htmlcov/ scan-results/ 2>/dev/null || true
 	@echo "✓ Cleanup complete"
