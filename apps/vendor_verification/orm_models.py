@@ -16,7 +16,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from prep.models.guid import GUID
-from prep.models.orm import Base
+
+
+# Use a separate declarative base to avoid conflicts with existing models
+class Base(DeclarativeBase):
+    """Base class for vendor verification models."""
+    pass
 
 
 class Tenant(Base):
@@ -66,10 +71,10 @@ class Vendor(Base):
     )
 
     # Location stored as JSON
-    primary_location = Column(JSONB, nullable=False)
+    primary_location = Column(JSON, nullable=False)
 
     # Contact info stored as JSON
-    contact = Column(JSONB, nullable=True)
+    contact = Column(JSON, nullable=True)
 
     # Tax ID last 4 digits
     tax_id_last4 = Column(String(4), nullable=True)
@@ -104,7 +109,7 @@ class VendorDocument(Base):
     type = Column(String(50), nullable=False, index=True)
 
     # Jurisdiction stored as JSON (country, state, city)
-    jurisdiction = Column(JSONB, nullable=False)
+    jurisdiction = Column(JSON, nullable=False)
 
     expires_on = Column(DateTime(timezone=True), nullable=True)
     storage_key = Column(String(512), nullable=False)
@@ -138,7 +143,7 @@ class VerificationRun(Base):
     )
 
     # Jurisdiction stored as JSON
-    jurisdiction = Column(JSONB, nullable=False)
+    jurisdiction = Column(JSON, nullable=False)
 
     kitchen_id = Column(String(255), nullable=True)
     initiated_by = Column(String(255), nullable=True)
@@ -149,8 +154,8 @@ class VerificationRun(Base):
     regulation_version = Column(String(100), nullable=False)
     engine_version = Column(String(100), nullable=False)
 
-    # Decision and recommendation stored as JSONB
-    decision_snapshot = Column(JSONB, nullable=True)
+    # Decision and recommendation stored as JSON
+    decision_snapshot = Column(JSON, nullable=True)
 
     # Hash of inputs/documents for idempotency
     inputs_hash = Column(String(64), nullable=True, index=True)
@@ -191,8 +196,8 @@ class AuditEvent(Base):
     entity_type = Column(String(50), nullable=False)  # vendor, verification, document
     entity_id = Column(String(255), nullable=False)
 
-    # Event payload as JSONB
-    payload = Column(JSONB, nullable=True)
+    # Event payload as JSON
+    payload = Column(JSON, nullable=True)
 
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
