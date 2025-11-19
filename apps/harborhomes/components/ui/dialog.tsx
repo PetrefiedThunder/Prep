@@ -14,7 +14,11 @@ export const DialogOverlay = forwardRef<HTMLDivElement, DialogPrimitive.DialogOv
   ({ className, ...props }, ref) => (
     <DialogPrimitive.Overlay
       ref={ref}
-      className={cn('fixed inset-0 z-40 bg-black/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out', className)}
+      className={cn(
+        'fixed inset-0 z-40 bg-black/50 backdrop-blur-sm',
+        'data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out',
+        className
+      )}
       {...props}
     />
   )
@@ -29,13 +33,23 @@ export const DialogContent = forwardRef<HTMLDivElement, DialogPrimitive.DialogCo
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          'fixed left-1/2 top-1/2 z-50 w-full max-w-3xl -translate-x-1/2 -translate-y-1/2 rounded-3xl bg-white p-6 shadow-xl focus:outline-none dark:bg-surface',
+          'fixed left-1/2 top-1/2 z-50 w-full max-w-3xl -translate-x-1/2 -translate-y-1/2',
+          'rounded-2xl border border-border bg-surface-elevated p-6 shadow-2xl',
+          'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
+          'focus:outline-none',
           className
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="focus-ring absolute right-4 top-4 rounded-full bg-surface p-1 text-muted-ink">
+        <DialogPrimitive.Close
+          className={cn(
+            'absolute right-4 top-4 rounded-full p-2 text-ink-muted',
+            'transition-colors duration-fast hover:bg-surface-sunken hover:text-ink',
+            'focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
+            'disabled:pointer-events-none'
+          )}
+        >
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
