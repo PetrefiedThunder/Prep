@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prep.auth import User, require_admin_role
 from prep.database import get_db
 from prep.delivery import DeliveryService, DeliveryServiceError
 from prep.delivery.schemas import OrdersResponse
@@ -20,8 +21,13 @@ async def _get_service(
 
 
 @router.get("", response_model=OrdersResponse)
-async def list_orders(service: DeliveryService = Depends(_get_service)) -> OrdersResponse:
-    """Return the current state of all third-party deliveries."""
+async def list_orders(
+    current_admin: User = Depends(require_admin_role),
+    service: DeliveryService = Depends(_get_service),
+) -> OrdersResponse:
+    """Return the current state of all third-party deliveries (admin only)."""
+
+    _ = current_admin  # Authentication already enforced
 
     try:
         return await service.list_orders()

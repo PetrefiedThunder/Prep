@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class PaymentsConnectRequest(BaseModel):
     """Payload to initiate a Stripe Connect onboarding session."""
 
-    user_id: UUID = Field(..., description="Identifier of the host requesting payouts")
+    pass  # No fields - user_id comes from authentication
 
 
 class PaymentsConnectResponse(BaseModel):

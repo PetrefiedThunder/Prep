@@ -14,8 +14,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from prep.admin.dependencies import get_current_admin
+from prep.auth import User, get_current_user
 from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER, BOOKING_PILOT_BANNER
 from prep.database.connection import AsyncSessionLocal, get_db
+from prep.models.admin import AdminUser
 from prep.pilot.utils import is_pilot_location
 from prep.regulatory.analyzer import RegulatoryAnalyzer
 from prep.regulatory.models import InsuranceRequirement, Regulation, RegulationSource
@@ -84,8 +87,14 @@ class ComplianceCheckRequest(BaseModel):
 
 
 @router.post("/scrape")
-async def scrape_regulations(request: ScrapeRequest, background_tasks: BackgroundTasks) -> dict:
-    """Trigger regulatory data scraping."""
+async def scrape_regulations(
+    request: ScrapeRequest,
+    background_tasks: BackgroundTasks,
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> dict:
+    """Trigger regulatory data scraping (admin only)."""
+
+    _ = current_admin  # Authentication already enforced
 
     background_tasks.add_task(
         run_scraping_task,
@@ -102,9 +111,12 @@ async def scrape_regulations(request: ScrapeRequest, background_tasks: Backgroun
 @router.post("/compliance/check")
 async def check_compliance(
     request: ComplianceCheckRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Check kitchen compliance with regulations."""
+
+    _ = current_user  # Authentication already enforced
 
     analyzer = RegulatoryAnalyzer()
     regulations = await get_regulations_for_jurisdiction(
@@ -472,7 +484,14 @@ async def list_obligations(
 
 
 @router.post("/reg/evaluate")
-async def evaluate_booking(payload: dict[str, Any]) -> dict[str, Any]:
+async def evaluate_booking(
+    payload: dict[str, Any],
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Evaluate booking against regulatory policies."""
+
+    _ = current_user  # Authentication already enforced
+
     evaluation = await _service_request(
         "POST",
         POLICY_ENGINE_URL,
