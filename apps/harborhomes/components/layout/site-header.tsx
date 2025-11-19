@@ -20,8 +20,8 @@ export const SiteHeader = () => {
     <header className="sticky top-0 z-40 border-b border-border/80 bg-[hsl(var(--bg))]/80 backdrop-blur supports-[backdrop-filter]:bg-[hsl(var(--bg))]/60">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4">
         <Link href={localePrefix} className="flex items-center gap-2 font-display text-xl font-semibold text-ink">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-brand text-lg text-brand-contrast">HH</span>
-          HarborHomes
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-brand text-lg text-white font-bold">PC</span>
+          PrepChef
         </Link>
         <div className="hidden lg:flex">
           <SearchPill />

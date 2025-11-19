@@ -7,8 +7,8 @@ import { Toaster } from '@/components/ui';
 import { locales, getMessages } from '@/lib/i18n';
 
 export const metadata = {
-  title: 'HarborHomes – Curated stays for curious travelers',
-  description: 'Discover welcoming homes and boutique retreats with HarborHomes.'
+  title: 'PrepChef – Commercial Kitchen Compliance Platform',
+  description: 'Streamline compliance, manage vendors, and ensure regulatory adherence for commercial kitchens.'
 };
 
 export default async function LocaleLayout({
