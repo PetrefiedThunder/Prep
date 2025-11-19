@@ -12,7 +12,7 @@
     "test": "node --test --import tsx src/tests/compliance.test.ts"
   },
   "dependencies": {
-    "@fastify/cors": "^9.0.0",
+    "@fastify/cors": "^11.1.0",
     "@fastify/jwt": "^7.2.1",
     "@prep/common": "1.0.0",
     "@prep/logger": "1.0.0",
