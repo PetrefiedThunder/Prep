@@ -1,5 +1,30 @@
 # Security Policy
 
+**Last Security Audit**: November 19, 2025
+**Status**: ✅ 0 HIGH Python Vulnerabilities | ⚠️ 8 Remaining (npm/Node.js - under investigation)
+
+---
+
+## Latest Security Audit Summary
+
+### Python Dependencies (November 19, 2025)
+- **Status**: ✅ **All Clear**
+- **Tool**: pip-audit 2.9.0
+- **Result**: 0 known vulnerabilities
+- **Last Fixes**: Resolved 7 vulnerabilities (3 HIGH, 4 MEDIUM)
+  - cryptography 41.0.7 → 46.0.3
+  - setuptools 68.1.2 → 80.9.0
+  - pip 24.0 → 25.3
+
+See [SECURITY_FIXES_2025-11-19.md](./SECURITY_FIXES_2025-11-19.md) for complete details.
+
+### npm/Node.js Dependencies
+- **Status**: ⚠️ **Under Investigation**
+- **GitHub Alert**: 8 vulnerabilities (2 HIGH, 6 MODERATE)
+- **Next Steps**: Full npm audit scheduled for follow-up PR
+
+---
+
 ## Reporting a Vulnerability
 
 If you find a vulnerability, please do not open a public issue. Instead, contact the security team through the designated private security channels.
