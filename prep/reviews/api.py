@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prep.auth import get_current_admin, get_current_user
+from prep.auth import require_admin_role, get_current_user
 from prep.cache import RedisProtocol, get_redis
 from prep.database import get_db
 
@@ -113,7 +113,7 @@ async def list_user_reviews(
 @router.delete("/reviews/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_review(
     review_id: UUID,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: ReviewService = Depends(get_review_service),
 ) -> Response:
     """Delete a review as part of moderation."""
@@ -153,7 +153,7 @@ async def flag_review(
 async def moderate_review(
     review_id: UUID,
     payload: ReviewModerationRequest,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: ReviewService = Depends(get_review_service),
 ) -> ReviewModel:
     """Approve or reject a review as an administrator."""

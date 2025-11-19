@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from docusign_client import DocuSignClient
 from prep.api.errors import http_error, http_exception
-from prep.auth import get_current_admin, get_current_user
+from prep.auth import require_admin_role, get_current_user
 from prep.cache import RedisProtocol, get_redis
 from prep.database import get_db
 from prep.models.orm import User
@@ -273,7 +273,7 @@ async def refresh_access_token(
 )
 async def issue_api_key(
     payload: schemas.APIKeyIssueRequest,
-    current_user: User = Depends(get_current_admin),
+    current_user: User = Depends(require_admin_role),
     service: PlatformService = Depends(get_platform_service),
 ) -> schemas.APIKeyIssueResponse:
     try:
@@ -290,7 +290,7 @@ async def issue_api_key(
 async def rotate_api_key(
     api_key_id: UUID,
     payload: schemas.APIKeyRotateRequest | None = None,
-    current_user: User = Depends(get_current_admin),
+    current_user: User = Depends(require_admin_role),
     service: PlatformService = Depends(get_platform_service),
 ) -> schemas.APIKeyIssueResponse:
     try:
@@ -311,7 +311,7 @@ async def rotate_api_key(
 )
 async def revoke_api_key(
     api_key_id: UUID,
-    current_user: User = Depends(get_current_admin),
+    current_user: User = Depends(require_admin_role),
     service: PlatformService = Depends(get_platform_service),
 ) -> schemas.APIKeyResponse:
     try:
