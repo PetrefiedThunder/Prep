@@ -1,5 +1,7 @@
 """Prep ETL tooling package."""
 
+from typing import Any
+
 from .crawler import main as run_crawler, process_urls
 from .parser import extract_reg_sections, pdf_to_text
 
