@@ -14,6 +14,7 @@ from sqlalchemy import Select, and_, case, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from prep.auth import User, get_current_user
 from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER, BOOKING_PILOT_BANNER
 from prep.database.connection import AsyncSessionLocal, get_db
 from prep.models import Kitchen, SanitationLog, SubscriptionStatus
@@ -71,7 +72,6 @@ class KitchenCreate(BaseModel):
     city: str | None = None
     postal_code: str | None = None
     county: str | None = None
-    host_id: str | None = None
     health_permit_number: str | None = None
     last_inspection_date: datetime | None = None
     insurance_info: dict[str, Any] | None = None
@@ -186,12 +186,13 @@ async def _refresh_delivery_gauge(db: AsyncSession) -> None:
 async def create_kitchen(
     kitchen_data: KitchenCreate,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> KitchenResponse:
     """Create a new kitchen listing and trigger compliance analysis."""
 
     try:
-        host_id = uuid.UUID(kitchen_data.host_id) if kitchen_data.host_id else uuid.uuid4()
+        host_id = uuid.UUID(current_user.id)
     except ValueError as exc:  # pragma: no cover - validation guard
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid host ID"
@@ -295,11 +296,20 @@ async def list_sanitation_logs(
 async def create_sanitation_log(
     kitchen_id: str,
     log_data: SanitationLogCreate,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> SanitationLogResponse:
     """Add a sanitation inspection record for a kitchen."""
 
     kitchen = await _get_kitchen_or_404(db, kitchen_id)
+
+    # Verify ownership unless user is admin
+    if not current_user.is_admin and str(kitchen.host_id) != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to modify this kitchen"
+        )
+
     entry = SanitationLog(
         kitchen_id=kitchen.id,
         logged_at=log_data.logged_at or datetime.now(UTC),

@@ -164,7 +164,7 @@ class PaymentsService:
 
         try:
             await self._session.commit()
-        except IntegrityError as exc:
+        except IntegrityError:
             # Race condition: Another request already processed this event
             # Unique constraint on event_id makes this idempotent - return success
             await self._session.rollback()

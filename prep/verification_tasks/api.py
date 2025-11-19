@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prep.auth import User, require_admin_role
 from prep.database import get_db
 from prep.models.orm import VerificationTask, VerificationTaskStatus
 
@@ -49,9 +50,12 @@ async def _list_tasks(session: AsyncSession) -> list[VerificationTask]:
 @router.post("", response_model=VerificationTaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(
     payload: VerificationTaskCreate,
-    session: SessionDep,
+    current_admin: User = Depends(require_admin_role),
+    session: SessionDep = Depends(get_db),
 ) -> VerificationTaskResponse:
-    """Create a new verification task."""
+    """Create a new verification task (admin only)."""
+
+    _ = current_admin  # Authentication already enforced
 
     task = VerificationTask(
         entity_type=payload.entity_type,
@@ -68,8 +72,13 @@ async def create_task(
 
 
 @router.get("", response_model=VerificationTaskListResponse)
-async def list_tasks(session: SessionDep) -> VerificationTaskListResponse:
-    """Return all verification tasks ordered by due date."""
+async def list_tasks(
+    current_admin: User = Depends(require_admin_role),
+    session: SessionDep = Depends(get_db),
+) -> VerificationTaskListResponse:
+    """Return all verification tasks ordered by due date (admin only)."""
+
+    _ = current_admin  # Authentication already enforced
 
     tasks = await _list_tasks(session)
     return tasks
@@ -77,9 +86,13 @@ async def list_tasks(session: SessionDep) -> VerificationTaskListResponse:
 
 @router.get("/{task_id}", response_model=VerificationTaskResponse)
 async def get_task(
-    task_id: UUID, session: SessionDep
+    task_id: UUID,
+    current_admin: User = Depends(require_admin_role),
+    session: SessionDep = Depends(get_db),
 ) -> VerificationTaskResponse:
-    """Retrieve a single verification task."""
+    """Retrieve a single verification task (admin only)."""
+
+    _ = current_admin  # Authentication already enforced
 
     task = await _get_task_or_404(session, task_id)
     return task
@@ -89,9 +102,12 @@ async def get_task(
 async def update_task(
     task_id: UUID,
     payload: VerificationTaskUpdate,
-    session: SessionDep,
+    current_admin: User = Depends(require_admin_role),
+    session: SessionDep = Depends(get_db),
 ) -> VerificationTaskResponse:
-    """Apply a partial update to a verification task."""
+    """Apply a partial update to a verification task (admin only)."""
+
+    _ = current_admin  # Authentication already enforced
 
     task = await _get_task_or_404(session, task_id)
     update_data = payload.model_dump(exclude_unset=True)
@@ -122,8 +138,14 @@ async def update_task(
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_task(task_id: UUID, session: SessionDep) -> Response:
-    """Delete a verification task."""
+async def delete_task(
+    task_id: UUID,
+    current_admin: User = Depends(require_admin_role),
+    session: SessionDep = Depends(get_db),
+) -> Response:
+    """Delete a verification task (admin only)."""
+
+    _ = current_admin  # Authentication already enforced
 
     task = await _get_task_or_404(session, task_id)
     await session.delete(task)

@@ -8,6 +8,7 @@ Implements key endpoints needed for Prep platform.
 Run with: python mocks/stripe_mock.py
 """
 
+import os
 import secrets
 import time
 from typing import Any
@@ -362,4 +363,6 @@ if __name__ == "__main__":
     print("🔑 Use any API key starting with 'sk_test_'")
     print("🐛 Debug endpoints available at /debug/*")
 
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    # Bind to localhost by default for security; allow override via environment variable
+    host = os.getenv("BIND_HOST", "127.0.0.1")
+    uvicorn.run(app, host=host, port=8001)

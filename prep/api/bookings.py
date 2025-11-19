@@ -15,6 +15,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.pricing import UtilizationMetrics, build_default_engine
+from prep.auth import User, get_current_user
 from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER, BOOKING_PILOT_BANNER
 from prep.database.connection import get_db
 from prep.insurance.certificates import issue_certificate_for_booking_sync
@@ -107,7 +108,6 @@ def _calculate_dynamic_price(
 class BookingCreate(BaseModel):
     """Payload used to create a booking."""
 
-    user_id: str
     kitchen_id: str
     start_time: datetime
     end_time: datetime
@@ -181,7 +181,6 @@ async def _find_conflicting_booking(
 class RecurringBookingCreate(BaseModel):
     """Payload describing a recurring booking schedule."""
 
-    user_id: str
     kitchen_id: str
     start_time: datetime
     end_time: datetime
@@ -209,6 +208,7 @@ def _ensure_timezone(dt: datetime) -> datetime:
 async def create_booking(
     booking_data: BookingCreate,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> BookingResponse:
     """Create a booking after verifying kitchen compliance."""
@@ -217,7 +217,7 @@ async def create_booking(
 
     try:
         kitchen_uuid = uuid.UUID(booking_data.kitchen_id)
-        user_uuid = uuid.UUID(booking_data.user_id)
+        user_uuid = uuid.UUID(current_user.id)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid identifier"
@@ -328,13 +328,14 @@ async def create_booking(
 async def create_recurring_booking(
     booking_data: RecurringBookingCreate,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> RecurringBookingResponse:
     """Create a recurring booking template and instantiate bookings for the next 60 days."""
 
     try:
         kitchen_uuid = uuid.UUID(booking_data.kitchen_id)
-        user_uuid = uuid.UUID(booking_data.user_id)
+        user_uuid = uuid.UUID(current_user.id)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid identifier"

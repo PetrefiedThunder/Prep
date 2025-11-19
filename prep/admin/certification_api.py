@@ -299,7 +299,7 @@ async def list_pending_certifications(
 ) -> PendingCertificationsResponse:
     """Fetch pending certification documents for moderator review."""
 
-    # current_admin dependency retained for parity with protected endpoints
+    # current_admin dependency ensures authentication
     _ = current_admin
     return api.get_pending_certifications(
         kitchen_id=kitchen_id,

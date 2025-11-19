@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from prep.auth import get_current_admin, get_current_user
+from prep.auth import require_admin_role, get_current_user
 from prep.cache import RedisProtocol, get_redis
 from prep.database import get_db
 
@@ -162,7 +162,7 @@ async def get_google_reviews(
 )
 async def sync_external_ratings(
     payload: ExternalRatingSyncRequest,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: RatingIntegrationService = Depends(get_rating_service),
 ) -> ExternalRatingSyncResponse:
     _ = current_admin
@@ -202,7 +202,7 @@ async def get_kitchen_rating_history(
 )
 async def analyze_ratings_sentiment(
     payload: SentimentAnalysisRequest,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: RatingIntegrationService = Depends(get_rating_service),
 ) -> SentimentAnalysisResponse:
     _ = current_admin
@@ -220,7 +220,7 @@ async def get_sentiment_trends(
     kitchen_id: UUID | None = Query(None),
     source: str | None = Query(None),
     limit: int = Query(50, ge=1, le=500),
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: RatingIntegrationService = Depends(get_rating_service),
 ) -> SentimentTrendResponse:
     _ = current_admin

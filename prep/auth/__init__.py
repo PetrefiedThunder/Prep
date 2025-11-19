@@ -86,10 +86,11 @@ def get_token_roles(token: str, settings: Settings) -> list[str]:
     return _extract_roles(decode_token(token, settings))
 
 
-async def get_current_admin(
+async def require_admin_role(
     token: str = Depends(oauth2_scheme),
     settings: Settings = Depends(get_settings),
 ) -> User:
+    """Verify JWT token has an admin role (lightweight check without DB query)."""
     payload = decode_token(token, settings)
     roles = set(_extract_roles(payload))
     allowed = {
@@ -121,7 +122,7 @@ __all__ = [
     "UserRole",
     "_decode_jwt",
     "decode_token",
-    "get_current_admin",
+    "require_admin_role",
     "get_current_user",
     "get_token_roles",
     "oauth2_scheme",
