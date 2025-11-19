@@ -2,6 +2,8 @@
 
 **Production-grade microservices platform for commercial kitchen rental marketplace with comprehensive regulatory compliance automation**
 
+> 📘 **New to Prep?** Check out [WHAT_IS_THIS.md](./WHAT_IS_THIS.md) for a friendly introduction to the project!
+
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.121+-green.svg)](https://fastapi.tiangolo.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue.svg)](https://www.typescriptlang.org/)
