@@ -10,6 +10,7 @@ from uuid import UUID
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from prep.auth import User, require_admin_role
 from prep.admin.analytics_service import (
     AnalyticsRepository,
     AnalyticsService,
@@ -135,9 +136,12 @@ async def _shutdown_analytics_resources() -> None:
 @router.get("/hosts/{host_id}", response_model=HostPerformanceMetrics)
 async def get_host_dashboard(
     host_id: UUID,
+    current_admin: User = Depends(require_admin_role),
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ) -> HostPerformanceMetrics:
-    """Return analytics for a specific host."""
+    """Return analytics for a specific host (admin only)."""
+
+    _ = current_admin  # Authentication already enforced
 
     try:
         return await analytics_service.get_host_performance(host_id)
@@ -153,9 +157,12 @@ async def get_booking_statistics(
     end_date: Annotated[
         datetime | None, Query(description="Filter bookings created before this timestamp")
     ] = None,
+    current_admin: User = Depends(require_admin_role),
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ) -> BookingStatistics:
-    """Return booking analytics for an optional date range."""
+    """Return booking analytics for an optional date range (admin only)."""
+
+    _ = current_admin  # Authentication already enforced
 
     return await analytics_service.get_booking_statistics(start_date=start_date, end_date=end_date)
 
@@ -168,18 +175,24 @@ async def get_revenue_analytics(
     end_date: Annotated[
         datetime | None, Query(description="Include revenue generated before this timestamp")
     ] = None,
+    current_admin: User = Depends(require_admin_role),
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ) -> RevenueAnalytics:
-    """Return revenue analytics including trend data."""
+    """Return revenue analytics including trend data (admin only)."""
+
+    _ = current_admin  # Authentication already enforced
 
     return await analytics_service.get_revenue_analytics(start_date=start_date, end_date=end_date)
 
 
 @router.get("/overview", response_model=PlatformOverview)
 async def get_platform_overview(
+    current_admin: User = Depends(require_admin_role),
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ) -> PlatformOverview:
-    """Return a platform level overview for dashboards."""
+    """Return a platform level overview for dashboards (admin only)."""
+
+    _ = current_admin  # Authentication already enforced
 
     return await analytics_service.get_platform_overview()
 

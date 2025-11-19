@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from apps.vendor_verification.auth import hash_api_key
 from apps.vendor_verification.models import (
+    ContactInfo,
     DocumentListResponse,
     DocumentRequest,
     DocumentResponse,
@@ -289,7 +290,7 @@ async def create_or_update_vendor(
         doing_business_as=vendor.doing_business_as,
         status=VendorStatus(vendor.status),
         primary_location=Location(**vendor.primary_location),
-        contact=None if vendor.contact is None else BaseModel.model_validate(vendor.contact),
+        contact=None if vendor.contact is None else ContactInfo(**vendor.contact),
         tax_id_last4=vendor.tax_id_last4,
         created_at=vendor.created_at,
         updated_at=vendor.updated_at,
@@ -367,7 +368,7 @@ async def get_vendor(
         doing_business_as=vendor.doing_business_as,
         status=VendorStatus(vendor.status),
         primary_location=Location(**vendor.primary_location),
-        contact=None if vendor.contact is None else BaseModel.model_validate(vendor.contact),
+        contact=None if vendor.contact is None else ContactInfo(**vendor.contact),
         tax_id_last4=vendor.tax_id_last4,
         created_at=vendor.created_at,
         updated_at=vendor.updated_at,
@@ -593,8 +594,8 @@ async def create_verification(
 
     # Update verification with results
     verification.decision_snapshot = {
-        "decision": decision.model_dump(),
-        "recommendation": recommendation.model_dump(),
+        "decision": decision.model_dump(mode='json'),
+        "recommendation": recommendation.model_dump(mode='json'),
     }
     verification.status = (
         VerificationStatus.PASSED.value

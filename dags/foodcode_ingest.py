@@ -53,11 +53,12 @@ def _load_postgres() -> None:
 def _create_dag() -> DAG:
     with DAG(
         dag_id="foodcode_ingest",
-        description="Pipeline ingesting foodcode data into Postgres",
+        description="Pipeline ingesting foodcode data into Postgres [DISABLED - NOT IMPLEMENTED]",
         start_date=datetime(2024, 1, 1),
         schedule_interval=None,
         catchup=False,
-        tags=["foodcode", "ingest"],
+        tags=["foodcode", "ingest", "disabled", "placeholder"],
+        is_paused_upon_creation=True,  # Prevent execution until implemented
     ) as dag:
         fetch_raw = PythonOperator(
             task_id="fetch_raw",
