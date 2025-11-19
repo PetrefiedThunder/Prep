@@ -24,8 +24,19 @@ const ConfirmBookingSchema = z.object({
 export default async function (app: FastifyInstance) {
   const prisma = getPrismaClient();
 
-  const redis = new Redis(env.REDIS_URL || 'redis://localhost:6379/0');
-  await redis.connect().catch(() => {});
+  const redis = new Redis(env.REDIS_URL || 'redis://localhost:6379/0', {
+    lazyConnect: true,
+    maxRetriesPerRequest: 1,
+    enableReadyCheck: false
+  });
+
+  redis.on('error', err => {
+    app.log.warn('Redis connection error (continuing without cache)', { error: err.message });
+  });
+
+  await redis.connect().catch(() => {
+    app.log.warn('Redis unavailable, proceeding without distributed locks');
+  });
 
   const bookingService = new BookingService(prisma, redis);
 

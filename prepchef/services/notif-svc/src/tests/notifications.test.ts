@@ -73,7 +73,8 @@ test('respects user notification preferences when sending', async () => {
     payload: {
       ...sampleNotification,
       recipient_id: 'user-abc',
-      title: 'Moderation update'
+      title: 'Moderation update',
+      channels: ['email', 'sms', 'push', 'in_app']
     }
   });
 
