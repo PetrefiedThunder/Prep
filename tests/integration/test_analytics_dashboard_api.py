@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from prep.analytics.dashboard_api import get_dashboard_service, router as analytics_router
-from prep.auth import get_current_admin as auth_get_current_admin
+from prep.auth import require_admin_role as auth_get_current_admin
 from prep.models.pydantic_exports import (
     AdminPerformanceMetrics,
     AdminTeamMemberPerformance,

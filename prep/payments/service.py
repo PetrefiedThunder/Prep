@@ -67,13 +67,13 @@ class PaymentsService:
         if not secret_key:
             raise PaymentsError("Stripe secret key is not configured", status_code=500)
 
-        stripe.api_key = secret_key
-
         created_new_account = False
         account_id = user.stripe_account_id
         try:
             if account_id is None:
-                account = await asyncio.to_thread(stripe.Account.create, type="custom")
+                account = await asyncio.to_thread(
+                    stripe.Account.create, type="custom", api_key=secret_key
+                )
                 account_id = getattr(account, "id", None)
                 if not account_id:
                     raise PaymentsError("Stripe did not return an account id", status_code=502)
@@ -86,6 +86,7 @@ class PaymentsService:
                 refresh_url=str(self._settings.stripe_connect_refresh_url),
                 return_url=str(self._settings.stripe_connect_return_url),
                 type="account_onboarding",
+                api_key=secret_key,
             )
         except StripeError as exc:  # pragma: no cover - network errors handled uniformly
             logger.exception(

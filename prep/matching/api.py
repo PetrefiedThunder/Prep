@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from prep.auth import get_current_admin, get_current_user
+from prep.auth import require_admin_role, get_current_user
 from prep.cache import RedisProtocol, get_redis
 from prep.database import get_db
 from prep.models.orm import User
@@ -84,7 +84,7 @@ async def kitchen_ratings(
 @router.post("/ratings/sync", response_model=ExternalRatingSyncResponse)
 async def sync_ratings(
     payload: ExternalRatingSyncRequest,
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(require_admin_role),
     service: MatchingService = Depends(get_matching_service),
 ) -> ExternalRatingSyncResponse:
     """Sync external rating data; restricted to admin users."""

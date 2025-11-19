@@ -20,7 +20,7 @@ os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 from prep.admin.api import router as admin_router
 from prep.admin.dependencies import get_current_admin as admin_get_current_admin
 from prep.analytics.dashboard_api import get_dashboard_service, router as analytics_router
-from prep.auth import get_current_admin as auth_get_current_admin
+from prep.auth import require_admin_role as auth_get_current_admin
 from prep.database import get_db as core_get_db
 from prep.database.connection import get_db as connection_get_db
 from prep.models.admin import AdminUser

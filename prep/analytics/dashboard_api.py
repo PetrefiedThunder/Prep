@@ -18,7 +18,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from prep.auth import get_current_admin, get_current_user
+from prep.auth import require_admin_role, get_current_user
 from prep.cache import get_redis
 from prep.database import get_db
 from prep.models.orm import (
@@ -1606,7 +1606,7 @@ async def get_host_kitchen_comparison(
 
 @router.get("/platform/overview", response_model=PlatformOverviewMetrics)
 async def get_platform_overview(
-    current_admin: UserORM = Depends(get_current_admin),
+    current_admin: UserORM = Depends(require_admin_role),
     service: AnalyticsDashboardService = Depends(get_dashboard_service),
 ) -> PlatformOverviewMetrics:
     """Return platform level executive metrics."""
@@ -1618,7 +1618,7 @@ async def get_platform_overview(
 @router.get("/platform/revenue", response_model=RevenueAnalytics)
 async def get_platform_revenue(
     timeframe: Timeframe = Query(Timeframe.MONTH),
-    current_admin: UserORM = Depends(get_current_admin),
+    current_admin: UserORM = Depends(require_admin_role),
     service: AnalyticsDashboardService = Depends(get_dashboard_service),
 ) -> RevenueAnalytics:
     """Return platform-wide revenue analytics."""
@@ -1629,7 +1629,7 @@ async def get_platform_revenue(
 
 @router.get("/platform/growth", response_model=PlatformGrowthMetrics)
 async def get_platform_growth(
-    current_admin: UserORM = Depends(get_current_admin),
+    current_admin: UserORM = Depends(require_admin_role),
     service: AnalyticsDashboardService = Depends(get_dashboard_service),
 ) -> PlatformGrowthMetrics:
     """Return user acquisition and growth metrics."""
@@ -1640,7 +1640,7 @@ async def get_platform_growth(
 
 @router.get("/platform/regions", response_model=list[RegionPerformance])
 async def get_platform_regions(
-    current_admin: UserORM = Depends(get_current_admin),
+    current_admin: UserORM = Depends(require_admin_role),
     service: AnalyticsDashboardService = Depends(get_dashboard_service),
 ) -> list[RegionPerformance]:
     """Return geographic performance analytics."""
@@ -1651,7 +1651,7 @@ async def get_platform_regions(
 
 @router.get("/admin/moderation", response_model=ModerationQueueMetrics)
 async def get_admin_moderation(
-    current_admin: UserORM = Depends(get_current_admin),
+    current_admin: UserORM = Depends(require_admin_role),
     service: AnalyticsDashboardService = Depends(get_dashboard_service),
 ) -> ModerationQueueMetrics:
     """Return moderation queue metrics for administrators."""
@@ -1662,7 +1662,7 @@ async def get_admin_moderation(
 
 @router.get("/admin/performance", response_model=AdminPerformanceMetrics)
 async def get_admin_performance(
-    current_admin: UserORM = Depends(get_current_admin),
+    current_admin: UserORM = Depends(require_admin_role),
     service: AnalyticsDashboardService = Depends(get_dashboard_service),
 ) -> AdminPerformanceMetrics:
     """Return admin team performance analytics."""
@@ -1673,7 +1673,7 @@ async def get_admin_performance(
 
 @router.get("/admin/financial", response_model=FinancialHealthMetrics)
 async def get_admin_financial(
-    current_admin: UserORM = Depends(get_current_admin),
+    current_admin: UserORM = Depends(require_admin_role),
     service: AnalyticsDashboardService = Depends(get_dashboard_service),
 ) -> FinancialHealthMetrics:
     """Return financial health analytics for administrators."""

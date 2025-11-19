@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from prep.auth import get_current_admin, get_current_user
+from prep.auth import require_admin_role, get_current_user
 from prep.cache import RedisProtocol, get_redis
 from prep.database import get_db
 from prep.matching.service import MatchingService
@@ -50,7 +50,7 @@ async def get_city_expansion_service(
 async def city_market_analytics(
     city: str,
     currency: str | None = Query(None, description="Target currency for monetary metrics"),
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> CityMarketAnalyticsResponse:
     _ = current_admin
@@ -61,7 +61,7 @@ async def city_market_analytics(
 async def city_competition(
     city: str,
     currency: str | None = Query(None),
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> CityCompetitionResponse:
     _ = current_admin
@@ -72,7 +72,7 @@ async def city_competition(
 async def city_demand(
     city: str,
     currency: str | None = Query(None),
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> CityDemandForecastResponse:
     _ = current_admin
@@ -83,7 +83,7 @@ async def city_demand(
 async def city_pricing(
     city: str,
     currency: str | None = Query(None),
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> PricingIntelResponse:
     _ = current_admin
@@ -93,7 +93,7 @@ async def city_pricing(
 @router.get("/cities/{city}/regulations", response_model=CityRegulationResponse)
 async def city_regulations(
     city: str,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> CityRegulationResponse:
     _ = current_admin
@@ -103,7 +103,7 @@ async def city_regulations(
 @router.post("/compliance/check", response_model=ComplianceCheckResponse)
 async def compliance_check(
     payload: ComplianceCheckRequest,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> ComplianceCheckResponse:
     _ = current_admin
@@ -113,7 +113,7 @@ async def compliance_check(
 @router.get("/compliance/templates", response_model=ComplianceTemplatesResponse)
 async def compliance_templates(
     city: str | None = Query(None, description="Filter templates by city"),
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> ComplianceTemplatesResponse:
     _ = current_admin
@@ -122,7 +122,7 @@ async def compliance_templates(
 
 @router.get("/currencies", response_model=CurrencyListResponse)
 async def list_currencies(
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> CurrencyListResponse:
     _ = current_admin
@@ -136,7 +136,7 @@ async def list_currencies(
 @router.get("/currencies/rates", response_model=CurrencyRatesResponse)
 async def currency_rates(
     base_currency: str | None = Query(None),
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> CurrencyRatesResponse:
     _ = current_admin
@@ -157,7 +157,7 @@ async def booking_quote(
 @router.post("/locations/validate", response_model=AddressValidationResponse)
 async def validate_address(
     payload: AddressValidationRequest,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> AddressValidationResponse:
     _ = current_admin
@@ -167,7 +167,7 @@ async def validate_address(
 @router.get("/locations/{city}/zones", response_model=CityServiceZonesResponse)
 async def city_zones(
     city: str,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> CityServiceZonesResponse:
     _ = current_admin
@@ -177,7 +177,7 @@ async def city_zones(
 @router.get("/locations/{city}/demographics", response_model=CityDemographicsResponse)
 async def city_demographics(
     city: str,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> CityDemographicsResponse:
     _ = current_admin
@@ -188,7 +188,7 @@ async def city_demographics(
 async def launch_city(
     city: str,
     payload: CityLaunchRequest,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> CityLaunchResponse:
     _ = current_admin
@@ -198,7 +198,7 @@ async def launch_city(
 @router.get("/cities/{city}/readiness", response_model=CityReadinessResponse)
 async def launch_readiness(
     city: str,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> CityReadinessResponse:
     _ = current_admin
@@ -209,7 +209,7 @@ async def launch_readiness(
 async def promote_city(
     city: str,
     payload: CityPromotionRequest,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     service: CityExpansionService = Depends(get_city_expansion_service),
 ) -> CityPromotionResponse:
     _ = current_admin
