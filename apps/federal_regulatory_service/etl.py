@@ -94,13 +94,14 @@ class FederalDataETL:
 
         try:
             # Clear existing data
+            # Table names are from a hardcoded list, not user input - safe from SQL injection
             for table_name in [
                 "ab_cb_scope_links",
                 "scopes",
                 "certification_bodies",
                 "accreditation_bodies",
             ]:
-                cursor.execute(f"DELETE FROM {table_name}")
+                cursor.execute(f"DELETE FROM {table_name}")  # nosec B608
                 logger.info(f"Cleared table: {table_name}")
 
             # Load accreditation_bodies

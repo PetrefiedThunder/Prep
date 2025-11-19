@@ -53,18 +53,14 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
         redis: RedisProtocol = await get_redis()
 
-        # Use SET with NX (set if not exists) for atomic check-and-set
-        was_set = await redis.set(
-            cache_key,
-            signature,
-            ex=self._ttl_seconds,
-            nx=True  # Only set if key doesn't exist
-        )
+        # BUG-002 fix: Use atomic SET NX to prevent race conditions
+        # Try to set the cache key atomically, only if it doesn't exist
+        was_set = await redis.set(cache_key, signature, ex=self._ttl_seconds, nx=True)
 
         if not was_set:
-            # Key already exists, check if signature matches
+            # Key already exists, check if it's the same signature
             cached_signature = await redis.get(cache_key)
-            if cached_signature != signature:
+            if cached_signature is not None and cached_signature != signature:
                 return json_error_response(
                     request,
                     status_code=status.HTTP_409_CONFLICT,

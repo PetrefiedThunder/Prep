@@ -9,7 +9,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-
 # ============================================================================
 # Enums
 # ============================================================================
@@ -193,7 +192,9 @@ class VerificationRequest(BaseModel):
     kitchen_id: str | None = Field(None, description="Optional kitchen identifier")
     jurisdiction: Location = Field(..., description="Jurisdiction for verification")
     purpose: str = Field(..., description="Purpose of verification")
-    requested_by: str | None = Field(None, description="Tenant's user ID who requested verification")
+    requested_by: str | None = Field(
+        None, description="Tenant's user ID who requested verification"
+    )
     callback_url: str | None = Field(None, description="Optional callback URL")
 
 

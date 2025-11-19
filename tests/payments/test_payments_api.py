@@ -152,7 +152,8 @@ async def test_connect_endpoint_creates_stripe_account(
         assert refreshed is not None
         assert refreshed.stripe_account_id == "acct_123"
 
-    account_create.assert_called_once_with(type="custom")
+    # BUG-003 test: Verify api_key is passed per-request (not global state)
+    account_create.assert_called_once_with(type="custom", api_key="sk_test_123")
     account_link_create.assert_called_once()
 
 
@@ -224,6 +225,7 @@ async def test_webhook_marks_booking_paid(
 async def test_webhook_is_idempotent(
     app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Test sequential duplicate webhook deliveries are handled idempotently."""
     host = await _create_host(app)
     customer = await _create_customer(app)
     booking = await _create_booking(app, host=host, customer=customer, payment_intent_id="pi_456")
@@ -252,6 +254,155 @@ async def test_webhook_is_idempotent(
 
         events = await session.scalars(select(StripeWebhookEvent))
         assert [event.event_id for event in events] == ["evt_456"]
+
+
+@pytest.mark.anyio("asyncio")
+async def test_webhook_concurrent_delivery_race_condition(
+    app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Webhook idempotency regression test: Concurrent webhook deliveries.
+
+    Tests the fix for race condition where two concurrent webhook deliveries
+    for the same event_id could both pass the existence check and cause:
+    1. Duplicate payment processing (double charge)
+    2. IntegrityError crash (500 error instead of 204)
+
+    The fix uses IntegrityError handling on unique event_id constraint.
+    """
+    host = await _create_host(app)
+    customer = await _create_customer(app)
+    booking = await _create_booking(app, host=host, customer=customer, payment_intent_id="pi_race")
+
+    event_payload = {
+        "id": "evt_race_123",
+        "type": "payment_intent.succeeded",
+        "data": {"object": {"id": "pi_race"}},
+    }
+    construct_event = Mock(return_value=event_payload)
+    monkeypatch.setattr("stripe.Webhook.construct_event", construct_event)
+
+    # Simulate concurrent webhook deliveries from Stripe
+    import asyncio
+
+    responses = await asyncio.gather(
+        client.post(
+            "/payments/webhook",
+            content=b"{}",
+            headers={"stripe-signature": "sig_race_1"},
+        ),
+        client.post(
+            "/payments/webhook",
+            content=b"{}",
+            headers={"stripe-signature": "sig_race_2"},
+        ),
+        return_exceptions=True,
+    )
+
+    # Both requests should succeed (one processes, one detects duplicate)
+    for response in responses:
+        assert not isinstance(response, Exception), f"Webhook raised exception: {response}"
+        assert response.status_code == 204
+
+    # Verify booking was marked paid exactly once (not double-processed)
+    state_factory: _AsyncSessionFactory = app.state.sessions
+    async with state_factory.session() as session:
+        refreshed = await session.get(Booking, booking.id)
+        assert refreshed is not None
+        assert refreshed.paid is True
+
+        # Verify only one event record exists
+        events = await session.scalars(select(StripeWebhookEvent))
+        event_ids = [event.event_id for event in events]
+        assert event_ids == ["evt_race_123"], f"Expected 1 event, got {len(event_ids)}: {event_ids}"
+
+
+@pytest.mark.anyio("asyncio")
+async def test_connect_endpoint_thread_safe_api_key(
+    app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    BUG-003 regression test: Verify concurrent requests don't share Stripe API keys.
+
+    This tests the fix that replaced global stripe.api_key with per-request api_key parameter.
+    Without the fix, concurrent requests could use wrong API keys (cross-tenant leak).
+    """
+    host1 = await _create_user(app, role=UserRole.HOST, email="host1@example.com")
+    host2 = await _create_user(app, role=UserRole.HOST, email="host2@example.com")
+
+    call_log = []
+
+    def account_create_spy(*args, **kwargs):
+        # Record which api_key was used
+        call_log.append({"args": args, "api_key": kwargs.get("api_key")})
+        return SimpleNamespace(id=f"acct_{len(call_log)}")
+
+    def account_link_spy(*args, **kwargs):
+        call_log.append({"args": args, "api_key": kwargs.get("api_key")})
+        return {"url": f"https://connect.stripe.com/setup/s/{len(call_log)}"}
+
+    monkeypatch.setattr("stripe.Account.create", account_create_spy)
+    monkeypatch.setattr("stripe.AccountLink.create", account_link_spy)
+
+    # Make concurrent requests
+    import asyncio
+
+    responses = await asyncio.gather(
+        client.post("/payments/connect", json={"user_id": str(host1.id)}),
+        client.post("/payments/connect", json={"user_id": str(host2.id)}),
+    )
+
+    assert all(r.status_code == 201 for r in responses)
+
+    # Verify all calls used correct API key (per-request, not global)
+    for call in call_log:
+        assert call["api_key"] == "sk_test_123", f"Missing api_key in call: {call}"
+
+
+@pytest.mark.anyio("asyncio")
+async def test_connect_endpoint_handles_none_account_id(
+    app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    BUG-005 regression test: Explicit None check for account_id.
+
+    Stripe can return objects without 'id' attribute. The fix changed from
+    'if not account_id' to 'if account_id is None' for precise error handling.
+    """
+    host = await _create_host(app)
+
+    # Mock Stripe to return object without 'id' attribute
+    account_create = Mock(return_value=SimpleNamespace())  # No 'id' attribute!
+    monkeypatch.setattr("stripe.Account.create", account_create)
+
+    response = await client.post("/payments/connect", json={"user_id": str(host.id)})
+
+    assert response.status_code == 502
+    assert "account id" in response.json()["detail"].lower()
+
+
+@pytest.mark.anyio("asyncio")
+async def test_connect_endpoint_handles_none_onboarding_url(
+    app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    BUG-005 regression test: Explicit None check for onboarding_url.
+
+    AccountLink can return objects without 'url'. The fix ensures we check
+    'is None' explicitly rather than relying on falsy checks.
+    """
+    host = await _create_host(app)
+
+    account_create = Mock(return_value=SimpleNamespace(id="acct_123"))
+    # Mock AccountLink without 'url' attribute
+    account_link_create = Mock(return_value=SimpleNamespace())  # No 'url'!
+    monkeypatch.setattr("stripe.Account.create", account_create)
+    monkeypatch.setattr("stripe.AccountLink.create", account_link_create)
+
+    response = await client.post("/payments/connect", json={"user_id": str(host.id)})
+
+    assert response.status_code == 502
+    assert "onboarding link" in response.json()["detail"].lower()
 
 
 async def test_connect_endpoint_validates_payload(client: AsyncClient) -> None:
@@ -376,9 +527,11 @@ async def test_connect_endpoint_reuses_existing_stripe_account(
     assert response.json()["account_id"] == "acct_existing"
 
     account_create.assert_not_called()
+    # BUG-003 test: Verify api_key parameter is passed
     account_link_create.assert_called_once_with(
         account="acct_existing",
         refresh_url="https://example.com/refresh",
         return_url="https://example.com/return",
         type="account_onboarding",
+        api_key="sk_test_123",
     )

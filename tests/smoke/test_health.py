@@ -9,10 +9,10 @@ import os
 from urllib.parse import urlparse
 
 import asyncpg
-from asyncpg import sql
 import boto3
 import pytest
 import requests
+from asyncpg import sql
 from botocore.client import Config
 
 # Service endpoints
@@ -112,9 +112,7 @@ class TestDatabaseConnectivity:
                 assert exists is not None, f"Missing table: {table_name}"
 
                 # Check table exists and is queryable
-                count_query = sql.SQL("SELECT COUNT(*) FROM {}").format(
-                    sql.Identifier(table_name)
-                )
+                count_query = sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(table_name))
                 result = await conn.fetchval(count_query)
                 assert result is not None
                 # Don't assert count > 0 as tables may be empty initially

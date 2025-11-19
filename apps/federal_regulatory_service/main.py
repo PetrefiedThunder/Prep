@@ -560,8 +560,9 @@ async def match_certifiers(request: MatchRequest) -> MatchResponse:
         cursor = conn.cursor()
 
         # Get matching scopes
+        # Placeholders are generated from count, not user input - safe from SQL injection
         placeholders = ",".join("?" * len(scope_names))
-        scope_rows = cursor.execute(
+        scope_rows = cursor.execute(  # nosec B608
             f"""
             SELECT id, name, cfr_title_part_section, program_reference, notes
             FROM scopes
@@ -581,7 +582,8 @@ async def match_certifiers(request: MatchRequest) -> MatchResponse:
         scope_ids = [s.id for s in matched_scopes]
 
         # Get certifiers for these scopes
-        certifier_rows = cursor.execute(
+        # Placeholders are generated from count, not user input - safe from SQL injection
+        certifier_rows = cursor.execute(  # nosec B608
             f"""
             SELECT
                 cb.id AS certifier_id,
@@ -627,6 +629,10 @@ async def match_certifiers(request: MatchRequest) -> MatchResponse:
 # ============================================================================
 
 if __name__ == "__main__":
+    import os
+
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    # Bind to localhost by default for security; allow override via environment variable
+    host = os.getenv("BIND_HOST", "127.0.0.1")
+    uvicorn.run(app, host=host, port=8001)

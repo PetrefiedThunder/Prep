@@ -6,7 +6,6 @@ import contextlib
 import logging
 import os
 from collections.abc import Iterable
-from contextlib import suppress
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +14,7 @@ from libs.safe_import import safe_import
 from middleware.audit_logger import audit_logger
 from prep.auth.dependencies import enforce_allowlists, require_active_session
 from prep.auth.rbac import RBAC_ROLES, RBACMiddleware
+from prep.database import get_session_factory
 from prep.integrations.runtime import configure_integration_event_consumers
 from prep.settings import get_settings
 
@@ -28,7 +28,9 @@ if ObservabilityModule is not None:
 else:
     DEFAULT_TARGETED_ROUTES = ("/healthz",)
 
-    def configure_fastapi_tracing(app: FastAPI, *, targeted_routes: Iterable[str] | None = None) -> None:
+    def configure_fastapi_tracing(
+        app: FastAPI, *, targeted_routes: Iterable[str] | None = None
+    ) -> None:
         """Fallback no-op tracing configurator when observability hooks are unavailable."""
 
         _ = targeted_routes

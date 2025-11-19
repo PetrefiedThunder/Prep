@@ -39,7 +39,7 @@ def _is_document_expired(document: VendorDocument) -> bool:
         return False
 
     # Handle both date and datetime objects
-    if hasattr(document.expires_on, 'date'):
+    if hasattr(document.expires_on, "date"):
         # It's a datetime
         expiry_date = document.expires_on.date()
     else:
@@ -56,10 +56,9 @@ def _matches_jurisdiction(doc_jurisdiction: dict, target_jurisdiction: Location)
         return False
 
     # If state is specified in target, it must match
-    if target_jurisdiction.state and doc_jurisdiction.get("state") != target_jurisdiction.state:
-        return False
-
-    return True
+    return not (
+        target_jurisdiction.state and doc_jurisdiction.get("state") != target_jurisdiction.state
+    )
 
 
 def run_verification(
@@ -87,8 +86,7 @@ def run_verification(
 
     # Filter documents for the target jurisdiction
     jurisdiction_docs = [
-        doc for doc in documents
-        if _matches_jurisdiction(doc.jurisdiction, jurisdiction)
+        doc for doc in documents if _matches_jurisdiction(doc.jurisdiction, jurisdiction)
     ]
 
     # Check for required documents
@@ -126,8 +124,7 @@ def run_verification(
                     details=f"{doc_type_name} has expired and needs renewal",
                     regulation_version=SF_REGULATION_VERSION,
                     evidence=[
-                        CheckEvidence(document_id=doc.id, note="Expired")
-                        for doc in expired_docs
+                        CheckEvidence(document_id=doc.id, note="Expired") for doc in expired_docs
                     ],
                 )
             )
@@ -140,8 +137,7 @@ def run_verification(
                     details=f"{doc_type_name} is present and valid",
                     regulation_version=SF_REGULATION_VERSION,
                     evidence=[
-                        CheckEvidence(document_id=doc.id, note="Valid")
-                        for doc in valid_docs
+                        CheckEvidence(document_id=doc.id, note="Valid") for doc in valid_docs
                     ],
                 )
             )

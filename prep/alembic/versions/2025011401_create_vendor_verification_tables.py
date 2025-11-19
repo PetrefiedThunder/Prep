@@ -94,7 +94,9 @@ def upgrade() -> None:
         sa.Column("id", GUID(), nullable=False),
         sa.Column("tenant_id", GUID(), nullable=False),
         sa.Column("vendor_id", GUID(), nullable=False),
-        sa.Column("status", sa.String(length=50), nullable=False, server_default="pending_documents"),
+        sa.Column(
+            "status", sa.String(length=50), nullable=False, server_default="pending_documents"
+        ),
         sa.Column("jurisdiction", JSONB, nullable=False),
         sa.Column("kitchen_id", sa.String(length=255), nullable=True),
         sa.Column("initiated_by", sa.String(length=255), nullable=True),
@@ -123,7 +125,9 @@ def upgrade() -> None:
     op.create_index("ix_verification_runs_vendor_id", "verification_runs", ["vendor_id"])
     op.create_index("ix_verification_runs_status", "verification_runs", ["status"])
     op.create_index("ix_verification_runs_inputs_hash", "verification_runs", ["inputs_hash"])
-    op.create_index("ix_verification_runs_idempotency_key", "verification_runs", ["idempotency_key"])
+    op.create_index(
+        "ix_verification_runs_idempotency_key", "verification_runs", ["idempotency_key"]
+    )
 
     # Create audit_events table
     op.create_table(
