@@ -2,6 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../index';
 
+const hasDatabase = Boolean(process.env.TEST_DATABASE_URL);
+const availabilityTest = hasDatabase ? test : test.skip;
+
+if (!hasDatabase) {
+  test('availability integration tests require TEST_DATABASE_URL', { skip: true }, () => {});
+}
+
 test('availability service health check', async () => {
   const app = await createApp();
   const res = await app.inject({
@@ -15,7 +22,7 @@ test('availability service health check', async () => {
   await app.close();
 });
 
-test('check availability for valid time slot', async () => {
+availabilityTest('check availability for valid time slot', async () => {
   const app = await createApp();
   const res = await app.inject({
     method: 'POST',
@@ -31,7 +38,7 @@ test('check availability for valid time slot', async () => {
   await app.close();
 });
 
-test('check availability for conflicting time slot', async () => {
+availabilityTest('check availability for conflicting time slot', async () => {
   const app = await createApp();
   const res = await app.inject({
     method: 'POST',
