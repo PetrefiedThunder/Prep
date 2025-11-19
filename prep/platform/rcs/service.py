@@ -69,7 +69,8 @@ class RCSApp:
             await self._send_json(send, {"detail": exc.detail}, status_code=exc.status_code)
 
     async def _handle_list(self, query: dict[str, list[str]], send: SendCallable) -> None:
-        prefix = query.get("prefix", [None])[0]
+        prefix_list = query.get("prefix", [None])
+        prefix = prefix_list[0] if prefix_list else None
         records = await self.store.list(prefix=prefix)
         payload = [record.model_dump() for record in records]
         await self._send_json(send, payload)
@@ -96,7 +97,8 @@ class RCSApp:
     async def _handle_stream(
         self, query: dict[str, list[str]], receive: ReceiveCallable, send: SendCallable
     ) -> None:
-        prefix = query.get("prefix", [None])[0]
+        prefix_list = query.get("prefix", [None])
+        prefix = prefix_list[0] if prefix_list else None
 
         await _drain_request(receive)
 
