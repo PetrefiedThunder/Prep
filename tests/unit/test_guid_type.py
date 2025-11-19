@@ -2,12 +2,25 @@
 
 from __future__ import annotations
 
+import os
 import uuid
 
 import pytest
 import sqlalchemy as sa
 
 from prep.models.guid import GUID
+
+
+@pytest.fixture()
+def engine() -> sa.Engine:
+    """Create a SQLAlchemy engine based on the configured DATABASE_URL."""
+
+    database_url = os.environ.get("DATABASE_URL", "sqlite+pysqlite:///:memory:")
+    engine = sa.create_engine(database_url, future=True)
+    try:
+        yield engine
+    finally:
+        engine.dispose()
 
 
 def test_guid_sqlite_round_trip(engine):
