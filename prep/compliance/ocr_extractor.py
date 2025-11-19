@@ -169,8 +169,8 @@ def get_extractor() -> CertificateMetadataExtractor:
         # Test if Tesseract is available
         pytesseract.get_tesseract_version()
         return CertificateMetadataExtractor()
-    except:
-        logger.warning("Tesseract not available, using mock extractor")
+    except Exception as e:
+        logger.warning("Tesseract not available, using mock extractor: %s", e)
         return MockExtractor()
 
 

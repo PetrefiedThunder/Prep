@@ -27,8 +27,14 @@ def anyio_backend() -> str:
 
 
 def _ensure_sqlalchemy_stub() -> None:
-    if importlib.util.find_spec("sqlalchemy") is not None:
-        return
+    # Check if sqlalchemy is available - handle case where __spec__ might be None
+    try:
+        spec = importlib.util.find_spec("sqlalchemy")
+        if spec is not None and "sqlalchemy" in sys.modules:
+            return
+    except (ValueError, AttributeError):
+        # If spec check fails, proceed with stub creation
+        pass
 
     sqlalchemy_stub = types.ModuleType("sqlalchemy")
     sqlalchemy_stub.__prep_stub__ = True
@@ -51,6 +57,10 @@ def _ensure_sqlalchemy_stub() -> None:
         "ForeignKey",
         "UniqueConstraint",
         "Index",
+        "select",
+        "insert",
+        "update",
+        "delete",
     ]
     for name in names:
         setattr(sqlalchemy_stub, name, _Placeholder)
@@ -58,21 +68,52 @@ def _ensure_sqlalchemy_stub() -> None:
     sqlalchemy_stub.exc = types.SimpleNamespace(OperationalError=Exception)
     sys.modules["sqlalchemy"] = sqlalchemy_stub
 
+    # Create stub submodules for sqlalchemy
+    orm_module = types.ModuleType("sqlalchemy.orm")
+    orm_module.__prep_stub__ = True
+    orm_module.relationship = _Placeholder
+    orm_module.declarative_base = lambda: _Placeholder
+    sys.modules["sqlalchemy.orm"] = orm_module
+
+    pool_module = types.ModuleType("sqlalchemy.pool")
+    pool_module.__prep_stub__ = True
+    sys.modules["sqlalchemy.pool"] = pool_module
+
+    dialects_module = types.ModuleType("sqlalchemy.dialects")
+    dialects_module.__prep_stub__ = True
+    sys.modules["sqlalchemy.dialects"] = dialects_module
+
+    postgresql_module = types.ModuleType("sqlalchemy.dialects.postgresql")
+    postgresql_module.__prep_stub__ = True
+    sys.modules["sqlalchemy.dialects.postgresql"] = postgresql_module
+
+    types_module = types.ModuleType("sqlalchemy.types")
+    types_module.__prep_stub__ = True
+    sys.modules["sqlalchemy.types"] = types_module
+
+    ext_module = types.ModuleType("sqlalchemy.ext")
+    ext_module.__prep_stub__ = True
+    sys.modules["sqlalchemy.ext"] = ext_module
+
+    asyncio_module = types.ModuleType("sqlalchemy.ext.asyncio")
+    asyncio_module.__prep_stub__ = True
+    asyncio_module.AsyncSession = _Placeholder
+    asyncio_module.async_sessionmaker = _Placeholder
+    asyncio_module.create_async_engine = _Placeholder
+    sys.modules["sqlalchemy.ext.asyncio"] = asyncio_module
+
 
 def _ensure_aiohttp_stub() -> None:
     if "aiohttp" in sys.modules:
         return
-
-    sys.modules["sqlalchemy"] = sqlalchemy_stub
-    sys.modules["sqlalchemy.orm"] = orm_module
-    sys.modules["sqlalchemy.pool"] = pool_module
-    sys.modules["sqlalchemy.dialects"] = dialects_module
-    sys.modules["sqlalchemy.dialects.postgresql"] = postgresql_module
-    sys.modules["sqlalchemy.types"] = types_module
-    sys.modules["sqlalchemy.ext"] = ext_module
+    # aiohttp stub creation moved below where it's actually needed
 
 
-_sqlalchemy_spec = importlib.util.find_spec("sqlalchemy")
+try:
+    _sqlalchemy_spec = importlib.util.find_spec("sqlalchemy")
+except (ValueError, AttributeError):
+    _sqlalchemy_spec = None
+
 if _sqlalchemy_spec is None:
     _ensure_sqlalchemy_stub()
     # Create stub for sqlalchemy.ext.mutable

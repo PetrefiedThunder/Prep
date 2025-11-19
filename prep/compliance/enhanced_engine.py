@@ -169,7 +169,7 @@ class ComplianceEngine:
         try:
             exp = datetime.fromisoformat(expiration_date.replace("Z", "+00:00"))
             return exp < datetime.now(UTC)
-        except:
+        except (ValueError, TypeError, AttributeError):
             return True  # Assume expired if date is invalid
 
     def _is_valid_agency(self, agency: str, cert_type: str) -> bool:
