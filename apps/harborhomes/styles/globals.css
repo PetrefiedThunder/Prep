@@ -2,34 +2,155 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================================
+   PrepChef Design System - Light Theme
+   Professional compliance platform color palette
+   ============================================================================ */
+
 :root {
-  --brand: 11 85% 54%;
-  --brand-contrast: 0 0% 100%;
-  --ink: 222 47% 11%;
-  --muted-ink: 222 20% 35%;
-  --bg: 0 0% 100%;
-  --surface: 210 20% 98%;
-  --border: 214 20% 89%;
+  /* Brand Colors - Professional Blue (Trust, Authority, Compliance) */
+  --brand: 217 91% 60%; /* Primary brand color */
+  --brand-50: 214 100% 97%;
+  --brand-100: 214 95% 93%;
+  --brand-200: 213 97% 87%;
+  --brand-300: 212 96% 78%;
+  --brand-400: 213 94% 68%;
+  --brand-500: 217 91% 60%; /* Base */
+  --brand-600: 221 83% 53%;
+  --brand-700: 224 76% 48%;
+  --brand-800: 226 71% 40%;
+  --brand-900: 224 64% 33%;
+  --brand-950: 226 57% 21%;
+
+  /* Semantic Colors */
+  --success: 142 71% 45%; /* Green - Approved, Verified, Compliant */
+  --success-light: 142 76% 96%;
+  --success-dark: 142 71% 35%;
+
+  --warning: 38 92% 50%; /* Amber - Attention, Expiring */
+  --warning-light: 38 100% 96%;
+  --warning-dark: 38 92% 40%;
+
+  --error: 0 72% 51%; /* Red - Violations, Urgent */
+  --error-light: 0 86% 97%;
+  --error-dark: 0 72% 41%;
+
+  --info: 199 89% 48%; /* Light Blue - Informational */
+  --info-light: 199 89% 96%;
+  --info-dark: 199 89% 38%;
+
+  /* Base Colors */
+  --bg: 0 0% 100%; /* Pure white */
+  --ink: 222 47% 11%; /* Almost black */
+  --muted-ink: 222 20% 35%; /* Muted text */
+  --subtle-ink: 222 15% 60%; /* Subtle text */
+
+  --surface: 210 20% 98%; /* Card backgrounds */
+  --surface-elevated: 0 0% 100%; /* Elevated surfaces */
+  --surface-sunken: 210 20% 96%; /* Sunken surfaces */
+
+  --border: 214 20% 89%; /* Default borders */
+  --border-strong: 214 25% 75%; /* Strong borders */
+  --border-subtle: 214 15% 93%; /* Subtle borders */
+
+  /* Border Radius */
+  --radius-sm: 0.375rem; /* 6px */
+  --radius-md: 0.5rem; /* 8px */
+  --radius-lg: 0.75rem; /* 12px */
+  --radius-xl: 1rem; /* 16px */
+  --radius-2xl: 1.5rem; /* 24px */
+  --radius-3xl: 2rem; /* 32px */
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --shadow-glow: 0 0 15px rgb(0 0 0 / 0.1);
+  --shadow-glow-brand: 0 0 15px hsl(var(--brand) / 0.3);
 }
+
+/* ============================================================================
+   PrepChef Design System - Dark Theme
+   ============================================================================ */
 
 [data-theme='dark'] {
+  /* Brand Colors - Adjusted for dark mode */
+  --brand: 217 91% 65%;
+  --brand-50: 226 57% 21%;
+  --brand-100: 224 64% 33%;
+  --brand-200: 226 71% 40%;
+  --brand-300: 224 76% 48%;
+  --brand-400: 221 83% 53%;
+  --brand-500: 217 91% 60%;
+  --brand-600: 213 94% 68%;
+  --brand-700: 212 96% 78%;
+  --brand-800: 213 97% 87%;
+  --brand-900: 214 95% 93%;
+  --brand-950: 214 100% 97%;
+
+  /* Semantic Colors - Dark mode adjusted */
+  --success: 142 71% 50%;
+  --success-light: 142 71% 25%;
+  --success-dark: 142 71% 60%;
+
+  --warning: 38 92% 55%;
+  --warning-light: 38 92% 30%;
+  --warning-dark: 38 92% 65%;
+
+  --error: 0 72% 56%;
+  --error-light: 0 72% 31%;
+  --error-dark: 0 72% 66%;
+
+  --info: 199 89% 53%;
+  --info-light: 199 89% 28%;
+  --info-dark: 199 89% 63%;
+
+  /* Base Colors */
   --bg: 222 47% 11%;
-  --surface: 222 32% 18%;
   --ink: 0 0% 100%;
   --muted-ink: 0 0% 65%;
+  --subtle-ink: 0 0% 45%;
+
+  --surface: 222 32% 18%;
+  --surface-elevated: 222 32% 22%;
+  --surface-sunken: 222 32% 14%;
+
   --border: 222 32% 28%;
+  --border-strong: 222 32% 38%;
+  --border-subtle: 222 32% 22%;
+
+  /* Shadows - Darker for dark mode */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.6);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.7);
+  --shadow-glow: 0 0 15px rgb(0 0 0 / 0.5);
+  --shadow-glow-brand: 0 0 15px hsl(var(--brand) / 0.4);
 }
+
+/* ============================================================================
+   Global Styles
+   ============================================================================ */
 
 body {
-  @apply bg-[hsl(var(--bg))] text-[hsl(var(--ink))] font-sans;
+  @apply bg-[hsl(var(--bg))] text-[hsl(var(--ink))] font-sans antialiased;
 }
 
+/* Focus Ring Utility */
 .focus-ring {
   @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand;
 }
 
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 0.75rem;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--surface));
 }
 
 ::-webkit-scrollbar-thumb {
@@ -37,6 +158,11 @@ body {
   border-radius: 999px;
 }
 
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--border-strong));
+}
+
+/* Typography Base Styles */
 @layer base {
   h1,
   h2,
@@ -44,6 +170,88 @@ body {
   h4,
   h5,
   h6 {
-    @apply font-display;
+    @apply font-display font-semibold tracking-tight;
+  }
+
+  h1 {
+    @apply text-4xl md:text-5xl;
+  }
+
+  h2 {
+    @apply text-3xl md:text-4xl;
+  }
+
+  h3 {
+    @apply text-2xl md:text-3xl;
+  }
+
+  h4 {
+    @apply text-xl md:text-2xl;
+  }
+
+  h5 {
+    @apply text-lg md:text-xl;
+  }
+
+  h6 {
+    @apply text-base md:text-lg;
+  }
+
+  p {
+    @apply text-base leading-relaxed;
+  }
+
+  a {
+    @apply transition-colors duration-fast;
+  }
+}
+
+/* Utility Classes */
+@layer components {
+  /* Container with consistent padding */
+  .container-padding {
+    @apply px-4 md:px-6 lg:px-8;
+  }
+
+  /* Card elevation states */
+  .card-base {
+    @apply bg-surface border border-border rounded-xl shadow-sm;
+  }
+
+  .card-elevated {
+    @apply bg-surface-elevated border border-border rounded-xl shadow-md hover:shadow-lg transition-shadow duration-base;
+  }
+
+  /* Badge variants */
+  .badge-success {
+    @apply bg-success-light text-success-dark border border-success/20 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-warning {
+    @apply bg-warning-light text-warning-dark border border-warning/20 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-error {
+    @apply bg-error-light text-error-dark border border-error/20 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-info {
+    @apply bg-info-light text-info-dark border border-info/20 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  /* Smooth transitions for interactive elements */
+  .smooth-transition {
+    @apply transition-all duration-base ease-smooth-in-out;
+  }
+}
+
+/* Accessibility: Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
