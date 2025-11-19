@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fpdf import FPDF
+from fpdf.enums import XPos, YPos
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -68,7 +69,7 @@ def _build_manifest_pdf(
     pdf.add_page()
 
     pdf.set_font("Helvetica", "B", 18)
-    pdf.cell(0, 12, "Prep Compliance Manifest", ln=True)
+    pdf.cell(0, 12, "Prep Compliance Manifest", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("Helvetica", "", 12)
     pdf.multi_cell(0, 8, f"Generated at: {datetime.now(UTC).isoformat()}Z")
     pdf.ln(2)
@@ -82,7 +83,7 @@ def _build_manifest_pdf(
 
 def _render_kitchen_section(pdf: FPDF, kitchens: Iterable[Kitchen]) -> None:
     pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(0, 10, "Delivery Kitchens", ln=True)
+    pdf.cell(0, 10, "Delivery Kitchens", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("Helvetica", "", 10)
 
     for kitchen in kitchens:
@@ -109,7 +110,7 @@ def _render_kitchen_section(pdf: FPDF, kitchens: Iterable[Kitchen]) -> None:
 
 def _render_deliveries_section(pdf: FPDF, deliveries: Iterable[Booking]) -> None:
     pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(0, 10, "Recent Deliveries", ln=True)
+    pdf.cell(0, 10, "Recent Deliveries", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("Helvetica", "", 10)
 
     deliveries = list(deliveries)
@@ -130,7 +131,7 @@ def _render_deliveries_section(pdf: FPDF, deliveries: Iterable[Booking]) -> None
 
 def _render_certificate_section(pdf: FPDF, certificates: Iterable[COIDocument]) -> None:
     pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(0, 10, "Insurance Certificates", ln=True)
+    pdf.cell(0, 10, "Insurance Certificates", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("Helvetica", "", 10)
 
     certificates = list(certificates)
