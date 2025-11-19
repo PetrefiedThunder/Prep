@@ -1,7 +1,7 @@
 # Keep AWS SDK libraries aligned to avoid breaking API changes.
 # aiobotocore 2.12.0 requires botocore>=1.34.41,<1.34.52
 botocore==1.34.51
-aiobotocore==2.12.0
+aiobotocore==2.25.2
 fastapi==0.121.2
 uvicorn[standard]==0.38.0
 sqlalchemy==2.0.44
