@@ -287,10 +287,6 @@ def get_certification_verification_api() -> CertificationVerificationAPI:
     return _certification_api
 
 
-# Duplicate get_current_admin() function removed (BUG-001 fix)
-# The correct definition is below at line ~321 with proper field names
-
-
 @certification_router.get("/pending", response_model=PendingCertificationsResponse)
 async def list_pending_certifications(
     *,
