@@ -12,7 +12,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from prep.auth import get_current_admin
+from prep.auth import require_admin_role
 from prep.database import get_db
 from prep.models.orm import CertificationDocument, Kitchen, KitchenModerationEvent, User
 
@@ -313,7 +313,7 @@ async def list_pending_kitchens(
     host_id: UUID | None = Query(default=None),
     search: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),  # noqa: ARG001 - dependency usage
+    current_admin: User = Depends(require_admin_role),  # noqa: ARG001 - dependency usage
 ) -> KitchenListResponse:
     """Return kitchens that are awaiting moderation."""
 
@@ -365,7 +365,7 @@ async def list_pending_kitchens(
 async def get_kitchen_detail(
     kitchen_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),  # noqa: ARG001 - dependency usage
+    current_admin: User = Depends(require_admin_role),  # noqa: ARG001 - dependency usage
 ) -> KitchenDetailResponse:
     """Return detailed information for a specific kitchen."""
 
@@ -419,7 +419,7 @@ async def moderate_kitchen(
     kitchen_id: UUID,
     payload: ModerationRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(require_admin_role),
 ) -> ModerationResponse:
     """Apply a moderation decision to a kitchen listing."""
 
@@ -457,7 +457,7 @@ async def moderate_kitchen(
 @router.get("/kitchens/stats", response_model=KitchenStats)
 async def get_kitchen_stats(
     db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),  # noqa: ARG001 - dependency usage
+    current_admin: User = Depends(require_admin_role),  # noqa: ARG001 - dependency usage
 ) -> KitchenStats:
     """Return aggregate moderation statistics."""
 
@@ -502,7 +502,7 @@ async def list_pending_certifications(
     kitchen_id: UUID | None = Query(default=None),
     expires_before: datetime | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),  # noqa: ARG001 - dependency usage
+    current_admin: User = Depends(require_admin_role),  # noqa: ARG001 - dependency usage
 ) -> CertificationListResponse:
     """List certification documents awaiting verification."""
 
@@ -572,7 +572,7 @@ async def process_certification(
     certification_id: UUID,
     payload: CertificationActionRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),  # noqa: ARG001 - dependency usage
+    current_admin: User = Depends(require_admin_role),  # noqa: ARG001 - dependency usage
 ) -> CertificationActionResponse:
     """Verify or reject a certification document."""
 
@@ -613,7 +613,7 @@ async def process_certification(
 @router.get("/certifications/stats", response_model=CertificationStats)
 async def get_certification_stats(
     db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),  # noqa: ARG001 - dependency usage
+    current_admin: User = Depends(require_admin_role),  # noqa: ARG001 - dependency usage
 ) -> CertificationStats:
     """Return aggregate metrics for certification processing."""
 
@@ -661,7 +661,7 @@ async def list_users(
     status_filter: str | None = Query(alias="status", default=None),
     role: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),  # noqa: ARG001 - dependency usage
+    current_admin: User = Depends(require_admin_role),  # noqa: ARG001 - dependency usage
 ) -> UserListResponse:
     """List platform users with optional filtering."""
 
@@ -715,7 +715,7 @@ async def suspend_user(
     user_id: UUID,
     payload: SuspendUserRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),  # noqa: ARG001 - dependency usage
+    current_admin: User = Depends(require_admin_role),  # noqa: ARG001 - dependency usage
 ) -> SuspendUserResponse:
     """Suspend a user account that violates platform policies."""
 
@@ -736,7 +736,7 @@ async def suspend_user(
 @router.get("/users/stats", response_model=UserStats)
 async def get_user_stats(
     db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),  # noqa: ARG001 - dependency usage
+    current_admin: User = Depends(require_admin_role),  # noqa: ARG001 - dependency usage
 ) -> UserStats:
     """Return aggregate statistics for platform users."""
 

@@ -30,7 +30,7 @@ class ScrapeRequest(BaseModel):
 @router.get("/states")
 async def get_state_regulatory_overview(
     db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(require_admin_role),
 ) -> dict[str, object]:
     """Return aggregated compliance metrics grouped by state.
 
@@ -44,7 +44,7 @@ async def get_state_regulatory_overview(
 @router.get("/scraping-status")
 async def get_scraping_status(
     db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(require_admin_role),
 ) -> dict[str, dict[str, str]]:
     """Return the current scraping status for each state.
 
@@ -59,7 +59,7 @@ async def get_scraping_status(
 @router.post("/scrape")
 async def trigger_regulation_scraping(
     payload: ScrapeRequest,
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(require_admin_role),
 ) -> dict[str, object]:
     """Schedule scraping for the requested states.
 

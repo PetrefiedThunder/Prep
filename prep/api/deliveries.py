@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prep.auth import User, get_current_user
 from prep.database import get_db
 from prep.delivery import DeliveryService, DeliveryServiceError
 from prep.delivery.schemas import (
@@ -30,9 +31,12 @@ async def _get_service(session: SessionDep, settings: SettingsDep) -> DeliverySe
 @router.post("/create", response_model=DeliveryCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_delivery(
     payload: DeliveryCreateRequest,
+    current_user: User = Depends(get_current_user),
     service: Annotated[DeliveryService, Depends(_get_service)],
 ) -> DeliveryCreateResponse:
     """Create a delivery with the specified provider."""
+
+    _ = current_user  # Authentication already enforced
 
     try:
         return await service.create_delivery(payload)
