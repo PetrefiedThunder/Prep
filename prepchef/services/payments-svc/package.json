@@ -12,14 +12,14 @@
     "test": "node --test --import tsx src/tests/payments.test.ts"
   },
   "dependencies": {
-    "@fastify/cors": "^9.0.0",
+    "@fastify/cors": "^11.1.0",
     "@fastify/jwt": "^7.2.1",
     "@prep/common": "1.0.0",
     "@prep/database": "1.0.0",
     "@prep/logger": "1.0.0",
     "@prisma/client": "^5.20.0",
-    "fastify": "^4.28.1",
-    "stripe": "^20.0.0",
+    "fastify": "^5.6.2",
+    "stripe": "^14.0.0",
     "undici": "^7.16.0",
     "zod": "^4.1.12"
   },
