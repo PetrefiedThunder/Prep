@@ -26,42 +26,47 @@ export const SiteHeader = () => {
         <div className="hidden lg:flex">
           <SearchPill />
         </div>
-        <div className="hidden items-center gap-2 lg:flex">
-          <Link href={`${localePrefix}/host`} className="text-sm font-medium text-ink hover:text-brand">
-            {t('becomeHost')}
+        <div className="hidden items-center gap-6 lg:flex">
+          <Link
+            href={`${localePrefix}/dashboard`}
+            className={`text-sm font-medium transition-colors ${pathname.includes('/dashboard') ? 'text-brand' : 'text-ink hover:text-brand'}`}
+          >
+            Dashboard
           </Link>
-          <Button variant="ghost" className="h-10 w-10 rounded-full">
-            <Globe className="h-4 w-4" />
-            <span className="sr-only">Language</span>
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="focus-ring flex items-center gap-3 rounded-full border border-border bg-white px-3 py-2 text-sm">
-                <Menu className="h-4 w-4" />
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/20 text-sm font-semibold text-brand">
-                  <UserRound className="h-4 w-4" />
-                </div>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem asChild>
-                <Link href={`${localePrefix}/wishlists`}>{t('wishlists')}</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`${localePrefix}/trips`}>{t('trips')}</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`${localePrefix}/inbox`}>Inbox</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`${localePrefix}/account`}>Account</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`${localePrefix}/auth/sign-in`}>Sign in</Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <ThemeToggle />
+          <Link
+            href={`${localePrefix}/vendors`}
+            className={`text-sm font-medium transition-colors ${pathname.includes('/vendors') ? 'text-brand' : 'text-ink hover:text-brand'}`}
+          >
+            Vendors
+          </Link>
+          <Link
+            href={`${localePrefix}/documents`}
+            className={`text-sm font-medium transition-colors ${pathname.includes('/documents') ? 'text-brand' : 'text-ink hover:text-brand'}`}
+          >
+            Documents
+          </Link>
+
+          <div className="flex items-center gap-2 ml-2 pl-2 border-l border-border">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="focus-ring flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 text-sm hover:bg-surface-elevated transition-colors">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand/10 text-sm font-semibold text-brand">
+                    <UserRound className="h-4 w-4" />
+                  </div>
+                  <span className="text-sm font-medium">Admin</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link href={`${localePrefix}/account`}>Account Settings</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`${localePrefix}/auth/sign-in`}>Sign Out</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <ThemeToggle />
+          </div>
         </div>
         <div className="flex items-center gap-3 lg:hidden">
           <ThemeToggle />
@@ -74,28 +79,35 @@ export const SiteHeader = () => {
             </SheetTrigger>
             <SheetContent>
               <nav className="mt-10 flex flex-col gap-4 text-base">
-                <Link href={`${localePrefix}/search`} className="hover:text-brand" onClick={() => setMobileOpen(false)}>
-                  Search
+                <Link
+                  href={`${localePrefix}/dashboard`}
+                  className={`font-medium transition-colors ${pathname.includes('/dashboard') ? 'text-brand' : 'text-ink hover:text-brand'}`}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Dashboard
                 </Link>
-                <Link href={`${localePrefix}/wishlists`} className="hover:text-brand" onClick={() => setMobileOpen(false)}>
-                  {t('wishlists')}
+                <Link
+                  href={`${localePrefix}/vendors`}
+                  className={`font-medium transition-colors ${pathname.includes('/vendors') ? 'text-brand' : 'text-ink hover:text-brand'}`}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Vendors
                 </Link>
-                <Link href={`${localePrefix}/trips`} className="hover:text-brand" onClick={() => setMobileOpen(false)}>
-                  {t('trips')}
+                <Link
+                  href={`${localePrefix}/documents`}
+                  className={`font-medium transition-colors ${pathname.includes('/documents') ? 'text-brand' : 'text-ink hover:text-brand'}`}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Documents
                 </Link>
-                <Link href={`${localePrefix}/inbox`} className="hover:text-brand" onClick={() => setMobileOpen(false)}>
-                  Inbox
+                <div className="my-2 border-t border-border" />
+                <Link href={`${localePrefix}/account`} className="text-ink-muted hover:text-brand" onClick={() => setMobileOpen(false)}>
+                  Account Settings
                 </Link>
-                <Link href={`${localePrefix}/host`} className="hover:text-brand" onClick={() => setMobileOpen(false)}>
-                  {t('becomeHost')}
-                </Link>
-                <Link href={`${localePrefix}/account`} className="hover:text-brand" onClick={() => setMobileOpen(false)}>
-                  Account
+                <Link href={`${localePrefix}/auth/sign-in`} className="text-ink-muted hover:text-brand" onClick={() => setMobileOpen(false)}>
+                  Sign Out
                 </Link>
               </nav>
-              <div className="mt-auto flex flex-col gap-2 text-sm text-muted-ink">
-                <span>Currently on {pathname}</span>
-              </div>
             </SheetContent>
           </Sheet>
         </div>

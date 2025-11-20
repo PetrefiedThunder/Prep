@@ -4,6 +4,7 @@ import { ComplianceAlerts } from '@/components/dashboard/compliance-alerts';
 import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { ExpiringDocuments } from '@/components/dashboard/expiring-documents';
 import { VendorStatusChart } from '@/components/dashboard/vendor-status-chart';
+import { ComplianceTrendChart } from '@/components/dashboard/compliance-trend-chart';
 
 export const metadata = {
   title: 'Control Center – PrepChef',
@@ -20,6 +21,9 @@ export default function DashboardPage() {
 
       {/* Key Metrics Grid */}
       <DashboardMetrics />
+
+      {/* Compliance Trend Chart */}
+      <ComplianceTrendChart />
 
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
