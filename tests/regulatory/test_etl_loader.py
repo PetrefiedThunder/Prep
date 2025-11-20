@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
+import pytest_asyncio
 
 pytest.importorskip("sqlalchemy")
 
@@ -13,7 +14,7 @@ from etl.loader import load_regdocs
 from prep.models.orm import Base, RegDoc
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def session() -> AsyncSession:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
     async with engine.begin() as conn:

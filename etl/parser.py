@@ -6,7 +6,10 @@ import logging
 import re
 from pathlib import Path
 
-from pdfminer.high_level import extract_text as pdfminer_extract_text
+try:  # pragma: no cover - optional dependency in CI
+    from pdfminer.high_level import extract_text as pdfminer_extract_text
+except Exception:  # pragma: no cover - handled gracefully when missing
+    pdfminer_extract_text = None  # type: ignore[assignment]
 
 try:  # pragma: no cover - optional dependency in CI
     from pdf2image import convert_from_path
@@ -40,13 +43,22 @@ def _ocr_pdf(path: Path) -> str:
     return "\n".join(chunk.strip() for chunk in text_chunks if chunk.strip())
 
 
+def _ensure_pdfminer() -> None:
+    if pdfminer_extract_text is None:
+        raise ModuleNotFoundError(
+            "pdfminer is required for pdf_to_text; install pdfminer.six to enable this feature"
+        )
+
+
 def pdf_to_text(path: str, *, min_chars: int = _MIN_CHAR_THRESHOLD) -> str:
     """Extract text from a PDF file, falling back to OCR when necessary."""
 
+    _ensure_pdfminer()
     pdf_path = Path(path)
     if not pdf_path.is_file():
         raise FileNotFoundError(f"PDF file not found: {pdf_path}")
 
+    assert pdfminer_extract_text is not None  # narrow type for type-checkers
     text = pdfminer_extract_text(str(pdf_path))
     if text and len(text.strip()) >= min_chars:
         return text

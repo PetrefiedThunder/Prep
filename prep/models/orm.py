@@ -439,7 +439,9 @@ class BusinessPermit(TimestampMixin, Base):
     status: Mapped[PermitStatus] = mapped_column(Enum(PermitStatus), default=PermitStatus.PENDING)
     permit_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
-    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="permits")
+    business: Mapped[BusinessProfile] = relationship(
+        "BusinessProfile", back_populates="business_permits"
+    )
     documents: Mapped[list[DocumentUpload]] = relationship(
         "DocumentUpload", back_populates="permit", cascade="all, delete-orphan"
     )
@@ -464,7 +466,7 @@ class PaymentRecord(TimestampMixin, Base):
     payment_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
     business: Mapped[BusinessProfile | None] = relationship(
-        "BusinessProfile", back_populates="payments"
+        "BusinessProfile", back_populates="payment_records"
     )
     booking: Mapped[Booking | None] = relationship("Booking")
 
@@ -1239,12 +1241,19 @@ class RegDoc(Base):
     __tablename__ = "reg_docs"
 
     id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
-    jurisdiction: Mapped[str] = mapped_column(String(255), nullable=False)
-    code_section: Mapped[str] = mapped_column(String(120), nullable=False)
-    requirement_text: Mapped[str] = mapped_column(Text, nullable=False)
+    jurisdiction: Mapped[str | None] = mapped_column(String(255))
+    code_section: Mapped[str | None] = mapped_column(String(120))
+    requirement_text: Mapped[str | None] = mapped_column(Text)
     effective_date: Mapped[date | None] = mapped_column(Date)
     citation_url: Mapped[str | None] = mapped_column(Text)
     sha256_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    state: Mapped[str | None] = mapped_column(String(120))
+    city: Mapped[str | None] = mapped_column(String(120))
+    doc_type: Mapped[str | None] = mapped_column(String(120))
+    title: Mapped[str | None] = mapped_column(Text)
+    summary: Mapped[str | None] = mapped_column(Text)
+    source_url: Mapped[str | None] = mapped_column(Text)
+    raw_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
     inserted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
@@ -1350,11 +1359,17 @@ class BusinessProfile(TimestampMixin, Base):
     permits: Mapped[list[Permit]] = relationship(
         "Permit", back_populates="business", cascade="all, delete-orphan"
     )
+    business_permits: Mapped[list[BusinessPermit]] = relationship(
+        "BusinessPermit", back_populates="business", cascade="all, delete-orphan"
+    )
     readiness_snapshots: Mapped[list[BusinessReadinessSnapshot]] = relationship(
         "BusinessReadinessSnapshot", back_populates="business", cascade="all, delete-orphan"
     )
     payments: Mapped[list[CheckoutPayment]] = relationship(
         "CheckoutPayment", back_populates="business"
+    )
+    payment_records: Mapped[list[PaymentRecord]] = relationship(
+        "PaymentRecord", back_populates="business"
     )
 
 
@@ -1369,6 +1384,9 @@ class DocumentUpload(TimestampMixin, Base):
     )
     uploader_id: Mapped[UUID | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    permit_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("business_permits.id", ondelete="SET NULL"), nullable=True
     )
     document_type: Mapped[str] = mapped_column(String(120), nullable=False)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -1387,6 +1405,9 @@ class DocumentUpload(TimestampMixin, Base):
 
     business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="documents")
     uploader: Mapped[User | None] = relationship("User")
+    permit: Mapped[BusinessPermit | None] = relationship(
+        "BusinessPermit", back_populates="documents"
+    )
 
 
 class Permit(TimestampMixin, Base):
