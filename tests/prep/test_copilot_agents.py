@@ -132,7 +132,7 @@ async def get_user(db, user_id):
 
         findings = result.metadata.get("findings", [])
         # Should have minimal or no critical findings
-        critical_findings = [f for f in findings if f.get("severity") == "CRITICAL"]
+        critical_findings = [f for f in findings if f.get("severity") == copilot_agents.Severity.CRITICAL]
         assert len(critical_findings) == 0
 
 

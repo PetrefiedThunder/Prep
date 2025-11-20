@@ -286,9 +286,9 @@ class AgentRunner:
         if file_patterns:
             filtered_files = []
             for pattern in file_patterns:
-                pattern_path = Path(pattern)
                 for file in python_files:
-                    if pattern_path.match(str(file)) or str(file).startswith(str(pattern_path)):
+                    # Use glob-style matching
+                    if file.match(pattern) or pattern in str(file):
                         filtered_files.append(file)
             python_files = list(set(filtered_files))  # Remove duplicates
 

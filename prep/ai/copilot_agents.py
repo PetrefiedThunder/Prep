@@ -226,18 +226,22 @@ class SecurityAgent(AIAgent):
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
                 if isinstance(node.func, ast.Name) and node.func.id == "open":
-                    # Check if mode includes 'w' or 'a' without proper validation
+                    # Check if mode includes write flags
                     if len(node.args) >= 2:
-                        findings.append(
-                            Finding(
-                                agent="SecurityAgent",
-                                severity=Severity.MEDIUM,
-                                message="File write operation detected - ensure path validation",
-                                file_path=file_path,
-                                line_number=getattr(node, "lineno", None),
-                                recommendation="Validate file paths to prevent directory traversal",
-                            )
-                        )
+                        mode_arg = node.args[1]
+                        # Check if mode is a string literal with write flags
+                        if isinstance(mode_arg, ast.Constant) and isinstance(mode_arg.value, str):
+                            if any(flag in mode_arg.value for flag in ['w', 'a', 'x', '+']):
+                                findings.append(
+                                    Finding(
+                                        agent="SecurityAgent",
+                                        severity=Severity.MEDIUM,
+                                        message="File write operation detected - ensure path validation",
+                                        file_path=file_path,
+                                        line_number=getattr(node, "lineno", None),
+                                        recommendation="Validate file paths to prevent directory traversal",
+                                    )
+                                )
 
         return findings
 
@@ -347,11 +351,16 @@ class BackendArchitectAgent(AIAgent):
                         # Check for blocking operations
                         if isinstance(child.func, ast.Attribute):
                             if child.func.attr in ["read", "write", "execute", "query"]:
-                                # Check if it's awaited
-                                parent_is_await = any(
-                                    isinstance(p, ast.Await) for p in ast.walk(node)
-                                )
-                                if not parent_is_await:
+                                # Check if this specific call is wrapped in await
+                                # by checking parent context
+                                is_awaited = False
+                                for potential_parent in ast.walk(node):
+                                    if isinstance(potential_parent, ast.Await):
+                                        if potential_parent.value == child:
+                                            is_awaited = True
+                                            break
+                                
+                                if not is_awaited:
                                     findings.append(
                                         Finding(
                                             agent="BackendArchitectAgent",
@@ -372,26 +381,35 @@ class BackendArchitectAgent(AIAgent):
 
         in_loop = False
         loop_line = 0
+        loop_indent = 0
 
         for line_num, line in enumerate(lines, 1):
-            if "for " in line and " in " in line:
-                in_loop = True
-                loop_line = line_num
-            elif in_loop and (".query(" in line or ".execute(" in line):
-                findings.append(
-                    Finding(
-                        agent="BackendArchitectAgent",
-                        severity=Severity.MEDIUM,
-                        message="Potential N+1 query pattern detected",
-                        file_path=file_path,
-                        line_number=line_num,
-                        recommendation="Consider using batch queries or eager loading",
-                        metadata={"loop_line": loop_line},
-                    )
-                )
-                in_loop = False
-            elif in_loop and line.strip() and not line.strip().startswith((" ", "\t")):
-                in_loop = False
+            # Track indentation to detect when loop ends
+            if line.strip():
+                current_indent = len(line) - len(line.lstrip())
+                
+                if "for " in line and " in " in line:
+                    in_loop = True
+                    loop_line = line_num
+                    loop_indent = current_indent
+                elif in_loop and (".query(" in line or ".execute(" in line):
+                    # Check if we're still inside the loop
+                    if current_indent > loop_indent:
+                        findings.append(
+                            Finding(
+                                agent="BackendArchitectAgent",
+                                severity=Severity.MEDIUM,
+                                message="Potential N+1 query pattern detected",
+                                file_path=file_path,
+                                line_number=line_num,
+                                recommendation="Consider using batch queries or eager loading",
+                                metadata={"loop_line": loop_line},
+                            )
+                        )
+                    in_loop = False
+                elif in_loop and current_indent <= loop_indent:
+                    # We've exited the loop
+                    in_loop = False
 
         return findings
 
@@ -749,7 +767,14 @@ class TestingAgent(AIAgent):
 
         # Construct expected test file path
         test_dir = Path("tests")
-        rel_path = path.relative_to(Path("prep")) if "prep" in str(path) else path
+        
+        # Try to construct relative path, handling different cases
+        try:
+            rel_path = path.relative_to(Path("prep")) if "prep" in str(path) else path
+        except ValueError:
+            # If relative_to fails, use the path name directly
+            rel_path = path
+        
         test_file = test_dir / rel_path.parent / f"test_{rel_path.name}"
 
         if not test_file.exists():
