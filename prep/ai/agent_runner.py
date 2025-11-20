@@ -284,11 +284,12 @@ class AgentRunner:
 
         # Filter by patterns if provided
         if file_patterns:
+            import fnmatch
             filtered_files = []
             for pattern in file_patterns:
                 for file in python_files:
-                    # Use glob-style matching
-                    if file.match(pattern) or pattern in str(file):
+                    # Use fnmatch for consistent glob-style matching
+                    if fnmatch.fnmatch(str(file), f"*{pattern}*") or fnmatch.fnmatch(str(file), pattern):
                         filtered_files.append(file)
             python_files = list(set(filtered_files))  # Remove duplicates
 

@@ -343,31 +343,32 @@ class BackendArchitectAgent(AIAgent):
         except SyntaxError:
             return findings
 
+        # Collect all awaited calls
+        awaited_calls = set()
         for node in ast.walk(tree):
-            # Check for blocking I/O in async functions
+            if isinstance(node, ast.Await):
+                if isinstance(node.value, ast.Call):
+                    # Record the line number of awaited calls
+                    awaited_calls.add(getattr(node.value, "lineno", None))
+
+        # Check for blocking operations in async functions
+        for node in ast.walk(tree):
             if isinstance(node, ast.AsyncFunctionDef):
                 for child in ast.walk(node):
                     if isinstance(child, ast.Call):
-                        # Check for blocking operations
+                        # Check for I/O operations
                         if isinstance(child.func, ast.Attribute):
                             if child.func.attr in ["read", "write", "execute", "query"]:
-                                # Check if this specific call is wrapped in await
-                                # by checking parent context
-                                is_awaited = False
-                                for potential_parent in ast.walk(node):
-                                    if isinstance(potential_parent, ast.Await):
-                                        if potential_parent.value == child:
-                                            is_awaited = True
-                                            break
-                                
-                                if not is_awaited:
+                                call_line = getattr(child, "lineno", None)
+                                # Check if this call is in our awaited set
+                                if call_line and call_line not in awaited_calls:
                                     findings.append(
                                         Finding(
                                             agent="BackendArchitectAgent",
                                             severity=Severity.MEDIUM,
                                             message="Potential blocking I/O in async function",
                                             file_path=file_path,
-                                            line_number=getattr(child, "lineno", None),
+                                            line_number=call_line,
                                             recommendation="Use await for I/O operations",
                                         )
                                     )
