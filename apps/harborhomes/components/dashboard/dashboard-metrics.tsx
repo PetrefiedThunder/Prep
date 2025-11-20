@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, CheckCircle, AlertTriangle, Users, FileCheck } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui';
@@ -65,37 +66,93 @@ const MetricCard = ({ title, value, change, icon, variant = 'default' }: MetricC
 };
 
 export const DashboardMetrics = () => {
-  // Mock data - replace with real API calls
-  const metrics = [
-    {
-      title: 'Active Vendors',
-      value: 247,
-      change: { value: 12, label: 'vs last month', positive: true },
-      icon: <Users className="h-5 w-5" />,
-      variant: 'default' as const
-    },
-    {
-      title: 'Compliance Rate',
-      value: '94.2%',
-      change: { value: 2.1, label: 'from last week', positive: true },
-      icon: <CheckCircle className="h-5 w-5" />,
-      variant: 'success' as const
-    },
-    {
-      title: 'Documents Expiring',
-      value: 18,
-      change: { value: -5, label: 'vs last month', positive: true },
-      icon: <AlertTriangle className="h-5 w-5" />,
-      variant: 'warning' as const
-    },
-    {
-      title: 'Verifications Pending',
-      value: 7,
-      change: { value: -3, label: 'vs yesterday', positive: true },
-      icon: <FileCheck className="h-5 w-5" />,
-      variant: 'default' as const
-    }
-  ];
+  const [metrics, setMetrics] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const loadMetrics = async () => {
+      try {
+        const { mockApi } = await import('@/lib/api/mock-api');
+        const data = await mockApi.dashboard.getMetrics();
+
+        setMetrics([
+          {
+            title: 'Active Vendors',
+            value: data.activeVendors.value,
+            change: {
+              value: data.activeVendors.change,
+              label: data.activeVendors.changeLabel,
+              positive: data.activeVendors.change > 0
+            },
+            icon: <Users className="h-5 w-5" />,
+            variant: 'default' as const
+          },
+          {
+            title: 'Compliance Rate',
+            value: `${data.complianceRate.value}%`,
+            change: {
+              value: data.complianceRate.change,
+              label: data.complianceRate.changeLabel,
+              positive: data.complianceRate.change > 0
+            },
+            icon: <CheckCircle className="h-5 w-5" />,
+            variant: 'success' as const
+          },
+          {
+            title: 'Documents Expiring',
+            value: data.documentsExpiring.value,
+            change: {
+              value: data.documentsExpiring.change,
+              label: data.documentsExpiring.changeLabel,
+              positive: data.documentsExpiring.change < 0
+            },
+            icon: <AlertTriangle className="h-5 w-5" />,
+            variant: 'warning' as const
+          },
+          {
+            title: 'Verifications Pending',
+            value: data.verificationsPending.value,
+            change: {
+              value: data.verificationsPending.change,
+              label: data.verificationsPending.changeLabel,
+              positive: data.verificationsPending.change < 0
+            },
+            icon: <FileCheck className="h-5 w-5" />,
+            variant: 'default' as const
+          }
+        ]);
+      } catch (error) {
+        console.error('Failed to load metrics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMetrics();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="overflow-hidden">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="h-4 w-32 animate-pulse rounded bg-border/40" />
+                <div className="h-10 w-10 animate-pulse rounded-lg bg-border/40" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="h-9 w-20 animate-pulse rounded bg-border/40" />
+                <div className="h-5 w-40 animate-pulse rounded bg-border/40" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <motion.div
