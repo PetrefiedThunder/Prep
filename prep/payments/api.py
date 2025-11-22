@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prep.api.errors import http_error, http_exception
@@ -47,8 +47,8 @@ def _handle_payments_error(request: Request, exc: PaymentsError) -> None:
 async def connect_stripe_account(
     payload: PaymentsConnectRequest,
     request: Request,
-    current_user: User = Depends(get_current_user),
     service: Annotated[PaymentsService, Depends(get_payments_service)],
+    current_user: User = Depends(get_current_user),
 ) -> PaymentsConnectResponse:
     """Create a Stripe Connect account and return the onboarding link."""
 

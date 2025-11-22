@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import DefaultDict, List
 
 from integrations.square.webhooks import PrepTimeUpdate
 
@@ -25,7 +24,7 @@ class SchedulingService:
     """Aggregate prep-time updates into consolidated availability windows."""
 
     def __init__(self) -> None:
-        self._windows: DefaultDict[str, List[PrepTimeWindow]] = defaultdict(list)
+        self._windows: defaultdict[str, list[PrepTimeWindow]] = defaultdict(list)
 
     def ingest_prep_time_update(self, update: PrepTimeUpdate) -> PrepTimeWindow:
         start_at = update.ready_at - timedelta(seconds=update.prep_time_seconds)

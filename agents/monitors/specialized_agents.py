@@ -6,7 +6,7 @@ testing, documentation, and compliance monitoring.
 
 from pathlib import Path
 
-from ..core.agent import Agent, AgentConfig
+from ..core.agent import Agent
 
 
 class SecurityMonitorAgent(Agent):
@@ -40,9 +40,14 @@ class SecurityMonitorAgent(Agent):
             "*.ts",
             "*.env",
         ]
-        
+
         # This is a simplified check - in production, use gitleaks or similar
-        self.logger.debug(f"Checking for exposed secrets in {repo_root}")
+        self.logger.debug(
+            "Checking %s for exposed secrets in %s",
+            ", ".join(files_to_check),
+            repo_root,
+        )
+        self.logger.debug("Patterns monitored: %s", ", ".join(sensitive_patterns))
     
     async def _check_dependencies(self) -> None:
         """Check for vulnerable dependencies."""

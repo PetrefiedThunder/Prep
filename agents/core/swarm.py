@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .agent import Agent, AgentStatus
 
@@ -13,7 +13,7 @@ class AgentSwarm:
     def __init__(self, name: str = "prep-swarm"):
         """Initialize the agent swarm."""
         self.name = name
-        self.agents: Dict[str, Agent] = {}
+        self.agents: dict[str, Agent] = {}
         self.logger = logging.getLogger(f"swarm.{name}")
         self._running = False
     
@@ -48,7 +48,7 @@ class AgentSwarm:
         
         self.logger.info(f"All agents stopped in swarm '{self.name}'")
     
-    async def health_check_all(self) -> Dict[str, Any]:
+    async def health_check_all(self) -> dict[str, Any]:
         """Get health status of all agents."""
         health_tasks = [agent.health_check() for agent in self.agents.values()]
         health_results = await asyncio.gather(*health_tasks, return_exceptions=True)
@@ -60,15 +60,15 @@ class AgentSwarm:
             "summary": self._get_status_summary(),
         }
     
-    def _get_status_summary(self) -> Dict[str, int]:
+    def _get_status_summary(self) -> dict[str, int]:
         """Get summary of agent statuses."""
-        summary: Dict[str, int] = {}
+        summary: dict[str, int] = {}
         for agent in self.agents.values():
             status = agent.status.value
             summary[status] = summary.get(status, 0) + 1
         return summary
     
-    def get_agents_by_type(self, agent_type: str) -> List[Agent]:
+    def get_agents_by_type(self, agent_type: str) -> list[Agent]:
         """Get all agents of a specific type."""
         return [
             agent
@@ -76,7 +76,7 @@ class AgentSwarm:
             if agent.config.agent_type == agent_type
         ]
     
-    def get_agents_by_status(self, status: AgentStatus) -> List[Agent]:
+    def get_agents_by_status(self, status: AgentStatus) -> list[Agent]:
         """Get all agents with a specific status."""
         return [agent for agent in self.agents.values() if agent.status == status]
     

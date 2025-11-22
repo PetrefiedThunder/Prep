@@ -128,10 +128,7 @@ def safe_dump(data: Any, *args: Any, **kwargs: Any) -> str:
 def safe_load(stream: Any) -> Any:
     """Minimal YAML loader compatible with PyYAML's API."""
 
-    if hasattr(stream, "read"):
-        content = stream.read()
-    else:
-        content = stream
+    content = stream.read() if hasattr(stream, "read") else stream
     return json.loads(content)
 
 

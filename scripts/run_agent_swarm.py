@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-"""
-Agent Swarm Orchestration Script.
+"""Agent Swarm Orchestration Script.
 
-This script manages the instantiation and lifecycle of the 100-agent swarm
-for monitoring and implementing all aspects of the Prep repository.
+Manage the agent swarm that monitors the Prep repository.
 """
 
 import argparse
@@ -14,12 +12,18 @@ import sys
 import tempfile
 from pathlib import Path
 
-# Add the repo root to the Python path
-repo_root = Path(__file__).parent.parent
-sys.path.insert(0, str(repo_root))
 
-from agents.coordinators.swarm_coordinator import SwarmCoordinator
+def _import_swarm_coordinator():
+    repo_root = Path(__file__).parent.parent
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
 
+    from agents.coordinators.swarm_coordinator import SwarmCoordinator
+
+    return SwarmCoordinator
+
+
+SwarmCoordinator = _import_swarm_coordinator()
 
 # Get platform-appropriate log directory
 LOG_DIR = Path(tempfile.gettempdir())
@@ -105,7 +109,7 @@ class SwarmOrchestrator:
         print(f"Agent Swarm Status: {status['swarm_name']}")
         print("=" * 80)
         print(f"Total Agents: {status['total_agents']}")
-        print(f"\nStatus Summary:")
+        print("\nStatus Summary:")
         for status_name, count in status['summary'].items():
             print(f"  {status_name}: {count}")
         print("=" * 80 + "\n")
