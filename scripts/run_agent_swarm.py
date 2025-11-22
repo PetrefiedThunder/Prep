@@ -47,6 +47,7 @@ class SwarmOrchestrator:
         self.coordinator = SwarmCoordinator()
         self.running = False
         self.stop_requested = False
+        self._shutdown_event = asyncio.Event()
     
     async def start(self) -> None:
         """Start the agent swarm."""
@@ -66,6 +67,7 @@ class SwarmOrchestrator:
         logger.info("Stopping agent swarm")
         self.running = False
         self.stop_requested = True
+        self._shutdown_event.set()
         
         await self.coordinator.stop_swarm()
         
@@ -79,9 +81,8 @@ class SwarmOrchestrator:
             # Start monitoring in the background
             monitor_task = asyncio.create_task(self.coordinator.monitor_swarm())
             
-            # Keep running until interrupted
-            while self.running and not self.stop_requested:
-                await asyncio.sleep(1)
+            # Wait for shutdown event
+            await self._shutdown_event.wait()
             
             # Cancel monitoring task
             monitor_task.cancel()
@@ -110,21 +111,20 @@ class SwarmOrchestrator:
         print("=" * 80 + "\n")
 
 
+# Global orchestrator instance for signal handling
+_orchestrator_instance = None
+
+
 def signal_handler(signum, frame):
     """Handle shutdown signals."""
     logger.info(f"Received signal {signum}, requesting graceful shutdown")
-    # Set a global flag that will be checked by the orchestrator
-    global _shutdown_requested
-    _shutdown_requested = True
-
-
-# Global flag for shutdown requests
-_shutdown_requested = False
+    if _orchestrator_instance:
+        asyncio.create_task(_orchestrator_instance.stop())
 
 
 async def main():
     """Main entry point."""
-    global _shutdown_requested
+    global _orchestrator_instance
     
     parser = argparse.ArgumentParser(
         description="Agent Swarm Orchestration for Prep Repository"
@@ -144,19 +144,16 @@ async def main():
     
     args = parser.parse_args()
     
+    orchestrator = SwarmOrchestrator(num_agents=args.num_agents)
+    _orchestrator_instance = orchestrator
+    
     # Set up signal handlers
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    orchestrator = SwarmOrchestrator(num_agents=args.num_agents)
-    
     if args.command == "start":
         logger.info("Starting agent swarm orchestration")
-        # Check for shutdown requests periodically
-        await orchestrator.start()
-        while not _shutdown_requested:
-            await asyncio.sleep(1)
-        await orchestrator.stop()
+        await orchestrator.run()
     elif args.command == "status":
         # For status, we need to create and start briefly
         await orchestrator.start()

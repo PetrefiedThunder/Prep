@@ -48,7 +48,7 @@ async def test_agent_start_stop():
     assert agent.status in [AgentStatus.ACTIVE, AgentStatus.IDLE, AgentStatus.WORKING]
     
     # Wait a bit for execution
-    await asyncio.sleep(2)
+    await asyncio.sleep(1.5)
     
     # Check that agent executed
     assert agent.metrics.tasks_completed > 0
@@ -73,7 +73,7 @@ async def test_swarm_coordinator():
     await coordinator.start_swarm()
     
     # Wait a bit
-    await asyncio.sleep(2)
+    await asyncio.sleep(1.5)
     
     # Check status
     status = await coordinator.get_swarm_status()
@@ -97,7 +97,7 @@ async def test_agent_health_check():
     agent = MockAgent(config)
     
     await agent.start()
-    await asyncio.sleep(2)
+    await asyncio.sleep(1.5)
     
     health = await agent.health_check()
     
