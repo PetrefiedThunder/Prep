@@ -99,6 +99,65 @@ class RequirementsBundleResponse(BaseModel):
 
 _DATA_PATH = Path(__file__).resolve().parents[2] / "policy" / "rego" / "city" / "data.json"
 
+_DEFAULT_DATA: dict[str, Any] = {
+    "san_francisco": {
+        "version": "v1",
+        "requirements": [
+            {
+                "id": "health_permit",
+                "title": "Health Permit",
+                "applies_to": "kitchen_operator",
+                "requirement_type": "license",
+                "authority": "SFDPH",
+                "severity": "blocking",
+                "rationale": "San Francisco requires a valid health permit for operators.",
+                "fee_links": ["/city/sf/fees"],
+                "documents": ["Application Form"],
+            }
+        ],
+        "change_candidates": [
+            {
+                "id": "sf-fee-review",
+                "title": "Fee review",
+                "action": "review",
+                "impact": "moderate",
+                "rationale": "Assessing updated fee schedules.",
+            }
+        ],
+        "rationales": {
+            "kitchen_operator": "Operators must maintain compliance with local health rules.",
+        },
+    },
+    "oakland": {
+        "version": "v1",
+        "requirements": [
+            {
+                "id": "business_license",
+                "title": "Business License",
+                "applies_to": "kitchen_operator",
+                "requirement_type": "license",
+                "authority": "Oakland City",
+                "severity": "advisory",
+                "rationale": "Oakland requires a current business license to operate.",
+                "fee_links": [],
+                "documents": ["License Certificate"],
+            }
+        ],
+        "change_candidates": [
+            {
+                "id": "oakland-safety-guidance",
+                "title": "Safety Guidance Update",
+                "action": "draft",
+                "impact": "low",
+                "rationale": "Incorporating updated county safety recommendations.",
+            }
+        ],
+        "rationales": {
+            "kitchen_operator": "Maintain business licensing records for inspections.",
+        },
+    },
+}
+
 _POLICY_DECISION_SCHEMA: dict[str, Any] = {
     "jurisdiction": "string",
     "version": "string",
@@ -127,14 +186,16 @@ def get_policy_event_stream() -> CDCStreamManager:
 def _load_raw_data() -> dict[str, Any]:
     """Load the static policy data backing the endpoint."""
 
-    if not _DATA_PATH.exists():
-        raise FileNotFoundError(f"Missing policy data file at {_DATA_PATH}")
-    with _DATA_PATH.open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
-    data = payload.get("city", {}).get("requirements", {})
-    if not isinstance(data, dict):
-        raise ValueError("Policy data format is invalid: expected mapping")
-    return data
+    if _DATA_PATH.exists():
+        with _DATA_PATH.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        data = payload.get("city", {}).get("requirements", {})
+        if not isinstance(data, dict):
+            raise ValueError("Policy data format is invalid: expected mapping")
+        return data
+
+    logger.info("Policy data file missing at %s; using embedded defaults", _DATA_PATH)
+    return _DEFAULT_DATA
 
 
 def _normalize_city(city: str) -> str:
