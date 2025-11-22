@@ -98,9 +98,9 @@ OPTIONAL_ROUTER_MODULES: tuple[RouterSpec, ...] = (
 )
 
 OPTIONAL_ROUTERS: Iterable[RouterSpec] = (
-    ("api.routes.city_fees", "city_fees_router"),
-    ("api.routes.diff", "city_diff_router"),
-    ("api.city.requirements", "city_requirements_router"),
+    ("api.routes.city_fees", "router"),
+    ("api.routes.diff", "router"),
+    ("api.city.requirements", "router"),
     ("api.routes.debug", "debug_router"),
     ("prep.analytics.dashboard_api", "router"),
     ("prep.analytics.host_metrics_api", "router"),
@@ -144,17 +144,15 @@ def _build_router(*, include_full: bool = True) -> APIRouter:
         router.include_router(
             _load_router("prep.verification_tasks.api", "verification_tasks_router")
         )
-        router.include_router(_load_router("api.webhooks.square_kds", "square_kds_router"))
+        router.include_router(_load_router("api.webhooks.square_kds", "router"))
         router.include_router(_load_router("prep.logistics.api", "logistics_router"))
         router.include_router(_load_router("prep.deliveries.api", "deliveries_router"))
         router.include_router(_load_router("prep.orders.api", "orders_router"))
 
     router.include_router(_load_router("api.routes.debug", "debug_router"))
-    router.include_router(
-        _load_router("api.routes.city_fees", "city_fees_router"), prefix="/city", tags=["city"]
-    )
-    router.include_router(_load_router("api.routes.diff", "city_diff_router"))
-    router.include_router(_load_router("api.city.requirements", "city_requirements_router"))
+    router.include_router(_load_router("api.routes.city_fees", "router"))
+    router.include_router(_load_router("api.routes.diff", "router"))
+    router.include_router(_load_router("api.city.requirements", "router"))
 
     return router
 

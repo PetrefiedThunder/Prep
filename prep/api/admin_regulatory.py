@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prep.auth import User, get_current_admin
+from prep.auth import User, require_admin_role
 from prep.database.connection import get_db
 from prep.regulatory.service import (
     get_scraping_status_snapshot,

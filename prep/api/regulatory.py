@@ -15,14 +15,13 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from prep.admin.dependencies import get_current_admin
-from prep.auth import User, get_current_user
+from prep.auth import User, get_current_user_optional
 from prep.compliance.constants import BOOKING_COMPLIANCE_BANNER, BOOKING_PILOT_BANNER
 from prep.database.connection import AsyncSessionLocal, get_db
 from prep.models.admin import AdminUser
 from prep.pilot.utils import is_pilot_location
 from prep.regulatory.analyzer import RegulatoryAnalyzer
 from prep.regulatory.models import InsuranceRequirement, Regulation, RegulationSource
-from prep.regulatory.scraper import RegulatoryScraper
 from prep.settings import get_settings
 
 router = APIRouter(prefix="/regulatory")
@@ -35,6 +34,14 @@ GRAPH_SERVICE_URL = os.getenv("GRAPH_SERVICE_URL")
 POLICY_ENGINE_URL = os.getenv("POLICY_ENGINE_URL")
 PROVENANCE_LEDGER_URL = os.getenv("PROVENANCE_LEDGER_URL")
 ZK_PROOFS_URL = os.getenv("ZK_PROOFS_URL")
+
+
+def _get_regulatory_scraper():
+    try:
+        from prep.regulatory.scraper import RegulatoryScraper
+    except ModuleNotFoundError as exc:  # pragma: no cover - optional dependency
+        raise HTTPException(status_code=503, detail="Regulatory scraper unavailable") from exc
+    return RegulatoryScraper
 
 
 async def _service_request(
@@ -111,7 +118,7 @@ async def scrape_regulations(
 @router.post("/compliance/check")
 async def check_compliance(
     request: ComplianceCheckRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Check kitchen compliance with regulations."""
@@ -227,7 +234,8 @@ async def get_insurance_requirements(
 ) -> dict:
     """Get insurance requirements for a state/city."""
 
-    async with RegulatoryScraper() as scraper:
+    Scraper = _get_regulatory_scraper()
+    async with Scraper() as scraper:
         requirements = await scraper.scrape_insurance_requirements(state)
     normalized_country = (country_code or "US").upper()
     province = state_province or state
@@ -251,7 +259,8 @@ async def run_scraping_task(
 ) -> None:
     """Background task for regulatory scraping."""
 
-    async with RegulatoryScraper() as scraper:
+    Scraper = _get_regulatory_scraper()
+    async with Scraper() as scraper:
         normalized_country = (country_code or "US").upper()
         for state in states:
             health_regs = await scraper.scrape_health_department(state)
@@ -284,6 +293,7 @@ async def get_regulations_for_jurisdiction(
     state: str,
     city: str | None = None,
     *,
+    county: str | None = None,
     country_code: str = "US",
     state_province: str | None = None,
 ) -> list[dict]:
@@ -486,7 +496,7 @@ async def list_obligations(
 @router.post("/reg/evaluate")
 async def evaluate_booking(
     payload: dict[str, Any],
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ) -> dict[str, Any]:
     """Evaluate booking against regulatory policies."""
 

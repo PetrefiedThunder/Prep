@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 _SAN_FRANCISCO_CONFIG: dict[str, Any] = {
@@ -118,18 +119,20 @@ _SAN_FRANCISCO_CONFIG: dict[str, Any] = {
 }
 
 
-def safe_load(stream: Any) -> dict[str, Any]:
-    """Return the San Francisco configuration for callers expecting PyYAML."""
+def safe_dump(data: Any, *args: Any, **kwargs: Any) -> str:
+    """Minimal YAML dumper compatible with PyYAML's API."""
+
+    return json.dumps(data, indent=2)
+
+
+def safe_load(stream: Any) -> Any:
+    """Minimal YAML loader compatible with PyYAML's API."""
 
     if hasattr(stream, "read"):
-        stream.read()
-    return _SAN_FRANCISCO_CONFIG.copy()
+        content = stream.read()
+    else:
+        content = stream
+    return json.loads(content)
 
 
-def dump(
-    data: Any, *args: Any, **kwargs: Any
-) -> str:  # pragma: no cover - provided for completeness
-    raise NotImplementedError("dump is not implemented in the lightweight yaml stub")
-
-
-__all__ = ["safe_load"]
+__all__ = ["safe_load", "safe_dump", "_SAN_FRANCISCO_CONFIG"]

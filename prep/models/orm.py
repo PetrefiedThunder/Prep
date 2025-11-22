@@ -439,9 +439,8 @@ class BusinessPermit(TimestampMixin, Base):
     status: Mapped[PermitStatus] = mapped_column(Enum(PermitStatus), default=PermitStatus.PENDING)
     permit_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
-    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="permits")
-    documents: Mapped[list[DocumentUpload]] = relationship(
-        "DocumentUpload", back_populates="permit", cascade="all, delete-orphan"
+    business: Mapped[BusinessProfile] = relationship(
+        "BusinessProfile", back_populates="business_permits"
     )
 
 
@@ -463,9 +462,7 @@ class PaymentRecord(TimestampMixin, Base):
     refunded_amount_cents: Mapped[int | None] = mapped_column(Integer)
     payment_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
-    business: Mapped[BusinessProfile | None] = relationship(
-        "BusinessProfile", back_populates="payments"
-    )
+    business: Mapped[BusinessProfile | None] = relationship("BusinessProfile")
     booking: Mapped[Booking | None] = relationship("Booking")
 
 
@@ -1239,11 +1236,18 @@ class RegDoc(Base):
     __tablename__ = "reg_docs"
 
     id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
-    jurisdiction: Mapped[str] = mapped_column(String(255), nullable=False)
-    code_section: Mapped[str] = mapped_column(String(120), nullable=False)
-    requirement_text: Mapped[str] = mapped_column(Text, nullable=False)
+    jurisdiction: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    code_section: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    requirement_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     effective_date: Mapped[date | None] = mapped_column(Date)
     citation_url: Mapped[str | None] = mapped_column(Text)
+    title: Mapped[str | None] = mapped_column(String(255))
+    summary: Mapped[str | None] = mapped_column(Text)
+    state: Mapped[str | None] = mapped_column(String(32))
+    city: Mapped[str | None] = mapped_column(String(255))
+    doc_type: Mapped[str | None] = mapped_column(String(120))
+    source_url: Mapped[str | None] = mapped_column(Text)
+    raw_payload: Mapped[dict | None] = mapped_column(JSON, default=dict)
     sha256_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     inserted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
@@ -1346,6 +1350,9 @@ class BusinessProfile(TimestampMixin, Base):
     kitchen: Mapped[Kitchen | None] = relationship("Kitchen")
     documents: Mapped[list[DocumentUpload]] = relationship(
         "DocumentUpload", back_populates="business", cascade="all, delete-orphan"
+    )
+    business_permits: Mapped[list[BusinessPermit]] = relationship(
+        "BusinessPermit", back_populates="business", cascade="all, delete-orphan"
     )
     permits: Mapped[list[Permit]] = relationship(
         "Permit", back_populates="business", cascade="all, delete-orphan"
