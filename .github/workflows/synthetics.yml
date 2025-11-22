@@ -31,7 +31,7 @@ jobs:
 
       - name: Execute synthetic monitors
         env:
-          SYNTHETIC_BASE_URL: ${{ secrets.SYNTHETIC_BASE_URL }}
+          SYNTHETIC_BASE_URL: ${{ secrets.SYNTHETIC_BASE_URL || vars.SYNTHETIC_BASE_URL || 'https://regulatory.prepchef.com' }}
           SYNTHETIC_IDEMPOTENCY: ${{ secrets.SYNTHETIC_IDEMPOTENCY_KEY }}
           SYNTHETIC_JURISDICTIONS: ${{ vars.SYNTHETIC_JURISDICTIONS || 'san_francisco,joshua_tree' }}
         run: |
