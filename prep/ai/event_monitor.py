@@ -14,6 +14,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +178,7 @@ class EventMonitor:
             if file_path not in self._file_hashes:
                 # New file
                 event = RepositoryEvent(
-                    event_id=f"file_created_{file_path}_{datetime.utcnow().timestamp()}",
+                    event_id=str(uuid4()),
                     event_type=EventType.FILE_CREATED,
                     timestamp=datetime.utcnow(),
                     file_path=file_path,
@@ -186,7 +187,7 @@ class EventMonitor:
             elif self._file_hashes[file_path] != file_hash:
                 # Modified file
                 event = RepositoryEvent(
-                    event_id=f"file_modified_{file_path}_{datetime.utcnow().timestamp()}",
+                    event_id=str(uuid4()),
                     event_type=EventType.FILE_MODIFIED,
                     timestamp=datetime.utcnow(),
                     file_path=file_path,
@@ -197,7 +198,7 @@ class EventMonitor:
         for file_path in self._file_hashes:
             if file_path not in current_hashes:
                 event = RepositoryEvent(
-                    event_id=f"file_deleted_{file_path}_{datetime.utcnow().timestamp()}",
+                    event_id=str(uuid4()),
                     event_type=EventType.FILE_DELETED,
                     timestamp=datetime.utcnow(),
                     file_path=file_path,
@@ -305,7 +306,7 @@ class EventMonitor:
             details: Optional details dictionary
         """
         event = RepositoryEvent(
-            event_id=f"custom_{datetime.utcnow().timestamp()}",
+            event_id=str(uuid4()),
             event_type=event_type,
             timestamp=datetime.utcnow(),
             file_path=file_path,

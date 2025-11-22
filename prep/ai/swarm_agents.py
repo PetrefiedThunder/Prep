@@ -18,6 +18,16 @@ from prep.ai.event_monitor import EventType, RepositoryEvent
 
 logger = logging.getLogger(__name__)
 
+# Pre-compiled regex patterns for performance
+_SECURITY_PATTERNS = {
+    "eval": re.compile(r"\beval\("),
+    "exec": re.compile(r"\bexec\("),
+    "shell_true": re.compile(r"shell\s*=\s*True"),
+    "hardcoded_secret": re.compile(
+        r'(?i)(api[_-]?key|secret[_-]?key)\s*=\s*["\'][^"\']+["\']'
+    ),
+}
+
 
 class LintingAgent(AIAgent):
     """Agent that automatically fixes linting issues.
@@ -465,15 +475,18 @@ class SecurityPatchAgent(AIAgent):
         fixed_code = code_content
 
         # Check for eval/exec usage
-        if re.search(r"\beval\(", code_content):
+        if _SECURITY_PATTERNS["eval"].search(code_content):
             vulnerabilities.append("eval_usage")
 
+        if _SECURITY_PATTERNS["exec"].search(code_content):
+            vulnerabilities.append("exec_usage")
+
         # Check for shell=True in subprocess
-        if re.search(r"shell\s*=\s*True", code_content):
+        if _SECURITY_PATTERNS["shell_true"].search(code_content):
             vulnerabilities.append("shell_true_usage")
 
         # Check for hardcoded secrets
-        if re.search(r'(?i)(api[_-]?key|secret[_-]?key)\s*=\s*["\'][^"\']+["\']', code_content):
+        if _SECURITY_PATTERNS["hardcoded_secret"].search(code_content):
             vulnerabilities.append("hardcoded_secret")
 
         if vulnerabilities:

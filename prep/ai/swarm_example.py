@@ -7,7 +7,7 @@ This script demonstrates how to programmatically create and run an agent swarm.
 import asyncio
 import logging
 
-from prep.ai.action_system import ActionExecutor, ActionProposer
+from prep.ai.action_system import ActionProposer
 from prep.ai.agent_framework import SafetyLayer, ValidationLayer
 from prep.ai.swarm_agents import (
     DependencyUpdateAgent,
@@ -32,7 +32,8 @@ async def main():
     # Initialize components
     coordinator = SwarmCoordinator(max_concurrent_tasks=5)
     action_proposer = ActionProposer()
-    action_executor = ActionExecutor()
+    # ActionExecutor can be used for executing approved actions
+    # action_executor = ActionExecutor()
 
     # Create shared layers
     safety_layer = SafetyLayer()

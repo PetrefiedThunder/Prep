@@ -7,6 +7,7 @@ a safe execution framework with approval workflows.
 from __future__ import annotations
 
 import logging
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -377,7 +378,8 @@ class ActionExecutor:
         try:
             # Backup original content
             original_content = file_path.read_text()
-            backup_path = Path(f"/tmp/backup_{action.action_id}_{file_path.name}")
+            backup_name = f"backup_{action.action_id}_{file_path.name}"
+            backup_path = Path(tempfile.gettempdir()) / backup_name
             backup_path.write_text(original_content)
             self._backups[action.action_id] = backup_path
 
@@ -418,7 +420,8 @@ class ActionExecutor:
         try:
             # Backup before deletion
             content = file_path.read_text()
-            backup_path = Path(f"/tmp/backup_{action.action_id}_{file_path.name}")
+            backup_name = f"backup_{action.action_id}_{file_path.name}"
+            backup_path = Path(tempfile.gettempdir()) / backup_name
             backup_path.write_text(content)
             self._backups[action.action_id] = backup_path
 
