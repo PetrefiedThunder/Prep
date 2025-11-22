@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from .agent import Agent, AgentStatus
 
@@ -48,7 +48,7 @@ class AgentSwarm:
         
         self.logger.info(f"All agents stopped in swarm '{self.name}'")
     
-    async def health_check_all(self) -> Dict[str, any]:
+    async def health_check_all(self) -> Dict[str, Any]:
         """Get health status of all agents."""
         health_tasks = [agent.health_check() for agent in self.agents.values()]
         health_results = await asyncio.gather(*health_tasks, return_exceptions=True)

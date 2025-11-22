@@ -21,7 +21,8 @@ class SecurityMonitorAgent(Agent):
     
     async def _check_secrets(self) -> None:
         """Check for exposed secrets in code."""
-        repo_root = Path("/home/runner/work/Prep/Prep")
+        # Get repository root from current working directory
+        repo_root = Path.cwd()
         
         # Check common secret patterns
         sensitive_patterns = [

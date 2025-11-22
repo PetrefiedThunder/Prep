@@ -11,6 +11,7 @@ import asyncio
 import logging
 import signal
 import sys
+import tempfile
 from pathlib import Path
 
 # Add the repo root to the Python path
@@ -20,13 +21,17 @@ sys.path.insert(0, str(repo_root))
 from agents.coordinators.swarm_coordinator import SwarmCoordinator
 
 
+# Get platform-appropriate log directory
+LOG_DIR = Path(tempfile.gettempdir())
+LOG_FILE = LOG_DIR / "agent-swarm.log"
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("/tmp/agent-swarm.log"),
+        logging.FileHandler(LOG_FILE),
     ],
 )
 
