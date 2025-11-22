@@ -46,6 +46,7 @@ class SwarmOrchestrator:
         self.num_agents = num_agents
         self.coordinator = SwarmCoordinator()
         self.running = False
+        self.stop_requested = False
     
     async def start(self) -> None:
         """Start the agent swarm."""
@@ -64,6 +65,7 @@ class SwarmOrchestrator:
         """Stop the agent swarm."""
         logger.info("Stopping agent swarm")
         self.running = False
+        self.stop_requested = True
         
         await self.coordinator.stop_swarm()
         
@@ -78,7 +80,7 @@ class SwarmOrchestrator:
             monitor_task = asyncio.create_task(self.coordinator.monitor_swarm())
             
             # Keep running until interrupted
-            while self.running:
+            while self.running and not self.stop_requested:
                 await asyncio.sleep(1)
             
             # Cancel monitoring task
@@ -110,12 +112,20 @@ class SwarmOrchestrator:
 
 def signal_handler(signum, frame):
     """Handle shutdown signals."""
-    logger.info(f"Received signal {signum}")
-    sys.exit(0)
+    logger.info(f"Received signal {signum}, requesting graceful shutdown")
+    # Set a global flag that will be checked by the orchestrator
+    global _shutdown_requested
+    _shutdown_requested = True
+
+
+# Global flag for shutdown requests
+_shutdown_requested = False
 
 
 async def main():
     """Main entry point."""
+    global _shutdown_requested
+    
     parser = argparse.ArgumentParser(
         description="Agent Swarm Orchestration for Prep Repository"
     )
@@ -142,7 +152,11 @@ async def main():
     
     if args.command == "start":
         logger.info("Starting agent swarm orchestration")
-        await orchestrator.run()
+        # Check for shutdown requests periodically
+        await orchestrator.start()
+        while not _shutdown_requested:
+            await asyncio.sleep(1)
+        await orchestrator.stop()
     elif args.command == "status":
         # For status, we need to create and start briefly
         await orchestrator.start()

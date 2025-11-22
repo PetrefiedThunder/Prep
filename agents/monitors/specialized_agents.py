@@ -1,8 +1,10 @@
-"""Security monitoring agent implementation."""
+"""Specialized monitoring agent implementations.
 
-import os
+This module contains agent implementations for security, code quality,
+testing, documentation, and compliance monitoring.
+"""
+
 from pathlib import Path
-from typing import List
 
 from ..core.agent import Agent, AgentConfig
 

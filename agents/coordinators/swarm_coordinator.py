@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Dict, List
+from typing import Dict
 
 from ..core.agent import AgentConfig
 from ..core.swarm import AgentSwarm

@@ -147,7 +147,7 @@ agent_types:
 logging:
   level: INFO
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  file: "/tmp/agent-swarm.log"
+  file: "agent-swarm.log"  # Relative to temp directory or configurable path
   max_size_mb: 100
   backup_count: 5
 
