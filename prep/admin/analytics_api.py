@@ -10,13 +10,13 @@ from uuid import UUID
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from prep.auth import User, require_admin_role
 from prep.admin.analytics_service import (
     AnalyticsRepository,
     AnalyticsService,
     PostgresAnalyticsRepository,
     StaticAnalyticsRepository,
 )
+from prep.auth import User, require_admin_role
 from prep.models.admin import (
     BookingStatistics,
     HostPerformanceMetrics,

@@ -1,6 +1,7 @@
 """Tests for the agent swarm system."""
 
 import asyncio
+
 import pytest
 
 from agents.coordinators.swarm_coordinator import SwarmCoordinator

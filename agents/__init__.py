@@ -5,9 +5,9 @@ This package provides a comprehensive agent framework for monitoring
 and managing all aspects of the Prep repository.
 """
 
+from .coordinators.swarm_coordinator import SwarmCoordinator
 from .core.agent import Agent, AgentStatus
 from .core.swarm import AgentSwarm
-from .coordinators.swarm_coordinator import SwarmCoordinator
 
 __all__ = [
     "Agent",

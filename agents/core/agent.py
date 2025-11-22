@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
 
 
@@ -29,8 +29,8 @@ class AgentMetrics:
     tasks_completed: int = 0
     tasks_failed: int = 0
     total_execution_time: float = 0.0
-    last_activity: Optional[datetime] = None
-    errors: List[str] = field(default_factory=list)
+    last_activity: datetime | None = None
+    errors: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -39,12 +39,12 @@ class AgentConfig:
     
     name: str
     agent_type: str
-    scope: List[str]
-    capabilities: List[str]
+    scope: list[str]
+    capabilities: list[str]
     check_interval: int = 60  # seconds
     max_retries: int = 3
     timeout: int = 300  # seconds
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class Agent(ABC):
@@ -58,7 +58,7 @@ class Agent(ABC):
         self.metrics = AgentMetrics()
         self.logger = logging.getLogger(f"agent.{config.name}")
         self._running = False
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
     
     async def start(self) -> None:
         """Start the agent."""
@@ -109,7 +109,7 @@ class Agent(ABC):
         """Execute the agent's primary task. Must be implemented by subclasses."""
         pass
     
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Return agent health status."""
         return {
             "agent_id": self.agent_id,

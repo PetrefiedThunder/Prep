@@ -26,7 +26,9 @@ from prep.settings import get_settings
 logger = logging.getLogger(__name__)
 
 try:
-    from prep.insurance.certificates import issue_certificate_for_booking_sync as _issue_certificate_for_booking_sync
+    from prep.insurance.certificates import (
+        issue_certificate_for_booking_sync as _issue_certificate_for_booking_sync,
+    )
 except ModuleNotFoundError:  # Optional dependency for isolated test runs
     _issue_certificate_for_booking_sync = None
     logger.debug("prep.insurance.certificates not available; certificate tasks disabled")

@@ -14,7 +14,7 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-from prep.ai.agent_framework import AIAgent, AgentResponse
+from prep.ai.agent_framework import AgentResponse, AIAgent
 
 logger = logging.getLogger(__name__)
 
@@ -352,7 +352,7 @@ class SwarmCoordinator:
                 # Get task from queue with timeout
                 try:
                     task = await asyncio.wait_for(self._task_queue.get(), timeout=1.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     continue
 
                 # Select an agent for the task
