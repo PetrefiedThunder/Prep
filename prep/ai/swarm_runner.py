@@ -151,7 +151,10 @@ def main() -> None:
             output = sys.argv[2] if len(sys.argv) > 2 else "swarm_config.yaml"
             create_default_config(output)
             print(f"Created swarm configuration at {output}")
-            print("Edit the file to customize your swarm, then run: python -m prep.ai.swarm_runner run")
+            print(
+                "Edit the file to customize your swarm, "
+                "then run: python -m prep.ai.swarm_runner run"
+            )
 
         elif command == "run":
             # Run swarm with config

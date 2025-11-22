@@ -1,0 +1,113 @@
+# Example Swarm Configuration for 100 Agents
+#
+# This configuration demonstrates how to set up a swarm of 100 agents
+# monitoring and maintaining different parts of the repository.
+
+name: prep_mega_swarm_100_agents
+max_concurrent_tasks: 50
+enable_event_monitoring: true
+monitor_poll_interval: 2.0
+auto_approve_low_risk: false
+root_dir: "."
+
+agents:
+  # Linting Agents (25 agents)
+  - name: linting_agent_001
+    type: linting
+    enabled: true
+    capabilities: ["code_fix", "linting"]
+    monitored_paths: ["prep/ai/**/*.py"]
+
+  - name: linting_agent_002
+    type: linting
+    enabled: true
+    capabilities: ["code_fix", "linting"]
+    monitored_paths: ["prep/api/**/*.py"]
+
+  - name: linting_agent_003
+    type: linting
+    enabled: true
+    capabilities: ["code_fix", "linting"]
+    monitored_paths: ["prep/auth/**/*.py"]
+
+  # Add 22 more linting agents for different modules...
+  # (Each monitoring different subdirectories)
+
+  # Security Agents (25 agents)
+  - name: security_agent_001
+    type: security_patch
+    enabled: true
+    capabilities: ["security_scan", "security_patch"]
+    monitored_paths: ["prep/ai/**/*.py"]
+
+  - name: security_agent_002
+    type: security_patch
+    enabled: true
+    capabilities: ["security_scan", "security_patch"]
+    monitored_paths: ["prep/api/**/*.py"]
+
+  # Add 23 more security agents...
+
+  # Documentation Agents (20 agents)
+  - name: doc_agent_001
+    type: documentation
+    enabled: true
+    capabilities: ["documentation"]
+    monitored_paths: ["prep/ai/**/*.py"]
+
+  - name: doc_agent_002
+    type: documentation
+    enabled: true
+    capabilities: ["documentation"]
+    monitored_paths: ["prep/api/**/*.py"]
+
+  # Add 18 more documentation agents...
+
+  # Test Generation Agents (20 agents)
+  - name: test_gen_agent_001
+    type: test_generation
+    enabled: true
+    capabilities: ["test_generation"]
+    monitored_paths: ["prep/ai/**/*.py"]
+
+  - name: test_gen_agent_002
+    type: test_generation
+    enabled: true
+    capabilities: ["test_generation"]
+    monitored_paths: ["prep/api/**/*.py"]
+
+  # Add 18 more test generation agents...
+
+  # Dependency Update Agents (10 agents)
+  - name: dependency_agent_001
+    type: dependency_update
+    enabled: true
+    capabilities: ["dependency_update"]
+    monitored_paths: ["requirements.txt", "constraints.txt"]
+
+  - name: dependency_agent_002
+    type: dependency_update
+    enabled: true
+    capabilities: ["dependency_update"]
+    monitored_paths: ["package.json"]
+
+  - name: dependency_agent_003
+    type: dependency_update
+    enabled: true
+    capabilities: ["dependency_update"]
+    monitored_paths: ["prepchef/package.json"]
+
+  - name: dependency_agent_004
+    type: dependency_update
+    enabled: true
+    capabilities: ["dependency_update"]
+    monitored_paths: ["apps/harborhomes/package.json"]
+
+  # Add 6 more dependency agents for other package files...
+
+# Configuration Tips:
+# 1. Adjust max_concurrent_tasks based on your system resources
+# 2. Use monitored_paths to partition work and reduce overlap
+# 3. Set auto_approve_low_risk to true for fully automated mode
+# 4. Increase monitor_poll_interval if you want less aggressive monitoring
+# 5. Disable specific agents by setting enabled: false

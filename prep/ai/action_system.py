@@ -6,9 +6,7 @@ a safe execution framework with approval workflows.
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -471,7 +469,7 @@ class ActionExecutor:
             )
 
         try:
-            backup_path = self._backups[action_id]
+            _ = self._backups[action_id]
             # Rollback logic would go here
             logger.info(f"Rolled back action {action_id}")
             return ExecutionResult(success=True, message="Action rolled back successfully")

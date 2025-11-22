@@ -14,7 +14,7 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-from prep.ai.agent_framework import AIAgent, AgentResponse, SafeAgentResponse
+from prep.ai.agent_framework import AIAgent, AgentResponse
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +121,7 @@ class AgentRegistry:
         )
 
         self._agents[agent_id] = agent_info
-        
+
         # Index by type
         if agent_type not in self._agents_by_type:
             self._agents_by_type[agent_type] = []
