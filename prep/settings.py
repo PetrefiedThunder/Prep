@@ -13,7 +13,6 @@ from pydantic import (
     AnyUrl,
     BaseModel,
     Field,
-    PostgresDsn,
     ValidationError,
     ValidationInfo,
     field_validator,

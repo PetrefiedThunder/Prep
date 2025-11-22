@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from prep.ai.action_system import ActionProposer, ActionType
-from prep.ai.agent_framework import AIAgent, AgentResponse
+from prep.ai.agent_framework import AgentResponse, AIAgent
 from prep.ai.event_monitor import EventType, RepositoryEvent
 
 logger = logging.getLogger(__name__)

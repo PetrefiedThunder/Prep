@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from prep.auth import require_admin_role, get_current_user
+from prep.auth import get_current_user, require_admin_role
 from prep.cache import RedisProtocol, get_redis
 from prep.database import get_db
 from prep.models.orm import User

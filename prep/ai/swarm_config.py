@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from prep.ai.action_system import ActionProposer
 from prep.ai.agent_framework import SafetyLayer, ValidationLayer
 from prep.ai.event_monitor import EventMonitor, EventType
@@ -66,7 +65,7 @@ class SwarmFactory:
         Returns:
             SwarmConfig object
         """
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             data = yaml.safe_load(f)
 
         agents = []

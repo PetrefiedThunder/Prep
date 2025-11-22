@@ -7,7 +7,7 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Path, Response
+from fastapi import APIRouter, Header, HTTPException, Response
 
 router = APIRouter(prefix="/city/diff", tags=["city-diff"])
 

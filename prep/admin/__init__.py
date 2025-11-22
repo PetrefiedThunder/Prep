@@ -46,7 +46,7 @@ def __getattr__(name: str) -> Any:  # pragma: no cover - thin convenience wrappe
         except Exception as exc:  # pragma: no cover - degraded environments
             cert_router = APIRouter()
 
-            def cert_getter() -> None:
+            def cert_getter(exc: Exception = exc) -> None:
                 raise RuntimeError("Certification API module is unavailable") from exc
 
             cert_api = None  # type: ignore[assignment]

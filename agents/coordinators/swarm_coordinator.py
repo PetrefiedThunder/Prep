@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-from typing import Dict
 
 from ..core.agent import AgentConfig
 from ..core.swarm import AgentSwarm
@@ -184,6 +183,6 @@ class SwarmCoordinator:
                 self.logger.error(f"Error monitoring swarm: {e}")
                 await asyncio.sleep(60)
     
-    async def get_swarm_status(self) -> Dict:
+    async def get_swarm_status(self) -> dict:
         """Get current status of the swarm."""
         return await self.swarm.health_check_all()

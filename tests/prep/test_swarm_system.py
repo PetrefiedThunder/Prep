@@ -11,7 +11,7 @@ import pytest
 from prep.ai import swarm_agents
 from prep.ai.action_system import ActionExecutor, ActionProposer, ActionType
 from prep.ai.agent_framework import SafetyLayer, ValidationLayer
-from prep.ai.event_monitor import EventMonitor, EventType, RepositoryEvent
+from prep.ai.event_monitor import EventMonitor, EventType
 from prep.ai.swarm_config import AgentConfig, SwarmConfig, SwarmFactory
 from prep.ai.swarm_coordinator import AgentRegistry, AgentStatus, SwarmCoordinator
 
