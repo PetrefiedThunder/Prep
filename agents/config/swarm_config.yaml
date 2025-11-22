@@ -1,0 +1,160 @@
+# Agent Swarm Configuration
+
+# Global swarm settings
+swarm:
+  name: "prep-agent-swarm"
+  total_agents: 100
+  default_check_interval: 300  # seconds
+  health_check_interval: 60  # seconds
+  auto_restart_failed: true
+
+# Agent type distributions
+agent_distribution:
+  security: 10
+  code_quality: 10
+  testing: 10
+  documentation: 10
+  compliance: 10
+  api_monitor: 10
+  database_monitor: 10
+  build_monitor: 10
+  performance_monitor: 10
+  repository_monitor: 10
+
+# Agent type configurations
+agent_types:
+  security:
+    scope:
+      - auth
+      - secrets
+      - vulnerabilities
+    capabilities:
+      - secret-scanning
+      - vulnerability-detection
+      - permission-check
+    check_interval: 300
+    priority: high
+  
+  code_quality:
+    scope:
+      - linting
+      - typing
+      - formatting
+    capabilities:
+      - lint-check
+      - type-check
+      - complexity-analysis
+    check_interval: 180
+    priority: medium
+  
+  testing:
+    scope:
+      - unit-tests
+      - integration-tests
+      - coverage
+    capabilities:
+      - test-execution
+      - coverage-analysis
+      - test-quality
+    check_interval: 240
+    priority: high
+  
+  documentation:
+    scope:
+      - api-docs
+      - readme
+      - inline-docs
+    capabilities:
+      - doc-generation
+      - doc-validation
+      - doc-quality
+    check_interval: 360
+    priority: low
+  
+  compliance:
+    scope:
+      - license
+      - privacy
+      - accessibility
+    capabilities:
+      - license-check
+      - privacy-check
+      - accessibility-check
+    check_interval: 600
+    priority: medium
+  
+  api_monitor:
+    scope:
+      - endpoints
+      - performance
+      - errors
+    capabilities:
+      - health-check
+      - performance-monitor
+      - error-tracking
+    check_interval: 120
+    priority: high
+  
+  database_monitor:
+    scope:
+      - connections
+      - queries
+      - migrations
+    capabilities:
+      - connection-monitor
+      - query-analysis
+      - migration-check
+    check_interval: 180
+    priority: high
+  
+  build_monitor:
+    scope:
+      - builds
+      - deployments
+      - workflows
+    capabilities:
+      - build-monitor
+      - deployment-check
+      - workflow-health
+    check_interval: 300
+    priority: medium
+  
+  performance_monitor:
+    scope:
+      - response-times
+      - resources
+      - bottlenecks
+    capabilities:
+      - performance-analysis
+      - resource-monitor
+      - bottleneck-detection
+    check_interval: 180
+    priority: medium
+  
+  repository_monitor:
+    scope:
+      - structure
+      - dependencies
+      - branches
+    capabilities:
+      - structure-check
+      - dependency-update
+      - branch-cleanup
+    check_interval: 420
+    priority: low
+
+# Logging configuration
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "agent-swarm.log"  # Relative to temp directory or configurable path
+  max_size_mb: 100
+  backup_count: 5
+
+# Monitoring and alerting
+monitoring:
+  enabled: true
+  dashboard_port: 8888
+  metrics_interval: 60
+  alert_on_failures: true
+  failure_threshold: 5
