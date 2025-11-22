@@ -1,0 +1,152 @@
+# Example Swarm Configuration Template for 100 Agents
+#
+# This is a TEMPLATE configuration demonstrating how to structure a swarm
+# of 100 agents. The template includes examples of each agent type with
+# comments indicating where to add more agents to reach 100.
+#
+# To create a full 100-agent swarm, duplicate and customize the agent
+# entries below, or use the programmatic API to generate agents dynamically.
+
+name: prep_mega_swarm_100_agents_template
+max_concurrent_tasks: 50
+enable_event_monitoring: true
+monitor_poll_interval: 2.0
+auto_approve_low_risk: false
+root_dir: "."
+
+agents:
+  # ========================================
+  # Linting Agents (25 agents recommended)
+  # ========================================
+  # Example agents - duplicate and customize to reach 25
+  
+  - name: linting_agent_001
+    type: linting
+    enabled: true
+    capabilities: ["code_fix", "linting"]
+    monitored_paths: ["prep/ai/**/*.py"]
+
+  - name: linting_agent_002
+    type: linting
+    enabled: true
+    capabilities: ["code_fix", "linting"]
+    monitored_paths: ["prep/api/**/*.py"]
+
+  - name: linting_agent_003
+    type: linting
+    enabled: true
+    capabilities: ["code_fix", "linting"]
+    monitored_paths: ["prep/auth/**/*.py"]
+
+  # Add 22 more linting agents here, each monitoring different modules:
+  # linting_agent_004 -> prep/core/**/*.py
+  # linting_agent_005 -> prep/compliance/**/*.py
+  # ... and so on
+
+  # ========================================
+  # Security Agents (25 agents recommended)
+  # ========================================
+  # Example agents - duplicate and customize to reach 25
+  
+  - name: security_agent_001
+    type: security_patch
+    enabled: true
+    capabilities: ["security_scan", "security_patch"]
+    monitored_paths: ["prep/ai/**/*.py"]
+
+  - name: security_agent_002
+    type: security_patch
+    enabled: true
+    capabilities: ["security_scan", "security_patch"]
+    monitored_paths: ["prep/api/**/*.py"]
+
+  # Add 23 more security agents here for different modules
+
+  # ========================================
+  # Documentation Agents (20 agents recommended)
+  # ========================================
+  # Example agents - duplicate and customize to reach 20
+  
+  - name: doc_agent_001
+    type: documentation
+    enabled: true
+    capabilities: ["documentation"]
+    monitored_paths: ["prep/ai/**/*.py"]
+
+  - name: doc_agent_002
+    type: documentation
+    enabled: true
+    capabilities: ["documentation"]
+    monitored_paths: ["prep/api/**/*.py"]
+
+  # Add 18 more documentation agents here
+
+  # ========================================
+  # Test Generation Agents (20 agents recommended)
+  # ========================================
+  # Example agents - duplicate and customize to reach 20
+  
+  - name: test_gen_agent_001
+    type: test_generation
+    enabled: true
+    capabilities: ["test_generation"]
+    monitored_paths: ["prep/ai/**/*.py"]
+
+  - name: test_gen_agent_002
+    type: test_generation
+    enabled: true
+    capabilities: ["test_generation"]
+    monitored_paths: ["prep/api/**/*.py"]
+
+  # Add 18 more test generation agents here
+
+  # ========================================
+  # Dependency Update Agents (10 agents recommended)
+  # ========================================
+  # Example agents - one per dependency file
+  
+  - name: dependency_agent_001
+    type: dependency_update
+    enabled: true
+    capabilities: ["dependency_update"]
+    monitored_paths: ["requirements.txt", "constraints.txt"]
+
+  - name: dependency_agent_002
+    type: dependency_update
+    enabled: true
+    capabilities: ["dependency_update"]
+    monitored_paths: ["package.json"]
+
+  - name: dependency_agent_003
+    type: dependency_update
+    enabled: true
+    capabilities: ["dependency_update"]
+    monitored_paths: ["prepchef/package.json"]
+
+  - name: dependency_agent_004
+    type: dependency_update
+    enabled: true
+    capabilities: ["dependency_update"]
+    monitored_paths: ["apps/harborhomes/package.json"]
+
+  # Add 6 more dependency agents for other package files
+
+# ========================================
+# Configuration Tips:
+# ========================================
+# 1. Adjust max_concurrent_tasks based on your system resources
+# 2. Use monitored_paths to partition work and reduce overlap
+# 3. Set auto_approve_low_risk to true for fully automated mode
+# 4. Increase monitor_poll_interval if you want less aggressive monitoring
+# 5. Disable specific agents by setting enabled: false
+#
+# To programmatically generate 100 agents:
+#
+# agents = []
+# for i in range(100):
+#     agents.append(AgentConfig(
+#         name=f"agent_{i:03d}",
+#         type="linting",  # or other types
+#         capabilities=["linting"],
+#         monitored_paths=[f"prep/**/*.py"]
+#     ))
