@@ -280,6 +280,14 @@ async def create_booking(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid identifier"
         ) from exc
 
+    normalized_start = _ensure_timezone(booking_data.start_time)
+    normalized_end = _ensure_timezone(booking_data.end_time)
+    if normalized_end <= normalized_start:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="end_time must be after start_time",
+        )
+
     kitchen = await db.get(Kitchen, kitchen_uuid)
     if kitchen is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kitchen not found")
