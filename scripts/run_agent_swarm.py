@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Manage the instantiation and lifecycle of the Prep agent swarm."""
+"""Agent Swarm Orchestration Script.
 
-from __future__ import annotations
+Manage the agent swarm that monitors the Prep repository.
+"""
 
 import argparse
 import asyncio
@@ -11,11 +12,18 @@ import sys
 import tempfile
 from pathlib import Path
 
-# Add the repo root to the Python path
-repo_root = Path(__file__).parent.parent
-if str(repo_root) not in sys.path:
-    sys.path.insert(0, str(repo_root))
 
+def _import_swarm_coordinator():
+    repo_root = Path(__file__).parent.parent
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    from agents.coordinators.swarm_coordinator import SwarmCoordinator
+
+    return SwarmCoordinator
+
+
+SwarmCoordinator = _import_swarm_coordinator()
 
 # Get platform-appropriate log directory
 LOG_DIR = Path(tempfile.gettempdir())
@@ -40,8 +48,6 @@ class SwarmOrchestrator:
     def __init__(self, num_agents: int = 100):
         """Initialize the orchestrator."""
         self.num_agents = num_agents
-        from agents.coordinators.swarm_coordinator import SwarmCoordinator
-
         self.coordinator = SwarmCoordinator()
         self.running = False
         self.stop_requested = False

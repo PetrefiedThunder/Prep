@@ -1,4 +1,8 @@
-"""Agent implementations for security, code quality, testing, and more."""
+"""Specialized monitoring agent implementations.
+
+This module contains agent implementations for security, code quality,
+testing, documentation, and compliance monitoring.
+"""
 
 from pathlib import Path
 
@@ -39,11 +43,11 @@ class SecurityMonitorAgent(Agent):
 
         # This is a simplified check - in production, use gitleaks or similar
         self.logger.debug(
-            "Checking for exposed secrets in %s with patterns %s and globs %s",
+            "Checking %s for exposed secrets in %s",
+            ", ".join(files_to_check),
             repo_root,
-            sensitive_patterns,
-            files_to_check,
         )
+        self.logger.debug("Patterns monitored: %s", ", ".join(sensitive_patterns))
 
     async def _check_dependencies(self) -> None:
         """Check for vulnerable dependencies."""

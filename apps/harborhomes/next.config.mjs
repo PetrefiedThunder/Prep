@@ -7,7 +7,9 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverActions: true
+    serverActions: {
+      bodySizeLimit: '2mb'
+    }
   },
   images: {
     remotePatterns: [
@@ -15,10 +17,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'plus.unsplash.com' }
     ]
   },
-  i18n: {
-    locales,
-    defaultLocale: 'en'
-  },
+  // i18n config removed - not supported in App Router, use next-intl instead
   async headers() {
     return [
       {
@@ -32,12 +31,11 @@ const nextConfig = {
       }
     ];
   },
-  webpack(config) {
-    config.resolve.alias = {
-      ...(config.resolve.alias ?? {}),
+  // Turbopack config to replace webpack
+  turbopack: {
+    resolveAlias: {
       '@': path.join(dirname)
-    };
-    return config;
+    }
   }
 };
 

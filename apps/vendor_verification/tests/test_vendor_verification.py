@@ -16,7 +16,6 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from apps.vendor_verification.auth import hash_api_key
 from apps.vendor_verification.main import app, get_db
@@ -28,12 +27,7 @@ from apps.vendor_verification.orm_models import (
 # Create in-memory SQLite database for testing
 # Use StaticPool to ensure all connections share the same in-memory database
 TEST_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
+engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False}, echo=False)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

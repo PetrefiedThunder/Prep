@@ -20,7 +20,13 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, mapped_column, relationship
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    declared_attr,
+    mapped_column,
+    relationship,
+)
 
 Date = DateTime
 from sqlalchemy import (
@@ -462,7 +468,9 @@ class PaymentRecord(TimestampMixin, Base):
     refunded_amount_cents: Mapped[int | None] = mapped_column(Integer)
     payment_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
-    business: Mapped[BusinessProfile | None] = relationship("BusinessProfile")
+    business: Mapped[BusinessProfile | None] = relationship(
+        "BusinessProfile", back_populates="payment_records"
+    )
     booking: Mapped[Booking | None] = relationship("Booking")
 
 
@@ -489,7 +497,9 @@ class Kitchen(TimestampMixin, Base):
         Enum(ModerationStatus), default=ModerationStatus.PENDING, nullable=False
     )
     certification_status: Mapped[CertificationReviewStatus] = mapped_column(
-        Enum(CertificationReviewStatus), default=CertificationReviewStatus.PENDING, nullable=False
+        Enum(CertificationReviewStatus),
+        default=CertificationReviewStatus.PENDING,
+        nullable=False,
     )
     published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     submitted_at: Mapped[datetime] = mapped_column(
@@ -543,7 +553,9 @@ class Kitchen(TimestampMixin, Base):
         "SanitationLog", back_populates="kitchen", cascade="all, delete-orphan"
     )
     recurring_templates: Mapped[list[RecurringBookingTemplate]] = relationship(
-        "RecurringBookingTemplate", back_populates="kitchen", cascade="all, delete-orphan"
+        "RecurringBookingTemplate",
+        back_populates="kitchen",
+        cascade="all, delete-orphan",
     )
 
 
@@ -670,7 +682,10 @@ class InventoryItem(TimestampMixin, Base):
 
     id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     kitchen_id: Mapped[UUID] = mapped_column(
-        GUID(), ForeignKey("kitchens.id", ondelete="CASCADE"), nullable=False, index=True
+        GUID(),
+        ForeignKey("kitchens.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     host_id: Mapped[UUID] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
@@ -714,7 +729,10 @@ class InventoryLot(TimestampMixin, Base):
 
     id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     item_id: Mapped[UUID] = mapped_column(
-        GUID(), ForeignKey("inventory_items.id", ondelete="CASCADE"), nullable=False, index=True
+        GUID(),
+        ForeignKey("inventory_items.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     external_id: Mapped[str | None] = mapped_column(String(255), index=True)
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
@@ -1031,7 +1049,9 @@ class CertificationDocument(TimestampMixin, Base):
     document_type: Mapped[str] = mapped_column(String(120), nullable=False)
     document_url: Mapped[str] = mapped_column(String(512), nullable=False)
     status: Mapped[CertificationReviewStatus] = mapped_column(
-        Enum(CertificationReviewStatus), default=CertificationReviewStatus.PENDING, nullable=False
+        Enum(CertificationReviewStatus),
+        default=CertificationReviewStatus.PENDING,
+        nullable=False,
     )
     submitted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
@@ -1075,7 +1095,9 @@ class ComplianceDocument(TimestampMixin, Base):
     document_type: Mapped[str] = mapped_column(String(120), nullable=False)
     document_url: Mapped[str] = mapped_column(String(512), nullable=False)
     verification_status: Mapped[ComplianceDocumentStatus] = mapped_column(
-        Enum(ComplianceDocumentStatus), default=ComplianceDocumentStatus.PENDING, nullable=False
+        Enum(ComplianceDocumentStatus),
+        default=ComplianceDocumentStatus.PENDING,
+        nullable=False,
     )
     submitted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
@@ -1113,11 +1135,16 @@ class SubleaseContract(TimestampMixin, Base):
 
     id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
     booking_id: Mapped[UUID] = mapped_column(
-        GUID(), ForeignKey("bookings.id", ondelete="CASCADE"), unique=True, nullable=False
+        GUID(),
+        ForeignKey("bookings.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
     )
     envelope_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     status: Mapped[SubleaseContractStatus] = mapped_column(
-        Enum(SubleaseContractStatus), default=SubleaseContractStatus.CREATED, nullable=False
+        Enum(SubleaseContractStatus),
+        default=SubleaseContractStatus.CREATED,
+        nullable=False,
     )
     signer_email: Mapped[str] = mapped_column(String(255), nullable=False)
     signer_name: Mapped[str | None] = mapped_column(String(255))
@@ -1155,7 +1182,9 @@ class VerificationTask(TimestampMixin, Base):
     entity_id: Mapped[UUID] = mapped_column(GUID(), nullable=False)
     task_type: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[VerificationTaskStatus] = mapped_column(
-        Enum(VerificationTaskStatus), default=VerificationTaskStatus.PENDING, nullable=False
+        Enum(VerificationTaskStatus),
+        default=VerificationTaskStatus.PENDING,
+        nullable=False,
     )
     assigned_to: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("users.id"))
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -1236,18 +1265,11 @@ class RegDoc(Base):
     __tablename__ = "reg_docs"
 
     id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
-    jurisdiction: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    code_section: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    requirement_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    jurisdiction: Mapped[str] = mapped_column(String(255), nullable=False)
+    code_section: Mapped[str] = mapped_column(String(120), nullable=False)
+    requirement_text: Mapped[str] = mapped_column(Text, nullable=False)
     effective_date: Mapped[date | None] = mapped_column(Date)
     citation_url: Mapped[str | None] = mapped_column(Text)
-    title: Mapped[str | None] = mapped_column(String(255))
-    summary: Mapped[str | None] = mapped_column(Text)
-    state: Mapped[str | None] = mapped_column(String(32))
-    city: Mapped[str | None] = mapped_column(String(255))
-    doc_type: Mapped[str | None] = mapped_column(String(120))
-    source_url: Mapped[str | None] = mapped_column(Text)
-    raw_payload: Mapped[dict | None] = mapped_column(JSON, default=dict)
     sha256_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     inserted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
@@ -1351,17 +1373,22 @@ class BusinessProfile(TimestampMixin, Base):
     documents: Mapped[list[DocumentUpload]] = relationship(
         "DocumentUpload", back_populates="business", cascade="all, delete-orphan"
     )
-    business_permits: Mapped[list[BusinessPermit]] = relationship(
-        "BusinessPermit", back_populates="business", cascade="all, delete-orphan"
-    )
     permits: Mapped[list[Permit]] = relationship(
         "Permit", back_populates="business", cascade="all, delete-orphan"
     )
+    business_permits: Mapped[list[BusinessPermit]] = relationship(
+        "BusinessPermit", back_populates="business", cascade="all, delete-orphan"
+    )
     readiness_snapshots: Mapped[list[BusinessReadinessSnapshot]] = relationship(
-        "BusinessReadinessSnapshot", back_populates="business", cascade="all, delete-orphan"
+        "BusinessReadinessSnapshot",
+        back_populates="business",
+        cascade="all, delete-orphan",
     )
     payments: Mapped[list[CheckoutPayment]] = relationship(
         "CheckoutPayment", back_populates="business"
+    )
+    payment_records: Mapped[list[PaymentRecord]] = relationship(
+        "PaymentRecord", back_populates="business"
     )
 
 
@@ -1462,7 +1489,9 @@ class CheckoutPayment(TimestampMixin, Base):
         GUID(), ForeignKey("bookings.id", ondelete="SET NULL"), nullable=True
     )
     status: Mapped[CheckoutPaymentStatus] = mapped_column(
-        Enum(CheckoutPaymentStatus), default=CheckoutPaymentStatus.PENDING, nullable=False
+        Enum(CheckoutPaymentStatus),
+        default=CheckoutPaymentStatus.PENDING,
+        nullable=False,
     )
     currency: Mapped[str] = mapped_column(String(3), default="usd", nullable=False)
     total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
