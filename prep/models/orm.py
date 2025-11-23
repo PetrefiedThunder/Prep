@@ -439,10 +439,7 @@ class BusinessPermit(TimestampMixin, Base):
     status: Mapped[PermitStatus] = mapped_column(Enum(PermitStatus), default=PermitStatus.PENDING)
     permit_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
-    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="permits")
-    documents: Mapped[list[DocumentUpload]] = relationship(
-        "DocumentUpload", back_populates="permit", cascade="all, delete-orphan"
-    )
+    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="business_permits")
 
 
 class PaymentRecord(TimestampMixin, Base):
@@ -464,7 +461,7 @@ class PaymentRecord(TimestampMixin, Base):
     payment_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
     business: Mapped[BusinessProfile | None] = relationship(
-        "BusinessProfile", back_populates="payments"
+        "BusinessProfile", back_populates="payment_records"
     )
     booking: Mapped[Booking | None] = relationship("Booking")
 
@@ -1350,11 +1347,17 @@ class BusinessProfile(TimestampMixin, Base):
     permits: Mapped[list[Permit]] = relationship(
         "Permit", back_populates="business", cascade="all, delete-orphan"
     )
+    business_permits: Mapped[list[BusinessPermit]] = relationship(
+        "BusinessPermit", back_populates="business", cascade="all, delete-orphan"
+    )
     readiness_snapshots: Mapped[list[BusinessReadinessSnapshot]] = relationship(
         "BusinessReadinessSnapshot", back_populates="business", cascade="all, delete-orphan"
     )
     payments: Mapped[list[CheckoutPayment]] = relationship(
         "CheckoutPayment", back_populates="business"
+    )
+    payment_records: Mapped[list[PaymentRecord]] = relationship(
+        "PaymentRecord", back_populates="business"
     )
 
 

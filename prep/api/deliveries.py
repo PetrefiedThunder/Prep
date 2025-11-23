@@ -31,8 +31,8 @@ async def _get_service(session: SessionDep, settings: SettingsDep) -> DeliverySe
 @router.post("/create", response_model=DeliveryCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_delivery(
     payload: DeliveryCreateRequest,
-    current_user: User = Depends(get_current_user),
     service: Annotated[DeliveryService, Depends(_get_service)],
+    current_user: User = Depends(get_current_user),
 ) -> DeliveryCreateResponse:
     """Create a delivery with the specified provider."""
 

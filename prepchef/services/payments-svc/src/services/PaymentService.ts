@@ -16,7 +16,7 @@ export class PaymentService {
     stripeSecretKey: string
   ) {
     this.stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2025-10-29.clover'
+      apiVersion: '2023-10-16'
     });
   }
 
