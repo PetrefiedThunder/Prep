@@ -31,6 +31,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
+          # Pin botocore to be compatible with aiobotocore to avoid CI resolver warnings
+          pip install "botocore<1.40.71"
           pip install -e .
       - name: Install OPA CLI
         run: |
@@ -38,6 +40,67 @@ jobs:
           curl -L -o opa https://openpolicyagent.org/downloads/v0.59.0/opa_linux_amd64_static
           chmod +x opa
           ./opa version
+      - name: Verify OPA policy bundle
+        run: |
+          echo "Checking for policy bundles..."
+          echo ""
+          echo "Checking tests/policy/sf_bay_area/bundles/:"
+          ls -la tests/policy/sf_bay_area/bundles/ 2>/dev/null || echo "  Directory does not exist"
+          echo ""
+          echo "Checking apps/policy/:"
+          ls -la apps/policy 2>/dev/null || echo "  Directory does not exist"
+          echo ""
+          echo "Checking apps/policy/bundle/:"
+          ls -la apps/policy/bundle 2>/dev/null || echo "  Directory does not exist"
+          echo ""
+          
+          # Check if test bundles exist
+          if [ -d tests/policy/sf_bay_area/bundles ] && [ "$(ls -A tests/policy/sf_bay_area/bundles 2>/dev/null)" ]; then
+            echo "✓ Found test policy bundles in tests/policy/sf_bay_area/bundles/"
+            exit 0
+          fi
+          
+          # Check if apps/policy bundle exists
+          if [ -f apps/policy/bundle/policies.rego ]; then
+            echo "✓ Found apps/policy/bundle/policies.rego"
+            exit 0
+          fi
+          
+          # Try to build bundle if OPA is available and source exists
+          echo "No policy bundles found. Attempting to build bundle..."
+          if [ -f ./opa ]; then
+            if [ -d apps/policy ] && [ "$(find apps/policy -name '*.rego' 2>/dev/null)" ]; then
+              echo "Building bundle: ./opa build apps/policy -o apps/policy/bundle"
+              ./opa build apps/policy -o apps/policy/bundle || {
+                echo "❌ opa build failed" >&2
+                exit 1
+              }
+              if [ -f apps/policy/bundle/policies.rego ]; then
+                echo "✓ Bundle built successfully"
+                exit 0
+              fi
+              echo "❌ opa build did not produce apps/policy/bundle/policies.rego" >&2
+            else
+              echo "❌ apps/policy directory does not exist or contains no .rego files" >&2
+            fi
+          else
+            echo "❌ ./opa not found; cannot build bundle" >&2
+          fi
+          
+          echo "" >&2
+          echo "❌ ERROR: Missing OPA policy bundles" >&2
+          echo "" >&2
+          echo "The OPA server requires policy bundles to start, but none were found." >&2
+          echo "" >&2
+          echo "Expected locations:" >&2
+          echo "  - tests/policy/sf_bay_area/bundles/* (for test bundles)" >&2
+          echo "  - apps/policy/bundle/policies.rego (for app bundles)" >&2
+          echo "" >&2
+          echo "To fix locally:" >&2
+          echo "  1. Create apps/policy directory with .rego policy files" >&2
+          echo "  2. Run: opa build apps/policy -o apps/policy/bundle" >&2
+          echo "" >&2
+          exit 1
       - name: Start OPA server
         run: |
           set -euo pipefail
