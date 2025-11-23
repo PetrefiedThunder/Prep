@@ -71,9 +71,7 @@ class SecurityAgent(AIAgent):
     - Command injection risks
     """
 
-    async def execute_task(
-        self, task_description: str, context: dict[str, Any]
-    ) -> AgentResponse:
+    async def execute_task(self, task_description: str, context: dict[str, Any]) -> AgentResponse:
         """Execute security audit on provided code.
 
         Args:
@@ -129,9 +127,15 @@ class SecurityAgent(AIAgent):
 
         # Patterns for potential secrets
         secret_patterns = [
-            (r'(?i)(api[_-]?key|secret[_-]?key|password)\s*=\s*["\'][^"\']{8,}["\']', "API key or secret"),
+            (
+                r'(?i)(api[_-]?key|secret[_-]?key|password)\s*=\s*["\'][^"\']{8,}["\']',
+                "API key or secret",
+            ),
             (r'(?i)token\s*=\s*["\'][^"\']{20,}["\']', "Authentication token"),
-            (r'(?i)aws[_-]?(access|secret)[_-]?key[_-]?id?\s*=\s*["\'][^"\']+["\']', "AWS credentials"),
+            (
+                r'(?i)aws[_-]?(access|secret)[_-]?key[_-]?id?\s*=\s*["\'][^"\']+["\']',
+                "AWS credentials",
+            ),
             (r'(?i)stripe[_-]?key\s*=\s*["\'][^"\']+["\']', "Stripe API key"),
         ]
 
@@ -163,8 +167,8 @@ class SecurityAgent(AIAgent):
 
         # Patterns indicating potential SQL injection
         sql_patterns = [
-            (r'execute\([^)]*%s[^)]*%', "String formatting in SQL query"),
-            (r'execute\([^)]*\.format\(', "format() in SQL query"),
+            (r"execute\([^)]*%s[^)]*%", "String formatting in SQL query"),
+            (r"execute\([^)]*\.format\(", "format() in SQL query"),
             (r'execute\([^)]*\+\s*["\']', "String concatenation in SQL query"),
             (r'(?i)f["\'].*?select.*?\{.*?\}.*?["\']', "f-string in SQL query"),
         ]
@@ -192,8 +196,8 @@ class SecurityAgent(AIAgent):
         lines = code.split("\n")
 
         auth_issues = [
-            (r'(?i)jwt\.decode\([^)]*verify\s*=\s*False', "JWT verification disabled"),
-            (r'(?i)auth.*=.*None', "Authentication bypass"),
+            (r"(?i)jwt\.decode\([^)]*verify\s*=\s*False", "JWT verification disabled"),
+            (r"(?i)auth.*=.*None", "Authentication bypass"),
             (r'(?i)password.*==.*["\'].*["\']', "Hardcoded password comparison"),
         ]
 
@@ -231,7 +235,7 @@ class SecurityAgent(AIAgent):
                         mode_arg = node.args[1]
                         # Check if mode is a string literal with write flags
                         if isinstance(mode_arg, ast.Constant) and isinstance(mode_arg.value, str):
-                            if any(flag in mode_arg.value for flag in ['w', 'a', 'x', '+']):
+                            if any(flag in mode_arg.value for flag in ["w", "a", "x", "+"]):
                                 findings.append(
                                     Finding(
                                         agent="SecurityAgent",
@@ -251,10 +255,10 @@ class SecurityAgent(AIAgent):
         lines = code.split("\n")
 
         cmd_patterns = [
-            (r'os\.system\(', "os.system() call"),
-            (r'subprocess\.(call|run|Popen)\([^)]*shell\s*=\s*True', "shell=True in subprocess"),
-            (r'eval\(', "eval() usage"),
-            (r'exec\(', "exec() usage"),
+            (r"os\.system\(", "os.system() call"),
+            (r"subprocess\.(call|run|Popen)\([^)]*shell\s*=\s*True", "shell=True in subprocess"),
+            (r"eval\(", "eval() usage"),
+            (r"exec\(", "exec() usage"),
         ]
 
         for line_num, line in enumerate(lines, 1):
@@ -286,9 +290,7 @@ class BackendArchitectAgent(AIAgent):
     - Error handling patterns
     """
 
-    async def execute_task(
-        self, task_description: str, context: dict[str, Any]
-    ) -> AgentResponse:
+    async def execute_task(self, task_description: str, context: dict[str, Any]) -> AgentResponse:
         """Execute architecture review on provided code.
 
         Args:
@@ -388,7 +390,7 @@ class BackendArchitectAgent(AIAgent):
             # Track indentation to detect when loop ends
             if line.strip():
                 current_indent = len(line) - len(line.lstrip())
-                
+
                 if "for " in line and " in " in line:
                     in_loop = True
                     loop_line = line_num
@@ -479,9 +481,7 @@ class CodeQualityAgent(AIAgent):
     - Code duplication patterns
     """
 
-    async def execute_task(
-        self, task_description: str, context: dict[str, Any]
-    ) -> AgentResponse:
+    async def execute_task(self, task_description: str, context: dict[str, Any]) -> AgentResponse:
         """Execute code quality assessment.
 
         Args:
@@ -707,9 +707,7 @@ class TestingAgent(AIAgent):
     - Mock usage patterns
     """
 
-    async def execute_task(
-        self, task_description: str, context: dict[str, Any]
-    ) -> AgentResponse:
+    async def execute_task(self, task_description: str, context: dict[str, Any]) -> AgentResponse:
         """Execute test validation.
 
         Args:
@@ -768,14 +766,14 @@ class TestingAgent(AIAgent):
 
         # Construct expected test file path
         test_dir = Path("tests")
-        
+
         # Try to construct relative path, handling different cases
         try:
             rel_path = path.relative_to(Path("prep")) if "prep" in str(path) else path
         except ValueError:
             # If relative_to fails, use the path name directly
             rel_path = path
-        
+
         test_file = test_dir / rel_path.parent / f"test_{rel_path.name}"
 
         if not test_file.exists():
@@ -843,9 +841,7 @@ class OperationsAgent(AIAgent):
     - Irreversible state changes
     """
 
-    async def execute_task(
-        self, task_description: str, context: dict[str, Any]
-    ) -> AgentResponse:
+    async def execute_task(self, task_description: str, context: dict[str, Any]) -> AgentResponse:
         """Execute operations audit.
 
         Args:

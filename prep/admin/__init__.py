@@ -36,24 +36,21 @@ def __getattr__(name: str) -> Any:  # pragma: no cover - thin convenience wrappe
         from .dashboard_db_api import router as attr
 
         return attr
-    if name in {"CertificationVerificationAPI", "certification_router", "get_certification_verification_api"}:
+    if name in {
+        "CertificationVerificationAPI",
+        "certification_router",
+        "get_certification_verification_api",
+    }:
         try:
             from .certification_api import (
                 CertificationVerificationAPI as cert_api,
                 certification_router as cert_router,
                 get_certification_verification_api as cert_getter,
             )
-<<<<<<< HEAD
-        except Exception as exc:  # pragma: no cover - degraded environments
-            cert_router = APIRouter()
-
-            def cert_getter(exc: Exception = exc) -> None:
-=======
         except Exception:  # pragma: no cover - degraded environments
             cert_router = APIRouter()
 
             def cert_getter() -> None:
->>>>>>> origin/main
                 raise RuntimeError("Certification API module is unavailable") from exc
 
             cert_api = None  # type: ignore[assignment]

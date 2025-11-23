@@ -594,8 +594,8 @@ async def create_verification(
 
     # Update verification with results
     verification.decision_snapshot = {
-        "decision": decision.model_dump(mode='json'),
-        "recommendation": recommendation.model_dump(mode='json'),
+        "decision": decision.model_dump(mode="json"),
+        "recommendation": recommendation.model_dump(mode="json"),
     }
     verification.status = (
         VerificationStatus.PASSED.value

@@ -1,4 +1,5 @@
 """Canonical requirement and fee data structures used by the estimator."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence

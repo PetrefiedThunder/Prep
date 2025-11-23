@@ -114,7 +114,9 @@ subprocess.run(user_input, shell=True)
 
         findings = result.metadata.get("findings", [])
         assert len(findings) >= 1
-        assert any("command" in f["message"].lower() or "shell" in f["message"].lower() for f in findings)
+        assert any(
+            "command" in f["message"].lower() or "shell" in f["message"].lower() for f in findings
+        )
 
     @pytest.mark.asyncio
     async def test_no_findings_for_clean_code(self, security_agent):
@@ -132,7 +134,9 @@ async def get_user(db, user_id):
 
         findings = result.metadata.get("findings", [])
         # Should have minimal or no critical findings
-        critical_findings = [f for f in findings if f.get("severity") == copilot_agents.Severity.CRITICAL]
+        critical_findings = [
+            f for f in findings if f.get("severity") == copilot_agents.Severity.CRITICAL
+        ]
         assert len(critical_findings) == 0
 
 
@@ -152,7 +156,9 @@ for user in users:
 
         findings = result.metadata.get("findings", [])
         assert len(findings) >= 1
-        assert any("n+1" in f["message"].lower() or "query" in f["message"].lower() for f in findings)
+        assert any(
+            "n+1" in f["message"].lower() or "query" in f["message"].lower() for f in findings
+        )
 
     @pytest.mark.asyncio
     async def test_detects_bare_except(self, backend_agent):
@@ -214,7 +220,9 @@ def process_data(data):
 
         findings = result.metadata.get("findings", [])
         assert len(findings) >= 1
-        assert any("type" in f["message"].lower() or "hint" in f["message"].lower() for f in findings)
+        assert any(
+            "type" in f["message"].lower() or "hint" in f["message"].lower() for f in findings
+        )
 
     @pytest.mark.asyncio
     async def test_detects_missing_docstrings(self, quality_agent):
@@ -248,7 +256,9 @@ class my_class:
 
         findings = result.metadata.get("findings", [])
         assert len(findings) >= 1
-        assert any("convention" in f["message"].lower() or "case" in f["message"].lower() for f in findings)
+        assert any(
+            "convention" in f["message"].lower() or "case" in f["message"].lower() for f in findings
+        )
 
 
 class TestTestingAgentBehavior:
@@ -303,7 +313,9 @@ os.remove("/path/to/file.txt")
 
         findings = result.metadata.get("findings", [])
         assert len(findings) >= 1
-        assert any("deletion" in f["message"].lower() or "remove" in f["message"].lower() for f in findings)
+        assert any(
+            "deletion" in f["message"].lower() or "remove" in f["message"].lower() for f in findings
+        )
         assert result.metadata.get("requires_human_approval") is True
 
     @pytest.mark.asyncio
@@ -319,7 +331,9 @@ db.execute(query)
 
         findings = result.metadata.get("findings", [])
         assert len(findings) >= 1
-        assert any("database" in f["message"].lower() or "drop" in f["message"].lower() for f in findings)
+        assert any(
+            "database" in f["message"].lower() or "drop" in f["message"].lower() for f in findings
+        )
         assert result.metadata.get("requires_human_approval") is True
 
     @pytest.mark.asyncio

@@ -129,14 +129,10 @@ async def test_run_pos_reconciliation_generates_report(
     session_factory: async_sessionmaker[AsyncSession], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     kitchen_id = await _seed_data(session_factory)
-<<<<<<< HEAD
-    monkeypatch.setenv("POS_LEDGER_BUCKET", "test-ledger")
-=======
-    
+
     # Mock environment variables before settings are loaded
     monkeypatch.setenv("POS_LEDGER_BUCKET", "test-ledger")
     monkeypatch.setenv("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
->>>>>>> origin/main
     get_settings.cache_clear()
 
     stub_s3 = StubS3Client()
@@ -162,7 +158,3 @@ async def test_run_pos_reconciliation_generates_report(
     assert report.s3_object_key is not None
 
     get_settings.cache_clear()
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/main

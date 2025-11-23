@@ -51,8 +51,6 @@ packages = ["prep"]
 [project.scripts]
 prep-compliance = "prep.compliance.cli:main"
 
-<<<<<<< HEAD
-=======
 [tool.ruff]
 line-length = 100
 target-version = "py310"
@@ -82,4 +80,3 @@ extend-immutable-calls = [
     "fastapi.Form",
     "fastapi.params.Form",
 ]
->>>>>>> origin/main

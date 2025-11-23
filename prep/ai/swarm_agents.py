@@ -23,9 +23,7 @@ _SECURITY_PATTERNS = {
     "eval": re.compile(r"\beval\("),
     "exec": re.compile(r"\bexec\("),
     "shell_true": re.compile(r"shell\s*=\s*True"),
-    "hardcoded_secret": re.compile(
-        r'(?i)(api[_-]?key|secret[_-]?key)\s*=\s*["\'][^"\']+["\']'
-    ),
+    "hardcoded_secret": re.compile(r'(?i)(api[_-]?key|secret[_-]?key)\s*=\s*["\'][^"\']+["\']'),
 }
 
 
@@ -123,9 +121,7 @@ class LintingAgent(AIAgent):
         if event.event_type == EventType.FILE_MODIFIED and event.file_path:
             if event.file_path.endswith(".py"):
                 logger.info(f"LintingAgent: Processing {event.file_path}")
-                await self.execute_task(
-                    f"Lint {event.file_path}", {"file_path": event.file_path}
-                )
+                await self.execute_task(f"Lint {event.file_path}", {"file_path": event.file_path})
 
 
 class DependencyUpdateAgent(AIAgent):
