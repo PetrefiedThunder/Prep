@@ -276,7 +276,7 @@ make swarm-help       # Show detailed information
 python scripts/run_agent_swarm.py
 python scripts/run_agent_swarm.py --command status
 
-# Start with custom agent count - must be a multiple of 10 (e.g., 10, 20, 30)
+# Start with custom agent count - use multiples of 10 for full distribution (e.g., 10, 20, 30)
 python scripts/run_agent_swarm.py --num-agents 10
 ```
 
