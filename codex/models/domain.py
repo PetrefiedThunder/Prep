@@ -108,7 +108,7 @@ class Booking(Base, TimestampedMixin):
         Uuid, ForeignKey("codex_users.id", ondelete="CASCADE"), nullable=False
     )
     status: Mapped[BookingStatus] = mapped_column(
-        Enum(BookingStatus), nullable=False, default=BookingStatus.PENDING
+        Enum(BookingStatus), nullable=False, default=BookingStatus.CONFIRMED
     )
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
