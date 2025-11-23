@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
-import jwt, { JwtHeader, JwtPayload } from 'jsonwebtoken';
+import type { JwtHeader, JwtPayload } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
 import { getAuthPublicKey } from '../config/auth';
 
