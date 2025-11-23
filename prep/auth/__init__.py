@@ -14,9 +14,7 @@ from fastapi.security import OAuth2PasswordBearer
 from prep.settings import Settings, get_settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
-oauth2_scheme_optional = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/token", auto_error=False
-)
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=False)
 
 _ALLOWED_JWT_ALGORITHMS: tuple[str, ...] = ("HS256", "RS256")
 

@@ -42,9 +42,7 @@ class AuditReport:
 
         # Update severity counts
         severity_key = finding.severity.value
-        self.findings_by_severity[severity_key] = (
-            self.findings_by_severity.get(severity_key, 0) + 1
-        )
+        self.findings_by_severity[severity_key] = self.findings_by_severity.get(severity_key, 0) + 1
 
         # Update agent counts
         self.findings_by_agent[finding.agent] = self.findings_by_agent.get(finding.agent, 0) + 1
@@ -116,7 +114,7 @@ class AuditReport:
                 lines.append(f"\n{severity.value} ({len(findings)} findings):")
                 lines.append("-" * 80)
 
-                for finding in findings[:max_findings - count]:
+                for finding in findings[: max_findings - count]:
                     lines.append(str(finding))
                     lines.append("")
                     count += 1
@@ -285,11 +283,14 @@ class AgentRunner:
         # Filter by patterns if provided
         if file_patterns:
             import fnmatch
+
             filtered_files = []
             for pattern in file_patterns:
                 for file in python_files:
                     # Use fnmatch for consistent glob-style matching
-                    if fnmatch.fnmatch(str(file), f"*{pattern}*") or fnmatch.fnmatch(str(file), pattern):
+                    if fnmatch.fnmatch(str(file), f"*{pattern}*") or fnmatch.fnmatch(
+                        str(file), pattern
+                    ):
                         filtered_files.append(file)
             python_files = list(set(filtered_files))  # Remove duplicates
 
