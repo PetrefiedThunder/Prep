@@ -344,7 +344,7 @@ async def create_booking(
         kitchen_id=kitchen_uuid,
         start_time=booking_data.start_time,
         end_time=booking_data.end_time,
-        status=BookingStatus.PENDING,
+        status=BookingStatus.CONFIRMED,
     )
 
     total_amount, discount_percent, adjustments = _calculate_dynamic_price(
@@ -486,7 +486,7 @@ async def create_recurring_booking(
             kitchen_id=kitchen_uuid,
             start_time=occurrence_start,
             end_time=occurrence_end,
-            status=BookingStatus.PENDING,
+            status=BookingStatus.CONFIRMED,
         )
         total_amount, discount_percent, adjustments = _calculate_dynamic_price(
             kitchen, occurrence_start, occurrence_end
