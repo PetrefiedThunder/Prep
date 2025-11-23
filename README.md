@@ -267,10 +267,13 @@ git push origin feature/your-feature
 The repository includes a comprehensive agent swarm system with **100 autonomous monitoring agents** that continuously monitor and maintain all aspects of the codebase.
 
 ```bash
-# Start the full swarm (100 agents)
-python scripts/run_agent_swarm.py
+# Quick start using Make
+make swarm-start      # Start the full swarm (100 agents)
+make swarm-status     # Check swarm status
+make swarm-help       # Show detailed information
 
-# Check swarm status
+# Or use Python directly
+python scripts/run_agent_swarm.py
 python scripts/run_agent_swarm.py --command status
 
 # Start with custom agent count - must be a multiple of 10 (e.g., 10, 20, 30)

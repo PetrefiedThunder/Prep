@@ -1,4 +1,4 @@
-.PHONY: help bootstrap up down migrate check-db smoke-test test lint typecheck health format setup policy.build opa.up db.migrate codex-verify etl.validate api.summary.test api.test api.run run-% clean preflight scan-microservices
+.PHONY: help bootstrap up down migrate check-db smoke-test test lint typecheck health format setup policy.build opa.up db.migrate codex-verify etl.validate api.summary.test api.test api.run run-% clean preflight scan-microservices swarm-start swarm-status swarm-help
 
 # Default target
 help:
@@ -25,6 +25,11 @@ help:
 	@echo ""
 	@echo "Security:"
 	@echo "  scan-microservices  Scan all Node.js microservices for security vulnerabilities"
+	@echo ""
+	@echo "Agent Swarm:"
+	@echo "  swarm-start    Start the agent swarm (100 autonomous monitoring agents)"
+	@echo "  swarm-status   Check agent swarm status and health"
+	@echo "  swarm-help     Show detailed agent swarm documentation"
 	@echo ""
 	@echo "Running Services:"
 	@echo "  api.run        Run main API gateway (port 8080)"
@@ -292,3 +297,36 @@ clean:
 	@find . -type d -name .ruff_cache -exec rm -rf {} + 2>/dev/null || true
 	@rm -rf dist/ build/ .coverage htmlcov/ scan-results/ 2>/dev/null || true
 	@echo "✓ Cleanup complete"
+
+# Agent Swarm commands
+swarm-start:
+	@echo "🤖 Starting agent swarm (100 autonomous monitoring agents)..."
+	@python scripts/run_agent_swarm.py
+
+swarm-status:
+	@echo "🤖 Checking agent swarm status..."
+	@python scripts/run_agent_swarm.py --command status
+
+swarm-help:
+	@echo "🤖 Agent Swarm System - 100 Autonomous Monitoring Agents"
+	@echo ""
+	@echo "The agent swarm provides continuous monitoring across:"
+	@echo "  • Security (10 agents) - Auth, secrets, vulnerabilities"
+	@echo "  • Code Quality (10 agents) - Linting, typing, formatting"
+	@echo "  • Testing (10 agents) - Unit tests, integration tests, coverage"
+	@echo "  • Documentation (10 agents) - API docs, README, inline docs"
+	@echo "  • Compliance (10 agents) - License, privacy, accessibility"
+	@echo "  • API Monitoring (10 agents) - Endpoint health, performance"
+	@echo "  • Database Monitoring (10 agents) - Connections, queries, migrations"
+	@echo "  • Build Monitoring (10 agents) - Builds, deployments, workflows"
+	@echo "  • Performance Monitoring (10 agents) - Response times, resources"
+	@echo "  • Repository Monitoring (10 agents) - Structure, dependencies, branches"
+	@echo ""
+	@echo "Commands:"
+	@echo "  make swarm-start   - Start the agent swarm"
+	@echo "  make swarm-status  - Check swarm status"
+	@echo ""
+	@echo "Documentation:"
+	@echo "  • AGENTS.md - Agent system overview"
+	@echo "  • docs/AGENT_SWARM.md - Complete documentation"
+	@echo "  • docs/AGENT_SWARM_QUICK_REFERENCE.md - Quick reference"
