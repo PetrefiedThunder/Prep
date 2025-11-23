@@ -354,9 +354,7 @@ class ActionExecutor:
             )
 
         except Exception as e:
-            return ExecutionResult(
-                success=False, message="Failed to create file", error=str(e)
-            )
+            return ExecutionResult(success=False, message="Failed to create file", error=str(e))
 
     async def _execute_file_modify(self, action: ProposedAction) -> ExecutionResult:
         """Execute a file modification action."""
@@ -396,9 +394,7 @@ class ActionExecutor:
             )
 
         except Exception as e:
-            return ExecutionResult(
-                success=False, message="Failed to modify file", error=str(e)
-            )
+            return ExecutionResult(success=False, message="Failed to modify file", error=str(e))
 
     async def _execute_file_delete(self, action: ProposedAction) -> ExecutionResult:
         """Execute a file deletion action."""
@@ -438,9 +434,7 @@ class ActionExecutor:
             )
 
         except Exception as e:
-            return ExecutionResult(
-                success=False, message="Failed to delete file", error=str(e)
-            )
+            return ExecutionResult(success=False, message="Failed to delete file", error=str(e))
 
     async def _execute_code_fix(self, action: ProposedAction) -> ExecutionResult:
         """Execute a code fix action (essentially a file modify)."""
@@ -479,9 +473,7 @@ class ActionExecutor:
             return ExecutionResult(success=True, message="Action rolled back successfully")
 
         except Exception as e:
-            return ExecutionResult(
-                success=False, message="Rollback failed", error=str(e)
-            )
+            return ExecutionResult(success=False, message="Rollback failed", error=str(e))
 
 
 __all__ = [

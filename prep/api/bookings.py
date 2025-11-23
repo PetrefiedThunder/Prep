@@ -36,6 +36,7 @@ except ModuleNotFoundError:  # Optional dependency for isolated test runs
 try:
     from prep.observability.metrics import DELIVERIES_COUNTER as _DELIVERIES_COUNTER
 except ModuleNotFoundError:  # Optional dependency for isolated test runs
+
     class _NullCounter:
         def inc(self, amount: int | float = 1) -> None:
             return None

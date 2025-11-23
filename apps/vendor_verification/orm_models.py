@@ -20,6 +20,7 @@ from prep.models.guid import GUID
 # Use a separate declarative base to avoid conflicts with existing models
 class Base(DeclarativeBase):
     """Base class for vendor verification models."""
+
     pass
 
 

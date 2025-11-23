@@ -36,7 +36,11 @@ def __getattr__(name: str) -> Any:  # pragma: no cover - thin convenience wrappe
         from .dashboard_db_api import router as attr
 
         return attr
-    if name in {"CertificationVerificationAPI", "certification_router", "get_certification_verification_api"}:
+    if name in {
+        "CertificationVerificationAPI",
+        "certification_router",
+        "get_certification_verification_api",
+    }:
         try:
             from .certification_api import (
                 CertificationVerificationAPI as cert_api,
