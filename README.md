@@ -311,11 +311,13 @@ npm run test:e2e               # Playwright E2E tests
 
 ### Security Posture
 
-**Latest Security Audit (Nov 2025):**
+**Latest Security Audit (Nov 23, 2025):**
 - ✅ **0 HIGH severity vulnerabilities**
 - ✅ **2 MEDIUM issues** (false positives, documented)
 - ✅ **Zero linting errors** (down from 974)
 - ✅ **100% reduction** in auto-fixable issues
+- ✅ **Clean repository** (694k lines of bloat removed)
+- ⚠️ **8 Dependabot alerts** (3 high, 5 moderate) - tracked in GitHub Security tab
 
 ### Authentication & Authorization
 
@@ -377,6 +379,13 @@ class BookingRequest(BaseModel):
 
 ### November 2025 Updates
 
+**Repository Cleanup (PR #561, Latest)**
+- ✅ **Removed 694,253 lines of node_modules bloat** (8,970 files)
+- ✅ **Improved .gitignore** for better Node.js and package management
+- ✅ **Fixed NameError bugs** (StaticPool import, cert_getter fallback)
+- ✅ **Validated code quality** with syntax checks and import verification
+- ✅ **Clean commit history** with proper branch management
+
 **Code Quality (PR #499)**
 - ✅ **100% reduction in linting errors** (276 → 0)
 - ✅ **89% reduction in medium security issues** (19 → 2)
@@ -395,50 +404,40 @@ class BookingRequest(BaseModel):
 - ✅ Comprehensive Claude Code configuration (.claude/)
 - ✅ Database compatibility improvements
 - ✅ Enhanced test coverage for auth paths
+- ✅ OPA (Open Policy Agent) policy validation
+- ✅ GitHub Actions CI/CD improvements
 
 **Documentation**
 - ✅ Implementation status assessment (25-35% MVP complete)
 - ✅ MVP happy path implementation guide
 - ✅ Critical bug fixes documentation
 - ✅ Claude Code setup and agent profiles
+- ✅ Updated README with conflict resolution
 
 ---
 
 ## 📊 Project Status
 
-<<<<<<< HEAD
 ### Current State (November 2025)
 
 **Overall MVP Completion: ~25-35%**
 
-=======
-### Current State (November 19, 2025)
-
-**Overall MVP Completion: ~25-35%**
-
+**Key Insights:**
 - ✅ **Data layer is real, not stubbed**: PrepChef microservices connect to PostgreSQL (with Redis locks for availability) and the payments webhook path persists to Postgres.
 - ⚠️ **Frontend is still mock-only**: HarborHomes routes and mock-data utilities serve static responses; no backend connectivity is wired yet.
 - ⚠️ **Integrations remain placeholders**: San Francisco portal clients return canned data and the AI agent framework is a stub with synthetic responses.
 - ❌ **End-to-end flows are incomplete**: No user journey runs from signup → booking → payment without manual intervention.
 
->>>>>>> origin/main
 | Component | Status | Notes |
 |-----------|--------|-------|
 | **Database Schemas** | ✅ 90% | Prisma (17 models) + SQLAlchemy (40+ models) |
 | **Authentication** | ✅ 70% | JWT + DB validation, auth-svc functional |
 | **Federal Compliance** | ✅ 80% | FDA tracking, authority chains |
 | **City Compliance** | ✅ 75% | 8+ cities, cost estimation |
-<<<<<<< HEAD
-| **Booking Engine** | ⚠️ 40% | Conflict detection exists, needs API wiring |
-| **Payment Processing** | ⚠️ 50% | Python service ready (bugs fixed), TS service mock |
-| **Admin Workflows** | ⚠️ 30% | OCR works, needs queue UI |
-| **Frontend** | ❌ 20% | Next.js structure ready, mostly mocked |
-=======
-| **Booking Engine** | ⚠️ 40% | Conflict detection + Postgres/Redis wiring; still not exposed end-to-end |
-| **Payment Processing** | ⚠️ 50% | Python service hardened; TS service partly mock but DB-backed webhooks |
+| **Booking Engine** | ⚠️ 40% | Conflict detection + Postgres/Redis wiring; needs end-to-end API exposure |
+| **Payment Processing** | ⚠️ 50% | Python service hardened (bugs fixed); TS service partly mock but DB-backed webhooks |
 | **Admin Workflows** | ⚠️ 30% | OCR works, needs queue UI |
 | **Frontend** | ❌ 20% | Next.js structure ready, currently mock data only |
->>>>>>> origin/main
 | **E2E Flows** | ❌ 15% | No complete user journeys wired |
 
 ### Active Work
@@ -597,8 +596,4 @@ Special thanks to all contributors and the open-source community.
 
 **Prep** – Simplifying compliance for the commercial kitchen sharing economy.
 
-<<<<<<< HEAD
-*Last Updated: November 2025*
-=======
-*Last Updated: November 19, 2025*
->>>>>>> origin/main
+*Last Updated: November 23, 2025*
