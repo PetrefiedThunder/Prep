@@ -6,6 +6,10 @@
 
 .venv
 
+# Node.js
+node_modules/
+package-lock.json
+
 # Security scan results
 scan-results/
 

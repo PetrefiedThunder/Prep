@@ -51,11 +51,11 @@ async def main():
         agent_type = agent.__class__.__name__.replace("Agent", "").lower()
         agent_id = coordinator.register_agent(
             agent=agent,
-            agent_name=f"{agent_type}_{i+1:02d}",
+            agent_name=f"{agent_type}_{i + 1:02d}",
             agent_type=agent_type,
             capabilities=[agent_type],
         )
-        logger.info(f"Registered: {agent_type}_{i+1:02d} ({agent_id})")
+        logger.info(f"Registered: {agent_type}_{i + 1:02d} ({agent_id})")
 
     # Start coordinator
     await coordinator.start()

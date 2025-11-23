@@ -262,13 +262,9 @@ class User(TimestampMixin, Base):
     __tablename__ = "users"
 
     id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
-    email: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False, index=True
-    )
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    hashed_password: Mapped[str] = mapped_column(
-        String(255), nullable=False, default="hashed"
-    )
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False, default="hashed")
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole), default=UserRole.CUSTOMER, nullable=False
     )
@@ -392,9 +388,7 @@ class UserIdentity(TimestampMixin, Base):
         "IdentityProvider", back_populates="identities"
     )
 
-    __table_args__ = (
-        UniqueConstraint("provider_id", "subject", name="uq_user_identity_subject"),
-    )
+    __table_args__ = (UniqueConstraint("provider_id", "subject", name="uq_user_identity_subject"),)
 
 
 class APIKey(TimestampMixin, Base):
@@ -426,9 +420,7 @@ class RefreshToken(TimestampMixin, Base):
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     token_hash: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     device_fingerprint: Mapped[str | None] = mapped_column(String(255))
@@ -450,9 +442,7 @@ class BusinessPermit(TimestampMixin, Base):
     jurisdiction: Mapped[str | None] = mapped_column(String(120))
     issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    status: Mapped[PermitStatus] = mapped_column(
-        Enum(PermitStatus), default=PermitStatus.PENDING
-    )
+    status: Mapped[PermitStatus] = mapped_column(Enum(PermitStatus), default=PermitStatus.PENDING)
     permit_metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
     business: Mapped[BusinessProfile] = relationship(
@@ -464,9 +454,7 @@ class PaymentRecord(TimestampMixin, Base):
     __tablename__ = "payment_records"
 
     id: Mapped[UUID] = mapped_column(GUID(), primary_key=True, default=uuid4)
-    business_id: Mapped[UUID | None] = mapped_column(
-        GUID(), ForeignKey("business_profiles.id")
-    )
+    business_id: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("business_profiles.id"))
     booking_id: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("bookings.id"))
     provider_payment_id: Mapped[str | None] = mapped_column(String(255))
     provider: Mapped[str | None] = mapped_column(String(120))
@@ -521,13 +509,9 @@ class Kitchen(TimestampMixin, Base):
     rejection_reason: Mapped[str | None] = mapped_column(Text)
     compliance_status: Mapped[str | None] = mapped_column(String(32), default="unknown")
     risk_score: Mapped[int | None] = mapped_column(Integer)
-    last_compliance_check: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    last_compliance_check: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     health_permit_number: Mapped[str | None] = mapped_column(String(120))
-    last_inspection_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    last_inspection_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     insurance_info: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     zoning_type: Mapped[str | None] = mapped_column(String(120))
     delivery_only: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -598,9 +582,7 @@ class POSIntegration(TimestampMixin, Base):
     )
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON)
 
-    kitchen: Mapped[Kitchen] = relationship(
-        "Kitchen", back_populates="pos_integrations"
-    )
+    kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="pos_integrations")
     transactions: Mapped[list[POSTransaction]] = relationship(
         "POSTransaction", back_populates="integration", cascade="all, delete-orphan"
     )
@@ -609,9 +591,7 @@ class POSIntegration(TimestampMixin, Base):
     )
 
     __table_args__ = (
-        UniqueConstraint(
-            "kitchen_id", "provider", name="uq_pos_integration_kitchen_provider"
-        ),
+        UniqueConstraint("kitchen_id", "provider", name="uq_pos_integration_kitchen_provider"),
     )
 
 
@@ -631,22 +611,16 @@ class POSTransaction(TimestampMixin, Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="completed", nullable=False)
-    occurred_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     raw_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     integration: Mapped[POSIntegration] = relationship(
         "POSIntegration", back_populates="transactions"
     )
-    kitchen: Mapped[Kitchen] = relationship(
-        "Kitchen", back_populates="pos_transactions"
-    )
+    kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="pos_transactions")
 
     __table_args__ = (
-        UniqueConstraint(
-            "provider", "external_id", name="uq_pos_transaction_provider_external"
-        ),
+        UniqueConstraint("provider", "external_id", name="uq_pos_transaction_provider_external"),
         Index("ix_pos_transactions_kitchen_occurred_at", "kitchen_id", "occurred_at"),
     )
 
@@ -675,14 +649,10 @@ class POSOrder(TimestampMixin, Base):
     raw_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="pos_orders")
-    integration: Mapped[POSIntegration] = relationship(
-        "POSIntegration", back_populates="orders"
-    )
+    integration: Mapped[POSIntegration] = relationship("POSIntegration", back_populates="orders")
 
     __table_args__ = (
-        UniqueConstraint(
-            "provider", "external_id", name="uq_pos_order_provider_external"
-        ),
+        UniqueConstraint("provider", "external_id", name="uq_pos_order_provider_external"),
         Index("ix_pos_orders_kitchen_closed_at", "kitchen_id", "closed_at"),
     )
 
@@ -730,18 +700,12 @@ class InventoryItem(TimestampMixin, Base):
     category: Mapped[str | None] = mapped_column(String(120))
     unit: Mapped[str] = mapped_column(String(32), nullable=False)
     par_level: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
-    total_quantity: Mapped[Decimal] = mapped_column(
-        Numeric(12, 3), default=Decimal("0")
-    )
+    total_quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("0"))
     oldest_expiry: Mapped[date | None] = mapped_column(Date)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    shared_shelf_available: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False
-    )
+    shared_shelf_available: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    supplier: Mapped[Supplier | None] = relationship(
-        "Supplier", back_populates="inventory_items"
-    )
+    supplier: Mapped[Supplier | None] = relationship("Supplier", back_populates="inventory_items")
     kitchen: Mapped[Kitchen] = relationship("Kitchen")
     host: Mapped[User] = relationship("User")
     lots: Mapped[list[InventoryLot]] = relationship(
@@ -816,9 +780,7 @@ class InventoryTransfer(TimestampMixin, Base):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     notes: Mapped[str | None] = mapped_column(Text)
 
-    item: Mapped[InventoryItem] = relationship(
-        "InventoryItem", back_populates="transfers"
-    )
+    item: Mapped[InventoryItem] = relationship("InventoryItem", back_populates="transfers")
     from_kitchen: Mapped[Kitchen] = relationship(
         "Kitchen", foreign_keys=[from_kitchen_id], lazy="joined"
     )
@@ -895,22 +857,12 @@ class Booking(TimestampMixin, Base):
     status: Mapped[BookingStatus] = mapped_column(
         Enum(BookingStatus), default=BookingStatus.PENDING, nullable=False
     )
-    start_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    total_amount: Mapped[Decimal] = mapped_column(
-        Numeric(10, 2), default=Decimal("0.00")
-    )
-    platform_fee: Mapped[Decimal] = mapped_column(
-        Numeric(10, 2), default=Decimal("0.00")
-    )
-    host_payout_amount: Mapped[Decimal] = mapped_column(
-        Numeric(10, 2), default=Decimal("0.00")
-    )
-    payment_method: Mapped[str] = mapped_column(
-        String(50), default="card", nullable=False
-    )
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
+    platform_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
+    host_payout_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
+    payment_method: Mapped[str] = mapped_column(String(50), default="card", nullable=False)
     payment_intent_id: Mapped[str | None] = mapped_column(String(255))
     paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     source: Mapped[str | None] = mapped_column(String(120))
@@ -953,9 +905,7 @@ class APIUsageEvent(TimestampMixin, Base):
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(
-        "metadata", JSON, default=dict
-    )
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON, default=dict)
 
     user: Mapped[User] = relationship("User", back_populates="api_usage_events")
 
@@ -973,16 +923,12 @@ class RecurringBookingTemplate(TimestampMixin, Base):
     customer_id: Mapped[UUID] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    start_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     rrule: Mapped[str] = mapped_column(Text, nullable=False)
     buffer_minutes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
-    kitchen: Mapped[Kitchen] = relationship(
-        "Kitchen", back_populates="recurring_templates"
-    )
+    kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="recurring_templates")
     host: Mapped[User] = relationship("User", foreign_keys=[host_id])
     customer: Mapped[User] = relationship("User", foreign_keys=[customer_id])
 
@@ -1133,9 +1079,7 @@ class KitchenModerationEvent(TimestampMixin, Base):
     reason: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
 
-    kitchen: Mapped[Kitchen] = relationship(
-        "Kitchen", back_populates="moderation_events"
-    )
+    kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="moderation_events")
     admin: Mapped[User] = relationship("User", back_populates="moderation_events")
 
 
@@ -1161,9 +1105,7 @@ class ComplianceDocument(TimestampMixin, Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     notes: Mapped[str | None] = mapped_column(Text)
 
-    kitchen: Mapped[Kitchen] = relationship(
-        "Kitchen", back_populates="compliance_documents"
-    )
+    kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="compliance_documents")
     uploader: Mapped[User | None] = relationship("User", foreign_keys=[uploader_id])
     reviewer: Mapped[User | None] = relationship("User", foreign_keys=[reviewer_id])
 
@@ -1183,9 +1125,7 @@ class SanitationLog(TimestampMixin, Base):
     inspector_name: Mapped[str | None] = mapped_column(String(120))
     status: Mapped[str] = mapped_column(String(32), default="passed", nullable=False)
     notes: Mapped[str | None] = mapped_column(Text)
-    follow_up_required: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False
-    )
+    follow_up_required: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     kitchen: Mapped[Kitchen] = relationship("Kitchen", back_populates="sanitation_logs")
 
@@ -1278,16 +1218,12 @@ class LedgerEntry(TimestampMixin, Base):
     credit_account: Mapped[str] = mapped_column(String(120), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
-    revenue_type: Mapped[RevenueType | None] = mapped_column(
-        Enum(RevenueType), nullable=True
-    )
+    revenue_type: Mapped[RevenueType | None] = mapped_column(Enum(RevenueType), nullable=True)
     expense_category: Mapped[str | None] = mapped_column(String(120))
     external_reference: Mapped[str | None] = mapped_column(String(120))
     details: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
 
-    booking: Mapped[Booking | None] = relationship(
-        "Booking", back_populates="ledger_entries"
-    )
+    booking: Mapped[Booking | None] = relationship("Booking", back_populates="ledger_entries")
 
     __table_args__ = (
         UniqueConstraint(
@@ -1334,9 +1270,7 @@ class RegDoc(Base):
     requirement_text: Mapped[str] = mapped_column(Text, nullable=False)
     effective_date: Mapped[date | None] = mapped_column(Date)
     citation_url: Mapped[str | None] = mapped_column(Text)
-    sha256_hash: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
-    )
+    sha256_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     inserted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
@@ -1349,12 +1283,8 @@ class DeliveryOrder(TimestampMixin, Base):
     booking_id: Mapped[UUID | None] = mapped_column(
         GUID(), ForeignKey("bookings.id", ondelete="SET NULL")
     )
-    external_order_id: Mapped[str] = mapped_column(
-        String(128), unique=True, nullable=False
-    )
-    provider: Mapped[DeliveryProvider] = mapped_column(
-        Enum(DeliveryProvider), nullable=False
-    )
+    external_order_id: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    provider: Mapped[DeliveryProvider] = mapped_column(Enum(DeliveryProvider), nullable=False)
     provider_delivery_id: Mapped[str | None] = mapped_column(String(128))
     status: Mapped[DeliveryStatus] = mapped_column(
         Enum(DeliveryStatus), default=DeliveryStatus.CREATED, nullable=False
@@ -1394,14 +1324,10 @@ class DeliveryStatusEvent(TimestampMixin, Base):
     )
     status: Mapped[DeliveryStatus] = mapped_column(Enum(DeliveryStatus), nullable=False)
     provider_status: Mapped[str] = mapped_column(String(128), nullable=False)
-    occurred_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     raw_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
 
-    delivery: Mapped[DeliveryOrder] = relationship(
-        "DeliveryOrder", back_populates="status_events"
-    )
+    delivery: Mapped[DeliveryOrder] = relationship("DeliveryOrder", back_populates="status_events")
 
 
 class DeliveryComplianceEvent(TimestampMixin, Base):
@@ -1414,12 +1340,8 @@ class DeliveryComplianceEvent(TimestampMixin, Base):
     courier_identity: Mapped[str] = mapped_column(String(255), nullable=False)
     verification_type: Mapped[str] = mapped_column(String(64), nullable=False)
     verification_reference: Mapped[str | None] = mapped_column(String(255))
-    occurred_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(
-        "metadata", JSON, default=dict
-    )
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON, default=dict)
 
     delivery: Mapped[DeliveryOrder] = relationship(
         "DeliveryOrder", back_populates="compliance_events"
@@ -1442,9 +1364,7 @@ class BusinessProfile(TimestampMixin, Base):
     doing_business_as: Mapped[str | None] = mapped_column(String(255))
     country: Mapped[str] = mapped_column(String(2), default="US", nullable=False)
     region: Mapped[str | None] = mapped_column(String(64))
-    readiness_stage: Mapped[str] = mapped_column(
-        String(64), default="not_ready", nullable=False
-    )
+    readiness_stage: Mapped[str] = mapped_column(String(64), default="not_ready", nullable=False)
     readiness_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     readiness_summary: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
 
@@ -1499,9 +1419,7 @@ class DocumentUpload(TimestampMixin, Base):
     ocr_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
     notes: Mapped[str | None] = mapped_column(Text)
 
-    business: Mapped[BusinessProfile] = relationship(
-        "BusinessProfile", back_populates="documents"
-    )
+    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="documents")
     uploader: Mapped[User | None] = relationship("User")
 
 
@@ -1531,9 +1449,7 @@ class Permit(TimestampMixin, Base):
     )
     permit_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
 
-    business: Mapped[BusinessProfile] = relationship(
-        "BusinessProfile", back_populates="permits"
-    )
+    business: Mapped[BusinessProfile] = relationship("BusinessProfile", back_populates="permits")
     document: Mapped[DocumentUpload | None] = relationship("DocumentUpload")
 
 
@@ -1580,16 +1496,12 @@ class CheckoutPayment(TimestampMixin, Base):
     currency: Mapped[str] = mapped_column(String(3), default="usd", nullable=False)
     total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     line_items: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
-    payment_provider: Mapped[str] = mapped_column(
-        String(64), default="stripe", nullable=False
-    )
+    payment_provider: Mapped[str] = mapped_column(String(64), default="stripe", nullable=False)
     provider_reference: Mapped[str | None] = mapped_column(String(255))
     receipt_url: Mapped[str | None] = mapped_column(String(255))
     payment_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
     refund_reason: Mapped[str | None] = mapped_column(String(255))
-    refund_requested_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    refund_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     business: Mapped[BusinessProfile | None] = relationship(
