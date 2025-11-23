@@ -56,7 +56,7 @@ jobs:
           echo ""
           
           # Check if test bundles exist
-          if [ -d tests/policy/sf_bay_area/bundles ] && [ "$(ls -A tests/policy/sf_bay_area/bundles 2>/dev/null)" ]; then
+          if [ -d tests/policy/sf_bay_area/bundles ] && [ -n "$(ls -A tests/policy/sf_bay_area/bundles 2>/dev/null)" ]; then
             echo "✓ Found test policy bundles in tests/policy/sf_bay_area/bundles/"
             exit 0
           fi
