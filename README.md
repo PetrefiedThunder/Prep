@@ -9,6 +9,40 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue.svg)](https://www.typescriptlang.org/)
 [![Code Quality](https://img.shields.io/badge/ruff-passing-green.svg)](https://github.com/astral-sh/ruff)
 [![Security](https://img.shields.io/badge/security-0%20HIGH-green.svg)](./SECURITY.md)
+[![MVP Target](https://img.shields.io/badge/MVP%20Target-Dec%207%202025-orange.svg)](https://github.com/PetrefiedThunder/Prep/milestones)
+[![Coverage](https://img.shields.io/badge/coverage-51%25-yellow.svg)](./tests/)
+
+---
+
+## 🚨 MVP OR BUST – Dec 7 2025
+
+**We're in a 10-day YC-style sprint to ship the MVP by December 7, 2025, 11:59 PM PT.**
+
+### 🎯 Definition of Done
+A non-founder can complete a real $100+ booking in Stripe test mode, end-to-end, with **zero manual intervention**:
+
+✅ Signup → Search → Book → Pay → Receipt (runs in Playwright CI)
+✅ No mocks, no manual steps
+✅ Three services only (FastAPI + Next.js + Postgres/Redis)
+✅ Test coverage ≥55%, E2E pass rate ≥95%
+
+### 🚀 Bootstrap the Sprint
+
+```bash
+# Create the milestone and 10 issues automatically
+python3 scripts/bootstrap_mvp.py YOUR_GITHUB_TOKEN
+
+# See full instructions
+cat scripts/BOOTSTRAP_README.md
+```
+
+**The bootstrap script creates:**
+- 1 milestone: "MVP OR BUST – Dec 7 2025"
+- 10 prioritized issues (6 P0, 2 P1, 2 P2)
+- Complete dependency mapping
+- Clear acceptance criteria for each task
+
+👉 **[View Milestone & Issues](https://github.com/PetrefiedThunder/Prep/milestones)** (after running bootstrap)
 
 ---
 
@@ -27,6 +61,7 @@ Prep is an enterprise-grade platform connecting certified commercial kitchens wi
 
 ## 📋 Table of Contents
 
+- [MVP OR BUST – Dec 7 2025](#mvp-or-bust--dec-7-2025)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
@@ -406,57 +441,44 @@ class BookingRequest(BaseModel):
 
 ## 📊 Project Status
 
-<<<<<<< HEAD
-### Current State (November 2025)
+### Current State – Nov 23 2025
 
 **Overall MVP Completion: ~25-35%**
 
-=======
-### Current State (November 19, 2025)
+**Reality Check:**
+- ✅ **Data layer is real, not stubbed**: PrepChef microservices connect to PostgreSQL (with Redis locks for availability) and the payments webhook path persists to Postgres
+- ⚠️ **Frontend is still mock-only**: HarborHomes routes and mock-data utilities serve static responses; no backend connectivity is wired yet
+- ⚠️ **Integrations remain placeholders**: San Francisco portal clients return canned data and the AI agent framework is a stub with synthetic responses
+- ❌ **End-to-end flows are incomplete**: No user journey runs from signup → booking → payment without manual intervention
 
-**Overall MVP Completion: ~25-35%**
-
-- ✅ **Data layer is real, not stubbed**: PrepChef microservices connect to PostgreSQL (with Redis locks for availability) and the payments webhook path persists to Postgres.
-- ⚠️ **Frontend is still mock-only**: HarborHomes routes and mock-data utilities serve static responses; no backend connectivity is wired yet.
-- ⚠️ **Integrations remain placeholders**: San Francisco portal clients return canned data and the AI agent framework is a stub with synthetic responses.
-- ❌ **End-to-end flows are incomplete**: No user journey runs from signup → booking → payment without manual intervention.
-
->>>>>>> origin/main
 | Component | Status | Notes |
 |-----------|--------|-------|
 | **Database Schemas** | ✅ 90% | Prisma (17 models) + SQLAlchemy (40+ models) |
 | **Authentication** | ✅ 70% | JWT + DB validation, auth-svc functional |
 | **Federal Compliance** | ✅ 80% | FDA tracking, authority chains |
 | **City Compliance** | ✅ 75% | 8+ cities, cost estimation |
-<<<<<<< HEAD
-| **Booking Engine** | ⚠️ 40% | Conflict detection exists, needs API wiring |
-| **Payment Processing** | ⚠️ 50% | Python service ready (bugs fixed), TS service mock |
-| **Admin Workflows** | ⚠️ 30% | OCR works, needs queue UI |
-| **Frontend** | ❌ 20% | Next.js structure ready, mostly mocked |
-=======
-| **Booking Engine** | ⚠️ 40% | Conflict detection + Postgres/Redis wiring; still not exposed end-to-end |
+| **Booking Engine** | ⚠️ 40% | Conflict detection + Postgres/Redis wiring; needs full API exposure |
 | **Payment Processing** | ⚠️ 50% | Python service hardened; TS service partly mock but DB-backed webhooks |
 | **Admin Workflows** | ⚠️ 30% | OCR works, needs queue UI |
 | **Frontend** | ❌ 20% | Next.js structure ready, currently mock data only |
->>>>>>> origin/main
 | **E2E Flows** | ❌ 15% | No complete user journeys wired |
 
-### Active Work
+### 🎯 MVP Sprint Focus (Dec 7 Target)
 
-**Current Focus:**
-1. Database connectivity standardization (Prisma)
-2. Real Stripe integration in TypeScript services
-3. End-to-end MVP happy path implementation
-4. Frontend integration with real APIs
-5. Test coverage improvements (target: 80%+)
+**Critical Path to Shipping:**
+1. ✅ Bootstrap MVP milestone and issues (scripts ready)
+2. Remove merge conflicts and clean repository
+3. Collapse to 3 core services (FastAPI + Next.js + DB)
+4. Implement 6 real API endpoints (auth, search, booking, payment, webhook, receipt)
+5. Seed 5 realistic SF kitchen listings
+6. Wire frontend to real APIs (remove all mocks)
+7. Build E2E test pipeline (Playwright + pytest)
+8. Ship v0.3.0-mvp-candidate
 
-**Next Milestones:**
-- [ ] Complete user registration flow
-- [ ] Wire booking service to payments
-- [ ] Implement kitchen listing creation
-- [ ] Add file upload for photos/documents
-- [ ] Create first E2E test for booking flow
-- [ ] Deploy staging environment
+**Use the bootstrap scripts to get started:**
+```bash
+python3 scripts/bootstrap_mvp.py YOUR_GITHUB_TOKEN
+```
 
 ---
 
@@ -464,6 +486,7 @@ class BookingRequest(BaseModel):
 
 ### Core Documentation
 
+- **[scripts/BOOTSTRAP_README.md](./scripts/BOOTSTRAP_README.md)** - MVP milestone bootstrap guide (START HERE!)
 - **[CLAUDE.md](./CLAUDE.md)** - Quick reference for Claude Code development sessions
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Contribution guidelines and standards
 - **[SECURITY.md](./SECURITY.md)** - Security policies and reporting
@@ -597,8 +620,4 @@ Special thanks to all contributors and the open-source community.
 
 **Prep** – Simplifying compliance for the commercial kitchen sharing economy.
 
-<<<<<<< HEAD
-*Last Updated: November 2025*
-=======
-*Last Updated: November 19, 2025*
->>>>>>> origin/main
+*Last Updated: November 23, 2025*
