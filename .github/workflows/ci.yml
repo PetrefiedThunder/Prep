@@ -30,9 +30,9 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          # Pin botocore to be compatible with aiobotocore==2.25.2 to avoid CI resolver warnings
+          # Pin botocore first to prevent other packages from upgrading it beyond aiobotocore==2.25.2 compatibility
           pip install "botocore<1.40.71"
+          pip install -r requirements.txt
           pip install -e .
       - name: Install OPA CLI
         run: |
@@ -50,16 +50,20 @@ jobs:
             exit 0
           fi
           echo "policies.rego not found; attempting to build bundle if opa CLI is available"
-          if command -v ./opa >/dev/null 2>&1; then
+          if [ -x ./opa ]; then
             echo "opa found, building bundle: opa build apps/policy -o apps/policy/bundle"
-            if ./opa build apps/policy -o apps/policy/bundle 2>&1; then
+            set +e
+            ./opa build apps/policy -o apps/policy/bundle
+            build_exit=$?
+            set -e
+            if [ $build_exit -eq 0 ]; then
               if [ -f apps/policy/bundle/policies.rego ]; then
                 echo "Bundle built successfully"
                 exit 0
               fi
               echo "opa build succeeded but did not produce apps/policy/bundle/policies.rego"
             else
-              echo "opa build failed with exit code $?"
+              echo "opa build failed with exit code $build_exit"
             fi
           else
             echo "opa CLI not found in PATH; cannot build bundle automatically"
