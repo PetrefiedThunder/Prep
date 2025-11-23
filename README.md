@@ -297,6 +297,41 @@ git push origin feature/your-feature
 | **TypeScript** | Prettier | tsc (strict) | 80%+ |
 | **Commits** | Conventional Commits | - | - |
 
+### Agent Swarm
+
+The repository includes a comprehensive agent swarm system with **100 autonomous monitoring agents** that continuously monitor and maintain all aspects of the codebase.
+
+```bash
+# Quick start using Make
+make swarm-start      # Start the full swarm (100 agents)
+make swarm-status     # Check swarm status
+make swarm-help       # Show detailed information
+
+# Or use Python directly
+python scripts/run_agent_swarm.py
+python scripts/run_agent_swarm.py --command status
+
+# Start with custom agent count - use multiples of 10 for full distribution (e.g., 10, 20, 30)
+python scripts/run_agent_swarm.py --num-agents 10
+```
+
+**Agent Distribution:**
+- 🔐 **10 Security Agents** - Auth, secrets, vulnerabilities
+- 📝 **10 Code Quality Agents** - Linting, typing, formatting
+- 🧪 **10 Testing Agents** - Unit tests, integration tests, coverage
+- 📚 **10 Documentation Agents** - API docs, README, inline docs
+- ⚖️ **10 Compliance Agents** - License, privacy, accessibility
+- 🌐 **10 API Monitor Agents** - Endpoint health, performance
+- 🗄️ **10 Database Monitor Agents** - Connections, queries, migrations
+- 🏗️ **10 Build Monitor Agents** - Builds, deployments, workflows
+- ⚡ **10 Performance Monitor Agents** - Response times, resources
+- 📦 **10 Repository Monitor Agents** - Structure, dependencies, branches
+
+**Learn More:**
+- [AGENTS.md](./AGENTS.md) - Agent system overview
+- [docs/AGENT_SWARM.md](./docs/AGENT_SWARM.md) - Complete documentation
+- [docs/AGENT_SWARM_QUICK_REFERENCE.md](./docs/AGENT_SWARM_QUICK_REFERENCE.md) - Quick reference guide
+
 ---
 
 ## 🧪 Testing
