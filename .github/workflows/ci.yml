@@ -13,16 +13,9 @@ jobs:
     strategy:
       matrix:
         service:
-          - apps/ingestion_service
-          - apps/graph_service
-          - apps/obligation_extractor
-          - apps/formalizer
-          - apps/policy_engine
-          - apps/provenance_ledger
-          - apps/zk_proofs
-          - apps/monitor
-          - apps/predictor
-          - apps/twin
+          - apps/city_regulatory_service
+          - apps/federal_regulatory_service
+          - apps/vendor_verification
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -44,74 +37,51 @@ jobs:
           ./opa version
       - name: Verify OPA policy bundle
         run: |
-          echo "Checking for policy bundles..."
-          echo ""
-          echo "Checking tests/policy/sf_bay_area/bundles/:"
-          ls -la tests/policy/sf_bay_area/bundles/ 2>/dev/null || echo "  Directory does not exist"
-          echo ""
-          echo "Checking apps/policy/:"
-          ls -la apps/policy 2>/dev/null || echo "  Directory does not exist"
-          echo ""
-          echo "Checking apps/policy/bundle/:"
-          ls -la apps/policy/bundle 2>/dev/null || echo "  Directory does not exist"
-          echo ""
-          
-          # Check if test bundles exist
-          if [ -d tests/policy/sf_bay_area/bundles ] && [ -n "$(ls -A tests/policy/sf_bay_area/bundles 2>/dev/null)" ]; then
-            echo "✓ Found test policy bundles in tests/policy/sf_bay_area/bundles/"
-            exit 0
-          fi
-          
-          # Check if apps/policy bundle exists
+          echo "Checking for apps/policy/bundle/policies.rego"
+          ls -la apps/policy || true
+          ls -la apps/policy/bundle || true
           if [ -f apps/policy/bundle/policies.rego ]; then
-            echo "✓ Found apps/policy/bundle/policies.rego"
+            echo "Found policies.rego"
             exit 0
           fi
-          
-          # No bundles found - fail with helpful message
-          echo "" >&2
-          echo "❌ ERROR: Missing OPA policy bundles" >&2
-          echo "" >&2
-          echo "The OPA server requires policy bundles to start, but none were found." >&2
-          echo "" >&2
-          echo "Expected locations:" >&2
-          echo "  - tests/policy/sf_bay_area/bundles/* (for test bundles)" >&2
-          echo "  - apps/policy/bundle/policies.rego (for app bundles)" >&2
-          echo "" >&2
-          echo "The repository is missing the apps/policy directory structure." >&2
-          echo "" >&2
-          echo "To fix locally:" >&2
-          echo "  1. Ensure apps/policy directory exists with policy source files" >&2
-          echo "  2. Run any required policy build/compilation steps" >&2
-          echo "  3. Ensure apps/policy/bundle/policies.rego is generated" >&2
-          echo "" >&2
-          echo "If policies are not needed for your service, the workflow may need to be updated" >&2
-          echo "to make OPA optional or to skip this step for services that don't require policies." >&2
-          echo "" >&2
+          echo "policies.rego not found; attempting to build bundle if opa CLI is available"
+          if command -v opa >/dev/null 2>&1; then
+            echo "opa found, building bundle: opa build apps/policy -o apps/policy/bundle"
+            opa build apps/policy -o apps/policy/bundle || true
+            if [ -f apps/policy/bundle/policies.rego ]; then
+              echo "Bundle built successfully"
+              exit 0
+            fi
+            echo "opa build did not produce apps/policy/bundle/policies.rego"
+          else
+            echo "opa CLI not found in PATH; cannot build bundle automatically"
+          fi
+          echo "Missing apps/policy/bundle/policies.rego — ensure the policy bundle is produced before starting OPA (run: opa build apps/policy -o apps/policy/bundle)" >&2
           exit 1
       - name: Start OPA server
         run: |
           set -euo pipefail
           shopt -s nullglob
-          bundles=(tests/policy/sf_bay_area/bundles/*)
+          bundles=(apps/city_regulatory_service/jurisdictions/*/policy.rego)
           shopt -u nullglob
-          if [ "${#bundles[@]}" -eq 0 ]; then
-            bundles=(apps/policy/bundle/policies.rego)
-          fi
-          ./opa run --server --addr=127.0.0.1:8181 "${bundles[@]}" > opa.log 2>&1 &
-          echo $! > opa.pid
-          ready=0
-          for _ in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:8181/health?plugins > /dev/null; then
-              ready=1
-              break
+          if [ "${#bundles[@]}" -gt 0 ]; then
+            ./opa run --server --addr=127.0.0.1:8181 "${bundles[@]}" > opa.log 2>&1 &
+            echo $! > opa.pid
+            ready=0
+            for _ in $(seq 1 30); do
+              if curl -sf http://127.0.0.1:8181/health?plugins > /dev/null; then
+                ready=1
+                break
+              fi
+              sleep 1
+            done
+            if [ "$ready" -ne 1 ]; then
+              echo "OPA server failed to start" >&2
+              cat opa.log >&2 || true
+              exit 1
             fi
-            sleep 1
-          done
-          if [ "$ready" -ne 1 ]; then
-            echo "OPA server failed to start" >&2
-            cat opa.log >&2 || true
-            exit 1
+          else
+            echo "No OPA policy files found, skipping OPA server startup"
           fi
       - name: Run pytest
         run: |
