@@ -30,6 +30,11 @@ def _reset_settings_cache() -> Iterator[None]:
         get_settings.cache_clear()
 
 
+@pytest.fixture(autouse=True)
+def _disable_certificate_issuance(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("prep.api.bookings._issue_certificate_for_booking_sync", None)
+
+
 @pytest.fixture()
 async def app() -> AsyncGenerator[FastAPI, None]:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
@@ -132,6 +137,21 @@ async def test_booking_unrestricted_when_flag_disabled(
 
     response = await _post_booking(client, user_id, kitchen_id, start, end)
     assert response.status_code == 201
+
+
+async def test_booking_rejects_invalid_time_window(
+    app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_flag(monkeypatch, False)
+    user_id, kitchen_id = await _create_user_and_kitchen(app)
+
+    start = datetime.now(UTC).replace(hour=9, minute=0, second=0, microsecond=0)
+    end = start - timedelta(hours=1)
+
+    response = await _post_booking(client, user_id, kitchen_id, start, end)
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "end_time must be after start_time"
 
 
 async def test_booking_restricted_to_weekdays_when_flag_enabled(

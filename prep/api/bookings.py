@@ -277,6 +277,14 @@ async def create_booking(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid identifier"
         ) from exc
 
+    normalized_start = _ensure_timezone(booking_data.start_time)
+    normalized_end = _ensure_timezone(booking_data.end_time)
+    if normalized_end <= normalized_start:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="end_time must be after start_time",
+        )
+
     kitchen = await db.get(Kitchen, kitchen_uuid)
     if kitchen is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kitchen not found")
@@ -284,12 +292,8 @@ async def create_booking(
     pilot_mode, compliance_banner = _determine_pilot_mode(kitchen)
 
     if settings.compliance_controls_enabled:
-
-        def _normalize(dt: datetime) -> datetime:
-            return dt.astimezone(UTC) if dt.tzinfo else dt
-
-        start_dt = _normalize(booking_data.start_time)
-        end_dt = _normalize(booking_data.end_time)
+        start_dt = normalized_start
+        end_dt = normalized_end
 
         if start_dt.weekday() >= 5 or end_dt.weekday() >= 5:
             raise HTTPException(
@@ -324,8 +328,8 @@ async def create_booking(
     conflict = await _find_conflicting_booking(
         db,
         kitchen_uuid,
-        booking_data.start_time,
-        booking_data.end_time,
+        normalized_start,
+        normalized_end,
     )
 
     if conflict:
@@ -342,13 +346,13 @@ async def create_booking(
         customer_id=user_uuid,
         host_id=kitchen.host_id,
         kitchen_id=kitchen_uuid,
-        start_time=booking_data.start_time,
-        end_time=booking_data.end_time,
+        start_time=normalized_start,
+        end_time=normalized_end,
         status=BookingStatus.PENDING,
     )
 
     total_amount, discount_percent, adjustments = _calculate_dynamic_price(
-        kitchen, booking_data.start_time, booking_data.end_time
+        kitchen, normalized_start, normalized_end
     )
     new_booking.total_amount = total_amount
 
