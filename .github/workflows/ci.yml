@@ -67,27 +67,7 @@ jobs:
             exit 0
           fi
           
-          # Try to build bundle if OPA is available and source exists
-          echo "No policy bundles found. Attempting to build bundle..."
-          if [ -f ./opa ]; then
-            if [ -d apps/policy ] && [ "$(find apps/policy -name '*.rego' 2>/dev/null)" ]; then
-              echo "Building bundle: ./opa build apps/policy -o apps/policy/bundle"
-              ./opa build apps/policy -o apps/policy/bundle || {
-                echo "❌ opa build failed" >&2
-                exit 1
-              }
-              if [ -f apps/policy/bundle/policies.rego ]; then
-                echo "✓ Bundle built successfully"
-                exit 0
-              fi
-              echo "❌ opa build did not produce apps/policy/bundle/policies.rego" >&2
-            else
-              echo "❌ apps/policy directory does not exist or contains no .rego files" >&2
-            fi
-          else
-            echo "❌ ./opa not found; cannot build bundle" >&2
-          fi
-          
+          # No bundles found - fail with helpful message
           echo "" >&2
           echo "❌ ERROR: Missing OPA policy bundles" >&2
           echo "" >&2
@@ -97,9 +77,15 @@ jobs:
           echo "  - tests/policy/sf_bay_area/bundles/* (for test bundles)" >&2
           echo "  - apps/policy/bundle/policies.rego (for app bundles)" >&2
           echo "" >&2
+          echo "The repository is missing the apps/policy directory structure." >&2
+          echo "" >&2
           echo "To fix locally:" >&2
-          echo "  1. Create apps/policy directory with .rego policy files" >&2
-          echo "  2. Run: opa build apps/policy -o apps/policy/bundle" >&2
+          echo "  1. Ensure apps/policy directory exists with policy source files" >&2
+          echo "  2. Run any required policy build/compilation steps" >&2
+          echo "  3. Ensure apps/policy/bundle/policies.rego is generated" >&2
+          echo "" >&2
+          echo "If policies are not needed for your service, the workflow may need to be updated" >&2
+          echo "to make OPA optional or to skip this step for services that don't require policies." >&2
           echo "" >&2
           exit 1
       - name: Start OPA server
