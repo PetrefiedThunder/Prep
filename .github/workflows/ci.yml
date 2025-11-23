@@ -30,11 +30,12 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install -e .
-          # Pin botocore to be compatible with aiobotocore to avoid CI resolver warnings
-          # (pyproject.toml's boto3 dependency may upgrade botocore beyond aiobotocore's limit)
-          pip install "botocore<1.40.71"
+          pip install --constraint requirements-constraints.txt -r requirements.txt
+          pip install --constraint requirements-constraints.txt -e .
+      - name: Verify Python dependencies
+        run: |
+          pip check
+          python -c 'import botocore, aiobotocore; print(botocore.__version__, aiobotocore.__version__)'
       - name: Install OPA CLI
         run: |
           set -euo pipefail
