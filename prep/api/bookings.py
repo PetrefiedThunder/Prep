@@ -265,6 +265,9 @@ async def create_booking(
 
     settings = get_settings()
 
+    normalized_start = _ensure_timezone(booking_data.start_time)
+    normalized_end = _ensure_timezone(booking_data.end_time)
+
     user_identifier = current_user.id if current_user else booking_data.user_id
     if not user_identifier:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
@@ -284,12 +287,8 @@ async def create_booking(
     pilot_mode, compliance_banner = _determine_pilot_mode(kitchen)
 
     if settings.compliance_controls_enabled:
-
-        def _normalize(dt: datetime) -> datetime:
-            return dt.astimezone(UTC) if dt.tzinfo else dt
-
-        start_dt = _normalize(booking_data.start_time)
-        end_dt = _normalize(booking_data.end_time)
+        start_dt = normalized_start
+        end_dt = normalized_end
 
         if start_dt.weekday() >= 5 or end_dt.weekday() >= 5:
             raise HTTPException(
@@ -324,8 +323,8 @@ async def create_booking(
     conflict = await _find_conflicting_booking(
         db,
         kitchen_uuid,
-        booking_data.start_time,
-        booking_data.end_time,
+        normalized_start,
+        normalized_end,
     )
 
     if conflict:
@@ -348,7 +347,7 @@ async def create_booking(
     )
 
     total_amount, discount_percent, adjustments = _calculate_dynamic_price(
-        kitchen, booking_data.start_time, booking_data.end_time
+        kitchen, normalized_start, normalized_end
     )
     new_booking.total_amount = total_amount
 
