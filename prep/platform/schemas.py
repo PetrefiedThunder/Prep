@@ -241,7 +241,7 @@ class BookingCreateRequest(BaseModel):
     kitchen_id: UUID
     start_time: datetime
     end_time: datetime
-    status: BookingStatus = BookingStatus.PENDING
+    status: BookingStatus = BookingStatus.CONFIRMED
     total_amount: float = Field(ge=0)
     platform_fee: float = Field(default=0, ge=0)
     host_payout_amount: float = Field(default=0, ge=0)

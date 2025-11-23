@@ -109,10 +109,15 @@ def generate_api_key_secret() -> tuple[str, str]:
 
 
 def hash_api_key_secret(value: str) -> str:
-    """Hash an API key for persistence."""
+    """Hash an API key for persistence using PBKDF2 (with salt and many iterations)."""
 
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
+    salt = secrets.token_bytes(16)
+    dk = hashlib.pbkdf2_hmac("sha256", value.encode("utf-8"), salt, _PBKDF2_ITERATIONS)
+    return "$".join([
+        base64.b64encode(salt).decode("ascii"),
+        str(_PBKDF2_ITERATIONS),
+        base64.b64encode(dk).decode("ascii"),
+    ])
 
 def serialize_session(user: User, expires_at: datetime) -> str:
     """Serialize session payload for Redis storage."""

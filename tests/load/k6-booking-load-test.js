@@ -38,7 +38,9 @@ const USER_POOL_SIZE = 500;
 
 // Generate user IDs
 function generateUserId() {
-  const userId = Math.floor(Math.random() * USER_POOL_SIZE);
+  const array = new Uint32Array(1);
+  crypto.getRandomValues(array);
+  const userId = array[0] % USER_POOL_SIZE;
   return `22222222-2222-2222-2222-${userId.toString().padStart(12, '0')}`;
 }
 
@@ -46,7 +48,10 @@ function generateUserId() {
 function generateBookingTime() {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(9 + Math.floor(Math.random() * 8), 0, 0, 0); // 9 AM - 5 PM
+  const timeSlotArray = new Uint32Array(1);
+  crypto.getRandomValues(timeSlotArray);
+  const randomSlot = timeSlotArray[0] % 8;
+  tomorrow.setHours(9 + randomSlot, 0, 0, 0); // 9 AM - 5 PM
 
   const startTime = tomorrow.toISOString();
 
