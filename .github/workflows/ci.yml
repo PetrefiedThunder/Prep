@@ -43,8 +43,7 @@ jobs:
       - name: Verify OPA policy bundle
         run: |
           echo "Checking for apps/policy/bundle/policies.rego"
-          ls -la apps/policy || true
-          ls -la apps/policy/bundle || true
+          ls -la apps/policy/ apps/policy/bundle/ 2>/dev/null || echo 'Directory not found'
           if [ -f apps/policy/bundle/policies.rego ]; then
             echo "Found policies.rego"
             exit 0
@@ -52,10 +51,8 @@ jobs:
           echo "policies.rego not found; attempting to build bundle if opa CLI is available"
           if [ -x ./opa ]; then
             echo "opa found, building bundle: opa build apps/policy -o apps/policy/bundle"
-            set +e
-            ./opa build apps/policy -o apps/policy/bundle
+            ./opa build apps/policy -o apps/policy/bundle || true
             build_exit=$?
-            set -e
             if [ $build_exit -eq 0 ]; then
               if [ -f apps/policy/bundle/policies.rego ]; then
                 echo "Bundle built successfully"
@@ -68,7 +65,7 @@ jobs:
           else
             echo "opa CLI not found in PATH; cannot build bundle automatically"
           fi
-          echo "Missing apps/policy/bundle/policies.rego — ensure the policy bundle is produced before starting OPA (run: opa build apps/policy -o apps/policy/bundle)" >&2
+          echo "Missing apps/policy/bundle/policies.rego -- ensure the policy bundle is produced before starting OPA (run: opa build apps/policy -o apps/policy/bundle)" >&2
           exit 1
       - name: Start OPA server
         run: |
