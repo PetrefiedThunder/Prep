@@ -66,7 +66,7 @@ async def test_engine_roundtrip(monkeypatch):
         assert kitchen.owner.email == "host@example.com"
 
         booking = (await session.execute(select(Booking))).scalar_one()
-        assert booking.status is BookingStatus.PENDING
+        assert booking.status is BookingStatus.CONFIRMED
         assert booking.duration() == timedelta(hours=2)
 
 

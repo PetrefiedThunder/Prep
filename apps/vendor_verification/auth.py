@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from argon2 import PasswordHasher
 
 from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -18,7 +19,8 @@ async def get_api_key(x_prep_api_key: str = Header(..., alias="X-Prep-Api-Key"))
 
 def hash_api_key(api_key: str) -> str:
     """Hash an API key for storage/comparison."""
-    return hashlib.sha256(api_key.encode()).hexdigest()
+    hasher = PasswordHasher()
+    return hasher.hash(api_key)
 
 
 async def get_current_tenant(

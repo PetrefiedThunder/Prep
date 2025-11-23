@@ -265,6 +265,9 @@ async def create_booking(
 
     settings = get_settings()
 
+    normalized_start = _ensure_timezone(booking_data.start_time)
+    normalized_end = _ensure_timezone(booking_data.end_time)
+
     user_identifier = current_user.id if current_user else booking_data.user_id
     if not user_identifier:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
@@ -346,9 +349,9 @@ async def create_booking(
         customer_id=user_uuid,
         host_id=kitchen.host_id,
         kitchen_id=kitchen_uuid,
-        start_time=normalized_start,
-        end_time=normalized_end,
-        status=BookingStatus.PENDING,
+        start_time=booking_data.start_time,
+        end_time=booking_data.end_time,
+        status=BookingStatus.CONFIRMED,
     )
 
     total_amount, discount_percent, adjustments = _calculate_dynamic_price(
@@ -490,7 +493,7 @@ async def create_recurring_booking(
             kitchen_id=kitchen_uuid,
             start_time=occurrence_start,
             end_time=occurrence_end,
-            status=BookingStatus.PENDING,
+            status=BookingStatus.CONFIRMED,
         )
         total_amount, discount_percent, adjustments = _calculate_dynamic_price(
             kitchen, occurrence_start, occurrence_end
