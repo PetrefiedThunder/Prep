@@ -406,9 +406,14 @@ class BookingRequest(BaseModel):
 
 ## 📊 Project Status
 
-### Current State (November 2025)
+### Current State (November 19, 2025)
 
 **Overall MVP Completion: ~25-35%**
+
+- ✅ **Data layer is real, not stubbed**: PrepChef microservices connect to PostgreSQL (with Redis locks for availability) and the payments webhook path persists to Postgres.
+- ⚠️ **Frontend is still mock-only**: HarborHomes routes and mock-data utilities serve static responses; no backend connectivity is wired yet.
+- ⚠️ **Integrations remain placeholders**: San Francisco portal clients return canned data and the AI agent framework is a stub with synthetic responses.
+- ❌ **End-to-end flows are incomplete**: No user journey runs from signup → booking → payment without manual intervention.
 
 | Component | Status | Notes |
 |-----------|--------|-------|
@@ -416,10 +421,10 @@ class BookingRequest(BaseModel):
 | **Authentication** | ✅ 70% | JWT + DB validation, auth-svc functional |
 | **Federal Compliance** | ✅ 80% | FDA tracking, authority chains |
 | **City Compliance** | ✅ 75% | 8+ cities, cost estimation |
-| **Booking Engine** | ⚠️ 40% | Conflict detection exists, needs API wiring |
-| **Payment Processing** | ⚠️ 50% | Python service ready (bugs fixed), TS service mock |
+| **Booking Engine** | ⚠️ 40% | Conflict detection + Postgres/Redis wiring; still not exposed end-to-end |
+| **Payment Processing** | ⚠️ 50% | Python service hardened; TS service partly mock but DB-backed webhooks |
 | **Admin Workflows** | ⚠️ 30% | OCR works, needs queue UI |
-| **Frontend** | ❌ 20% | Next.js structure ready, mostly mocked |
+| **Frontend** | ❌ 20% | Next.js structure ready, currently mock data only |
 | **E2E Flows** | ❌ 15% | No complete user journeys wired |
 
 ### Active Work
@@ -578,4 +583,4 @@ Special thanks to all contributors and the open-source community.
 
 **Prep** – Simplifying compliance for the commercial kitchen sharing economy.
 
-*Last Updated: November 2025*
+*Last Updated: November 19, 2025*

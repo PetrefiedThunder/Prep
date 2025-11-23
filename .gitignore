@@ -9,6 +9,9 @@
 # Security scan results
 scan-results/
 
+# Node modules
+node_modules/
+
 # Python cache and build artifacts
 __pycache__/
 *.py[cod]

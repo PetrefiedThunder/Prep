@@ -17,7 +17,7 @@ const RefundSchema = z.object({
 
 export default async function (app: FastifyInstance) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-    apiVersion: '2025-10-29.clover'
+    apiVersion: '2023-10-16'
   });
 
   const db = new Pool({

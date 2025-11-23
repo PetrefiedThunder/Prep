@@ -55,7 +55,7 @@ const sendNotificationSchema = z.object({
   title: z.string().min(1),
   body: z.string().min(1),
   recipient_id: z.string().min(1),
-  data: z.record(z.any()).optional(),
+  data: z.record(z.string(), z.any()).optional(),
   channels: z
     .array(z.enum(['email', 'sms', 'push', 'in_app']))
     .nonempty()
