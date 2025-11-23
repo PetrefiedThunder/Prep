@@ -3,31 +3,8 @@ package kubernetes.admission
 # deny if container image uses the 'latest' tag or no tag
 deny[msg] {
   input_kind := input.request.kind.kind
-  input_kind == "Pod"
-  container := container_in(input.request.object)
-  image_uses_latest(container.image)
-  msg := sprintf("container %v uses 'latest' tag (image=%v) - use an explicit immutable tag", [container.name, container.image])
-}
-
-deny[msg] {
-  input_kind := input.request.kind.kind
-  input_kind == "Deployment"
-  container := container_in(input.request.object)
-  image_uses_latest(container.image)
-  msg := sprintf("container %v uses 'latest' tag (image=%v) - use an explicit immutable tag", [container.name, container.image])
-}
-
-deny[msg] {
-  input_kind := input.request.kind.kind
-  input_kind == "DaemonSet"
-  container := container_in(input.request.object)
-  image_uses_latest(container.image)
-  msg := sprintf("container %v uses 'latest' tag (image=%v) - use an explicit immutable tag", [container.name, container.image])
-}
-
-deny[msg] {
-  input_kind := input.request.kind.kind
-  input_kind == "StatefulSet"
+  allowed_kinds := {"Pod", "Deployment", "DaemonSet", "StatefulSet"}
+  allowed_kinds[input_kind]
   container := container_in(input.request.object)
   image_uses_latest(container.image)
   msg := sprintf("container %v uses 'latest' tag (image=%v) - use an explicit immutable tag", [container.name, container.image])
@@ -36,31 +13,8 @@ deny[msg] {
 # deny if container has no resources.requests or resources.limits
 deny[msg] {
   input_kind := input.request.kind.kind
-  input_kind == "Pod"
-  container := container_in(input.request.object)
-  not has_resources(container)
-  msg := sprintf("container %v missing resource requests/limits", [container.name])
-}
-
-deny[msg] {
-  input_kind := input.request.kind.kind
-  input_kind == "Deployment"
-  container := container_in(input.request.object)
-  not has_resources(container)
-  msg := sprintf("container %v missing resource requests/limits", [container.name])
-}
-
-deny[msg] {
-  input_kind := input.request.kind.kind
-  input_kind == "DaemonSet"
-  container := container_in(input.request.object)
-  not has_resources(container)
-  msg := sprintf("container %v missing resource requests/limits", [container.name])
-}
-
-deny[msg] {
-  input_kind := input.request.kind.kind
-  input_kind == "StatefulSet"
+  allowed_kinds := {"Pod", "Deployment", "DaemonSet", "StatefulSet"}
+  allowed_kinds[input_kind]
   container := container_in(input.request.object)
   not has_resources(container)
   msg := sprintf("container %v missing resource requests/limits", [container.name])
