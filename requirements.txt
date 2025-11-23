@@ -1,4 +1,5 @@
 # Keep AWS SDK libraries aligned to avoid breaking API changes.
+argon2-cffi==25.1.0
 # aiobotocore 2.25.2 requires botocore>=1.40.46,<1.40.71
 botocore==1.40.70
 aiobotocore==2.25.2
