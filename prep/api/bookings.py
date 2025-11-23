@@ -23,15 +23,24 @@ from prep.models import Booking, BookingStatus, Kitchen, RecurringBookingTemplat
 from prep.pilot.utils import is_pilot_location
 from prep.settings import get_settings
 
+<<<<<<< HEAD
+=======
+logger = logging.getLogger(__name__)
+
+>>>>>>> origin/main
 try:
     from prep.insurance.certificates import (
         issue_certificate_for_booking_sync as _issue_certificate_for_booking_sync,
     )
 except ModuleNotFoundError:  # Optional dependency for isolated test runs
     _issue_certificate_for_booking_sync = None
+<<<<<<< HEAD
     logging.getLogger(__name__).debug(
         "prep.insurance.certificates not available; certificate tasks disabled"
     )
+=======
+    logger.debug("prep.insurance.certificates not available; certificate tasks disabled")
+>>>>>>> origin/main
 
 try:
     from prep.observability.metrics import DELIVERIES_COUNTER as _DELIVERIES_COUNTER
@@ -41,9 +50,13 @@ except ModuleNotFoundError:  # Optional dependency for isolated test runs
             return None
 
     _DELIVERIES_COUNTER = _NullCounter()
+<<<<<<< HEAD
     logging.getLogger(__name__).debug("prometheus metrics not available; delivery counter disabled")
 
 logger = logging.getLogger(__name__)
+=======
+    logger.debug("prometheus metrics not available; delivery counter disabled")
+>>>>>>> origin/main
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 

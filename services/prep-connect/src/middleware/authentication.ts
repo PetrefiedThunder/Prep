@@ -19,7 +19,11 @@ function isSupportedAlgorithm(header: JwtHeader): header is JwtHeader & { alg: S
 function verifyToken(token: string): VerifiedPayload {
   let header: JwtHeader;
   try {
-    header = jwt.decode(token, { complete: true })?.header ?? {};
+    const decoded = jwt.decode(token, { complete: true });
+    if (!decoded || !decoded.header) {
+      throw new Error('Invalid token header');
+    }
+    header = decoded.header;
   } catch (error) {
     throw new Error('Invalid token header');
   }
@@ -30,14 +34,14 @@ function verifyToken(token: string): VerifiedPayload {
 
   const publicKey = getAuthPublicKey();
   const payload = jwt.verify(token, publicKey, {
-    algorithms: SUPPORTED_ALGORITHMS,
+    algorithms: [...SUPPORTED_ALGORITHMS],
   });
 
   if (!payload || typeof payload !== 'object') {
     throw new Error('Token payload missing');
   }
 
-  if (!('sub' in payload) || typeof payload.sub !== 'string') {
+  if (!payload.sub || typeof payload.sub !== 'string') {
     throw new Error('Subject claim missing');
   }
 

@@ -125,14 +125,22 @@ def run_pricing_refresh(
     strategy = strategy or DefaultPricingStrategy()
     observability = observability or EnterpriseObservability()
 
+<<<<<<< HEAD
     time.perf_counter()
+=======
+    start_time = time.perf_counter()
+>>>>>>> origin/main
     errors: list[str] = []
     updated = skipped = failures = 0
 
     session = session_factory()
     try:
         kitchens = list(_load_refresh_candidates(session))
+<<<<<<< HEAD
         len(kitchens)
+=======
+        processed = len(kitchens)
+>>>>>>> origin/main
         updated_models: list[Kitchen] = []
 
         for kitchen in kitchens:
@@ -165,6 +173,7 @@ def run_pricing_refresh(
         failures += 1
         errors.append(str(exc))
         logger.exception("Pricing refresh failed")
+<<<<<<< HEAD
 
 
 @dataclass(slots=True)
@@ -252,6 +261,8 @@ def refresh_pricing(
         session.rollback()
         logger.exception("Hourly pricing refresh failed")
         raise
+=======
+>>>>>>> origin/main
     finally:
         session.close()
 
@@ -291,6 +302,37 @@ def refresh_pricing(
     return summary
 
 
+<<<<<<< HEAD
+=======
+def _load_kitchens(session: Session) -> Iterable[Kitchen]:
+    if select is None or Kitchen is Any:  # pragma: no cover - SQLAlchemy not installed
+        raise RuntimeError("SQLAlchemy is required to refresh pricing")
+    stmt = select(Kitchen)
+    return session.execute(stmt).scalars()
+
+
+def _build_metrics(kitchen: Kitchen) -> UtilizationMetrics:
+    pricing_payload = kitchen.pricing or {}
+    try:
+        utilization = float(pricing_payload.get("utilization_rate", 1.0))
+    except (TypeError, ValueError):
+        utilization = 1.0
+    try:
+        active = int(pricing_payload.get("active_bookings", 0))
+    except (TypeError, ValueError):
+        active = 0
+    try:
+        cancellation = float(pricing_payload.get("cancellation_rate", 0.0))
+    except (TypeError, ValueError):
+        cancellation = 0.0
+    return UtilizationMetrics(
+        utilization_rate=utilization,
+        active_bookings=active,
+        cancellation_rate=cancellation,
+    )
+
+
+>>>>>>> origin/main
 async def run_pricing_refresh_async(
     *,
     session_factory: SessionFactory = SessionLocal,

@@ -22,7 +22,7 @@ if (!stripeSecretKey) {
 }
 
 const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2024-11-20.acacia',
+  apiVersion: '2023-10-16',
   typescript: true
 });
 
@@ -155,7 +155,7 @@ export async function createApp() {
       }
 
       if (!webhookSecret) {
-        instance.log.error('[payments-svc] STRIPE_WEBHOOK_SECRET not configured');
+        log.error('[payments-svc] STRIPE_WEBHOOK_SECRET not configured');
         return reply.code(500).send({ error: 'Webhook secret not configured' });
       }
 
@@ -170,7 +170,7 @@ export async function createApp() {
         // Verify webhook signature
         event = stripe.webhooks.constructEvent(body.raw, stripeSignature, webhookSecret);
       } catch (err: any) {
-        instance.log.error('[payments-svc] Webhook signature verification failed', { error: err.message });
+        log.error('[payments-svc] Webhook signature verification failed', { error: err.message });
         return reply.code(400).send({ error: 'Invalid signature' });
       }
 

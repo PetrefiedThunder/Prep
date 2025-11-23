@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ApiError } from '@prep/common';
 import { BookingService } from '../services/BookingService';
 import { getPrismaClient } from '@prep/database';
+import { log } from '@prep/logger';
 import Redis from 'ioredis';
 import { env } from '@prep/config';
 
@@ -24,18 +25,18 @@ const ConfirmBookingSchema = z.object({
 export default async function (app: FastifyInstance) {
   const prisma = getPrismaClient();
 
-  const redis = new Redis(env.REDIS_URL || 'redis://localhost:6379/0', {
+  const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379/0', {
     lazyConnect: true,
     maxRetriesPerRequest: 1,
     enableReadyCheck: false
   });
 
   redis.on('error', err => {
-    app.log.warn('Redis connection error (continuing without cache)', { error: err.message });
+    log.warn('Redis connection error (continuing without cache)', { error: err.message });
   });
 
   await redis.connect().catch(() => {
-    app.log.warn('Redis unavailable, proceeding without distributed locks');
+    log.warn('Redis unavailable, proceeding without distributed locks');
   });
 
   const bookingService = new BookingService(prisma, redis);
