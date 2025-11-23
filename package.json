@@ -8,6 +8,9 @@
     "openapi:ts": "openapi-typescript contracts/openapi/prep.yaml --output sdk/typescript/index.ts"
   },
   "devDependencies": {
+    "eslint": "^9.39.1",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-security": "^3.0.1",
     "openapi-typescript": "^7.10.1"
   }
 }

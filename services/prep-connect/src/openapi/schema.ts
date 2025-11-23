@@ -1,4 +1,5 @@
-import { OpenApiBuilder, SchemaObject } from 'openapi3-ts';
+import type { SchemaObject } from 'openapi3-ts';
+import { OpenApiBuilder } from 'openapi3-ts';
 
 const integrationSchema: SchemaObject = {
   type: 'object',

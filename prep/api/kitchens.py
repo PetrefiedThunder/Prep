@@ -306,8 +306,7 @@ async def create_sanitation_log(
     # Verify ownership unless user is admin
     if not current_user.is_admin and str(kitchen.host_id) != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to modify this kitchen"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to modify this kitchen"
         )
 
     entry = SanitationLog(
