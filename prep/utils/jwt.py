@@ -5,7 +5,8 @@ from __future__ import annotations
 import os
 from datetime import UTC, datetime, timedelta
 
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError
 
 # SECURITY FIX: Require JWT secret from environment, no insecure defaults
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
@@ -37,7 +38,7 @@ def verify_access_token(token: str) -> dict | None:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
-    except JWTError:
+    except PyJWTError:
         return None
 
 

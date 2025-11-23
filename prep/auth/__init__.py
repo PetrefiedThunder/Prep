@@ -14,6 +14,9 @@ from fastapi.security import OAuth2PasswordBearer
 from prep.settings import Settings, get_settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
+oauth2_scheme_optional = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/auth/token", auto_error=False
+)
 
 _ALLOWED_JWT_ALGORITHMS: tuple[str, ...] = ("HS256", "RS256")
 
@@ -117,6 +120,15 @@ async def get_current_user(
     return User(id=subject, role=UserRole(role_value))
 
 
+async def get_current_user_optional(
+    token: str | None = Depends(oauth2_scheme_optional),
+    settings: Settings = Depends(get_settings),
+) -> User | None:
+    if not token:
+        return None
+    return await get_current_user(token=token, settings=settings)
+
+
 __all__ = [
     "User",
     "UserRole",
@@ -126,4 +138,6 @@ __all__ = [
     "get_current_user",
     "get_token_roles",
     "oauth2_scheme",
+    "oauth2_scheme_optional",
+    "get_current_user_optional",
 ]

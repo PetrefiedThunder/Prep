@@ -13,7 +13,6 @@ from pydantic import (
     AnyUrl,
     BaseModel,
     Field,
-    PostgresDsn,
     ValidationError,
     ValidationInfo,
     field_validator,
@@ -71,7 +70,7 @@ class Settings(BaseModel):
     """Strongly typed runtime configuration."""
 
     environment: str = Field(default="development", alias="ENVIRONMENT")
-    database_url: PostgresDsn = Field(
+    database_url: AnyUrl = Field(
         default="postgresql+asyncpg://prep:prep@localhost:5432/prep", alias="DATABASE_URL"
     )
     redis_url: AnyUrl = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
@@ -231,6 +230,14 @@ class Settings(BaseModel):
         "populate_by_name": True,
         "extra": "ignore",
     }
+
+    @field_validator("database_url")
+    @classmethod
+    def _allow_sqlite_connections(cls, value: AnyUrl) -> AnyUrl:
+        scheme = (value.scheme or "").lower()
+        if scheme.startswith("postgres") or scheme.startswith("sqlite"):
+            return value
+        raise ValueError("DATABASE_URL must use a postgres or sqlite scheme")
 
     @field_validator("environment")
     @classmethod

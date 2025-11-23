@@ -6,7 +6,14 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from typing import Any, Protocol
 
-import requests
+try:  # Optional dependency for isolated test environments
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - lightweight shim for tests
+    class _RequestsShim:
+        def post(self, *args: object, **kwargs: object) -> None:  # pragma: no cover - replaced in tests
+            raise ImportError("The 'requests' package is required for HTTP calls")
+
+    requests = _RequestsShim()  # type: ignore
 
 
 class SupportsJsonResponse(Protocol):

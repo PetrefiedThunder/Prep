@@ -1,5 +1,4 @@
 """Canonical requirement and fee data structures used by the estimator."""
-
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
@@ -254,8 +253,6 @@ be consumed by the cost estimator, API endpoints, and batch jobs.  They focus on
 fee semantics (one-time vs recurring vs incremental) rather than the legacy
 scraper-specific dataclasses that live under ``jurisdictions/common``.
 """
-
-from __future__ import annotations
 
 from collections.abc import Iterator
 from typing import Any, ClassVar, Literal

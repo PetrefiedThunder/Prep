@@ -28,7 +28,12 @@ def _etag_for_payload(payload: Mapping[str, Any]) -> str:
 def _normalize_city(city: str) -> str:
     """Return the canonical slug for a city identifier."""
 
-    return city.strip().lower().replace(" ", "_").replace("-", "_")
+    normalized = city.strip().lower().replace(" ", "_").replace("-", "_")
+    aliases = {
+        "sf": "san_francisco",
+        "sanfrancisco": "san_francisco",
+    }
+    return aliases.get(normalized, normalized)
 
 
 _DIFF_DATA: dict[str, dict[str, Any]] = {
@@ -153,14 +158,33 @@ def _city_payload(version: str, city: str) -> dict[str, Any]:
         diff_payload = metadata["jurisdictions"][normalized_city]
     except KeyError as exc:  # pragma: no cover - FastAPI transforms error response
         raise KeyError(normalized_city) from exc
+    changes: list[dict[str, Any]] = []
+    for key in ("added_requirements", "removed_requirements", "updated_requirements"):
+        items = diff_payload.get(key) if isinstance(diff_payload, Mapping) else None
+        if isinstance(items, list):
+            changes.extend(items)
     payload: dict[str, Any] = {
         "version": version,
         "city": normalized_city,
         "released_at": metadata["released_at"],
         "summary": metadata["summary"],
         "diff": diff_payload,
+        "changes": changes,
     }
     return payload
+
+
+def _render_payload(payload: Mapping[str, Any], if_none_match: str | None = None) -> Response:
+    etag = _etag_for_payload(payload)
+    headers = {"ETag": f'"{etag}"'}
+    if "version" in payload:
+        headers["X-Prep-Diff-Version"] = str(payload["version"])
+
+    if if_none_match and if_none_match.strip('"') == etag:
+        return Response(status_code=304, headers=headers)
+
+    body = json.dumps(payload)
+    return Response(content=body, media_type="application/json", headers=headers)
 
 
 @router.get("/versions")
@@ -188,19 +212,21 @@ def get_diff_version(
     version: str,
     if_none_match: str | None = Header(default=None),
 ) -> Response:
-    """Return the diff payload for a specific published version."""
+    """Return a diff payload or default to the latest city snapshot."""
 
-    try:
-        payload = _version_payload(version)
-    except KeyError as exc:  # pragma: no cover - FastAPI handles conversion
-        raise HTTPException(status_code=404, detail=f"Unknown diff version '{version}'") from exc
+    if version not in _DIFF_DATA:
+        latest_version = sorted(_DIFF_DATA.keys(), reverse=True)[0]
+        try:
+            payload = _city_payload(latest_version, version)
+        except KeyError as exc:  # pragma: no cover - FastAPI handles conversion
+            raise HTTPException(
+                status_code=404,
+                detail=f"City '{version}' not found in diff version '{latest_version}'",
+            ) from exc
+        return _render_payload(payload, if_none_match)
 
-    etag = _etag_for_payload(payload)
-    if if_none_match and if_none_match.strip('"') == etag:
-        return Response(status_code=304, headers={"ETag": f'"{etag}"'})
-
-    body = json.dumps(payload)
-    return Response(content=body, media_type="application/json", headers={"ETag": f'"{etag}"'})
+    payload = _version_payload(version)
+    return _render_payload(payload, if_none_match)
 
 
 @router.get("/{version}/{city}")
@@ -222,12 +248,7 @@ def get_city_diff(
             status_code=404, detail=f"City '{city}' not found in diff version '{version}'"
         ) from exc
 
-    etag = _etag_for_payload(payload)
-    if if_none_match and if_none_match.strip('"') == etag:
-        return Response(status_code=304, headers={"ETag": f'"{etag}"'})
-
-    body = json.dumps(payload)
-    return Response(content=body, media_type="application/json", headers={"ETag": f'"{etag}"'})
+    return _render_payload(payload, if_none_match)
 
 
 __all__ = ["router"]
