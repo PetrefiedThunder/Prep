@@ -372,7 +372,8 @@ def preview_issues(issues):
 
 def save_issues_to_file(issues):
     """Save issues to a JSON file for documentation."""
-    output_file = Path("/home/runner/work/Prep/Prep/IDENTIFIED_ISSUES.json")
+    # Use relative path from current directory
+    output_file = Path("IDENTIFIED_ISSUES.json")
     
     issues_data = {
         "generated_at": datetime.now().isoformat(),
@@ -386,7 +387,7 @@ def save_issues_to_file(issues):
     print(f"\n✅ Issues saved to: {output_file}")
     
     # Also create a markdown summary
-    md_file = Path("/home/runner/work/Prep/Prep/IDENTIFIED_ISSUES.md")
+    md_file = Path("IDENTIFIED_ISSUES.md")
     with open(md_file, 'w') as f:
         f.write("# Identified Codebase Issues\n\n")
         f.write(f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")

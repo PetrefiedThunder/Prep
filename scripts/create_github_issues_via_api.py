@@ -47,7 +47,7 @@ def create_github_issue(
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/issues"
     
     headers = {
-        "Authorization": f"token {token}",
+        "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github.v3+json",
         "Content-Type": "application/json"
     }
