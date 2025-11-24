@@ -1,5 +1,6 @@
 name: spark-pipelines
-# NOTE: This workflow references apps/data-plane/spark/** which does not currently exist
+# IMPORTANT: This workflow requires apps/data-plane/spark/ directory to exist
+# Currently, this directory does not exist, so the workflow will fail with a helpful error
 # It will only run via workflow_dispatch or if that directory is created
 
 on:

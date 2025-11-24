@@ -23,8 +23,8 @@ jobs:
         run: |
           if [ ! -f "tests/audit_sf.py" ]; then
             echo "ERROR: SF audit test not found at tests/audit_sf.py"
-            echo "Available test files:"
-            ls tests/*.py 2>/dev/null | head -10 || echo "No Python test files found"
+            echo "Available Python test files in tests/:"
+            find tests -name '*.py' -type f 2>/dev/null || echo "No Python test files found"
             exit 1
           fi
           pytest tests/audit_sf.py --json-report --json-report-file reports/sf_audit.json
