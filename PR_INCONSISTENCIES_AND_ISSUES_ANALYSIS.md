@@ -603,9 +603,9 @@ Going forward, establish these rules:
 | Priority | Issues | Time |
 |----------|--------|------|
 | P0 (High) | 6 issues | 4-6 hours |
-| P2 (Medium) | 5 issues | 6-8 hours |
-| P3 (Low) | 2 issues | 4-6 hours |
-| **TOTAL** | **13 issues** | **14-20 hours** |
+| P2 (Medium) | 4 issues | 5-7 hours |
+| P3 (Low) | 2 issues | 3-5 hours |
+| **TOTAL** | **12 issues** | **12-18 hours** |
 
 ---
 

@@ -804,19 +804,19 @@ Multiple service.py files with same name make debugging difficult.
 
 ## Summary
 
-**Total Issues to Create**: 13
+**Total Issues to Create**: 12
 
 ### By Priority
 - **P0 (Critical)**: 6 issues → Create immediately
 - **P1 (High)**: 0 issues
-- **P2 (Medium)**: 5 issues → This sprint
+- **P2 (Medium)**: 4 issues → This sprint
 - **P3 (Low)**: 2 issues → Next sprint
 
 ### By Category
 - **Documentation**: 4 issues
-- **Code Quality**: 5 issues
+- **Code Quality**: 4 issues
 - **Duplicate Elimination**: 3 issues
-- **Meta/Process**: 2 issues
+- **Meta/Process**: 1 issue
 
 ### Quick Wins (< 30 min each)
 1. Issue 4: Archive README.old.md (15 min)
