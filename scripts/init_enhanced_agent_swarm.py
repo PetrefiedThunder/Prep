@@ -34,22 +34,19 @@ Examples:
 
 import argparse
 import asyncio
-import json
-import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # WORKAROUND: Remove current directory from path to avoid local yaml.py shadowing PyYAML
 # This is a temporary workaround for import conflicts in the repository.
 # Production deployments should use proper virtual environments and package management.
 # TODO: Consider renaming the local yaml.py file to avoid this issue.
-if '' in sys.path:
-    sys.path.remove('')
-if '.' in sys.path:
-    sys.path.remove('.')
+if "" in sys.path:
+    sys.path.remove("")
+if "." in sys.path:
+    sys.path.remove(".")
 sys_path_0 = sys.path[0]
-if sys_path_0 and Path(sys_path_0).name == 'Prep':
+if sys_path_0 and Path(sys_path_0).name == "Prep":
     sys.path.pop(0)
 
 # Now import PyYAML safely
@@ -62,9 +59,9 @@ except ImportError:
 
 try:
     from rich.console import Console
-    from rich.table import Table
-    from rich.progress import Progress, SpinnerColumn, TextColumn
     from rich.panel import Panel
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.table import Table
     from rich.tree import Tree
 except ImportError:
     print("Error: Missing rich library. Please install:")
@@ -78,15 +75,15 @@ console = Console()
 class EnhancedSwarmInitializer:
     """Initialize and manage the enhanced 200-agent swarm"""
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         self.config_path = config_path or "agents/config/enhanced_swarm_config.yaml"
         self.config = self._load_config()
         self.repo_root = Path(__file__).parent.parent
 
-    def _load_config(self) -> Dict:
+    def _load_config(self) -> dict:
         """Load enhanced swarm configuration"""
         try:
-            with open(self.config_path, "r") as f:
+            with open(self.config_path) as f:
                 return yaml.safe_load(f)
         except FileNotFoundError:
             console.print(f"[red]Error: Configuration file not found: {self.config_path}[/red]")
@@ -234,7 +231,9 @@ class EnhancedSwarmInitializer:
         ]
 
         for phase_info in phases:
-            console.print(f"\n[bold cyan]{phase_info['phase']}[/bold cyan] [dim]({phase_info['duration']})[/dim]")
+            console.print(
+                f"\n[bold cyan]{phase_info['phase']}[/bold cyan] [dim]({phase_info['duration']})[/dim]"
+            )
             for task in phase_info["tasks"]:
                 console.print(f"  {task}")
 
@@ -310,7 +309,9 @@ class EnhancedSwarmInitializer:
         console.print("  5. Configure environment variables (see config file)")
         console.print("  6. Implement coordinator classes in agents/coordinators/")
         console.print("  7. Deploy monitoring dashboard on port 8888")
-        console.print("\n[dim]See REPOSITORY_AUDIT_AND_AGENT_SWARM_PROPOSAL.md for full implementation guide[/dim]")
+        console.print(
+            "\n[dim]See REPOSITORY_AUDIT_AND_AGENT_SWARM_PROPOSAL.md for full implementation guide[/dim]"
+        )
 
     def display_status(self):
         """Display current swarm status"""
@@ -319,7 +320,9 @@ class EnhancedSwarmInitializer:
         # Mock status data - this is a placeholder for demonstration
         # In production, this would query from database/Redis
         console.print("[yellow]Note: This is a demo/visualization tool.[/yellow]")
-        console.print("[yellow]Actual implementation requires infrastructure deployment.[/yellow]\n")
+        console.print(
+            "[yellow]Actual implementation requires infrastructure deployment.[/yellow]\n"
+        )
 
         status_data = {
             "Total Agents": "200 (configured)",
@@ -335,8 +338,12 @@ class EnhancedSwarmInitializer:
         for key, value in status_data.items():
             console.print(f"  • [cyan]{key}:[/cyan] {value}")
 
-        console.print("\n[yellow]To deploy: python scripts/init_enhanced_agent_swarm.py --deploy[/yellow]")
-        console.print("[dim]Note: Deployment requires infrastructure setup (PostgreSQL, Redis, RabbitMQ)[/dim]")
+        console.print(
+            "\n[yellow]To deploy: python scripts/init_enhanced_agent_swarm.py --deploy[/yellow]"
+        )
+        console.print(
+            "[dim]Note: Deployment requires infrastructure setup (PostgreSQL, Redis, RabbitMQ)[/dim]"
+        )
 
     def display_health(self):
         """Display health check results"""
@@ -360,7 +367,7 @@ class EnhancedSwarmInitializer:
             ("Dashboard", "⏳ Not Deployed", "yellow"),
         ]
 
-        for component, status, color in health_checks:
+        for component, status, _color in health_checks:
             console.print(f"  {status} [cyan]{component}[/cyan]")
 
         console.print("\n[dim]This tool validates configuration only.[/dim]")
@@ -418,7 +425,9 @@ def main():
     # Execute requested action
     if args.deploy:
         if not initializer.check_prerequisites():
-            console.print("\n[red]Prerequisites check failed. Please fix issues and try again.[/red]")
+            console.print(
+                "\n[red]Prerequisites check failed. Please fix issues and try again.[/red]"
+            )
             sys.exit(1)
 
         asyncio.run(initializer.deploy_swarm())
