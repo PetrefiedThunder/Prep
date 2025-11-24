@@ -1,0 +1,1006 @@
+# Enhanced Agent Swarm Configuration v2.0
+# This configuration defines the 200-agent dual-layer system for Prep repository
+# Generated: 2025-11-24
+
+# ============================================================================
+# SWARM GLOBAL SETTINGS
+# ============================================================================
+swarm:
+  name: "prep-enhanced-agent-swarm"
+  version: "2.0.0"
+  total_agents: 200
+  description: "Dual-layer agent system for MVP completion and production readiness"
+  
+  # Layer configuration
+  layers:
+    - name: "monitoring"
+      description: "Passive observation and alerting (existing 100 agents)"
+      agents: 100
+      coordinator: "agents.coordinators.monitoring_coordinator.MonitoringCoordinator"
+      enabled: true
+      
+    - name: "implementation"
+      description: "Active remediation and MVP acceleration (new 100 agents)"
+      agents: 100
+      coordinator: "agents.coordinators.implementation_coordinator.ImplementationCoordinator"
+      enabled: true
+
+# ============================================================================
+# MASTER ORCHESTRATOR CONFIGURATION
+# ============================================================================
+orchestrator:
+  enabled: true
+  class: "agents.coordinators.master_orchestrator.MasterOrchestrator"
+  
+  # Task management
+  task_priority_queue: true
+  dependency_graph: true
+  dependency_graph_engine: "networkx"
+  
+  # Resource management
+  resource_limits:
+    max_concurrent_agents: 50
+    max_cpu_cores: 4
+    max_memory_gb: 8
+    max_disk_gb: 20
+    
+  # Coordination settings
+  coordination:
+    health_check_interval: 60  # seconds
+    task_assignment_interval: 10  # seconds
+    rebalance_interval: 300  # seconds
+    heartbeat_timeout: 180  # seconds
+    
+  # Adaptive behavior
+  adaptive_scaling:
+    enabled: true
+    scale_up_threshold: 0.8  # utilization
+    scale_down_threshold: 0.3  # utilization
+    cooldown_period: 300  # seconds
+
+# ============================================================================
+# NEW AGENT TYPES (100 AGENTS)
+# ============================================================================
+agent_types:
+  
+  # --------------------------------------------------------------------------
+  # TYPE 11: MVP CRITICAL PATH AGENTS (15 agents) - HIGHEST PRIORITY
+  # --------------------------------------------------------------------------
+  mvp_critical_path:
+    count: 15
+    priority: "P0"
+    check_interval: 60  # 1 minute - aggressive
+    coordinator: "implementation"
+    enabled: true
+    
+    description: "Accelerate MVP completion by Dec 7"
+    mission: "Complete frontend integration, booking flow, payment flow, E2E tests"
+    
+    capabilities:
+      - frontend-api-integration
+      - booking-flow-completion
+      - payment-flow-integration
+      - e2e-test-generation
+      - mvp-validation
+      
+    sub_agents:
+      frontend_integration:
+        count: 3
+        ids: ["11.1", "11.2", "11.3"]
+        tasks:
+          - "Wire Next.js to real FastAPI endpoints"
+          - "Implement environment-based API configuration"
+          - "Remove all mock data dependencies"
+          
+      booking_flow:
+        count: 3
+        ids: ["11.4", "11.5", "11.6"]
+        tasks:
+          - "Complete booking state machine"
+          - "Expose availability APIs"
+          - "Implement conflict resolution UI"
+          
+      payment_flow:
+        count: 3
+        ids: ["11.7", "11.8", "11.9"]
+        tasks:
+          - "Wire Stripe webhooks end-to-end"
+          - "Complete split payment logic"
+          - "Implement receipt generation"
+          
+      e2e_testing:
+        count: 3
+        ids: ["11.10", "11.11", "11.12"]
+        tasks:
+          - "Generate Playwright tests for booking flow"
+          - "Create test fixtures (5 realistic SF kitchens)"
+          - "Build CI pipeline for E2E validation"
+          
+      mvp_validation:
+        count: 3
+        ids: ["11.13", "11.14", "11.15"]
+        tasks:
+          - "Validate complete user journey"
+          - "Test $100+ booking in Stripe test mode"
+          - "Generate MVP completion report"
+    
+    success_metrics:
+      - "Complete booking flow functional"
+      - "Zero manual intervention required"
+      - "E2E test pass rate >= 95%"
+      - "MVP completion by Dec 7, 2025"
+      
+    dependencies: []  # No dependencies - highest priority
+    
+  # --------------------------------------------------------------------------
+  # TYPE 12: TECHNICAL DEBT REMEDIATION AGENTS (12 agents)
+  # --------------------------------------------------------------------------
+  technical_debt:
+    count: 12
+    priority: "P1"
+    check_interval: 300  # 5 minutes
+    coordinator: "implementation"
+    enabled: true
+    
+    description: "Eliminate code quality blockers"
+    mission: "Fix bugs, linting errors, security vulnerabilities, type issues"
+    
+    capabilities:
+      - linting-remediation
+      - bug-fixing
+      - security-patching
+      - type-annotation
+      
+    sub_agents:
+      linting_remediation:
+        count: 3
+        ids: ["12.1", "12.2", "12.3"]
+        tasks:
+          - "Auto-fix B008, E402 errors (637 issues)"
+          - "Add missing imports (F821: 115 issues)"
+          - "Remove duplicate definitions (F811: 83 issues)"
+          
+      bug_fixing:
+        count: 3
+        ids: ["12.4", "12.5", "12.6"]
+        tasks:
+          - "Fix duplicate functions (BUG-001)"
+          - "Remove CORS wildcard (BUG-002)"
+          - "Eliminate hardcoded secrets (BUG-003)"
+          
+      security_patching:
+        count: 3
+        ids: ["12.7", "12.8", "12.9"]
+        tasks:
+          - "Replace ET.fromstring with defusedxml (XXE)"
+          - "Change binding to 127.0.0.1 (no 0.0.0.0)"
+          - "Enforce JWT secret from environment"
+          
+      type_safety:
+        count: 3
+        ids: ["12.10", "12.11", "12.12"]
+        tasks:
+          - "Add mypy type annotations"
+          - "Fix TypeScript strict mode errors"
+          - "Generate Pydantic/Zod schemas"
+    
+    success_metrics:
+      - "Zero linting errors (974 -> 0)"
+      - "Zero HIGH security issues (11 -> 0)"
+      - "100% type coverage for critical modules"
+      
+    dependencies: []  # Can run in parallel with Type 11
+    
+  # --------------------------------------------------------------------------
+  # TYPE 13: TEST COVERAGE ENHANCEMENT AGENTS (10 agents)
+  # --------------------------------------------------------------------------
+  test_coverage:
+    count: 10
+    priority: "P1"
+    check_interval: 600  # 10 minutes
+    coordinator: "implementation"
+    enabled: true
+    
+    description: "Achieve 80%+ test coverage"
+    mission: "Generate unit tests, integration tests, performance tests"
+    
+    capabilities:
+      - unit-test-generation
+      - integration-test-generation
+      - performance-test-generation
+      - test-quality-analysis
+      
+    sub_agents:
+      unit_testing:
+        count: 3
+        ids: ["13.1", "13.2", "13.3"]
+        tasks:
+          - "Generate pytest tests for uncovered functions"
+          - "Create Jest tests for TS services"
+          - "Focus on auth, booking, payment modules"
+          
+      integration_testing:
+        count: 3
+        ids: ["13.4", "13.5", "13.6"]
+        tasks:
+          - "Create database integration tests"
+          - "Build API contract tests (OpenAPI validation)"
+          - "Test service-to-service communication"
+          
+      performance_testing:
+        count: 2
+        ids: ["13.7", "13.8"]
+        tasks:
+          - "Generate load tests (concurrent bookings)"
+          - "Create performance benchmarks"
+          - "Implement chaos tests for resilience"
+          
+      test_quality:
+        count: 2
+        ids: ["13.9", "13.10"]
+        tasks:
+          - "Review test assertions quality"
+          - "Identify and fix flaky tests"
+          - "Optimize test execution time"
+    
+    success_metrics:
+      - "Test coverage >= 80% (currently 51%)"
+      - "E2E test pass rate >= 95%"
+      - "Test execution time < 5 minutes"
+      
+    dependencies: ["technical_debt"]  # Run after linting fixes
+    
+  # --------------------------------------------------------------------------
+  # TYPE 14: API CONTRACT AND INTEGRATION AGENTS (10 agents)
+  # --------------------------------------------------------------------------
+  api_contracts:
+    count: 10
+    priority: "P2"
+    check_interval: 900  # 15 minutes
+    coordinator: "implementation"
+    enabled: true
+    
+    description: "Ensure API consistency and correctness"
+    mission: "Validate OpenAPI spec, generate contract tests, check integration"
+    
+    capabilities:
+      - openapi-validation
+      - contract-test-generation
+      - api-integration-testing
+      - error-handling-audit
+      
+    sub_agents:
+      openapi_contracts:
+        count: 3
+        ids: ["14.1", "14.2", "14.3"]
+        tasks:
+          - "Validate OpenAPI spec completeness"
+          - "Generate contract tests from spec"
+          - "Detect breaking changes"
+          
+      api_integration:
+        count: 3
+        ids: ["14.4", "14.5", "14.6"]
+        tasks:
+          - "Test cross-service API calls"
+          - "Validate request/response schemas"
+          - "Check authentication flows"
+          
+      error_handling:
+        count: 2
+        ids: ["14.7", "14.8"]
+        tasks:
+          - "Audit error response consistency"
+          - "Validate HTTP status codes"
+          - "Test retry and timeout logic"
+          
+      api_documentation:
+        count: 2
+        ids: ["14.9", "14.10"]
+        tasks:
+          - "Generate endpoint documentation"
+          - "Create integration examples"
+          - "Update changelog for API changes"
+    
+    success_metrics:
+      - "100% OpenAPI compliance"
+      - "Zero breaking API changes"
+      - "All endpoints documented"
+      
+    dependencies: ["mvp_critical_path"]  # Post-MVP enhancement
+    
+  # --------------------------------------------------------------------------
+  # TYPE 15: DATABASE AND MIGRATION AGENTS (8 agents)
+  # --------------------------------------------------------------------------
+  database_migration:
+    count: 8
+    priority: "P1"
+    check_interval: 1200  # 20 minutes
+    coordinator: "implementation"
+    enabled: true
+    
+    description: "Ensure data integrity and safe migrations"
+    mission: "Validate migrations, check data consistency, optimize queries"
+    
+    capabilities:
+      - migration-safety-check
+      - data-validation
+      - query-performance-analysis
+      - data-consistency-audit
+      
+    sub_agents:
+      migration_safety:
+        count: 2
+        ids: ["15.1", "15.2"]
+        tasks:
+          - "Validate migration rollback paths"
+          - "Check for data loss operations (DROP, DELETE)"
+          - "Test migration on copy of prod data"
+          
+      data_validation:
+        count: 2
+        ids: ["15.3", "15.4"]
+        tasks:
+          - "Verify foreign key constraints"
+          - "Check index coverage for queries"
+          - "Audit NULL constraint violations"
+          
+      query_performance:
+        count: 2
+        ids: ["15.5", "15.6"]
+        tasks:
+          - "Identify slow queries (EXPLAIN ANALYZE)"
+          - "Suggest missing indexes"
+          - "Optimize N+1 query patterns"
+          
+      data_consistency:
+        count: 2
+        ids: ["15.7", "15.8"]
+        tasks:
+          - "Check referential integrity"
+          - "Validate booking state transitions"
+          - "Audit payment ledger balances"
+    
+    success_metrics:
+      - "Zero unsafe migrations"
+      - "Query P95 < 100ms"
+      - "100% referential integrity"
+      
+    dependencies: []  # Can run in parallel
+    
+  # --------------------------------------------------------------------------
+  # TYPE 16: FRONTEND QUALITY AGENTS (8 agents)
+  # --------------------------------------------------------------------------
+  frontend_quality:
+    count: 8
+    priority: "P2"
+    check_interval: 1800  # 30 minutes
+    coordinator: "implementation"
+    enabled: true
+    
+    description: "Ensure frontend production readiness"
+    mission: "React best practices, accessibility, performance, SEO"
+    
+    capabilities:
+      - react-best-practices
+      - accessibility-audit
+      - performance-optimization
+      - seo-validation
+      
+    sub_agents:
+      react_practices:
+        count: 2
+        ids: ["16.1", "16.2"]
+        tasks:
+          - "Audit component structure"
+          - "Check for prop drilling anti-patterns"
+          - "Validate hooks usage"
+          
+      accessibility:
+        count: 2
+        ids: ["16.3", "16.4"]
+        tasks:
+          - "Run axe-core audits"
+          - "Check WCAG 2.1 AA compliance"
+          - "Validate keyboard navigation"
+          
+      performance:
+        count: 2
+        ids: ["16.5", "16.6"]
+        tasks:
+          - "Analyze bundle size"
+          - "Check for unnecessary re-renders"
+          - "Validate image optimization"
+          
+      seo_meta:
+        count: 2
+        ids: ["16.7", "16.8"]
+        tasks:
+          - "Audit meta tags"
+          - "Check OpenGraph tags"
+          - "Validate sitemap and robots.txt"
+    
+    success_metrics:
+      - "Lighthouse score >= 90"
+      - "WCAG 2.1 AA compliance"
+      - "Bundle size < 200KB"
+      
+    dependencies: ["mvp_critical_path"]  # Post-MVP enhancement
+    
+  # --------------------------------------------------------------------------
+  # TYPE 17: DEVOPS AND DEPLOYMENT AGENTS (10 agents)
+  # --------------------------------------------------------------------------
+  devops_deployment:
+    count: 10
+    priority: "P1"
+    check_interval: 300  # 5 minutes
+    coordinator: "implementation"
+    enabled: true
+    
+    description: "Automate deployment and operational tasks"
+    mission: "CI/CD monitoring, deployment safety, rollback automation"
+    
+    capabilities:
+      - cicd-monitoring
+      - deployment-safety
+      - rollback-automation
+      - infrastructure-monitoring
+      
+    sub_agents:
+      cicd_pipeline:
+        count: 3
+        ids: ["17.1", "17.2", "17.3"]
+        tasks:
+          - "Monitor GitHub Actions workflows"
+          - "Auto-retry transient failures"
+          - "Optimize workflow execution time"
+          
+      deployment_safety:
+        count: 2
+        ids: ["17.4", "17.5"]
+        tasks:
+          - "Run pre-deployment health checks"
+          - "Validate environment configurations"
+          - "Check service dependencies"
+          
+      rollback_automation:
+        count: 3
+        ids: ["17.6", "17.7", "17.8"]
+        tasks:
+          - "Detect deployment failures"
+          - "Trigger automatic rollbacks"
+          - "Notify team on rollback events"
+          
+      infrastructure:
+        count: 2
+        ids: ["17.9", "17.10"]
+        tasks:
+          - "Monitor resource utilization"
+          - "Check K8s pod health"
+          - "Validate service mesh configuration"
+    
+    success_metrics:
+      - "Deploy time < 5 minutes"
+      - "Deployment success rate >= 99%"
+      - "Rollback time < 2 minutes"
+      
+    dependencies: ["technical_debt"]  # After security fixes
+    
+  # --------------------------------------------------------------------------
+  # TYPE 18: DOCUMENTATION AND KNOWLEDGE AGENTS (8 agents)
+  # --------------------------------------------------------------------------
+  documentation:
+    count: 8
+    priority: "P2"
+    check_interval: 3600  # 1 hour
+    coordinator: "implementation"
+    enabled: true
+    
+    description: "Maintain comprehensive, up-to-date documentation"
+    mission: "API docs, architecture docs, runbooks, code docs"
+    
+    capabilities:
+      - api-documentation
+      - architecture-documentation
+      - runbook-generation
+      - code-documentation
+      
+    sub_agents:
+      api_docs:
+        count: 2
+        ids: ["18.1", "18.2"]
+        tasks:
+          - "Generate OpenAPI documentation"
+          - "Create integration guides"
+          - "Update endpoint examples"
+          
+      architecture_docs:
+        count: 2
+        ids: ["18.3", "18.4"]
+        tasks:
+          - "Generate sequence diagrams"
+          - "Update architecture decision records (ADRs)"
+          - "Create system context diagrams"
+          
+      runbooks:
+        count: 2
+        ids: ["18.5", "18.6"]
+        tasks:
+          - "Create deployment runbooks"
+          - "Generate incident response playbooks"
+          - "Update troubleshooting guides"
+          
+      code_docs:
+        count: 2
+        ids: ["18.7", "18.8"]
+        tasks:
+          - "Audit inline documentation coverage"
+          - "Generate docstrings for undocumented functions"
+          - "Create code examples"
+    
+    success_metrics:
+      - "100% endpoint documentation"
+      - "Complete runbooks for all services"
+      - "80%+ docstring coverage"
+      
+    dependencies: []  # Continuous, low priority
+    
+  # --------------------------------------------------------------------------
+  # TYPE 19: COMPLIANCE AND REGULATORY AGENTS (9 agents)
+  # --------------------------------------------------------------------------
+  compliance_regulatory:
+    count: 9
+    priority: "P1"
+    check_interval: 7200  # 2 hours
+    coordinator: "implementation"
+    enabled: true
+    
+    description: "Ensure regulatory compliance for commercial kitchen platform"
+    mission: "FDA/FSMA, municipal, privacy, audit trail compliance"
+    
+    capabilities:
+      - fda-compliance
+      - municipal-compliance
+      - privacy-compliance
+      - audit-trail-validation
+      
+    sub_agents:
+      federal_compliance:
+        count: 2
+        ids: ["19.1", "19.2"]
+        tasks:
+          - "Validate federal compliance checks"
+          - "Audit food safety documentation"
+          - "Check certification expiration tracking"
+          
+      municipal_compliance:
+        count: 2
+        ids: ["19.3", "19.4"]
+        tasks:
+          - "Validate city-specific regulations (8+ cities)"
+          - "Audit health permit verification"
+          - "Check local ordinance compliance"
+          
+      privacy_compliance:
+        count: 2
+        ids: ["19.5", "19.6"]
+        tasks:
+          - "Audit GDPR/CCPA compliance"
+          - "Check data retention policies"
+          - "Validate consent management"
+          
+      audit_trail:
+        count: 3
+        ids: ["19.7", "19.8", "19.9"]
+        tasks:
+          - "Verify audit logging coverage"
+          - "Check log retention policies"
+          - "Validate tamper-proof logging"
+    
+    success_metrics:
+      - "100% compliance coverage"
+      - "Audit-ready documentation"
+      - "Zero compliance violations"
+      
+    dependencies: []  # Must complete before production
+    
+  # --------------------------------------------------------------------------
+  # TYPE 20: INTELLIGENT ORCHESTRATION AGENTS (10 agents)
+  # --------------------------------------------------------------------------
+  intelligent_orchestration:
+    count: 10
+    priority: "P0"
+    check_interval: 600  # 10 minutes
+    coordinator: "orchestrator"
+    enabled: true
+    
+    description: "Coordinate and optimize swarm operations"
+    mission: "Task prioritization, feedback loops, resource optimization, metrics"
+    
+    capabilities:
+      - task-prioritization
+      - feedback-loop
+      - resource-optimization
+      - reporting-metrics
+      
+    sub_agents:
+      task_prioritization:
+        count: 3
+        ids: ["20.1", "20.2", "20.3"]
+        tasks:
+          - "Analyze dependency graphs"
+          - "Prioritize MVP-critical tasks"
+          - "Balance resource allocation"
+          
+      feedback_loops:
+        count: 2
+        ids: ["20.4", "20.5"]
+        tasks:
+          - "Monitor agent success rates"
+          - "Adjust check intervals dynamically"
+          - "Learn from failure patterns"
+          
+      resource_optimization:
+        count: 2
+        ids: ["20.6", "20.7"]
+        tasks:
+          - "Monitor agent CPU/memory usage"
+          - "Scale agent pools dynamically"
+          - "Prevent resource exhaustion"
+          
+      reporting_metrics:
+        count: 3
+        ids: ["20.8", "20.9", "20.10"]
+        tasks:
+          - "Generate daily swarm reports"
+          - "Track MVP completion percentage"
+          - "Create executive dashboards"
+    
+    success_metrics:
+      - "Agent utilization >= 90%"
+      - "Accurate MVP tracking"
+      - "Resource efficiency optimized"
+      
+    dependencies: []  # Critical for swarm operation
+
+# ============================================================================
+# GITHUB INTEGRATION
+# ============================================================================
+github:
+  enabled: true
+  base_url: "https://api.github.com"
+  repository: "PetrefiedThunder/Prep"
+  
+  # PR settings
+  pull_requests:
+    create_prs: true
+    auto_assign_reviewers: true
+    reviewers:
+      - "prep-platform-automation"
+    draft_mode: false
+    delete_branch_on_merge: true
+    
+  # Branch settings
+  branches:
+    branch_prefix: "agent/"
+    base_branch: "main"
+    protection_rules: true
+    
+  # Labels
+  labels:
+    - "agent-generated"
+    - "automated-fix"
+    - "mvp-critical"
+    - "quality-improvement"
+    - "security-patch"
+    
+  # Comments
+  comments:
+    add_context: true
+    explain_changes: true
+    link_to_issue: true
+
+# ============================================================================
+# CI/CD INTEGRATION
+# ============================================================================
+cicd:
+  enabled: true
+  platform: "github-actions"
+  
+  # Workflow triggers
+  triggers:
+    on_pr: true
+    on_push: false
+    on_schedule: true
+    schedule_cron: "0 */6 * * *"  # Every 6 hours
+    
+  # Validation checks
+  checks:
+    run_tests: true
+    run_linters: true
+    run_security_scan: true
+    run_type_check: true
+    run_coverage: true
+    
+  # Test configuration
+  tests:
+    pytest_args: "-xvs --cov=prep --cov-report=xml"
+    jest_args: "--coverage --passWithNoTests"
+    timeout_minutes: 30
+    
+  # Linting configuration
+  linters:
+    ruff: true
+    ruff_args: "check --select E,F,B,I"
+    mypy: true
+    mypy_args: "--strict"
+    eslint: true
+    prettier: true
+    
+  # Security scanning
+  security:
+    bandit: true
+    bandit_args: "-r prep -c .bandit.yml"
+    npm_audit: true
+    gitleaks: true
+    
+  # Deployment
+  deployment:
+    auto_deploy_staging: false
+    auto_deploy_production: false
+    require_approval: true
+
+# ============================================================================
+# MONITORING AND ALERTING
+# ============================================================================
+monitoring:
+  enabled: true
+  
+  # Dashboard
+  dashboard:
+    enabled: true
+    port: 8888
+    host: "0.0.0.0"
+    refresh_interval: 30  # seconds
+    
+  # Metrics
+  metrics:
+    enabled: true
+    interval: 60  # seconds
+    prometheus_endpoint: "/metrics"
+    pushgateway_url: ""  # Optional
+    
+  # Health checks
+  health:
+    enabled: true
+    endpoint: "/health"
+    interval: 60  # seconds
+    timeout: 10  # seconds
+    
+  # Alerting
+  alerts:
+    enabled: true
+    alert_on_failures: true
+    failure_threshold: 5
+    failure_window: 300  # seconds
+    
+  # Notification channels
+  notifications:
+    slack:
+      enabled: false
+      webhook_url: "${SLACK_WEBHOOK_URL}"
+      channel: "#prep-agent-alerts"
+      
+    email:
+      enabled: false
+      smtp_host: "${SMTP_HOST}"
+      smtp_port: 587
+      from_address: "agents@prep.example.com"
+      to_addresses:
+        - "team@prep.example.com"
+        
+    pagerduty:
+      enabled: false
+      integration_key: "${PAGERDUTY_INTEGRATION_KEY}"
+      
+  # Logging integration
+  logging_integration:
+    loki:
+      enabled: false
+      url: "${LOKI_URL}"
+    elasticsearch:
+      enabled: false
+      url: "${ELASTICSEARCH_URL}"
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "json"  # json or text
+  
+  # Console logging
+  console:
+    enabled: true
+    colorized: true
+    
+  # File logging
+  file:
+    enabled: true
+    filename: "agent-swarm-v2.log"
+    max_size_mb: 100
+    backup_count: 5
+    rotation: "time"  # time or size
+    rotation_interval: "midnight"
+    
+  # Structured logging
+  structured:
+    enabled: true
+    include_timestamp: true
+    include_level: true
+    include_logger_name: true
+    include_process_id: true
+    include_thread_id: false
+    
+  # Context
+  context:
+    include_agent_id: true
+    include_agent_type: true
+    include_task_id: true
+    include_correlation_id: true
+
+# ============================================================================
+# STORAGE AND PERSISTENCE
+# ============================================================================
+storage:
+  # Database for agent state
+  database:
+    type: "postgresql"
+    host: "${DATABASE_HOST:-localhost}"
+    port: "${DATABASE_PORT:-5432}"
+    database: "${DATABASE_NAME:-prep_agents}"
+    username: "${DATABASE_USER:-prep}"
+    password: "${DATABASE_PASSWORD}"
+    pool_size: 20
+    max_overflow: 10
+    
+  # Redis for task queues and cache
+  redis:
+    enabled: true
+    host: "${REDIS_HOST:-localhost}"
+    port: "${REDIS_PORT:-6379}"
+    db: 1  # Separate from app Redis
+    password: "${REDIS_PASSWORD}"
+    
+  # Message broker for coordination
+  message_broker:
+    type: "rabbitmq"
+    host: "${RABBITMQ_HOST:-localhost}"
+    port: "${RABBITMQ_PORT:-5672}"
+    username: "${RABBITMQ_USER:-guest}"
+    password: "${RABBITMQ_PASSWORD:-guest}"
+    vhost: "/prep-agents"
+
+# ============================================================================
+# SECURITY SETTINGS
+# ============================================================================
+security:
+  # Authentication
+  authentication:
+    enabled: true
+    token_secret: "${AGENT_TOKEN_SECRET}"
+    token_expiry: 3600  # seconds
+    
+  # Authorization
+  authorization:
+    enabled: true
+    role_based: true
+    
+  # Rate limiting
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+    burst: 10
+    
+  # Input validation
+  validation:
+    enabled: true
+    strict_mode: true
+    
+  # Secrets management
+  secrets:
+    vault_enabled: false
+    vault_url: "${VAULT_URL}"
+    vault_token: "${VAULT_TOKEN}"
+
+# ============================================================================
+# PERFORMANCE TUNING
+# ============================================================================
+performance:
+  # Concurrency
+  concurrency:
+    max_workers: 50
+    thread_pool_size: 10
+    process_pool_size: 4
+    
+  # Timeouts
+  timeouts:
+    task_timeout: 300  # seconds
+    http_timeout: 30  # seconds
+    database_timeout: 10  # seconds
+    
+  # Retries
+  retries:
+    max_attempts: 3
+    backoff_factor: 2
+    backoff_max: 60  # seconds
+    
+  # Caching
+  caching:
+    enabled: true
+    ttl: 300  # seconds
+    max_size: 1000  # entries
+
+# ============================================================================
+# FEATURE FLAGS
+# ============================================================================
+features:
+  auto_remediation: true  # Allow agents to make automated fixes
+  pull_request_creation: true  # Create PRs for changes
+  auto_merge: false  # Auto-merge low-risk PRs
+  rollback_on_failure: true  # Rollback changes if tests fail
+  adaptive_scheduling: true  # Adjust check intervals based on load
+  predictive_maintenance: false  # ML-based issue prediction (future)
+  distributed_coordination: false  # Multi-node coordination (future)
+
+# ============================================================================
+# MVP TRACKING
+# ============================================================================
+mvp:
+  target_date: "2025-12-07"
+  current_completion: 0.30  # 30%
+  
+  # Critical path items
+  critical_path:
+    - id: "mvp-1"
+      name: "Frontend API Integration"
+      completion: 0.0
+      blockers: []
+      
+    - id: "mvp-2"
+      name: "Booking Flow Completion"
+      completion: 0.4
+      blockers: ["mvp-1"]
+      
+    - id: "mvp-3"
+      name: "Payment Flow Integration"
+      completion: 0.5
+      blockers: ["mvp-1", "mvp-2"]
+      
+    - id: "mvp-4"
+      name: "E2E Test Generation"
+      completion: 0.15
+      blockers: ["mvp-1", "mvp-2", "mvp-3"]
+      
+    - id: "mvp-5"
+      name: "MVP Validation"
+      completion: 0.0
+      blockers: ["mvp-4"]
+  
+  # Quality gates
+  quality_gates:
+    linting_errors: 974
+    security_issues: 11
+    test_coverage: 0.51
+    e2e_pass_rate: 0.0
+    
+  # Success criteria
+  success_criteria:
+    - "Complete $100+ booking in Stripe test mode"
+    - "Zero manual intervention required"
+    - "E2E test pass rate >= 95%"
+    - "Three services operational (FastAPI + Next.js + DB)"
+
+# ============================================================================
+# END OF CONFIGURATION
+# ============================================================================
