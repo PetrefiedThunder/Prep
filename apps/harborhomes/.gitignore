@@ -4,3 +4,7 @@ out
 .DS_Store
 coverage
 playwright-report
+
+# Environment files
+.env.local
+.env*.local
