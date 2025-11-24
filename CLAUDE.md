@@ -15,11 +15,14 @@
 
 **Option 2: Manual context loading**
 ```
+Read .claude/SYSTEM_PROMPT.md
 Read .claude/CONTEXT.md
 Read .claude/agents/python-development.md
 Read .claude/agents/backend-development.md
 Read .claude/agents/security-scanning.md
 ```
+
+**Note**: Always start with `SYSTEM_PROMPT.md` to understand the MVP mission and operating principles.
 
 ### Session Template
 
@@ -27,6 +30,7 @@ Copy this into Claude Code to start a session:
 
 ```
 Repository: Prep (~/projects/Prep)
+Mission: Read .claude/SYSTEM_PROMPT.md
 Context: Read .claude/CONTEXT.md
 
 Active Agent Profiles:
@@ -61,7 +65,8 @@ Please:
 
 ```
 .claude/
-├── CONTEXT.md                    # Master configuration (read this first)
+├── SYSTEM_PROMPT.md              # MVP mission directive (read this first!)
+├── CONTEXT.md                    # Technical configuration & reference
 ├── agents/                       # Agent profiles
 │   ├── python-development.md    # Python patterns & best practices
 │   ├── backend-development.md   # API design & database patterns
@@ -277,6 +282,7 @@ These are **non-negotiable** and will be flagged immediately:
 ## 📚 Documentation
 
 ### Internal Docs
+- **MVP Mission**: `.claude/SYSTEM_PROMPT.md` (start here!)
 - **Master Config**: `.claude/CONTEXT.md`
 - **Auth Deep Dive**: `docs/deep-dive/AUTHENTICATION_DEEP_DIVE.md`
 - **MVP Plan**: `docs/PREP_MVP_IMPLEMENTATION_PLAN.md`
@@ -350,6 +356,7 @@ mypy prep/ --show-error-codes
 ## 📞 Getting Help
 
 1. **Check Configuration**:
+   - Read `.claude/SYSTEM_PROMPT.md` for MVP mission and priorities
    - Read `.claude/CONTEXT.md` for repo overview
    - Review relevant agent profile (`.claude/agents/`)
    - Check workflow template (`.claude/workflows/`)
@@ -361,6 +368,7 @@ mypy prep/ --show-error-codes
 
 3. **Ask Claude Code**:
    ```
+   Mission: Read .claude/SYSTEM_PROMPT.md
    Context: Read .claude/CONTEXT.md
    Question: [Your question]
 
@@ -372,6 +380,7 @@ mypy prep/ --show-error-codes
 ## 🔄 Updating This Configuration
 
 When making significant changes to:
+- MVP mission or priorities → Update `.claude/SYSTEM_PROMPT.md`
 - Architecture or patterns → Update `.claude/CONTEXT.md`
 - Language features → Update `.claude/agents/python-development.md`
 - API design → Update `.claude/agents/backend-development.md`
@@ -394,6 +403,7 @@ Commit these changes along with your code changes.
 
 ```
 Repository: Prep (~/projects/Prep)
+Mission: Read .claude/SYSTEM_PROMPT.md
 Context: Read .claude/CONTEXT.md
 Workflow: Read .claude/workflows/auth-consolidation.md
 

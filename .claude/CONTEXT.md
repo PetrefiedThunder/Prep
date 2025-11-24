@@ -6,6 +6,18 @@
 
 ---
 
+## 🚀 MVP Mission Directive
+
+**IMPORTANT**: Before starting any work, read the [MVP System Prompt](./.claude/SYSTEM_PROMPT.md) which defines:
+- Primary mission and Dec 7, 2025 deadline
+- Definition of Done for MVP
+- "MVP OR BUST" operating principles
+- Priority order for all work
+
+This CONTEXT.md provides technical reference; SYSTEM_PROMPT.md provides the operational mission.
+
+---
+
 ## 🎯 Repository Overview
 
 **Prep** (formerly PrepChef) is a commercial kitchen rental marketplace platform connecting certified kitchens with food entrepreneurs. The platform handles:
@@ -348,6 +360,7 @@ Security impact: Prevents unauthorized access to admin endpoints
 
 ## 🔗 Related Documentation
 
+- **[MVP System Prompt](./.claude/SYSTEM_PROMPT.md)** – Primary mission directive and operating principles
 - [Authentication Deep Dive](../docs/deep-dive/AUTHENTICATION_DEEP_DIVE.md)
 - [MVP Implementation Plan](../docs/PREP_MVP_IMPLEMENTATION_PLAN.md)
 - [Golden Path Demo](../docs/GOLDEN_PATH_DEMO.md)
