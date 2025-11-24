@@ -22,21 +22,15 @@ jobs:
         run: |
           if [ ! -d "apps/data-plane/spark" ]; then
             echo "ERROR: apps/data-plane/spark directory does not exist"
-            echo "exists=false" >> $GITHUB_OUTPUT
             exit 1
           fi
-          echo "exists=true" >> $GITHUB_OUTPUT
       - name: Install dependencies
-        if: steps.check_spark.outputs.exists == 'true'
         run: pip install -r apps/data-plane/spark/requirements.txt
       - name: Run unit tests
-        if: steps.check_spark.outputs.exists == 'true'
         run: pytest apps/data-plane/spark/tests -q
       - name: Build Spark recon image
-        if: steps.check_spark.outputs.exists == 'true'
         run: docker build -t ghcr.io/prep/spark-recon:${{ github.sha }} -f apps/data-plane/spark/Dockerfile apps/data-plane/spark
       - name: Push Spark recon image
-        if: steps.check_spark.outputs.exists == 'true'
         run: echo "Skipping push in CI stub"
   deploy:
     needs: build-and-test

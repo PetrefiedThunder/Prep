@@ -18,9 +18,9 @@ jobs:
           pip install -e .
       - name: Run ETL
         run: |
-          if [ ! -f "etl/jobs/reg_refresh_worker.py" ] && [ ! -d "etl/jobs" ]; then
+          if [ ! -f "etl/jobs/reg_refresh_worker.py" ]; then
             echo "ERROR: ETL worker not found at etl/jobs/reg_refresh_worker.py"
-            echo "ETL jobs directory structure:"
+            echo "ETL directory structure:"
             ls -la etl/ || echo "etl directory not found"
             exit 1
           fi
