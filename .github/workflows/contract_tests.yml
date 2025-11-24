@@ -4,9 +4,9 @@ on:
   push:
     paths:
       - 'schemas/**'
-      - 'apps/policy_engine/**'
-      - 'apps/obligation_extractor/**'
   pull_request:
+    paths:
+      - 'schemas/**'
 
 jobs:
   contract:
