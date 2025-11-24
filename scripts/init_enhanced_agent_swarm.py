@@ -358,7 +358,7 @@ class EnhancedSwarmInitializer:
             ("RabbitMQ Connection", "⏳ Infrastructure Needed", "yellow"),
             ("GitHub API", "⏳ Requires Token", "yellow"),
             ("Dashboard", "⏳ Not Deployed", "yellow"),
-        }
+        ]
 
         for component, status, color in health_checks:
             console.print(f"  {status} [cyan]{component}[/cyan]")
