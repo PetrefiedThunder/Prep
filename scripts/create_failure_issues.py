@@ -127,17 +127,10 @@ class GitHubFailureTracker:
 
             for job in jobs:
                 if job["conclusion"] in ["failure", "cancelled", "timed_out", "action_required"]:
-                    # Safely extract workflow file from run_url
-                    # Expected format: https://api.github.com/repos/owner/repo/actions/runs/123456789
-                    # We want to extract "repo" (3rd element from end)
+                    # Note: workflow_file is not available in job data
+                    # The actual workflow path is obtained from the parent workflow object
+                    # This field is kept for potential future use but set to "unknown"
                     workflow_file = "unknown"
-                    if "run_url" in job and job["run_url"]:
-                        try:
-                            parts = job["run_url"].split("/")
-                            if len(parts) >= 3:
-                                workflow_file = parts[-3]
-                        except (IndexError, AttributeError):
-                            pass
                     
                     failed_jobs.append(
                         FailedJob(
