@@ -760,7 +760,7 @@ monitoring:
   dashboard:
     enabled: true
     port: 8888
-    host: "0.0.0.0"
+    host: "127.0.0.1"  # Bind to localhost only for security
     refresh_interval: 30  # seconds
     
   # Metrics
@@ -877,8 +877,8 @@ storage:
     type: "rabbitmq"
     host: "${RABBITMQ_HOST:-localhost}"
     port: "${RABBITMQ_PORT:-5672}"
-    username: "${RABBITMQ_USER:-guest}"
-    password: "${RABBITMQ_PASSWORD:-guest}"
+    username: "${RABBITMQ_USER}"  # Required - no default
+    password: "${RABBITMQ_PASSWORD}"  # Required - no default
     vhost: "/prep-agents"
 
 # ============================================================================

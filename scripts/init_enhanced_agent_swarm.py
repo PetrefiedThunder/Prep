@@ -2,26 +2,33 @@
 """
 Enhanced Agent Swarm Quick Start Script
 
-This script initializes the enhanced 200-agent swarm system for the Prep repository.
-It provides a simple interface to deploy, manage, and monitor the dual-layer agent system.
+This script is a planning and visualization tool for the enhanced 200-agent swarm system.
+It validates configuration, displays architecture, and provides deployment guidance.
+
+IMPORTANT: This is NOT a production deployment tool. It's a planning/visualization utility.
+Actual deployment requires:
+1. Infrastructure provisioning (PostgreSQL, Redis, RabbitMQ)
+2. Coordinator implementation (Python classes in agents/coordinators/)
+3. Agent worker processes (Celery workers)
+4. Environment configuration (secrets, tokens, credentials)
 
 Usage:
     python scripts/init_enhanced_agent_swarm.py [--deploy] [--status] [--help]
 
 Options:
-    --deploy    Deploy the enhanced agent swarm (100 new agents)
-    --status    Check status of all 200 agents
-    --health    Run health checks on the swarm
+    --deploy    Show deployment planning checklist
+    --status    Show configuration status
+    --health    Validate configuration
     --help      Show this help message
 
 Examples:
-    # Deploy the enhanced swarm
+    # View swarm architecture and planning
+    python scripts/init_enhanced_agent_swarm.py
+
+    # Show deployment checklist
     python scripts/init_enhanced_agent_swarm.py --deploy
 
-    # Check swarm status
-    python scripts/init_enhanced_agent_swarm.py --status
-
-    # Run health checks
+    # Validate configuration
     python scripts/init_enhanced_agent_swarm.py --health
 """
 
@@ -33,7 +40,10 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
-# IMPORTANT: Remove current directory from path to avoid local yaml.py shadowing PyYAML
+# WORKAROUND: Remove current directory from path to avoid local yaml.py shadowing PyYAML
+# This is a temporary workaround for import conflicts in the repository.
+# Production deployments should use proper virtual environments and package management.
+# TODO: Consider renaming the local yaml.py file to avoid this issue.
 if '' in sys.path:
     sys.path.remove('')
 if '.' in sys.path:
@@ -261,78 +271,100 @@ class EnhancedSwarmInitializer:
             console.print(f"  • [green]{metric}:[/green] {target}")
 
     async def deploy_swarm(self):
-        """Deploy the enhanced agent swarm"""
-        console.print("\n[bold green]Deploying Enhanced Agent Swarm...[/bold green]\n")
+        """Deploy the enhanced agent swarm (simulation/planning mode)"""
+        console.print("\n[bold yellow]⚠️  SIMULATION MODE[/bold yellow]")
+        console.print("[dim]This is a planning and visualization tool.[/dim]")
+        console.print("[dim]Actual deployment requires infrastructure setup.[/dim]\n")
+
+        console.print("[bold green]Deployment Checklist Preview:[/bold green]\n")
 
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=console,
         ) as progress:
-            # Simulate deployment steps
+            # Simulate deployment steps for planning purposes
             tasks_to_complete = [
                 ("Validating configuration", 2),
-                ("Creating agent database tables", 3),
-                ("Initializing coordinators", 2),
-                ("Registering 100 new agents", 5),
-                ("Starting master orchestrator", 2),
-                ("Connecting to GitHub API", 2),
-                ("Initializing CI/CD integration", 2),
-                ("Starting monitoring dashboard", 2),
+                ("Planning database schema", 2),
+                ("Designing coordinator architecture", 2),
+                ("Planning agent registration", 3),
+                ("Designing orchestrator patterns", 2),
+                ("Planning GitHub integration", 2),
+                ("Designing CI/CD hooks", 2),
+                ("Planning monitoring dashboard", 2),
             ]
 
             for task_desc, duration in tasks_to_complete:
                 task = progress.add_task(f"[cyan]{task_desc}...", total=duration)
                 for _ in range(duration):
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.3)
                     progress.update(task, advance=1)
 
-        console.print("\n[bold green]✅ Deployment Complete![/bold green]")
-        console.print("\n[dim]Next steps:[/dim]")
-        console.print("  1. Monitor dashboard: http://localhost:8888/dashboard")
-        console.print("  2. View metrics: http://localhost:8888/metrics")
-        console.print("  3. Check status: python scripts/init_enhanced_agent_swarm.py --status")
+        console.print("\n[bold green]✅ Planning Complete![/bold green]")
+        console.print("\n[yellow]Next steps for actual deployment:[/yellow]")
+        console.print("  1. Provision infrastructure: 4 CPU cores, 8GB RAM")
+        console.print("  2. Setup PostgreSQL database for agent state")
+        console.print("  3. Setup Redis for task queues and caching")
+        console.print("  4. Setup RabbitMQ for message coordination")
+        console.print("  5. Configure environment variables (see config file)")
+        console.print("  6. Implement coordinator classes in agents/coordinators/")
+        console.print("  7. Deploy monitoring dashboard on port 8888")
+        console.print("\n[dim]See REPOSITORY_AUDIT_AND_AGENT_SWARM_PROPOSAL.md for full implementation guide[/dim]")
 
     def display_status(self):
         """Display current swarm status"""
         console.print("\n[bold]Swarm Status:[/bold]\n")
 
-        # Mock status data (in real implementation, would query from database/Redis)
+        # Mock status data - this is a placeholder for demonstration
+        # In production, this would query from database/Redis
+        console.print("[yellow]Note: This is a demo/visualization tool.[/yellow]")
+        console.print("[yellow]Actual implementation requires infrastructure deployment.[/yellow]\n")
+
         status_data = {
-            "Total Agents": "200",
+            "Total Agents": "200 (configured)",
             "Active Agents": "0 (not deployed yet)",
             "Failed Agents": "0",
             "Tasks Completed": "0",
             "Tasks Failed": "0",
             "Uptime": "N/A",
-            "MVP Completion": "30%",
+            "MVP Completion": "30% (estimated from audit)",
             "Last Update": "Not deployed",
         }
 
         for key, value in status_data.items():
             console.print(f"  • [cyan]{key}:[/cyan] {value}")
 
-        console.print("\n[yellow]Note: Deploy the swarm first using --deploy flag[/yellow]")
+        console.print("\n[yellow]To deploy: python scripts/init_enhanced_agent_swarm.py --deploy[/yellow]")
+        console.print("[dim]Note: Deployment requires infrastructure setup (PostgreSQL, Redis, RabbitMQ)[/dim]")
 
     def display_health(self):
         """Display health check results"""
         console.print("\n[bold]Health Check Results:[/bold]\n")
 
-        # Mock health data
+        console.print("[yellow]Note: This is a configuration validation tool.[/yellow]")
+        console.print("[yellow]Actual health checks require deployed infrastructure.[/yellow]\n")
+
+        # Mock health data - planning/validation mode
         health_checks = [
-            ("Master Orchestrator", "❌ Not Running", "red"),
-            ("Monitoring Coordinator", "❌ Not Running", "red"),
-            ("Implementation Coordinator", "❌ Not Running", "red"),
-            ("Database Connection", "❓ Unknown", "yellow"),
-            ("Redis Connection", "❓ Unknown", "yellow"),
-            ("GitHub API", "❓ Unknown", "yellow"),
-            ("Dashboard", "❌ Not Running", "red"),
-        ]
+            ("Configuration File", "✅ Valid YAML", "green"),
+            ("Agent Types Defined", "✅ 10 types configured", "green"),
+            ("Total Agent Count", "✅ 200 agents planned", "green"),
+            ("Master Orchestrator", "⏳ Not Deployed", "yellow"),
+            ("Monitoring Coordinator", "⏳ Not Deployed", "yellow"),
+            ("Implementation Coordinator", "⏳ Not Deployed", "yellow"),
+            ("Database Connection", "⏳ Infrastructure Needed", "yellow"),
+            ("Redis Connection", "⏳ Infrastructure Needed", "yellow"),
+            ("RabbitMQ Connection", "⏳ Infrastructure Needed", "yellow"),
+            ("GitHub API", "⏳ Requires Token", "yellow"),
+            ("Dashboard", "⏳ Not Deployed", "yellow"),
+        }
 
         for component, status, color in health_checks:
             console.print(f"  {status} [cyan]{component}[/cyan]")
 
-        console.print("\n[yellow]Note: Deploy the swarm first using --deploy flag[/yellow]")
+        console.print("\n[dim]This tool validates configuration only.[/dim]")
+        console.print("[dim]See deployment guide for infrastructure setup.[/dim]")
 
 
 def main():
