@@ -121,9 +121,13 @@ uvicorn api.index:app --reload --port 8000
 # Terminal 2: Node.js services
 cd prepchef && npm run dev
 
-# Terminal 3: Frontend
-cd apps/harborhomes && npm run dev
+# Terminal 3: Frontend (requires configuration first!)
+cd apps/harborhomes
+# Create .env.local with: NEXT_PUBLIC_API_BASE=http://localhost:8000
+npm run dev
 ```
+
+**📝 Important**: The frontend requires `NEXT_PUBLIC_API_BASE` to be set to connect to the backend. See [FRONTEND_BACKEND_CONNECTION_FIX.md](./FRONTEND_BACKEND_CONNECTION_FIX.md) for details.
 
 **Service Endpoints:**
 - Frontend: http://localhost:3001
