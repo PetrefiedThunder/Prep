@@ -18,6 +18,11 @@ Usage:
 
 Requirements:
     pip install requests
+    
+Note:
+    This script uses 'requests' library instead of 'aiohttp' (which is in requirements.txt)
+    because it's a standalone utility script, not part of the main application.
+    Install it separately: pip install requests
 """
 
 import argparse
@@ -25,7 +30,6 @@ import hashlib
 import os
 import sys
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any
 
 import requests
@@ -122,13 +126,23 @@ class GitHubFailureTracker:
             jobs = response.json()["jobs"]
 
             for job in jobs:
-                if job["conclusion"] in ["failure", "cancelled", "timed_out"]:
+                if job["conclusion"] in ["failure", "cancelled", "timed_out", "action_required"]:
+                    # Safely extract workflow file from run_url
+                    # Expected format: https://api.github.com/repos/owner/repo/actions/runs/123456789
+                    # We want to extract "repo" (3rd element from end)
+                    workflow_file = "unknown"
+                    if "run_url" in job and job["run_url"]:
+                        try:
+                            parts = job["run_url"].split("/")
+                            if len(parts) >= 3:
+                                workflow_file = parts[-3]
+                        except (IndexError, AttributeError):
+                            pass
+                    
                     failed_jobs.append(
                         FailedJob(
                             workflow_name=job.get("workflow_name", "Unknown"),
-                            workflow_file=job.get("run_url", "").split("/")[-3]
-                            if "run_url" in job
-                            else "unknown",
+                            workflow_file=workflow_file,
                             run_id=run_id,
                             run_number=job.get("run_number", 0),
                             job_name=job["name"],
