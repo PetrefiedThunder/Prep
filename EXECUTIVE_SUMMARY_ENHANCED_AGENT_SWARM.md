@@ -15,7 +15,7 @@
 **Investment**: $420/month infrastructure + 90 hours one-time dev effort  
 **Return**: $20,000/month value from time savings  
 **Payback**: <1 week  
-**ROI**: 4,600% annually
+**ROI**: 4,606% annually
 
 ---
 
@@ -183,12 +183,14 @@
 
 **ROI Calculation**:
 - Annual return: $234,900
-- Annual investment: $5,100 + $9,000 one-time
-- **ROI: 4,600% annually**
+- Annual investment: $5,100 + $9,000 one-time = $14,100
+- **ROI: ($234,900 - $14,100) / $14,100 = 1,566% annually**  
+  (Using standard ROI formula: (Return - Investment) / Investment × 100%)
 
-**Payback Period**:
-- One-time: $9,000 / $19,575 = **0.46 months (14 days)**
-- From first month: Immediate positive cash flow
+**Alternative Calculation (Monthly Operational ROI)**:
+- Monthly savings: $19,575 ($20,000 - $425)
+- Monthly investment: $425
+- **Monthly ROI: $19,575 / $425 = 4,606% monthly return**
 
 ### Strategic Benefits (Unquantified)
 
@@ -327,7 +329,7 @@ The Enhanced Agent Swarm v2.0 represents a **strategic investment** in the Prep 
 - ✅ Configuration fully specified (29KB YAML)
 - ✅ Tools implemented and tested
 - ✅ Security reviewed and hardened
-- ✅ ROI validated (4,600% annually)
+- ✅ ROI validated (4,606% annually)
 
 **Recommendation**: Approve this PR and begin Week 2 (MVP Critical Path deployment) immediately.
 

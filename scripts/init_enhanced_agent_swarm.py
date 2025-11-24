@@ -37,10 +37,10 @@ import asyncio
 import sys
 from pathlib import Path
 
-# WORKAROUND: Remove current directory from path to avoid local yaml.py shadowing PyYAML
-# This is a temporary workaround for import conflicts in the repository.
+# NOTE: If you encounter import conflicts with PyYAML, rename any local yaml.py file in your repository.
 # Production deployments should use proper virtual environments and package management.
-# TODO: Consider renaming the local yaml.py file to avoid this issue.
+# TODO: Remove any local yaml.py file to avoid shadowing the PyYAML package.
+# WORKAROUND: Temporarily remove current directory from path to avoid local yaml.py shadowing PyYAML
 if "" in sys.path:
     sys.path.remove("")
 if "." in sys.path:
@@ -152,14 +152,14 @@ class EnhancedSwarmInitializer:
         agent_types = self.config.get("agent_types", {})
 
         for agent_type, config in agent_types.items():
+            mission = config.get("mission", "N/A")
+            truncated_mission = mission[:50] + "..." if len(mission) > 50 else mission
             table.add_row(
                 agent_type.replace("_", " ").title(),
                 str(config.get("count", 0)),
                 config.get("priority", "P2"),
                 f"{config.get('check_interval', 0)}s",
-                config.get("mission", "N/A")[:47] + "..."
-                if len(config.get("mission", "")) > 50
-                else config.get("mission", "N/A"),
+                truncated_mission,
             )
 
         console.print(table)

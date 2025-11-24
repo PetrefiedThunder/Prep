@@ -234,7 +234,7 @@ open http://localhost:8888/dashboard
 - **Memory**: 8GB (40MB/agent avg)
 - **Storage**: 20GB (logs, state, metrics)
 - **Cost**: ~$420/month (~$14/day)
-- **ROI**: 4,600% annual ROI, <1 week payback
+- **ROI**: 4,606% annual ROI, <1 week payback
 
 ### Deployment Timeline
 

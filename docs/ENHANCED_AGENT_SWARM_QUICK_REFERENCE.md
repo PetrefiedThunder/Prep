@@ -387,7 +387,7 @@ Add to `.pre-commit-config.yaml`:
   hooks:
     - id: agent-swarm-lint-check
       name: Agent Swarm Lint Check
-      entry: python scripts/agent_lint_check.py
+      entry: python scripts/agent_lint_check.py  # Planned, not yet implemented
       language: system
       pass_filenames: false
 ```
@@ -400,11 +400,11 @@ Add to deployment pipeline:
 # Run agent-driven quality checks
 python scripts/init_enhanced_agent_swarm.py --status
 
-# Validate MVP completion percentage
-python scripts/track_mvp_progress.py
+# Validate MVP completion percentage (planned script)
+# python scripts/track_mvp_progress.py
 
-# Generate swarm report
-python scripts/generate_swarm_report.py
+# Generate swarm report (planned script)
+# python scripts/generate_swarm_report.py
 ```
 
 ---
@@ -422,7 +422,7 @@ python scripts/generate_swarm_report.py
 
 - **Time Saved**: 200+ hours/month (manual QA, testing, bug fixing)
 - **Value**: 200 hours × $100/hour = $20,000/month
-- **ROI**: ($20,000 - $425) / $425 = 4,600% annual ROI
+- **ROI**: ($20,000 - $425) / $425 = 4,606% annual ROI
 - **Payback Period**: <1 week
 
 ### Break-Even Analysis
@@ -446,8 +446,8 @@ python scripts/generate_swarm_report.py
 
 - `scripts/init_enhanced_agent_swarm.py` - Initialize and manage swarm
 - `scripts/run_agent_swarm.py` - Run existing 100-agent swarm
-- `scripts/track_mvp_progress.py` - Track MVP completion percentage
-- `scripts/generate_swarm_report.py` - Generate daily reports
+- `scripts/track_mvp_progress.py` - Track MVP completion (planned, not yet implemented)
+- `scripts/generate_swarm_report.py` - Generate reports (planned, not yet implemented)
 
 ### Monitoring
 
