@@ -33,19 +33,32 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# IMPORTANT: Remove current directory from path to avoid local yaml.py shadowing PyYAML
+if '' in sys.path:
+    sys.path.remove('')
+if '.' in sys.path:
+    sys.path.remove('.')
+sys_path_0 = sys.path[0]
+if sys_path_0 and Path(sys_path_0).name == 'Prep':
+    sys.path.pop(0)
 
+# Now import PyYAML safely
 try:
     import yaml
+except ImportError:
+    print("Error: Missing PyYAML. Please install:")
+    print("  pip install pyyaml")
+    sys.exit(1)
+
+try:
     from rich.console import Console
     from rich.table import Table
     from rich.progress import Progress, SpinnerColumn, TextColumn
     from rich.panel import Panel
     from rich.tree import Tree
 except ImportError:
-    print("Error: Missing dependencies. Please install:")
-    print("  pip install pyyaml rich")
+    print("Error: Missing rich library. Please install:")
+    print("  pip install rich")
     sys.exit(1)
 
 # Initialize Rich console for beautiful output
@@ -68,8 +81,9 @@ class EnhancedSwarmInitializer:
         except FileNotFoundError:
             console.print(f"[red]Error: Configuration file not found: {self.config_path}[/red]")
             sys.exit(1)
-        except yaml.YAMLError as e:
+        except Exception as e:
             console.print(f"[red]Error parsing configuration: {e}[/red]")
+            console.print(f"[yellow]Tip: Check YAML syntax in {self.config_path}[/yellow]")
             sys.exit(1)
 
     def display_welcome(self):
