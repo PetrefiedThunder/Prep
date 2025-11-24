@@ -68,15 +68,16 @@
     "vitest": "^0.34.6"
   },
   "engines": {
-    "node": ">=18.17.0"
+    "node": ">=18.17.0",
+    "npm": ">=9.0.0"
   },
   "packageManager": "pnpm@8.14.0",
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
-      "pnpm lint -- --fix"
+      "npm run lint -- --fix"
     ],
     "*.{ts,tsx,js,jsx,css,json,md}": [
-      "pnpm format --loglevel warn"
+      "npm run format --loglevel warn"
     ]
   }
 }

@@ -3,6 +3,9 @@ services:
     image: postgis/postgis:15-3.4
     container_name: prepchef-postgres
     restart: unless-stopped
+    # Platform constraint removed for cross-platform compatibility
+    # The PostGIS image is available for multiple architectures (amd64, arm64)
+    # Docker will automatically pull the correct image for your system
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
