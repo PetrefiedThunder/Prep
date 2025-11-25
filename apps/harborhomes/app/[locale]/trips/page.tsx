@@ -1,8 +1,9 @@
-import { trips, listings } from '@/lib/mock-data';
+import { getTrips, getListings } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@/components/ui';
 import { format } from 'date-fns';
 
-export default function TripsPage() {
+export default async function TripsPage() {
+  const [trips, listings] = await Promise.all([getTrips(), getListings()]);
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">

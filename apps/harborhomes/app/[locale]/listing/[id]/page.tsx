@@ -1,13 +1,13 @@
 import { notFound } from 'next/navigation';
-import { listings, reviews } from '@/lib/mock-data';
+import { getListingById, getReviews } from '@/lib/api-client';
 import { ListingGallery } from '@/components/listing/listing-gallery';
 import { BookingCard } from '@/components/listing/booking-card';
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 
-export default function ListingDetail({ params: { id } }: { params: { id: string } }) {
-  const listing = listings.find((item) => item.id === id);
+export default async function ListingDetail({ params: { id } }: { params: { id: string } }) {
+  const listing = await getListingById(id);
   if (!listing) notFound();
-  const listingReviews = reviews.filter((review) => review.listingId === id);
+  const listingReviews = await getReviews(id);
 
   return (
     <div className="grid gap-12 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">

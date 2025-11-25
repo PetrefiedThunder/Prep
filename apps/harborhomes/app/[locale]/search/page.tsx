@@ -1,8 +1,9 @@
-import { listings } from '@/lib/mock-data';
+import { getListings } from '@/lib/api-client';
 import { ResultsLayout } from '@/components/search/results-layout';
 import { FiltersDialog } from '@/components/search/filters-dialog';
 
-export default function SearchPage() {
+export default async function SearchPage() {
+  const listings = await getListings();
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
