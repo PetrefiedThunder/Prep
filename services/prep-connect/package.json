@@ -15,7 +15,7 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "helmet": "^7.0.0",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "openapi3-ts": "^4.1.2"
   },
