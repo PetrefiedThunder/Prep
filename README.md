@@ -121,9 +121,13 @@ uvicorn api.index:app --reload --port 8000
 # Terminal 2: Node.js services
 cd prepchef && npm run dev
 
-# Terminal 3: Frontend
-cd apps/harborhomes && npm run dev
+# Terminal 3: Frontend (requires configuration first!)
+cd apps/harborhomes
+# Create .env.local with: NEXT_PUBLIC_API_BASE=http://localhost:8000
+npm run dev
 ```
+
+**📝 Important**: The frontend requires `NEXT_PUBLIC_API_BASE` to be set to connect to the backend. See [FRONTEND_BACKEND_CONNECTION_FIX.md](./FRONTEND_BACKEND_CONNECTION_FIX.md) for details.
 
 **Service Endpoints:**
 - Frontend: http://localhost:3001
@@ -331,6 +335,33 @@ python scripts/run_agent_swarm.py --num-agents 10
 - [AGENTS.md](./AGENTS.md) - Agent system overview
 - [docs/AGENT_SWARM.md](./docs/AGENT_SWARM.md) - Complete documentation
 - [docs/AGENT_SWARM_QUICK_REFERENCE.md](./docs/AGENT_SWARM_QUICK_REFERENCE.md) - Quick reference guide
+
+### CI Failure Tracking
+
+Automatically track and create issues for failed GitHub Actions jobs:
+
+```bash
+# Quick start using Make
+make ci-failures-check   # Preview failures (dry-run)
+make ci-failures-track   # Create issues for failures
+make ci-failures-help    # Show help
+
+# Or use Python directly
+export GITHUB_TOKEN=your_token
+python scripts/create_failure_issues.py --repo PetrefiedThunder/Prep --dry-run
+python scripts/create_failure_issues.py --repo PetrefiedThunder/Prep --execute
+```
+
+**Features:**
+- 🔍 Scans all workflows for failures
+- 🎯 Creates detailed GitHub issues with logs
+- 🔄 Deduplicates to prevent duplicate issues
+- 🏷️ Auto-labels with `ci-failure`, `github-actions`, `automated`
+- 🔧 Supports workflow filtering and run limits
+
+**Learn More:**
+- [docs/CI_FAILURE_TRACKING.md](./docs/CI_FAILURE_TRACKING.md) - Complete documentation
+- [docs/CI_FAILURE_TRACKING_QUICKSTART.md](./docs/CI_FAILURE_TRACKING_QUICKSTART.md) - Quick start guide
 
 ---
 

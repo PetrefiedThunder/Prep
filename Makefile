@@ -1,4 +1,4 @@
-.PHONY: help bootstrap up down migrate check-db smoke-test test lint typecheck health format setup policy.build opa.up db.migrate codex-verify etl.validate api.summary.test api.test api.run run-% clean preflight scan-microservices swarm-start swarm-status swarm-help
+.PHONY: help bootstrap up down migrate check-db smoke-test test lint typecheck health format setup policy.build opa.up db.migrate codex-verify etl.validate api.summary.test api.test api.run run-% clean preflight scan-microservices swarm-start swarm-status swarm-help ci-failures-check ci-failures-track ci-failures-help
 
 # Default target
 help:
@@ -25,6 +25,11 @@ help:
 	@echo ""
 	@echo "Security:"
 	@echo "  scan-microservices  Scan all Node.js microservices for security vulnerabilities"
+	@echo ""
+	@echo "CI Failure Tracking:"
+	@echo "  ci-failures-check   Preview failed CI jobs (dry-run, no issues created)"
+	@echo "  ci-failures-track   Create GitHub issues for all failed CI jobs"
+	@echo "  ci-failures-help    Show CI failure tracking documentation"
 	@echo ""
 	@echo "Agent Swarm:"
 	@echo "  swarm-start    Start the agent swarm (100 autonomous monitoring agents)"
@@ -330,3 +335,55 @@ swarm-help:
 	@echo "  • AGENTS.md - Agent system overview"
 	@echo "  • docs/AGENT_SWARM.md - Complete documentation"
 	@echo "  • docs/AGENT_SWARM_QUICK_REFERENCE.md - Quick reference"
+
+# CI Failure Tracking commands
+ci-failures-check:
+	@echo "🔍 Checking for failed CI jobs (dry-run mode)..."
+	@if [ -z "$$GITHUB_TOKEN" ]; then \
+		echo "Error: GITHUB_TOKEN environment variable not set"; \
+		echo "Set it with: export GITHUB_TOKEN=your_token"; \
+		exit 1; \
+	fi
+	@python scripts/create_failure_issues.py \
+		--repo PetrefiedThunder/Prep \
+		--max-runs 50 \
+		--dry-run
+
+ci-failures-track:
+	@echo "🎯 Creating issues for failed CI jobs..."
+	@if [ -z "$$GITHUB_TOKEN" ]; then \
+		echo "Error: GITHUB_TOKEN environment variable not set"; \
+		echo "Set it with: export GITHUB_TOKEN=your_token"; \
+		exit 1; \
+	fi
+	@echo "⚠️  This will create GitHub issues. Press Ctrl+C to cancel, or Enter to continue..."
+	@read -r
+	@python scripts/create_failure_issues.py \
+		--repo PetrefiedThunder/Prep \
+		--max-runs 50 \
+		--execute
+
+ci-failures-help:
+	@echo "🔍 CI Failure Tracking System"
+	@echo ""
+	@echo "Automatically finds and tracks failed GitHub Actions jobs by creating issues."
+	@echo ""
+	@echo "Setup:"
+	@echo "  1. Get a GitHub token: https://github.com/settings/tokens/new"
+	@echo "  2. Export it: export GITHUB_TOKEN=your_token"
+	@echo ""
+	@echo "Commands:"
+	@echo "  make ci-failures-check  - Preview failures (no issues created)"
+	@echo "  make ci-failures-track  - Create issues for failures"
+	@echo ""
+	@echo "Manual usage:"
+	@echo "  python scripts/create_failure_issues.py --repo PetrefiedThunder/Prep --dry-run"
+	@echo "  python scripts/create_failure_issues.py --repo PetrefiedThunder/Prep --execute"
+	@echo ""
+	@echo "Options:"
+	@echo "  --workflow ci.yml       Check specific workflow only"
+	@echo "  --max-runs 30           Limit number of runs to check"
+	@echo ""
+	@echo "Documentation:"
+	@echo "  • docs/CI_FAILURE_TRACKING.md - Complete documentation"
+	@echo "  • docs/CI_FAILURE_TRACKING_QUICKSTART.md - Quick start guide"
