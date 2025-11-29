@@ -1,12 +1,13 @@
 import Link from 'next/link';
-import { listings } from '@/lib/mock-data';
+import { getListings } from '@/lib/api-client';
 import { ListingCard } from '@/components/listing/listing-card';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { getMessages } from '@/lib/i18n';
 
-export default function HomePage({ params: { locale } }: { params: { locale: string } }) {
+export default async function HomePage({ params: { locale } }: { params: { locale: string } }) {
   const messages = getMessages(locale);
-  const featured = listings.filter((listing) => listing.featured);
+  const all = await getListings();
+  const featured = all.filter((listing) => listing.featured);
 
   return (
     <div className="flex flex-col gap-12">
