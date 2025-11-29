@@ -1,0 +1,402 @@
+# Prometheus Alerting Rules for Prep Platform
+#
+# These rules define alerts for critical production metrics.
+# Deploy to Prometheus/Alertmanager or use with Grafana alerts.
+
+groups:
+  - name: prep-api-availability
+    interval: 30s
+    rules:
+      # API Down Alert
+      - alert: PrepAPIDown
+        expr: up{job="prep-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: prep-api
+        annotations:
+          summary: "Prep API is down"
+          description: "The Prep API instance {{ $labels.instance }} has been down for more than 1 minute."
+          runbook_url: "https://docs.prep.io/runbook#api-down"
+
+      # High Error Rate
+      - alert: PrepAPIHighErrorRate
+        expr: |
+          (
+            sum(rate(prep_api_request_total{status=~"5.."}[5m])) by (app)
+            /
+            sum(rate(prep_api_request_total[5m])) by (app)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: prep-api
+        annotations:
+          summary: "High error rate on Prep API"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+          runbook_url: "https://docs.prep.io/runbook#high-error-rate"
+
+      # High Latency (P95)
+      - alert: PrepAPIHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(prep_api_request_latency_seconds_bucket[5m])) by (le, app)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: prep-api
+        annotations:
+          summary: "High P95 latency on Prep API"
+          description: "P95 latency is {{ $value | humanizeDuration }} (threshold: 500ms)"
+          runbook_url: "https://docs.prep.io/runbook#high-latency"
+
+      # Very High Latency (P99)
+      - alert: PrepAPIVeryHighLatency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(prep_api_request_latency_seconds_bucket[5m])) by (le, app)
+          ) > 2
+        for: 5m
+        labels:
+          severity: critical
+          service: prep-api
+        annotations:
+          summary: "Very high P99 latency on Prep API"
+          description: "P99 latency is {{ $value | humanizeDuration }} (threshold: 2s)"
+          runbook_url: "https://docs.prep.io/runbook#high-latency"
+
+  - name: prep-database
+    interval: 30s
+    rules:
+      # Database Connection Pool Exhaustion
+      - alert: PrepDBConnectionPoolExhausted
+        expr: |
+          (
+            pg_stat_activity_count{datname="prepchef"}
+            /
+            pg_settings_max_connections
+          ) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: postgres
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: "{{ $value | humanizePercentage }} of connections in use"
+          runbook_url: "https://docs.prep.io/runbook#db-connections"
+
+      # Database Connection Pool Critical
+      - alert: PrepDBConnectionPoolCritical
+        expr: |
+          (
+            pg_stat_activity_count{datname="prepchef"}
+            /
+            pg_settings_max_connections
+          ) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          service: postgres
+        annotations:
+          summary: "Database connection pool critically exhausted"
+          description: "{{ $value | humanizePercentage }} of connections in use - immediate action required"
+          runbook_url: "https://docs.prep.io/runbook#db-connections"
+
+      # Slow Queries
+      - alert: PrepDBSlowQueries
+        expr: |
+          rate(pg_stat_activity_max_tx_duration{datname="prepchef"}[5m]) > 30
+        for: 5m
+        labels:
+          severity: warning
+          service: postgres
+        annotations:
+          summary: "Long-running database queries detected"
+          description: "Queries running longer than 30 seconds"
+          runbook_url: "https://docs.prep.io/runbook#slow-queries"
+
+      # Database Down
+      - alert: PrepDBDown
+        expr: pg_up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: postgres
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "The PostgreSQL instance {{ $labels.instance }} is not responding"
+          runbook_url: "https://docs.prep.io/runbook#db-down"
+
+      # Replication Lag (if applicable)
+      - alert: PrepDBReplicationLag
+        expr: pg_replication_lag > 30
+        for: 5m
+        labels:
+          severity: warning
+          service: postgres
+        annotations:
+          summary: "Database replication lag detected"
+          description: "Replication lag is {{ $value }} seconds"
+          runbook_url: "https://docs.prep.io/runbook#replication-lag"
+
+  - name: prep-redis
+    interval: 30s
+    rules:
+      # Redis Down
+      - alert: PrepRedisDown
+        expr: redis_up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis is down"
+          description: "Redis instance {{ $labels.instance }} is not responding"
+          runbook_url: "https://docs.prep.io/runbook#redis-down"
+
+      # Redis Memory High
+      - alert: PrepRedisMemoryHigh
+        expr: |
+          (
+            redis_memory_used_bytes
+            /
+            redis_memory_max_bytes
+          ) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis memory usage high"
+          description: "Redis memory usage is {{ $value | humanizePercentage }}"
+          runbook_url: "https://docs.prep.io/runbook#redis-memory"
+
+      # Redis Memory Critical
+      - alert: PrepRedisMemoryCritical
+        expr: |
+          (
+            redis_memory_used_bytes
+            /
+            redis_memory_max_bytes
+          ) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis memory critically high"
+          description: "Redis memory usage is {{ $value | humanizePercentage }} - evictions imminent"
+          runbook_url: "https://docs.prep.io/runbook#redis-memory"
+
+      # Redis Connected Clients High
+      - alert: PrepRedisConnectionsHigh
+        expr: redis_connected_clients > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "High number of Redis connections"
+          description: "{{ $value }} clients connected to Redis"
+          runbook_url: "https://docs.prep.io/runbook#redis-connections"
+
+  - name: prep-infrastructure
+    interval: 30s
+    rules:
+      # High CPU Usage
+      - alert: PrepHighCPUUsage
+        expr: |
+          (
+            100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+          ) > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+          runbook_url: "https://docs.prep.io/runbook#high-cpu"
+
+      # Critical CPU Usage
+      - alert: PrepCriticalCPUUsage
+        expr: |
+          (
+            100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+          ) > 95
+        for: 5m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Critical CPU usage detected"
+          description: "CPU usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+          runbook_url: "https://docs.prep.io/runbook#high-cpu"
+
+      # High Memory Usage
+      - alert: PrepHighMemoryUsage
+        expr: |
+          (
+            1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+          ) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+          runbook_url: "https://docs.prep.io/runbook#high-memory"
+
+      # Critical Memory Usage
+      - alert: PrepCriticalMemoryUsage
+        expr: |
+          (
+            1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+          ) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Critical memory usage detected"
+          description: "Memory usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+          runbook_url: "https://docs.prep.io/runbook#high-memory"
+
+      # Disk Space Low
+      - alert: PrepDiskSpaceLow
+        expr: |
+          (
+            1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})
+          ) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "Disk space running low"
+          description: "Disk usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+          runbook_url: "https://docs.prep.io/runbook#disk-space"
+
+      # Disk Space Critical
+      - alert: PrepDiskSpaceCritical
+        expr: |
+          (
+            1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})
+          ) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Disk space critically low"
+          description: "Disk usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+          runbook_url: "https://docs.prep.io/runbook#disk-space"
+
+  - name: prep-business
+    interval: 1m
+    rules:
+      # Integration Sync Failures
+      - alert: PrepIntegrationSyncFailures
+        expr: |
+          increase(prep_integration_sync_failures_total[15m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: integrations
+        annotations:
+          summary: "High rate of integration sync failures"
+          description: "{{ $value }} sync failures for {{ $labels.integration }} in last 15 minutes"
+          runbook_url: "https://docs.prep.io/runbook#integration-failures"
+
+      # Payment Processing Failures
+      - alert: PrepPaymentFailures
+        expr: |
+          (
+            sum(rate(prep_payment_attempts_total{status="failed"}[5m]))
+            /
+            sum(rate(prep_payment_attempts_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: payments
+        annotations:
+          summary: "High payment failure rate"
+          description: "{{ $value | humanizePercentage }} of payments failing"
+          runbook_url: "https://docs.prep.io/runbook#payment-failures"
+
+      # Booking Creation Anomaly
+      - alert: PrepBookingAnomaly
+        expr: |
+          abs(
+            (
+              sum(rate(prep_bookings_created_total[1h]))
+              -
+              sum(rate(prep_bookings_created_total[1h] offset 1d))
+            )
+            /
+            sum(rate(prep_bookings_created_total[1h] offset 1d))
+          ) > 0.5
+        for: 30m
+        labels:
+          severity: warning
+          service: bookings
+        annotations:
+          summary: "Unusual booking creation rate"
+          description: "Booking creation rate differs by {{ $value | humanizePercentage }} from yesterday"
+          runbook_url: "https://docs.prep.io/runbook#booking-anomaly"
+
+  - name: prep-circuit-breakers
+    interval: 30s
+    rules:
+      # Circuit Breaker Open
+      - alert: PrepCircuitBreakerOpen
+        expr: |
+          prep_circuit_breaker_state{state="open"} == 1
+        for: 1m
+        labels:
+          severity: warning
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "Circuit breaker open for {{ $labels.service }}"
+          description: "Circuit breaker for {{ $labels.service }} has been open for more than 1 minute"
+          runbook_url: "https://docs.prep.io/runbook#circuit-breaker"
+
+      # High Rejection Rate
+      - alert: PrepCircuitBreakerHighRejections
+        expr: |
+          (
+            rate(prep_circuit_breaker_rejections_total[5m])
+            /
+            rate(prep_circuit_breaker_calls_total[5m])
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "High circuit breaker rejection rate for {{ $labels.service }}"
+          description: "{{ $value | humanizePercentage }} of requests being rejected"
+          runbook_url: "https://docs.prep.io/runbook#circuit-breaker"
+
+  - name: prep-rate-limiting
+    interval: 30s
+    rules:
+      # High Rate Limit Hit Rate
+      - alert: PrepHighRateLimitHits
+        expr: |
+          (
+            rate(prep_rate_limit_hits_total[5m])
+            /
+            rate(prep_api_request_total[5m])
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: prep-api
+        annotations:
+          summary: "High rate limit hit rate"
+          description: "{{ $value | humanizePercentage }} of requests hitting rate limits"
+          runbook_url: "https://docs.prep.io/runbook#rate-limiting"

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import contextlib
-import logging
 import os
 from collections.abc import Iterable
 
@@ -12,19 +11,30 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from libs.safe_import import safe_import
 from middleware.audit_logger import audit_logger
+from middleware.rate_limiter import RateLimitConfig, RateLimitMiddleware
 from prep.auth.dependencies import enforce_allowlists, require_active_session
 from prep.auth.rbac import RBAC_ROLES, RBACMiddleware
 from prep.database import get_session_factory
 from prep.integrations.runtime import configure_integration_event_consumers
+from prep.observability.logging_config import (
+    LoggingMiddleware,
+    configure_logging,
+    get_logger,
+)
 from prep.settings import get_settings
 
-logger = logging.getLogger(__name__)
+# Configure structured logging on module load
+configure_logging()
+
+logger = get_logger(__name__)
 
 
 ObservabilityModule = safe_import("modules.observability", optional=True)
 if ObservabilityModule is not None:
     configure_fastapi_tracing = ObservabilityModule.configure_fastapi_tracing
-    DEFAULT_TARGETED_ROUTES = getattr(ObservabilityModule, "DEFAULT_TARGETED_ROUTES", ("/healthz",))
+    DEFAULT_TARGETED_ROUTES = getattr(
+        ObservabilityModule, "DEFAULT_TARGETED_ROUTES", ("/healthz",)
+    )
 else:
     DEFAULT_TARGETED_ROUTES = ("/healthz",)
 
@@ -47,12 +57,16 @@ def _load_router(module_path: str, attr: str = "router") -> APIRouter:
     """
     module = safe_import(module_path, optional=True)
     if module is None:
-        logger.info("Optional router module %s not available, using empty router", module_path)
+        logger.info(
+            "Optional router module %s not available, using empty router", module_path
+        )
         return APIRouter()
 
     router_obj = getattr(module, attr, None)
     if router_obj is None:
-        logger.warning("Module %s has no attribute '%s', using empty router", module_path, attr)
+        logger.warning(
+            "Module %s has no attribute '%s', using empty router", module_path, attr
+        )
         return APIRouter()
 
     if not isinstance(router_obj, APIRouter):
@@ -115,7 +129,9 @@ OPTIONAL_ROUTERS: Iterable[RouterSpec] = (
 def _build_router(*, include_full: bool = True) -> APIRouter:
     """Aggregate the project's routers into a single API surface."""
 
-    router = APIRouter(dependencies=[Depends(enforce_allowlists), Depends(require_active_session)])
+    router = APIRouter(
+        dependencies=[Depends(enforce_allowlists), Depends(require_active_session)]
+    )
 
     if include_full:
         router.include_router(_load_router("prep.ledger.api", "ledger_router"))
@@ -134,12 +150,18 @@ def _build_router(*, include_full: bool = True) -> APIRouter:
         router.include_router(_load_router("prep.reviews.api", "reviews_router"))
         router.include_router(_load_router("prep.ratings.api", "ratings_router"))
         router.include_router(_load_router("prep.cities.api", "cities_router"))
-        router.include_router(_load_router("prep.kitchen_cam.api", "kitchen_cam_router"))
+        router.include_router(
+            _load_router("prep.kitchen_cam.api", "kitchen_cam_router")
+        )
         router.include_router(_load_router("prep.payments.api", "payments_router"))
         router.include_router(_load_router("prep.pos.api", "pos_router"))
         router.include_router(_load_router("prep.test_data.api", "test_data_router"))
-        router.include_router(_load_router("prep.space_optimizer.api", "space_optimizer_router"))
-        router.include_router(_load_router("prep.integrations.api", "integrations_router"))
+        router.include_router(
+            _load_router("prep.space_optimizer.api", "space_optimizer_router")
+        )
+        router.include_router(
+            _load_router("prep.integrations.api", "integrations_router")
+        )
         router.include_router(_load_router("prep.monitoring.api", "monitoring_router"))
         router.include_router(
             _load_router("prep.verification_tasks.api", "verification_tasks_router")
@@ -157,7 +179,9 @@ def _build_router(*, include_full: bool = True) -> APIRouter:
     return router
 
 
-def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool = True) -> FastAPI:
+def create_app(
+    *, include_full_router: bool = True, include_legacy_mounts: bool = True
+) -> FastAPI:
     """Instantiate the FastAPI application for our default containerized deployment."""
 
     settings = get_settings()
@@ -166,6 +190,29 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
     if settings.environment.lower() == "staging":
         app.state.db = get_session_factory()
         app.middleware("http")(audit_logger)
+
+    # Structured logging middleware - adds correlation IDs and request logging
+    app.add_middleware(
+        LoggingMiddleware,
+        logger_name="prep.http",
+        excluded_paths={"/healthz", "/health", "/metrics", "/ready", "/live"},
+    )
+
+    # Rate limiting middleware - must be added early in the middleware stack
+    # to protect against abuse before other processing occurs
+    rate_limit_config = RateLimitConfig(
+        default_limit=int(os.getenv("RATE_LIMIT_DEFAULT", "100")),
+        default_window=int(os.getenv("RATE_LIMIT_WINDOW", "60")),
+        redis_url=os.getenv("REDIS_URL", ""),
+        exempt_paths=(
+            "/healthz",
+            "/health",
+            "/docs",
+            "/openapi.json",
+            "/redoc",
+        ),
+    )
+    app.add_middleware(RateLimitMiddleware, config=rate_limit_config)
 
     app.add_middleware(
         RBACMiddleware,
@@ -206,9 +253,17 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
         router = _load_router(module_path, attr)
         if router.routes:
             app.include_router(router)
-    security_dependencies = [Depends(enforce_allowlists), Depends(require_active_session)]
+    security_dependencies = [
+        Depends(enforce_allowlists),
+        Depends(require_active_session),
+    ]
     api_router = _build_router(include_full=include_full_router)
     app.include_router(api_router, dependencies=security_dependencies)
+
+    # Include health check endpoints (no auth required)
+    from api.routes.health import health_router
+
+    app.include_router(health_router)
 
     with contextlib.suppress(
         RuntimeError
@@ -217,6 +272,7 @@ def create_app(*, include_full_router: bool = True, include_legacy_mounts: bool 
 
     @app.get("/healthz", include_in_schema=False)
     async def healthcheck() -> dict[str, str]:
+        """Legacy healthcheck endpoint for backwards compatibility."""
         return {"status": "ok"}
 
     return app
