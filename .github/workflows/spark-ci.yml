@@ -1,4 +1,7 @@
 name: spark-pipelines
+# IMPORTANT: This workflow requires apps/data-plane/spark/ directory to exist
+# Currently, this directory does not exist, so the workflow will fail with a helpful error
+# It will only run via workflow_dispatch or if that directory is created
 
 on:
   push:
@@ -15,6 +18,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Check if spark directory exists
+        id: check_spark
+        run: |
+          if [ ! -d "apps/data-plane/spark" ]; then
+            echo "ERROR: apps/data-plane/spark directory does not exist"
+            exit 1
+          fi
       - name: Install dependencies
         run: pip install -r apps/data-plane/spark/requirements.txt
       - name: Run unit tests

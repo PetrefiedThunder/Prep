@@ -18,6 +18,12 @@ jobs:
           pip install -e .
       - name: Run ETL
         run: |
+          if [ ! -f "etl/jobs/reg_refresh_worker.py" ]; then
+            echo "ERROR: ETL worker not found at etl/jobs/reg_refresh_worker.py"
+            echo "ETL directory structure:"
+            ls -la etl/ || echo "etl directory not found"
+            exit 1
+          fi
           python -m etl.jobs.reg_refresh_worker --jurisdictions $ETL_JURISDICTIONS
       - name: Freshness check (fails if data is stale)
         run: |
