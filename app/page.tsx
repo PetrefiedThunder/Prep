@@ -30,12 +30,18 @@ export default function HomePage() {
         </p>
 
         <div className="flex gap-4 justify-center mt-8">
-          <button className="bg-gray-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition">
-            Find a Kitchen
-          </button>
-          <button className="border-2 border-gray-900 text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-gray-50 transition">
-            List Your Kitchen
-          </button>
+          <a
+            href="/auth/signup"
+            className="bg-gray-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition"
+          >
+            Get Started
+          </a>
+          <a
+            href="/auth/login"
+            className="border-2 border-gray-900 text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-gray-50 transition"
+          >
+            Log In
+          </a>
         </div>
       </div>
     </div>
