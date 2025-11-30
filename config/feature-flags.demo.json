@@ -1,8 +1,0 @@
-{
-  "demoMode": true,
-  "hidePrices": false,
-  "forceJurisdictions": ["san_francisco","san_bernardino_county"],
-  "showCoachMarks": true,
-  "allowMockInsurance": true,
-  "suppressEmail": true
-}

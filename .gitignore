@@ -1,37 +1,37 @@
-.env
-.env.*
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
 *.pem
-*.key
-*.p12
 
-.venv
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Node.js
-node_modules/
-package-lock.json
+# local env files
+.env*.local
+.env
 
-# Security scan results
-scan-results/
+# vercel
+.vercel
 
-# Python cache and build artifacts
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-!harborhomes/lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+# typescript
+*.tsbuildinfo
+next-env.d.ts

@@ -1,8 +1,0 @@
-skips:
-  - B101
-  - B303
-targets:
-  - prep
-exclude:
-  - tests
-  - prepchef/generated

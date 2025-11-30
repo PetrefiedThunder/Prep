@@ -1,16 +1,28 @@
 {
-  "name": "prep-monorepo",
+  "name": "prepchef",
+  "version": "0.1.0",
   "private": true,
-  "overrides": {
-    "@fastify/websocket": "8.3.1"
-  },
   "scripts": {
-    "openapi:ts": "openapi-typescript contracts/openapi/prep.yaml --output sdk/typescript/index.ts"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "next": "^14.2.22"
   },
   "devDependencies": {
-    "eslint": "^9.39.1",
-    "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-security": "^3.0.1",
-    "openapi-typescript": "^7.10.1"
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5",
+    "eslint": "^8",
+    "eslint-config-next": "^14.2.22",
+    "tailwindcss": "^3.4.1",
+    "postcss": "^8.4.35",
+    "autoprefixer": "^10.4.17"
   }
 }
