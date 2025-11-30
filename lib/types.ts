@@ -57,6 +57,7 @@ export interface Booking {
 
 export interface BookingWithKitchen extends Booking {
   kitchens: Kitchen
+  profiles?: Profile
 }
 
 export interface StripeAccount {
