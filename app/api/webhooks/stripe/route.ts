@@ -1,8 +1,17 @@
 import { stripe } from '@/lib/stripe'
-import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl || !supabaseServiceRoleKey) {
+  throw new Error('Supabase environment variables are not set')
+}
+
+const supabaseAdmin = createSupabaseClient(supabaseUrl, supabaseServiceRoleKey)
 
 export async function POST(req: Request) {
   const body = await req.text()
@@ -47,8 +56,8 @@ export async function POST(req: Request) {
 
     const totalAmount = session.amount_total! / 100 // Convert from cents
 
-    // Create booking in database
-    const supabase = await createClient()
+    // Create booking in database using service role to bypass RLS for webhooks
+    const supabase = supabaseAdmin
 
     // Check for existing booking with this payment intent to prevent duplicates
     const paymentIntentId = session.payment_intent as string
