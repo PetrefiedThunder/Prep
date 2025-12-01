@@ -1,4 +1,0 @@
-project_name_override: prep-sdk
-package_name_override: prep_sdk
-async_client: true
-author: Prep

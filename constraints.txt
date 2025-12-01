@@ -1,7 +1,0 @@
-# DEPRECATED: Constraints are now inlined in requirements.txt for Dependabot compatibility
-# This file is kept for reference only and is no longer used during installation
-#
-# Keep AWS SDK libraries aligned to avoid breaking API changes.
-# aiobotocore 2.12.0 requires botocore>=1.34.41,<1.34.52
-botocore==1.34.51
-aiobotocore==2.25.2

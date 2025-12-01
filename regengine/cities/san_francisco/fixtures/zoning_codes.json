@@ -1,5 +1,0 @@
-[
-  {"code":"NC-3","name":"Neighborhood Commercial, 3","requires_conditional_use":false,"neighborhood_notice":true},
-  {"code":"M-1","name":"Light Industrial","requires_conditional_use":false,"neighborhood_notice":false},
-  {"code":"PDR-1-D","name":"Production, Distribution & Repair","requires_conditional_use":true,"neighborhood_notice":true}
-]

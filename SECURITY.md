@@ -2,294 +2,219 @@
 
 ## Reporting a Vulnerability
 
-If you find a vulnerability, please do not open a public issue. Instead, contact the security team through the designated private security channels.
+If you discover a security vulnerability in PrepChef, please report it to the development team immediately. Do not open a public issue.
 
-We take security seriously and will respond to vulnerability reports within 24 hours.
+## Known Issues
 
-## Credential Management
+### Development Dependency Vulnerabilities
 
-### Environment Variables
-All credentials must be stored as environment variables, never hardcoded in source files.
+**Status**: Known, Low Risk (Dev Dependencies Only)
 
-### Required Environment Variables
-- `POSTGRES_USER` - PostgreSQL username
-- `POSTGRES_PASSWORD` - PostgreSQL password
-- `POSTGRES_DB` - PostgreSQL database name
-- `REDIS_PASSWORD` - Redis password (optional, use for production)
-- `MINIO_ROOT_USER` - MinIO root user
-- `MINIO_ROOT_PASSWORD` - MinIO root password
-- `JWT_SECRET` - JWT signing secret (256-bit minimum)
-- `STRIPE_SECRET_KEY` - Stripe API secret key
-- `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret
-- `STRIPE_PUBLISHABLE_KEY` - Stripe publishable key (frontend)
+#### glob 10.2.0 - 10.4.5 (High Severity)
+- **Vulnerability**: Command injection via -c/--cmd executes matches with shell:true
+- **Advisory**: [GHSA-5j98-mcp5-4vw2](https://github.com/advisories/GHSA-5j98-mcp5-4vw2)
+- **Affected Packages**:
+  - `eslint-config-next@14.2.33` (dev dependency)
+  - `@next/eslint-plugin-next@14.2.33` (dev dependency)
+- **Risk Assessment**: **Low**
+  - Only affects development environment (ESLint tooling)
+  - Vulnerability is in glob CLI functionality, not library usage
+  - Does not affect runtime/production code
+  - Application does not directly use glob package
+- **Resolution Plan**:
+  - Monitor for Next.js 14.x patch updates that address this issue
+  - Consider upgrading to Next.js 15+ when evaluating Phase 2 features
+  - No immediate action required for MVP production deployment
 
-### Setup Process
-1. Copy `.env.example` to `.env`
-2. Update all placeholder values with secure credentials
-3. Never commit `.env` files to version control
-4. Run `scripts/check_secrets.sh` before commits to detect exposed secrets
-
-## Secret Storage
-
-### Development Environment
-For local development:
-- Use `.env` files (gitignored)
-- Never use production secrets in development
-- Use Stripe test keys (`sk_test_*`, `pk_test_*`)
-
-### Staging/Production Environments
-
-**Option 1: HashiCorp Vault (Recommended for Production)**
-- Store all secrets in Vault
-- Use Vault Agent for secret injection
-- Enable automatic secret rotation
-- Example Vault path structure:
-  ```
-  secret/app/production/database
-  secret/app/production/stripe
-  secret/app/production/jwt
-  ```
-
-**Option 2: GitHub Secrets (CI/CD)**
-- Store secrets in GitHub repository secrets
-- Access via `${{ secrets.SECRET_NAME }}` in workflows
-- Scope secrets by environment (staging, production)
-
-**Option 3: Kubernetes Secrets**
-- Use External Secrets Operator to sync from Vault
-- Or create secrets manually:
-  ```bash
-  kubectl create secret generic app-secrets \
-    --from-literal=DATABASE_URL='...' \
-    --from-literal=STRIPE_SECRET_KEY='...' \
-    -n app
-  ```
-
-**Option 4: Cloud Provider Secret Managers**
-- AWS Secrets Manager
-- Azure Key Vault
-- Google Cloud Secret Manager
-
-### Stripe Key Management
-
-#### Key Types
-1. **Secret Key** (`sk_test_*` / `sk_live_*`)
-   - Server-side only
-   - Never expose to frontend
-   - Store in backend environment variables
-   - Used for API calls
-
-2. **Publishable Key** (`pk_test_*` / `pk_live_*`)
-   - Frontend-safe
-   - Used in Stripe Elements
-   - Can be committed to code or env vars
-
-3. **Webhook Secret** (`whsec_*`)
-   - Used to verify webhook signatures
-   - Store securely server-side
-
-#### Development vs Production
-- **Development**: Use Stripe test mode keys
-- **Production**: Use live mode keys
-- Never mix test and live keys in same environment
-
-#### Accessing Stripe Keys
-1. Log in to [Stripe Dashboard](https://dashboard.stripe.com)
-2. Navigate to Developers → API Keys
-3. Copy keys and store in secret manager
-4. For webhook secret: Developers → Webhooks → Add endpoint → Reveal signing secret
-
-## Secret Rotation
-
-### Rotation Schedule
-- **JWT_SECRET**: Rotate every 90 days
-- **Database passwords**: Rotate every 60 days
-- **Stripe keys**: Rotate on security incident or employee offboarding
-- **MinIO credentials**: Rotate every 90 days
-
-### Rotation Process
-
-#### 1. JWT Secret Rotation
+**To fix (requires breaking changes to Next.js 15+):**
 ```bash
-# Generate new secret
-NEW_SECRET=$(openssl rand -base64 32)
-
-# Update in secret store (Vault example)
-vault kv put secret/app/production/jwt secret=$NEW_SECRET
-
-# Rolling restart of services
-kubectl rollout restart deployment/node-api -n app
-kubectl rollout restart deployment/python-compliance -n app
-
-# Old tokens remain valid until expiry (grace period)
+npm audit fix --force
 ```
 
-#### 2. Database Password Rotation
-```bash
-# 1. Create new password
-NEW_PASSWORD=$(openssl rand -base64 24)
-
-# 2. Update database user
-psql -c "ALTER USER app_user WITH PASSWORD '$NEW_PASSWORD';"
-
-# 3. Update secret store
-vault kv put secret/app/production/database password=$NEW_PASSWORD
-
-# 4. Rolling restart with zero downtime
-kubectl set env deployment/node-api DATABASE_PASSWORD=$NEW_PASSWORD -n prepchef
-```
-
-#### 3. Stripe Key Rotation
-```bash
-# 1. Generate new restricted API key in Stripe Dashboard
-# 2. Update both keys temporarily (old + new) for transition
-# 3. Update secret store with new key
-# 4. Deploy services
-# 5. Delete old key from Stripe Dashboard after 24h
-```
-
-#### 4. MinIO Credential Rotation
-```bash
-# Create new access key
-mc admin user add myminio newuser newpassword
-
-# Update applications
-# Remove old user after migration
-mc admin user remove myminio olduser
-```
-
-## Revoking Compromised Keys
-
-### Immediate Actions (Within 1 Hour)
-1. **Identify scope of compromise**
-   - Which key was exposed?
-   - What permissions does it have?
-   - When was it exposed?
-
-2. **Revoke the key immediately**
-   - Stripe: Dashboard → Developers → API Keys → Delete
-   - Database: `REVOKE ALL ON DATABASE prepchef FROM compromised_user;`
-   - JWT: Force logout all sessions, rotate secret
-   - Vault: `vault token revoke <token>`
-
-3. **Generate and deploy new key**
-   - Follow rotation process above
-   - Use expedited deployment
-
-4. **Audit access logs**
-   - Check Stripe logs for unauthorized API calls
-   - Review database audit logs
-   - Check application logs for suspicious activity
-
-### Stripe Key Revocation Steps
-```bash
-# 1. Log in to Stripe Dashboard
-# 2. Navigate to Developers → API Keys
-# 3. Click "Delete" on compromised key
-# 4. Confirm deletion
-# 5. Generate new restricted key with minimal permissions
-# 6. Update environment variables
-# 7. Restart services
-# 8. Monitor Stripe Dashboard for unauthorized charges
-```
-
-### Database Credential Revocation
-```sql
--- Revoke all privileges
-REVOKE ALL PRIVILEGES ON DATABASE app_db FROM compromised_user;
-REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM compromised_user;
-
--- Drop user
-DROP USER compromised_user;
-
--- Create new user with proper permissions
-CREATE USER app_user WITH PASSWORD 'new_secure_password';
-GRANT CONNECT ON DATABASE app_db TO app_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
-```
-
-### Post-Incident
-1. Document incident in security log
-2. Review access controls and permissions
-3. Update secret rotation schedule if needed
-4. Notify stakeholders if customer data was accessed
-5. Conduct post-mortem and implement preventive measures
-6. Report to security team through designated channels
+**Note**: This will upgrade Next.js from 14.x to 15+ which may introduce breaking changes. Test thoroughly before applying to production.
 
 ## Security Best Practices
 
-### Automated Security Scanning
+### Implemented Security Measures
 
-**Microservices Security Scanning**
+✅ **Row Level Security (RLS)**
+- All database tables have RLS policies enabled
+- User data is isolated via JWT-based auth
+- Owner-only access to kitchen management and bookings
+- Renter-only access to personal bookings
 
-All Node.js microservices are automatically scanned for vulnerabilities:
-- **Dependency scanning**: `npm audit` checks for CVEs in dependencies
-- **Code security**: ESLint with security rules detects anti-patterns
-- **Image scanning**: Trivy scans Docker images for OS/runtime vulnerabilities
+✅ **Authentication & Authorization**
+- Supabase Auth with JWT tokens
+- Email confirmation required for new accounts
+- Session refresh on every request via middleware
+- Protected routes redirect unauthenticated users
 
-Run local scans before committing:
-```bash
-make scan-microservices
+✅ **Payment Security**
+- Stripe Connect for secure payment processing
+- Webhook signature verification for all Stripe events
+- No credit card data stored in application database
+- PCI compliance handled by Stripe
+
+✅ **Environment Variables**
+- All secrets stored in environment variables
+- No secrets committed to repository
+- `.env.local` excluded from version control
+- Separate keys for development and production
+
+✅ **Input Validation**
+- Server-side validation in all server actions
+- TypeScript type safety throughout application
+- Parameterized queries via Supabase client (SQL injection prevention)
+- Form validation for user inputs
+
+✅ **HTTPS Only**
+- Supabase requires HTTPS in production
+- Stripe webhooks require HTTPS endpoints
+- Vercel provides automatic HTTPS for all deployments
+
+✅ **API Security**
+- Webhook endpoints verify signatures
+- Rate limiting via Vercel's built-in protection
+- CORS policies enforced by Next.js
+
+### Production Deployment Checklist
+
+Before deploying to production, ensure:
+
+- [ ] All environment variables set in Vercel (not hardcoded)
+- [ ] Production Supabase project created with RLS enabled
+- [ ] Production Stripe account configured (not test mode)
+- [ ] Stripe webhook endpoint configured with production secret
+- [ ] Custom domain configured with HTTPS
+- [ ] Email confirmation enabled in Supabase Auth
+- [ ] Database backups enabled in Supabase
+- [ ] Monitoring configured (Vercel Analytics + Sentry recommended)
+- [ ] Error tracking configured for production
+- [ ] Rate limiting policies reviewed
+- [ ] Security headers configured in next.config.js
+
+### Recommended Security Headers
+
+Add to `next.config.js`:
+
+```javascript
+async headers() {
+  return [
+    {
+      source: '/(.*)',
+      headers: [
+        {
+          key: 'X-Frame-Options',
+          value: 'DENY',
+        },
+        {
+          key: 'X-Content-Type-Options',
+          value: 'nosniff',
+        },
+        {
+          key: 'Referrer-Policy',
+          value: 'strict-origin-when-cross-origin',
+        },
+        {
+          key: 'Permissions-Policy',
+          value: 'camera=(), microphone=(), geolocation=()',
+        },
+      ],
+    },
+  ]
+},
 ```
 
-See [Microservices Security Scanning](docs/MICROSERVICES_SECURITY_SCANNING.md) for details.
+### Regular Security Maintenance
 
-**Python Security Scanning**
-- Bandit for static code analysis
-- Safety for dependency vulnerability checks
-- CodeQL for advanced security analysis
+**Monthly Tasks:**
+- [ ] Run `npm audit` and review vulnerabilities
+- [ ] Update dependencies with security patches
+- [ ] Review Supabase auth logs for suspicious activity
+- [ ] Review Stripe dashboard for unusual transactions
+- [ ] Check Vercel logs for errors or unusual traffic
 
-### Code Review Checklist
-- [ ] No hardcoded credentials
-- [ ] All secrets use environment variables or secret manager
-- [ ] Configuration files are properly secured
-- [ ] Security linting passes (Bandit, Trivy)
-- [ ] Tests cover security scenarios
-- [ ] Stripe keys are test keys in non-production environments
-- [ ] Database queries use parameterized statements (no SQL injection)
-- [ ] CORS is properly configured
-- [ ] Rate limiting is enabled on API endpoints
+**Quarterly Tasks:**
+- [ ] Review and update RLS policies
+- [ ] Audit user permissions and access controls
+- [ ] Review environment variable rotation policy
+- [ ] Test disaster recovery procedures
+- [ ] Review and update this security policy
 
-### Secret Management
-- Use `.env.example` for reference configuration
-- Never commit actual secrets to version control
-- Rotate credentials regularly (see schedule above)
-- Use strong, randomly generated passwords (32+ characters)
-- Run `scripts/check_secrets.sh` in pre-commit hooks
-- Stripe webhook secrets must be verified on every webhook request
-- Use Stripe restricted API keys with minimal permissions
+**Annual Tasks:**
+- [ ] Security audit by third party (recommended for production)
+- [ ] Penetration testing (recommended for production)
+- [ ] Compliance review (GDPR, CCPA if applicable)
+- [ ] Update incident response procedures
 
-### Automated Secret Detection
-Run the secret checker script before every commit:
-```bash
-./scripts/check_secrets.sh
-```
+## Data Privacy
 
-This script will:
-- Scan for Stripe secret keys in `.env` files
-- Detect hardcoded credentials in source code
-- Check for exposed JWT secrets
-- Fail CI if secrets are detected in commits
+### Data Collected
 
-### Monitoring & Alerts
-- Enable Stripe webhook signature verification
-- Monitor Stripe Dashboard for unusual API activity
-- Set up alerts for failed authentication attempts
-- Log all secret rotation events
-- Enable audit logging for secret access (Vault)
+The application collects and stores:
+- User email addresses (via Supabase Auth)
+- User profiles (name, account type)
+- Kitchen listings (address, photos, pricing)
+- Booking records (times, payment IDs)
+- Stripe account IDs (for Connect accounts)
+
+### Data Protection
+
+- All data encrypted at rest (Supabase default)
+- All data encrypted in transit (HTTPS)
+- Payment data handled exclusively by Stripe (PCI compliant)
+- No credit card data stored in application database
+- User data isolated via RLS policies
+
+### Data Retention
+
+- User accounts: Retained until user requests deletion
+- Booking history: Retained for 7 years (financial records)
+- Payment records: Retained per Stripe's retention policy
+- Session data: Auto-expires per Supabase Auth configuration
+
+### User Rights
+
+Users can request:
+- Access to their personal data
+- Correction of inaccurate data
+- Deletion of their account and associated data
+- Export of their data in machine-readable format
 
 ## Incident Response
 
-In case of a security incident:
-1. Immediately revoke compromised credentials (see above)
-2. Notify security team through designated channels
-3. Document incident timeline
-4. Assess data exposure
-5. Rotate all potentially affected secrets
-6. Review and update security procedures
+### In Case of Security Breach
 
-## Compliance
+1. **Immediate Actions**
+   - Isolate affected systems
+   - Notify development team
+   - Document the incident (time, scope, impact)
 
-- **PCI-DSS**: Stripe handles card data; we never store, process, or transmit card numbers
-- **GDPR/CCPA**: User data encryption at rest and in transit
-- **SOC 2**: Secret rotation and access logging for Type II compliance
+2. **Investigation**
+   - Identify attack vector
+   - Assess data exposure
+   - Review audit logs
+
+3. **Containment**
+   - Patch vulnerabilities
+   - Rotate compromised credentials
+   - Update security policies
+
+4. **User Notification**
+   - Notify affected users within 72 hours
+   - Provide guidance on protective measures
+   - Offer support resources
+
+5. **Post-Incident**
+   - Conduct post-mortem analysis
+   - Update security procedures
+   - Implement additional safeguards
+
+## Contact
+
+For security concerns, contact the development team immediately.
+
+---
+
+**Last Updated**: December 2025
+**Version**: 1.0.0 (MVP)

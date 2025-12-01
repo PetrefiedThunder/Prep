@@ -1,7 +1,0 @@
-image:
-  repository: ghcr.io/prep/spark-recon
-  tag: latest
-
-spark:
-  appName: prep-pos-recon
-  checkpointLocation: s3://prep-checkpoints/spark/recon/

@@ -1,7 +1,0 @@
-title = "prep gitleaks config"
-[allowlist]
-  description = "allow fixtures and fake keys"
-  files = [
-    '''tests/.*''',
-    '''codex/.*'''
-  ]

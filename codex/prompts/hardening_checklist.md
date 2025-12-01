@@ -1,5 +1,0 @@
-- Ensure `policy.build` succeeds
-- Ensure `opa.up` serves bundles without error
-- Ensure tests cover both allow and deny branches
-- Ensure `policy_decisions` table written with hashed inputs
-- Ensure latency_ms recorded and below 200ms locally

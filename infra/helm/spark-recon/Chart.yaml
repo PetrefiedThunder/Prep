@@ -1,5 +1,0 @@
-apiVersion: v2
-name: spark-recon
-version: 0.1.0
-appVersion: "0.1.0"
-description: Spark Structured Streaming recon job deployment
