@@ -1,0 +1,44 @@
+name: Workflow Lint
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+  push:
+    branches: [main, work]
+    paths:
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read # read access only so workflow metadata can be fetched for linting
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run actionlint
+        uses: rhysd/actionlint@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify workflows declare permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          shopt -s nullglob
+          for file in .github/workflows/*.yml .github/workflows/*.yaml; do
+            if ! grep -Eq '^permissions:' "$file"; then
+              missing+=("$file")
+            fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Workflows missing a top-level permissions block:\n'
+            printf ' - %s\n' "${missing[@]}"
+            exit 1
+          fi
+          echo "All workflows declare explicit permissions."
