@@ -1,3 +1,4 @@
+import { maskIdentifier, logError, logInfo } from '@/lib/logger'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
@@ -22,7 +23,8 @@ export async function POST(req: Request) {
       process.env.STRIPE_WEBHOOK_SECRET!
     )
   } catch (err) {
-    const error = err as Error; console.error('Webhook signature verification failed:', error.message)
+    const error = err as Error
+    logError('Webhook signature verification failed', { error: error.message })
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
@@ -32,7 +34,7 @@ export async function POST(req: Request) {
 
     const metadata = session.metadata
     if (!metadata) {
-      console.error('No metadata in session')
+      logError('Stripe session metadata missing', { sessionId: session.id })
       return NextResponse.json({ error: 'No metadata' }, { status: 400 })
     }
 
@@ -60,7 +62,9 @@ export async function POST(req: Request) {
       .single()
 
     if (existing) {
-      console.log('Booking already exists for payment intent:', paymentIntentId)
+      logInfo('Booking already exists for payment intent', {
+        paymentIntentId: maskIdentifier(paymentIntentId),
+      })
       return NextResponse.json({ received: true })
     }
 
@@ -81,11 +85,17 @@ export async function POST(req: Request) {
       .single()
 
     if (error) {
-      console.error('Error creating booking:', error)
+      logError('Error creating booking', {
+        error: error.message,
+        paymentIntentId: maskIdentifier(paymentIntentId),
+      })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    console.log('Booking created:', booking.id)
+    logInfo('Booking created', {
+      bookingId: booking.id,
+      paymentIntentId: maskIdentifier(paymentIntentId),
+    })
 
     // Create payout record
     const platformFeePercent = 0.10
@@ -111,7 +121,10 @@ export async function POST(req: Request) {
           status: 'pending',
         })
 
-      console.log('Payout record created for booking:', booking.id)
+      logInfo('Payout record created for booking', {
+        bookingId: booking.id,
+        ownerId: kitchen.owner_id,
+      })
     }
   }
 
