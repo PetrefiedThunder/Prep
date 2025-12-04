@@ -33,6 +33,11 @@ npm audit fix --force
 
 **Note**: This will upgrade Next.js from 14.x to 15+ which may introduce breaking changes. Test thoroughly before applying to production.
 
+## Security Maintenance Notes
+
+- Dependabot is configured to monitor the npm ecosystem only, matching this project's Next.js/TypeScript stack. No Python package managers (pip, Poetry, or Pipenv) are used, so Python ecosystem monitoring is not required.
+- No unrelated Dependabot alerts are currently tracked for non-npm ecosystems. Future dependency monitoring should remain scoped to npm unless project languages change.
+
 ## Security Best Practices
 
 ### Implemented Security Measures
