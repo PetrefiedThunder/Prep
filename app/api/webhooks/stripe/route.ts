@@ -1,5 +1,6 @@
 import { maskIdentifier, logError, logInfo } from '@/lib/logger'
 import { stripe } from '@/lib/stripe'
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     event = stripe.webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      process.env.STRIPE_WEBHOOK_SECRET!,
     )
   } catch (err) {
     const error = err as Error
