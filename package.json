@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "build:test": "rm -rf dist && tsc --project tsconfig.test.json",
+    "test": "npm run build:test && node --test dist/tests"
   },
   "dependencies": {
     "@stripe/stripe-js": "^8.5.3",

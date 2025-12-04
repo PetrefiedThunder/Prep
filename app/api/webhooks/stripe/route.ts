@@ -1,4 +1,5 @@
 import { stripe } from '@/lib/stripe'
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
@@ -19,10 +20,16 @@ export async function POST(req: Request) {
     event = stripe.webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      process.env.STRIPE_WEBHOOK_SECRET!,
     )
   } catch (err) {
-    const error = err as Error; console.error('Webhook signature verification failed:', error.message)
+    logger.error('Webhook signature verification failed', {
+      error: err,
+      metadata: {
+        endpoint: 'stripe-webhook',
+        hasSignature: Boolean(signature),
+      },
+    })
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
@@ -32,7 +39,12 @@ export async function POST(req: Request) {
 
     const metadata = session.metadata
     if (!metadata) {
-      console.error('No metadata in session')
+      logger.warn('No metadata in session payload', {
+        metadata: {
+          eventType: event.type,
+          sessionId: session.id,
+        },
+      })
       return NextResponse.json({ error: 'No metadata' }, { status: 400 })
     }
 
@@ -60,7 +72,12 @@ export async function POST(req: Request) {
       .single()
 
     if (existing) {
-      console.log('Booking already exists for payment intent:', paymentIntentId)
+      logger.info('Booking already exists for payment intent', {
+        metadata: {
+          paymentIntentId,
+          eventType: event.type,
+        },
+      })
       return NextResponse.json({ received: true })
     }
 
@@ -81,11 +98,24 @@ export async function POST(req: Request) {
       .single()
 
     if (error) {
-      console.error('Error creating booking:', error)
+      logger.error('Error creating booking', {
+        error,
+        metadata: {
+          paymentIntentId,
+          kitchenId: kitchen_id,
+          renterId: renter_id,
+        },
+      })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    console.log('Booking created:', booking.id)
+    logger.info('Booking created', {
+      metadata: {
+        bookingId: booking.id,
+        paymentIntentId,
+        eventType: event.type,
+      },
+    })
 
     // Create payout record
     const platformFeePercent = 0.10
@@ -111,7 +141,13 @@ export async function POST(req: Request) {
           status: 'pending',
         })
 
-      console.log('Payout record created for booking:', booking.id)
+      logger.info('Payout record created for booking', {
+        metadata: {
+          bookingId: booking.id,
+          ownerId: kitchen.owner_id,
+          status: 'pending',
+        },
+      })
     }
   }
 

@@ -164,6 +164,9 @@ npm run type-check
 
 # Linting
 npm run lint
+
+# Structured logging and redaction tests
+npm test
 ```
 
 ## Sprint Progress
@@ -205,6 +208,22 @@ npm run lint
 - **Environment Variables**: No secrets committed to repository
 - **HTTPS Only**: Supabase and Stripe require HTTPS in production
 - **SQL Injection Prevention**: Supabase client uses parameterized queries
+
+## Logging
+
+- **Server entry point**: Stripe webhooks are handled in `app/api/webhooks/stripe/route.ts`, which now emits structured JSON logs for each booking workflow step.
+- **Logger utility**: Use `logger` from `lib/logger` instead of `console.*` to ensure consistent formatting and automatic redaction of secrets (API keys, tokens, credentials) unless explicitly whitelisted.
+- **Safe metadata**: Prefer concise context fields like `paymentIntentId`, `eventType`, and `bookingId`. Secret-like keys (e.g., `token`, `client_secret`) are redacted by default.
+- **Example**:
+
+```ts
+import { logger } from '@/lib/logger'
+
+logger.error('Webhook signature verification failed', {
+  metadata: { endpoint: 'stripe-webhook', requestId },
+  error,
+})
+```
 
 ## Design Philosophy
 
