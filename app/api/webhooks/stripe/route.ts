@@ -1,3 +1,4 @@
+import { maskIdentifier, logError, logInfo } from '@/lib/logger'
 import { stripe } from '@/lib/stripe'
 import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
@@ -23,13 +24,8 @@ export async function POST(req: Request) {
       process.env.STRIPE_WEBHOOK_SECRET!,
     )
   } catch (err) {
-    logger.error('Webhook signature verification failed', {
-      error: err,
-      metadata: {
-        endpoint: 'stripe-webhook',
-        hasSignature: Boolean(signature),
-      },
-    })
+    const error = err as Error
+    logError('Webhook signature verification failed', { error: error.message })
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
@@ -39,12 +35,7 @@ export async function POST(req: Request) {
 
     const metadata = session.metadata
     if (!metadata) {
-      logger.warn('No metadata in session payload', {
-        metadata: {
-          eventType: event.type,
-          sessionId: session.id,
-        },
-      })
+      logError('Stripe session metadata missing', { sessionId: session.id })
       return NextResponse.json({ error: 'No metadata' }, { status: 400 })
     }
 
@@ -72,11 +63,8 @@ export async function POST(req: Request) {
       .single()
 
     if (existing) {
-      logger.info('Booking already exists for payment intent', {
-        metadata: {
-          paymentIntentId,
-          eventType: event.type,
-        },
+      logInfo('Booking already exists for payment intent', {
+        paymentIntentId: maskIdentifier(paymentIntentId),
       })
       return NextResponse.json({ received: true })
     }
@@ -98,23 +86,16 @@ export async function POST(req: Request) {
       .single()
 
     if (error) {
-      logger.error('Error creating booking', {
-        error,
-        metadata: {
-          paymentIntentId,
-          kitchenId: kitchen_id,
-          renterId: renter_id,
-        },
+      logError('Error creating booking', {
+        error: error.message,
+        paymentIntentId: maskIdentifier(paymentIntentId),
       })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    logger.info('Booking created', {
-      metadata: {
-        bookingId: booking.id,
-        paymentIntentId,
-        eventType: event.type,
-      },
+    logInfo('Booking created', {
+      bookingId: booking.id,
+      paymentIntentId: maskIdentifier(paymentIntentId),
     })
 
     // Create payout record
@@ -141,12 +122,9 @@ export async function POST(req: Request) {
           status: 'pending',
         })
 
-      logger.info('Payout record created for booking', {
-        metadata: {
-          bookingId: booking.id,
-          ownerId: kitchen.owner_id,
-          status: 'pending',
-        },
+      logInfo('Payout record created for booking', {
+        bookingId: booking.id,
+        ownerId: kitchen.owner_id,
       })
     }
   }
