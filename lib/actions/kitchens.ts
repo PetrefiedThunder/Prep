@@ -3,9 +3,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { KitchenFormData } from '@/lib/types'
+import { sanitizeKitchenPayload } from '@/middleware/request_validation'
 
 export async function createKitchen(data: KitchenFormData) {
   const supabase = await createClient()
+
+  const cleanData = sanitizeKitchenPayload(data)
 
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -17,15 +20,15 @@ export async function createKitchen(data: KitchenFormData) {
     .from('kitchens')
     .insert({
       owner_id: user.id,
-      title: data.title,
-      description: data.description,
-      address: data.address,
-      city: data.city,
-      state: data.state,
-      zip_code: data.zip_code,
-      price_per_hour: data.price_per_hour,
-      max_capacity: data.max_capacity,
-      square_feet: data.square_feet || null,
+      title: cleanData.title,
+      description: cleanData.description,
+      address: cleanData.address,
+      city: cleanData.city,
+      state: cleanData.state,
+      zip_code: cleanData.zip_code,
+      price_per_hour: cleanData.price_per_hour,
+      max_capacity: cleanData.max_capacity,
+      square_feet: cleanData.square_feet || null,
       is_active: true,
     })
     .select()
@@ -42,6 +45,8 @@ export async function createKitchen(data: KitchenFormData) {
 export async function updateKitchen(id: string, data: KitchenFormData) {
   const supabase = await createClient()
 
+  const cleanData = sanitizeKitchenPayload(data)
+
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
@@ -51,15 +56,15 @@ export async function updateKitchen(id: string, data: KitchenFormData) {
   const { data: kitchen, error } = await supabase
     .from('kitchens')
     .update({
-      title: data.title,
-      description: data.description,
-      address: data.address,
-      city: data.city,
-      state: data.state,
-      zip_code: data.zip_code,
-      price_per_hour: data.price_per_hour,
-      max_capacity: data.max_capacity,
-      square_feet: data.square_feet || null,
+      title: cleanData.title,
+      description: cleanData.description,
+      address: cleanData.address,
+      city: cleanData.city,
+      state: cleanData.state,
+      zip_code: cleanData.zip_code,
+      price_per_hour: cleanData.price_per_hour,
+      max_capacity: cleanData.max_capacity,
+      square_feet: cleanData.square_feet || null,
     })
     .eq('id', id)
     .eq('owner_id', user.id)

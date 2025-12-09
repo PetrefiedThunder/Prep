@@ -1,0 +1,28 @@
+name: Bundle Policies
+
+on:
+  push:
+    paths:
+      - 'supabase/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read # checkout requires only read access because artifacts are stored separately
+  actions: write # needed to upload the bundled policies artifact
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create policy bundle
+        run: |
+          tar -czf policy-bundle.tar.gz supabase
+
+      - name: Upload policies bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-policies
+          path: policy-bundle.tar.gz
