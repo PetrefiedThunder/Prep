@@ -6,29 +6,28 @@ If you discover a security vulnerability in PrepChef, please report it to the de
 
 ## Known Issues
 
-### Development Dependency Vulnerabilities
+### Security Vulnerabilities
 
-**Status**: Known, Low Risk (Dev Dependencies Only)
+**Status**: ✅ **All Resolved**
 
-#### glob 10.2.0 - 10.4.5 (High Severity)
+As of the latest update, all known security vulnerabilities have been addressed.
+
+#### Previous Issues (Resolved)
+
+**glob 10.2.0 - 10.4.5 (High Severity)** - ✅ **RESOLVED**
 - **Vulnerability**: Command injection via -c/--cmd executes matches with shell:true
 - **Advisory**: [GHSA-5j98-mcp5-4vw2](https://github.com/advisories/GHSA-5j98-mcp5-4vw2)
-- **Affected Packages**:
-  - `eslint-config-next@14.2.33` (dev dependency)
-  - `@next/eslint-plugin-next@14.2.33` (dev dependency)
-- **Risk Assessment**: **Low**
-  - Only affects development environment (ESLint tooling)
-  - Vulnerability is in glob CLI functionality, not library usage
-  - Does not affect runtime/production code
-  - Application does not directly use glob package
-- **Resolution Plan**:
-  - Monitor for Next.js 14.x patch updates that address this issue
-  - Consider upgrading to Next.js 15+ when evaluating Phase 2 features
-  - No immediate action required for MVP production deployment
+- **Resolution**: Added npm overrides to force glob@^10.5.0 (patched version)
+- **Method**: Package.json overrides field forces all glob dependencies to use patched version
+- **Impact**: Zero vulnerabilities confirmed via `npm audit`
+- **Compatibility**: No breaking changes, build successful
 
-**To fix (requires breaking changes to Next.js 15+):**
+The vulnerability was in dev dependencies only (ESLint tooling) and did not affect runtime/production code. It has been resolved using npm's override mechanism to enforce the use of the patched glob version (10.5.0+) without requiring a major Next.js upgrade.
+
+**Verification:**
 ```bash
-npm audit fix --force
+npm audit          # Returns: found 0 vulnerabilities
+npm ls glob        # Shows: glob@10.5.0 overridden
 ```
 
 **Note**: This will upgrade Next.js from 14.x to 15+ which may introduce breaking changes. Test thoroughly before applying to production.

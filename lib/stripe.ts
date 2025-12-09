@@ -4,6 +4,6 @@ import Stripe from 'stripe'
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder'
 
 export const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2025-11-17.clover',
+  apiVersion: '2023-10-16',
   typescript: true,
 })
