@@ -145,12 +145,40 @@ This document outlines the end-to-end test plan for the compliance workflow feat
 ### Test: Booking Conflict Prevention
 
 **Steps:**
-1. Create booking for kitchen from 10:00-12:00
-2. Attempt to book same kitchen from 11:00-13:00
+1. As Tenant A, book kitchen for 2025-01-15 from 10:00-12:00
+2. Complete payment and verify booking confirmed
+3. As Tenant B, attempt to book same kitchen for:
+   - **Test Case 1**: 2025-01-15 from 11:00-13:00 (overlaps end)
+   - **Test Case 2**: 2025-01-15 from 09:00-11:00 (overlaps start)
+   - **Test Case 3**: 2025-01-15 from 10:30-11:30 (fully contained)
+   - **Test Case 4**: 2025-01-15 from 09:00-13:00 (fully contains)
+   - **Test Case 5**: 2025-01-15 from 12:00-14:00 (exact adjacent, should succeed)
 
 **Expected:**
-- Second booking rejected with conflict error
-- Only first booking confirmed
+- Test Cases 1-4: Rejected with error "This time slot is already booked. Please choose another time."
+- Test Case 5: Succeeds (no overlap, booking starts exactly when previous ends)
+- Conflict check happens BEFORE Stripe checkout session creation
+- Only valid non-overlapping bookings reach payment flow
+
+**Validation Query:**
+```sql
+-- Check for overlapping bookings (should return 0 if conflict detection works)
+SELECT
+  b1.id as booking1_id,
+  b1.start_time as b1_start,
+  b1.end_time as b1_end,
+  b2.id as booking2_id,
+  b2.start_time as b2_start,
+  b2.end_time as b2_end
+FROM bookings b1
+JOIN bookings b2 ON
+  b1.kitchen_id = b2.kitchen_id
+  AND b1.id != b2.id
+  AND b1.start_time < b2.end_time
+  AND b1.end_time > b2.start_time
+WHERE b1.status IN ('pending', 'confirmed')
+  AND b2.status IN ('pending', 'confirmed');
+```
 
 ### Test: Unauthorized Access
 
@@ -198,7 +226,9 @@ WHERE kitchen_id = '[kitchen-id]';
 - ✅ Non-compliant kitchens hidden from public search
 - ✅ Tenant can book approved kitchen
 - ✅ Payment integration works correctly
-- ✅ Booking conflict prevention works
+- ✅ **Booking conflict detection prevents double-booking** ⚠️ CRITICAL
+- ✅ Conflict check happens before payment processing
+- ✅ All edge cases of time overlap are handled
 - ✅ All RLS policies enforce proper access control
 
 ## Manual Test Checklist

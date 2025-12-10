@@ -25,7 +25,14 @@ The MVP 85% vertical slice adds role-based authentication and a compliance docum
 - **tenant**: Can search and book kitchens
 - **admin**: Can review and approve/reject compliance documents
 
-### 2. Compliance Document System
+### 2. Booking Conflict Detection (CRITICAL)
+- **Prevents double-booking**: Checks for overlapping time slots before payment
+- **Overlap algorithm**: `(RequestStart < ExistingEnd) AND (RequestEnd > ExistingStart)`
+- **Statuses checked**: Both 'pending' and 'confirmed' bookings
+- **User-friendly errors**: Clear messaging when slot is unavailable
+- **Performance**: Uses indexed queries with count-only check
+
+### 3. Compliance Document System
 - **Document Types**: Health permit, insurance certificate
 - **Document Status**: Pending, approved, rejected
 - **File Storage**: Supabase Storage bucket `kitchen-documents`
@@ -48,6 +55,7 @@ The MVP 85% vertical slice adds role-based authentication and a compliance docum
 
 ### Backend (Server Actions)
 - `lib/actions/documents.ts` - Document CRUD operations
+- `lib/actions/bookings.ts` - **Updated with conflict detection**
 - `lib/types.ts` - TypeScript types for roles and documents
 
 ### Frontend (Pages)
@@ -125,6 +133,28 @@ WHERE email = 'admin@yourdomain.com';
 Follow the E2E test plan in `tests/MVP_COMPLIANCE_E2E_TEST_PLAN.md`
 
 ## API Endpoints (Server Actions)
+
+### Booking Management
+
+```typescript
+// Create checkout session with conflict detection
+createCheckoutSession(kitchenId: string, startTime: string, endTime: string)
+// Returns: { url: string } | { error: string }
+// Checks for conflicts BEFORE creating Stripe session
+
+// Get user's bookings (tenant view)
+getUserBookings()
+
+// Get owner's bookings (owner view)
+getOwnerBookings()
+```
+
+**Conflict Detection Logic:**
+- Queries bookings table for same kitchen_id
+- Filters by status IN ('pending', 'confirmed')
+- Checks for time overlap using SQL range queries
+- Returns user-friendly error if conflict detected
+- Prevents wasted Stripe API calls for unavailable slots
 
 ### Document Management
 
