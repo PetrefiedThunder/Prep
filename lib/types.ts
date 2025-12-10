@@ -1,9 +1,12 @@
 // Database types
+export type UserRole = 'owner' | 'tenant' | 'admin'
+
 export interface Profile {
   id: string
   email: string
   full_name: string | null
   phone: string | null
+  role: UserRole
   created_at: string
   updated_at: string
 }
@@ -21,6 +24,7 @@ export interface Kitchen {
   max_capacity: number | null
   square_feet: number | null
   is_active: boolean
+  compliance_approved: boolean
   created_at: string
   updated_at: string
 }
@@ -83,6 +87,32 @@ export interface Payout {
   paid_at: string | null
   created_at: string
   updated_at: string
+}
+
+// Kitchen documents types
+export type DocumentType = 'health_permit' | 'insurance_certificate'
+export type DocumentStatus = 'pending' | 'approved' | 'rejected'
+
+export interface KitchenDocument {
+  id: string
+  kitchen_id: string
+  document_type: DocumentType
+  file_url: string
+  file_name: string
+  status: DocumentStatus
+  uploaded_at: string
+  reviewed_at: string | null
+  reviewer_id: string | null
+  review_notes: string | null
+}
+
+export interface KitchenDocumentWithDetails extends KitchenDocument {
+  kitchen_title: string
+  owner_email: string
+  owner_name: string | null
+  address: string
+  city: string
+  state: string
 }
 
 // Form types

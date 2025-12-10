@@ -71,25 +71,38 @@ export default function KitchenCard({ kitchen }: KitchenCardProps) {
           {kitchen.city}, {kitchen.state}
         </div>
 
-        <div className="text-lg font-bold text-gray-900 mb-4">
+        <div className="text-lg font-bold text-gray-900 mb-2">
           ${kitchen.price_per_hour}/hour
         </div>
 
-        <div className="flex gap-2">
+        {!kitchen.compliance_approved && (
+          <div className="mb-3 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+            ⚠️ Compliance documents needed
+          </div>
+        )}
+
+        <div className="flex gap-2 mb-2">
           <Link
             href={`/owner/kitchens/${kitchen.id}/edit`}
-            className="flex-1 text-center bg-gray-100 text-gray-900 py-2 rounded-md font-semibold hover:bg-gray-200 transition"
+            className="flex-1 text-center bg-gray-100 text-gray-900 py-2 rounded-md font-semibold hover:bg-gray-200 transition text-sm"
           >
             Edit
           </Link>
           <button
             onClick={handleToggleActive}
             disabled={loading}
-            className="flex-1 bg-gray-900 text-white py-2 rounded-md font-semibold hover:bg-gray-800 transition disabled:opacity-50"
+            className="flex-1 bg-gray-900 text-white py-2 rounded-md font-semibold hover:bg-gray-800 transition disabled:opacity-50 text-sm"
           >
             {isActive ? 'Deactivate' : 'Activate'}
           </button>
         </div>
+
+        <Link
+          href={`/owner/kitchens/${kitchen.id}/compliance`}
+          className="block w-full text-center bg-blue-600 text-white py-2 rounded-md font-semibold hover:bg-blue-700 transition text-sm"
+        >
+          Compliance Documents
+        </Link>
 
         <button
           onClick={handleDelete}
