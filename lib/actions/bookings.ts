@@ -5,6 +5,32 @@ import { stripe } from '@/lib/stripe'
 import { headers } from 'next/headers'
 // import { revalidatePath } from 'next/cache'
 
+/**
+ * Check if a requested time slot overlaps with existing confirmed bookings
+ * Overlap detection: (RequestStart < ExistingEnd) AND (RequestEnd > ExistingStart)
+ */
+async function checkBookingConflict(
+  supabase: any,
+  kitchenId: string,
+  startTime: Date,
+  endTime: Date
+): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('bookings')
+    .select('*', { count: 'exact', head: true })
+    .eq('kitchen_id', kitchenId)
+    .in('status', ['pending', 'confirmed']) // Check both pending and confirmed
+    .lt('start_time', endTime.toISOString())
+    .gt('end_time', startTime.toISOString())
+
+  if (error) {
+    console.error('Conflict check error:', error)
+    throw new Error('Failed to check booking availability')
+  }
+
+  return count !== null && count > 0
+}
+
 export async function createCheckoutSession(kitchenId: string, startTime: string, endTime: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -37,6 +63,17 @@ export async function createCheckoutSession(kitchenId: string, startTime: string
 
   if (hours <= 0) {
     return { error: 'Invalid booking times' }
+  }
+
+  // CRITICAL: Check for booking conflicts
+  try {
+    const hasConflict = await checkBookingConflict(supabase, kitchenId, start, end)
+    if (hasConflict) {
+      return { error: 'This time slot is already booked. Please choose another time.' }
+    }
+  } catch (e) {
+    console.error('Booking conflict check failed:', e)
+    return { error: 'System error checking availability. Please try again.' }
   }
 
   const totalAmount = Math.round(hours * kitchen.price_per_hour * 100) // Stripe uses cents
