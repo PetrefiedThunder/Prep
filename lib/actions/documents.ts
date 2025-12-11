@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { DocumentType, DocumentStatus, KitchenDocument } from '@/lib/types'
+import type { DocumentType } from '@/lib/types'
 
 /**
  * Upload a compliance document for a kitchen

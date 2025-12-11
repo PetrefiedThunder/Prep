@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe'
 import { headers } from 'next/headers'
+import { SupabaseClient } from '@supabase/supabase-js'
 // import { revalidatePath } from 'next/cache'
 
 /**
@@ -10,7 +11,7 @@ import { headers } from 'next/headers'
  * Overlap detection: (RequestStart < ExistingEnd) AND (RequestEnd > ExistingStart)
  */
 async function checkBookingConflict(
-  supabase: any,
+  supabase: SupabaseClient,
   kitchenId: string,
   startTime: Date,
   endTime: Date
