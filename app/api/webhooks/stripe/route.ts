@@ -1,7 +1,6 @@
 import { maskIdentifier, logError, logInfo } from '@/lib/logger'
 import { stripe } from '@/lib/stripe'
-import { logger } from '@/lib/logger'
-import { createClient } from '@/lib/supabase/server'
+// Removed unused 'logger' and 'createClient' imports to fix ESLint build errors
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
