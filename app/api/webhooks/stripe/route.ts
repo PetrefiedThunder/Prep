@@ -1,21 +1,31 @@
 import { maskIdentifier, logError, logInfo } from '@/lib/logger'
-import { stripe } from '@/lib/stripe'
+import { stripe, validateStripeKey } from '@/lib/stripe'
 // Removed unused 'logger' and 'createClient' imports to fix ESLint build errors
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// Use placeholder values during build, validate at runtime
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder_key'
 
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  throw new Error('Supabase environment variables are not set')
+function validateSupabaseConfig() {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.SUPABASE_SERVICE_ROLE_KEY
+  ) {
+    throw new Error('Supabase environment variables are not set')
+  }
 }
 
 const supabaseAdmin = createSupabaseClient(supabaseUrl, supabaseServiceRoleKey)
 
 export async function POST(req: Request) {
+  // Validate configurations at runtime
+  validateStripeKey()
+  validateSupabaseConfig()
+
   const body = await req.text()
   const headersList = await headers()
   const signature = headersList.get('stripe-signature')

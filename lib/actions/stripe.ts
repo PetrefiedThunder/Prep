@@ -1,10 +1,13 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { stripe } from '@/lib/stripe'
+import { stripe, validateStripeKey } from '@/lib/stripe'
 import { headers } from 'next/headers'
 
 export async function createConnectAccount() {
+  // Validate Stripe configuration at runtime
+  validateStripeKey()
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -48,6 +51,9 @@ export async function createConnectAccount() {
 }
 
 export async function createAccountLink() {
+  // Validate Stripe configuration at runtime
+  validateStripeKey()
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -79,6 +85,9 @@ export async function createAccountLink() {
 }
 
 export async function checkOnboardingStatus() {
+  // Validate Stripe configuration at runtime
+  validateStripeKey()
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
