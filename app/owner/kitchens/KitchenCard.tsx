@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { toggleKitchenActive, deleteKitchen } from '@/lib/actions/kitchens'
 import type { KitchenWithPhotos } from '@/lib/types'
 
@@ -43,13 +44,15 @@ export default function KitchenCard({ kitchen }: KitchenCardProps) {
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
       <div className="aspect-video bg-gray-200 relative">
         {photoUrl && (
-          <img
+          <Image
             src={photoUrl}
             alt={kitchen.title}
-            className="w-full h-full object-cover"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover"
           />
         )}
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-2 right-2 z-10">
           <span
             className={`px-3 py-1 rounded-full text-sm font-semibold ${
               isActive
