@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { stripe } from '@/lib/stripe'
+import { stripe, validateStripeKey } from '@/lib/stripe'
 import { headers } from 'next/headers'
 import { SupabaseClient } from '@supabase/supabase-js'
 // import { revalidatePath } from 'next/cache'
@@ -33,6 +33,9 @@ async function checkBookingConflict(
 }
 
 export async function createCheckoutSession(kitchenId: string, startTime: string, endTime: string) {
+  // Validate Stripe configuration at runtime
+  validateStripeKey()
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 

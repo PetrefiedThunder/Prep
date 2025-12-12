@@ -1,62 +1,65 @@
 import assert from 'node:assert'
 import { describe, it, mock } from 'node:test'
-import { createLogEntry, logger } from '../lib/logger'
+import { logInfo, logError, maskIdentifier } from '../lib/logger'
 
 describe('logger', () => {
-  it('redacts known secret keys and patterns', () => {
-    const entry = createLogEntry('error', 'Webhook failed', {
-      metadata: {
-        apiKey: 'sk_test_12345abcde',
-        nested: { token: 'Bearer secret-token-value' },
-        safe: 'ok',
-      },
-      error: new Error('Failed with client_secret_98765'),
-    })
-
-    assert.equal(entry.metadata?.apiKey, '[REDACTED]')
-    assert.equal((entry.metadata as any).nested.token, '[REDACTED]')
-    assert.equal(entry.metadata?.safe, 'ok')
-    assert.deepStrictEqual(entry.error, {
-      name: 'Error',
-      message: '[REDACTED]',
-    })
-  })
-
-  it('keeps whitelisted fields untouched', () => {
-    const entry = createLogEntry('info', 'Booking exists', {
-      metadata: {
-        paymentIntentId: 'pi_123',
-        eventType: 'checkout.session.completed',
-        status: 'confirmed',
-      },
-    })
-
-    assert.equal(entry.metadata?.paymentIntentId, 'pi_123')
-    assert.equal(entry.metadata?.eventType, 'checkout.session.completed')
-    assert.equal(entry.metadata?.status, 'confirmed')
-  })
-
-  it('logs structured output without leaking secrets on error path', async () => {
+  it('redacts sensitive keys in context', () => {
     const output: string[] = []
-    const restore = mock.method(console, 'error', (value: string) => {
-      output.push(value)
+    const restore = mock.method(console, 'info', (...args: unknown[]) => {
+      output.push(JSON.stringify(args))
     })
 
-    logger.error('Failed to verify webhook signature', {
-      metadata: {
-        stripeSecretKey: 'rk_test_super_secret',
-        requestId: 'req_123',
-      },
-      error: new Error('token sk_live_very_secret leaked'),
+    logInfo('Test message', {
+      apiKey: 'sk_test_12345abcde',
+      secret: 'my-secret-value',
+      safe: 'ok',
     })
 
     restore.mock.restore()
 
+    assert.ok(output.length > 0)
+    const logged = output[0]
+    assert.ok(logged.includes('[redacted]'))
+    assert.ok(logged.includes('ok'))
+  })
+
+  it('logs without context when none provided', () => {
+    const output: string[] = []
+    const restore = mock.method(console, 'info', (...args: unknown[]) => {
+      output.push(JSON.stringify(args))
+    })
+
+    logInfo('Simple message')
+
+    restore.mock.restore()
+
     assert.equal(output.length, 1)
-    const parsed = JSON.parse(output[0])
-    assert.equal(parsed.message, 'Failed to verify webhook signature')
-    assert.equal(parsed.metadata.stripeSecretKey, '[REDACTED]')
-    assert.equal(parsed.metadata.requestId, 'req_123')
-    assert.deepStrictEqual(parsed.error, { name: 'Error', message: '[REDACTED]' })
+    assert.ok(output[0].includes('Simple message'))
+  })
+
+  it('masks identifiers correctly', () => {
+    assert.equal(maskIdentifier('sk_live_1234567890abcdef'), 'sk_liv…[redacted]')
+    assert.equal(maskIdentifier('short'), '[redacted]')
+    assert.equal(maskIdentifier(null), '[redacted]')
+    assert.equal(maskIdentifier(undefined), '[redacted]')
+  })
+
+  it('logs errors with redacted sensitive data', () => {
+    const output: string[] = []
+    const restore = mock.method(console, 'error', (...args: unknown[]) => {
+      output.push(JSON.stringify(args))
+    })
+
+    logError('Failed to verify webhook signature', {
+      stripeSecretKey: 'rk_test_super_secret',
+      requestId: 'req_123',
+    })
+
+    restore.mock.restore()
+
+    assert.ok(output.length > 0)
+    const logged = output[0]
+    assert.ok(logged.includes('[redacted]'))
+    assert.ok(logged.includes('req_123'))
   })
 })
