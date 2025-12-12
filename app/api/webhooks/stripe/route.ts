@@ -7,7 +7,7 @@ import Stripe from 'stripe'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 // Use placeholder values during build, validate at runtime
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.example.com'
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder_key'
 
 function validateSupabaseConfig() {
