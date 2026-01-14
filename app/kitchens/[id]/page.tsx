@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { getKitchen } from '@/lib/actions/kitchens'
 import type { KitchenPhoto } from '@/lib/types'
 
@@ -41,12 +42,15 @@ export default async function KitchenDetailPage({ params }: KitchenDetailPagePro
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         {/* Photo Gallery */}
-        <div className="aspect-[21/9] bg-gray-200">
+        <div className="aspect-[21/9] bg-gray-200 relative">
           {primaryPhoto && (
-            <img
+            <Image
               src={primaryPhoto.url}
               alt={kitchen.title}
-              className="w-full h-full object-cover"
+              fill
+              sizes="100vw"
+              priority
+              className="object-cover"
             />
           )}
         </div>
@@ -54,11 +58,13 @@ export default async function KitchenDetailPage({ params }: KitchenDetailPagePro
         {otherPhotos.length > 0 && (
           <div className="grid grid-cols-4 gap-2 p-4">
             {otherPhotos.slice(0, 4).map((photo: KitchenPhoto) => (
-              <div key={photo.id} className="aspect-video bg-gray-200 rounded overflow-hidden">
-                <img
+              <div key={photo.id} className="aspect-video bg-gray-200 rounded overflow-hidden relative">
+                <Image
                   src={photo.url}
                   alt="Kitchen photo"
-                  className="w-full h-full object-cover"
+                  fill
+                  sizes="(max-width: 768px) 50vw, 25vw"
+                  className="object-cover"
                 />
               </div>
             ))}
