@@ -1,6 +1,6 @@
 import assert from 'node:assert'
 import { describe, it, mock } from 'node:test'
-import { logInfo, logError, maskIdentifier } from '../lib/logger'
+import { logInfo, logError, maskIdentifier } from '../lib/logger.ts'
 
 describe('logger', () => {
   it('redacts sensitive keys in context', () => {
