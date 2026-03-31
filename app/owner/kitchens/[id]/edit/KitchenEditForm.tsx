@@ -37,14 +37,19 @@ export default function KitchenEditForm({ kitchen }: KitchenEditFormProps) {
         : undefined,
     }
 
-    const result = await updateKitchen(kitchen.id, data)
+    try {
+      const result = await updateKitchen(kitchen.id, data)
 
-    if (result.error) {
-      setError(result.error)
-    } else {
-      setSuccess(true)
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setSuccess(true)
+      }
+    } catch {
+      setError('An unexpected error occurred. Please try again.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
