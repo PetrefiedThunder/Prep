@@ -48,8 +48,13 @@ export async function uploadKitchenPhoto(formData: FormData) {
     return { error: 'Unauthorized: You do not own this kitchen' }
   }
 
-  // Generate unique file path
-  const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  // Map MIME type to safe file extension (don't trust user-supplied extension)
+  const MIME_TO_EXT: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+  }
+  const fileExt = MIME_TO_EXT[file.type] || 'jpg'
   const storagePath = `${kitchenId}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`
 
   // Upload to Supabase Storage
@@ -206,11 +211,16 @@ export async function setPhotoAsPrimary(photoId: string) {
   }
 
   // Unset current primary
-  await supabase
+  const { error: unsetError } = await supabase
     .from('kitchen_photos')
     .update({ is_primary: false })
     .eq('kitchen_id', photo.kitchen_id)
     .eq('is_primary', true)
+
+  if (unsetError) {
+    logError('Failed to unset current primary photo', { error: unsetError.message, kitchenId: photo.kitchen_id })
+    return { error: 'Failed to update primary photo' }
+  }
 
   // Set new primary
   const { error } = await supabase
