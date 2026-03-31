@@ -127,6 +127,48 @@ Retrieves a single kitchen by ID with photos and owner info.
 
 ---
 
+### Photo Actions (`lib/actions/photos.ts`)
+
+#### `uploadKitchenPhoto(formData: FormData)`
+
+Uploads a kitchen photo to Supabase Storage and creates a database record.
+
+**Parameters (FormData):**
+- `file` — Image file (JPEG, PNG, or WebP, max 5MB)
+- `kitchenId` — UUID of the kitchen
+
+**Returns:** `{ data: KitchenPhoto } | { error: string }`
+
+**Authorization:** Must be authenticated and own the kitchen
+
+**Notes:**
+- First photo uploaded is automatically set as primary
+- Files are stored in the `kitchen-photos` Supabase Storage bucket at `{kitchenId}/{timestamp}-{random}.{ext}`
+
+#### `deleteKitchenPhoto(photoId: string)`
+
+Deletes a photo from storage and the database. If the deleted photo was primary, the next photo (by sort order) is promoted.
+
+**Returns:** `{ success: true } | { error: string }`
+
+**Authorization:** Must own the kitchen
+
+#### `setPhotoAsPrimary(photoId: string)`
+
+Sets a photo as the primary (cover) image for a kitchen.
+
+**Returns:** `{ success: true } | { error: string }`
+
+**Authorization:** Must own the kitchen
+
+#### `getKitchenPhotos(kitchenId: string)`
+
+Returns all photos for a kitchen, ordered by `sort_order`.
+
+**Returns:** `{ data: KitchenPhoto[] } | { error: string }`
+
+---
+
 ### Stripe Actions (`lib/actions/stripe.ts`)
 
 #### `createConnectAccount()`

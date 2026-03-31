@@ -35,6 +35,9 @@ export default function NewKitchenPage() {
     if (result.error) {
       setError(result.error)
       setLoading(false)
+    } else if (result.data) {
+      // Redirect to edit page so owner can add photos
+      router.push(`/owner/kitchens/${result.data.id}/edit`)
     } else {
       router.push('/owner/kitchens')
     }

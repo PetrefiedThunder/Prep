@@ -13,6 +13,8 @@ function validateStripeKey() {
   }
 }
 
+// Pin API version to 2023-10-16 for stability — Stripe SDK v20 expects '2025-11-17.clover'
+// but our webhook handler and payment flow depend on the older API behavior.
 export const stripe = new Stripe(stripeSecretKey, {
   apiVersion: '2023-10-16' as unknown as Stripe.StripeConfig['apiVersion'],
 })

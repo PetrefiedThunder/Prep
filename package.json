@@ -11,16 +11,16 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@stripe/stripe-js": "^8.5.3",
+    "@stripe/stripe-js": "^8.11.0",
     "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.86.0",
-    "next": "^16.1.5",
+    "@supabase/supabase-js": "^2.101.1",
+    "next": "^14.2.35",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "stripe": "^20.0.0"
+    "stripe": "^20.4.1"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^20.19.37",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.17",

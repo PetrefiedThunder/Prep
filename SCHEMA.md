@@ -82,7 +82,8 @@ Photos associated with kitchen listings.
 |--------|------|-------------|
 | id | UUID (PK) | Photo identifier |
 | kitchen_id | UUID (FK) | References `kitchens.id` |
-| url | TEXT | Photo URL (Supabase Storage or external) |
+| url | TEXT | Public URL (Supabase Storage or external) |
+| storage_path | TEXT | Supabase Storage path (for deletion) |
 | is_primary | BOOLEAN | Primary listing photo |
 | sort_order | INTEGER | Display order |
 | created_at | TIMESTAMPTZ | Upload timestamp |
@@ -97,9 +98,12 @@ Photos associated with kitchen listings.
 - Cascade delete when kitchen is deleted
 
 **Notes:**
-- Typically store photos in Supabase Storage and reference URLs here
+- Photos are uploaded to Supabase Storage bucket `kitchen-photos`
+- `storage_path` tracks the file path in storage (used for deletion)
+- `url` is the public URL for display; `storage_path` is nullable (for backward compat with URL-only records)
 - `is_primary = true` indicates the main listing photo
 - `sort_order` controls gallery display order
+- Storage RLS: owners can upload/delete to `{kitchen_id}/` folders; photos are publicly viewable
 
 ---
 

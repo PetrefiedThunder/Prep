@@ -88,6 +88,7 @@ CREATE TABLE public.kitchen_photos (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   kitchen_id UUID REFERENCES public.kitchens(id) ON DELETE CASCADE NOT NULL,
   url TEXT NOT NULL,
+  storage_path TEXT,
   is_primary BOOLEAN DEFAULT false NOT NULL,
   sort_order INTEGER DEFAULT 0 NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
