@@ -1,0 +1,46 @@
+name: Auto-merge Claude PRs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build-test-merge:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the PR branch
+      - uses: actions/checkout@v4
+
+      # Set up Node.js matching the project's requirements
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # Install dependencies using lockfile for reproducibility
+      - run: npm ci
+
+      # Type checking and compilation — catches TypeScript errors
+      - name: Build
+        run: npm run build
+
+      # Linting — catches style and quality issues
+      - name: Lint
+        run: npm run lint
+
+      # Run the test suite
+      - name: Test
+        run: npm test
+
+      # If all checks pass, enable auto-merge on this PR
+      # Uses squash merge to keep main branch history clean
+      - name: Enable auto-merge
+        if: success()
+        run: gh pr merge --squash --auto "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
